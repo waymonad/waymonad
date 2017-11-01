@@ -1,0 +1,2 @@
+packages: ./ hsroots hsroots/haskell-wayland hsroots/haskell-xkbcommon
+

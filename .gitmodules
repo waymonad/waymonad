@@ -1,0 +1,3 @@
+[submodule "hsroots"]
+	path = hsroots
+	url = https://github.com/swaywm/hsroots
