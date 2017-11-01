@@ -4,179 +4,44 @@
 module Main
 where
 
-import Data.Maybe (fromMaybe)
-import System.IO
-import Data.Text (Text)
-import Foreign.Storable (Storable(peek))
-import XdgShell
-    ( XdgShell
-    , xdgShellCreate
-    )
-import XWayland
-    ( XWayShell
-    , xwayShellCreate
-    )
-
-import Data.Text (Text)
-import Control.Monad.IO.Class (MonadIO)
-import Waymonad
-import Shared
-import View
-import ViewSet
-
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
-import Input (Input(..), inputCreate)
-import Foreign.Ptr (Ptr, ptrToIntPtr, intPtrToPtr)
-import Data.IORef (newIORef, IORef, writeIORef, readIORef, modifyIORef)
-
-import Graphics.Wayland.Resource (resourceDestroy)
-import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixTranslate)
-import Graphics.Wayland.WlRoots.Box (WlrBox (..))
-import Graphics.Wayland.WlRoots.Render
-    ( Renderer
-    , doRender
-    , isTextureValid
-    , renderWithMatrix
-    )
-import Graphics.Wayland.WlRoots.Backend (Backend)
-import Graphics.Wayland.WlRoots.XCursor
-    ( WlrXCursor
-    , getImages
-    , WlrXCursorImage (..)
-    )
-import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
-import Graphics.Wayland.WlRoots.Compositor (WlrCompositor, compositorCreate)
-import Graphics.Wayland.WlRoots.Shell
-    ( WlrShell
-    , --shellCreate
-    )
-import Graphics.Wayland.WlRoots.DeviceManager
-    ( WlrDeviceManager
-    , managerCreate
-    )
-import Graphics.Wayland.WlRoots.OutputLayout
-    ( WlrOutputLayout
-    , createOutputLayout
-    , addOutputAuto
-    )
-import Graphics.Wayland.WlRoots.Output
-    ( Output
-    , makeOutputCurrent
-    , swapOutputBuffers
-    , getTransMatrix
-    , setCursor
-    , getOutputBox
-    )
-import Graphics.Wayland.WlRoots.Surface
-    ( surfaceGetTexture
-    , withSurfaceMatrix
-    , callbackGetResource
-    , surfaceGetCallbacks
-    , callbackGetCallback
-    , getCurrentState
-    , WlrSurface
-
-    , subSurfaceGetSurface
-    , surfaceGetSubs
-    , subSurfaceGetBox
-    )
-import Graphics.Wayland.Server
-    ( displayInitShm
-    , DisplayServer
-    , callbackDone
-    )
-import Control.Exception (bracket_)
-import Control.Monad (void, when, forM_)
-
+import Data.IORef (newIORef, IORef, writeIORef, readIORef)
 import Data.Map (Map)
+import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import Foreign.Ptr (Ptr, ptrToIntPtr, intPtrToPtr)
+import Graphics.Wayland.Server (DisplayServer, displayInitShm)
+import System.IO
 
-import qualified Data.IntMap.Strict as IM
+import Graphics.Wayland.WlRoots.Backend (Backend)
+import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
+import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
+import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
+import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
+--import Graphics.Wayland.WlRoots.Shell
+--    ( WlrShell
+--    , --shellCreate
+--    )
+
+import Compositor
+import Input (inputCreate)
+import Layout (reLayout)
+import Output (handleOutputAdd)
+import Shared (CompHooks (..), ignoreHooks, launchCompositor)
+import View (View)
+import ViewSet (Workspace(..), contains, addView, rmView, Layout (..), Full (..))
+import Waymonad (WayState, WayStateRef, LayoutCacheRef, get, modify, runLayoutCache, runWayState)
+import XWayland (xwayShellCreate)
+import XdgShell (xdgShellCreate)
+
 import qualified Data.Map.Strict as M
-
-data Compositor = Compositor
-    { compDisplay :: DisplayServer
-    , compRenderer :: Ptr Renderer
-    , compCompositor :: Ptr WlrCompositor
-    , compShell :: Ptr WlrShell
-    , compXdg :: XdgShell
-    , compManager :: Ptr WlrDeviceManager
-    , compXWayland :: XWayShell
-    , compBackend :: Ptr Backend
-    , compLayout :: Ptr WlrOutputLayout
-    , compInput :: Input
-    }
 
 intToPtr :: Integral a => a -> Ptr b
 intToPtr = intPtrToPtr . fromIntegral
 
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
-
-renderOn :: Ptr Output -> Ptr Renderer -> IO a -> IO a
-renderOn output rend act = bracket_
-    (makeOutputCurrent output)
-    (swapOutputBuffers output)
-    (doRender rend output act)
-
-outputHandleSurface :: Compositor -> Double -> Ptr Output -> Ptr WlrSurface -> Int -> Int -> IO ()
-outputHandleSurface comp secs output surface x y = do
-    texture <- surfaceGetTexture surface
-    isValid <- isTextureValid texture
-    when isValid $ withMatrix $ \trans -> do
-        matrixTranslate trans (realToFrac x) (realToFrac y) 0
-        withSurfaceMatrix surface (getTransMatrix output) trans $ \mat -> do
-            renderWithMatrix (compRenderer comp) texture mat
-
-        callbacks <- surfaceGetCallbacks =<< getCurrentState surface
-        forM_ callbacks $ \callback -> do
-            cb <- callbackGetCallback callback
-            callbackDone cb (floor $ secs * 1000)
-            res <- callbackGetResource callback
-            resourceDestroy res
-
-        subs <- surfaceGetSubs surface
-        forM_ subs $ \sub -> do
-            box <- subSurfaceGetBox sub
-            subsurf <- subSurfaceGetSurface sub
-            outputHandleSurface comp secs output subsurf (x + boxX box) (y + boxY box)
-
-outputHandleView :: Compositor -> Double -> Ptr Output -> View -> IO ()
-outputHandleView comp secs output view = do
-    surface <- getViewSurface view
-    box <- getViewBox view
-    let x = boxX box
-    let y = boxY box
-    outputHandleSurface comp secs output surface x y
-    renderViewAdditional (outputHandleSurface comp secs output) view
-
-
-frameHandler :: IORef Compositor -> Double -> Ptr Output -> LayoutCache ()
-frameHandler compRef secs output = do
-    views <- get
-    let viewsM = IM.lookup (ptrToInt output) views
-    case viewsM of
-        Nothing -> pure ()
-        Just views -> liftIO $ do
-            comp <- readIORef compRef
-            renderOn output (compRenderer comp) $ do
-                mapM_ (outputHandleView comp secs output . fst) views
-
-whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
-whenJust Nothing _ = pure ()
-whenJust (Just x) f = f x
-
-reLayout :: Ord a => LayoutCacheRef -> a -> [(a, Int)] -> WayState a ()
-reLayout cacheRef ws xs = do
-    wstate <- M.lookup ws <$> get
-
-    liftIO $ whenJust (M.lookup ws $ M.fromList xs) $ \out -> whenJust wstate $ \case
-        (Workspace _ Nothing) -> modifyIORef cacheRef $ IM.delete out
-        (Workspace (Layout l) (Just vs)) -> do
-            box <- getOutputBox $ intToPtr out
-            let layout = pureLayout l box vs
-            modifyIORef cacheRef $ IM.insert out layout
-
-            mapM_ (uncurry setViewBox) layout
 
 insertView
     :: Ord a
@@ -244,38 +109,6 @@ makeCompositor display backend ref mappings currentWS = do
         , compInput = input
         }
 
-setCursorImage :: Ptr Output -> Ptr WlrXCursor -> IO ()
-setCursorImage output xcursor = do
-    images <- getImages xcursor
-    image <- peek $ head images
-
-    setCursor
-        output
-        (xCursorImageBuffer image)
-        (xCursorImageWidth image)
-        (xCursorImageWidth image)
-        (xCursorImageHeight image)
-        (xCursorImageHotspotX image)
-        (xCursorImageHotspotY image)
-
-handleOutputAdd
-    :: IORef Compositor
-    -> LayoutCacheRef
-    -> IORef [(Text, Int)]
-    -> Ptr Output 
-    -> IO FrameHandler
-handleOutputAdd ref stateRef mapRef output = do
-    hPutStrLn stderr "Found output"
-    writeIORef mapRef [("1", ptrToInt output)]
-    comp <- readIORef ref
-
-    setCursorImage output (inputXCursor $ compInput comp)
-    hPutStrLn stderr "Set cursor image"
-    addOutputAuto (compLayout comp) output
-    hPutStrLn stderr "Added output to layout "
-
-    pure $ \secs out ->
-        runLayoutCache (frameHandler ref secs out) stateRef
 
 defaultMap :: Map Text Workspace
 defaultMap = M.fromList [("1", Workspace (Layout Full) Nothing)]

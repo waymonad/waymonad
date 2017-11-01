@@ -14,7 +14,6 @@ import Graphics.Wayland.Signal
 import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyKey, keyboardNotifyModifiers, seatSetKeyboard)
 import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
-import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard)
 import Graphics.Wayland.WlRoots.Backend (Backend)
 import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Input.Keyboard
@@ -37,7 +36,7 @@ import Foreign.StablePtr
     , castPtrToStablePtr
     )
 import Data.List (intercalate)
-import System.IO (hPutStr, hPutStrLn, stderr)
+import System.IO (hPutStrLn, stderr)
 import Control.Monad (forM_)
 
 import Text.XkbCommon.Keymap
@@ -71,7 +70,6 @@ handleKeyPress dsp backend keyboard seat ptr = do
     let keycode = fromEvdev . fromIntegral . keyCode $ event
     keyState <- getKeystate $ keyboardDevice keyboard
     syms <- getStateSymsI keyState keycode
-    let keyDir = (keyStateToDirection $ state event)
     hPutStrLn stderr . intercalate "," $ map keysymName syms
     forM_ syms $ \sym -> case sym of
         Keysym_Escape -> displayTerminate dsp

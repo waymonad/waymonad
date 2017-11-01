@@ -6,7 +6,6 @@ module XdgShell
     )
 where
 
-import System.IO
 import View
 import Waymonad
 import Control.Monad (when, filterM, forM_)

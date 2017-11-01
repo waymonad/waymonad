@@ -4,7 +4,6 @@ module Input.Cursor
 where
 
 import View (View)
-import System.IO
 import View (getViewEventSurface)
 import Data.Word (Word32)
 import Control.Monad.IO.Class (liftIO)

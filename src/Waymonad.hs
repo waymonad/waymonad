@@ -21,9 +21,6 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader, ask)
 import Data.IORef (IORef, modifyIORef, readIORef)
 
-import Data.Map (Map)
-import qualified Data.Map as M
-
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
 import View (View)

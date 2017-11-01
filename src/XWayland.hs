@@ -30,7 +30,7 @@ import qualified Data.IntMap.Strict as M
 import Data.IntMap (IntMap)
 
 data XWaySurface = XWaySurface
-    { surfXWay :: Ptr X.XWayland
+    { _surfXWay :: Ptr X.XWayland
     , unXway :: Ptr X.X11Surface
     }
 
