@@ -22,7 +22,7 @@ import Text.XkbCommon.KeysymList
 import Graphics.Wayland.WlRoots.Backend (Backend)
 import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
 import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
-import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifierToNum)
+import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 --import Graphics.Wayland.WlRoots.Shell
@@ -33,12 +33,24 @@ import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 import Compositor
 import Input (inputCreate)
 import Layout (reLayout)
-import Layout.Full (Full (..))
+--import Layout.Full (Full (..))
+import Layout.Tall (Tall (..))
 import Output (handleOutputAdd)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import View (View)
-import ViewSet (Workspace(..), contains, addView, rmView, Layout (..), moveRight)
-import Waymonad (WayState, WayStateRef, LayoutCacheRef, get, modify, runLayoutCache, runWayState, BindingMap)
+import ViewSet (Workspace(..), contains, addView, rmView, Layout (..), moveRight, moveLeft)
+import Waymonad
+    ( WayState
+    , WayStateRef
+    , LayoutCacheRef
+    , get
+    , modify
+    , runLayoutCache
+    , runWayState
+    , BindingMap
+    , KeyBinding
+    )
+import WayUtil (modifyCurrentWS)
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
@@ -78,22 +90,16 @@ removeView cacheRef wsMapping view = do
             hPutStrLn stderr "Found a view in a number of workspaces that's not 1!"
             hPutStrLn stderr $ show $ map fst xs
 
-bindings :: Ord a => BindingMap a
-bindings = M.fromList
-    [ ((modifierToNum modi, case keysym_j of (Keysym x) -> x),
-        \_ cacheRef currentOut wsMapping stateRef ->
-            runWayState (do
-                mapping <- liftIO $ readIORef wsMapping
-                current <- liftIO $ readIORef currentOut
-                case M.lookup current . M.fromList $ map swap mapping of
-                    Nothing -> pure ()
-                    Just ws -> do
-                        modify $ M.adjust moveRight ws
-                        reLayout cacheRef ws mapping) stateRef)
-
-
+bindings :: Ord a => [(([WlrModifier], Keysym), KeyBinding a)]
+bindings =
+    [ (([modi], keysym_j), modifyCurrentWS moveRight)
+    , (([modi], keysym_k), modifyCurrentWS moveLeft)
     ]
     where modi = Alt
+
+makeBindingMap :: Ord a => [(([WlrModifier], Keysym), KeyBinding a)] -> BindingMap a
+makeBindingMap = M.fromList .
+    map (\((mods, Keysym sym), fun) -> ((modifiersToField mods, sym), fun))
 
 makeCompositor
     :: (Ord a, Show a)
@@ -115,7 +121,7 @@ makeCompositor display backend ref mappings currentOut = do
     xway <- xwayShellCreate display comp addFun delFun
     layout <- liftIO $ createOutputLayout
     stateRef <- ask
-    input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef bindings) ref
+    input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef (makeBindingMap bindings)) ref
     pure $ Compositor
         { compDisplay = display
         , compRenderer = renderer
@@ -135,7 +141,7 @@ workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 defaultMap :: Ord a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
-    map (, Workspace (Layout Full) Nothing) xs
+    map (, Workspace (Layout Tall) Nothing) xs
 
 realMain :: IO ()
 realMain = do

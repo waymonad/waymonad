@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module Waymonad
     ( get
     , modify
@@ -7,6 +8,7 @@ module Waymonad
     , WayStateRef
     , WayState
     , runWayState
+    , runWayState'
 
     , LayoutCacheRef
     , LayoutCache
@@ -16,11 +18,14 @@ module Waymonad
 
     , KeyBinding
     , BindingMap
+
+    , WayBindingState (..)
+    , runWayBinding
     )
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Reader (ReaderT(..), MonadReader, ask)
+import Control.Monad.Reader (ReaderT(..), MonadReader(..))
 import Data.IORef (IORef, modifyIORef, readIORef)
 import Data.Map (Map)
 import Data.Word (Word32)
@@ -29,10 +34,11 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Box (Point, WlrBox)
 import Graphics.Wayland.WlRoots.Seat (WlrSeat)
 
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IM
 import View (View)
 import qualified ViewSet as VS
+
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IM
 
 
 -- All of this makes for a fake `Monad State` in IO
@@ -63,6 +69,9 @@ modify fun = do
 runWayState :: MonadIO m =>  WayState a b -> WayStateRef a -> m b
 runWayState (WayState m) ref = liftIO $ runReaderT m ref
 
+runWayState' :: MonadIO m => WayStateRef a -> WayState a b -> m b
+runWayState' ref act = runWayState act ref
+
 runLayoutCache :: MonadIO m => LayoutCache a -> LayoutCacheRef -> m a
 runLayoutCache (LayoutCache m) ref = liftIO $ runReaderT m ref
 
@@ -73,5 +82,19 @@ viewBelow point ws = do
         Nothing -> pure Nothing
         Just x -> liftIO $ VS.viewBelow point x
 
-type KeyBinding a = Ptr WlrSeat -> LayoutCacheRef -> IORef Int -> IORef [(a, Int)] -> WayStateRef a -> IO ()
+data WayBindingState a = WayBindingState
+    { wayBindingCache :: LayoutCacheRef
+    , wayBindingState :: WayStateRef a
+    , wayBindingCurrent :: IORef Int
+    , wayBindingMapping :: IORef [(a, Int)]
+    , wayBindingSeat :: Ptr WlrSeat
+    }
+
+newtype WayBinding a b = WayBinding (ReaderT (WayBindingState a) IO b)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState a))
+
+runWayBinding :: MonadIO m => WayBindingState a -> WayBinding a b -> m b
+runWayBinding val (WayBinding act) = liftIO $ runReaderT act val
+
+type KeyBinding a = WayBinding a ()
 type BindingMap a = Map (Word32, Int) (KeyBinding a)

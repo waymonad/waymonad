@@ -22,6 +22,9 @@ data Workspace = Workspace
     , wsViews :: Maybe (Zipper View)
     }
 
+getFocused :: Workspace -> Maybe View
+getFocused (Workspace _ z) = fmap zipFoc z
+
 addView :: View -> Workspace -> Workspace
 addView v (Workspace l z) = Workspace l $ addElem v z
 
@@ -52,7 +55,7 @@ data SomeMessage = forall m. Message m => SomeMessage m
 
 addElem' :: Maybe (Zipper a) -> a -> Zipper a
 addElem' Nothing v = Zipper [] v []
-addElem' (Just (Zipper pre foc pos)) v = Zipper pre foc (v:pos)
+addElem' (Just (Zipper pre foc pos)) v = Zipper pre v (foc:pos)
 
 -- This asumes the element is in the zipper only once!
 rmElem' :: Eq a => a -> Zipper a -> Maybe (Zipper a)
@@ -123,3 +126,11 @@ moveRight' :: Zipper a -> Zipper a
 moveRight' z@(Zipper [] _ []) = z
 moveRight' (Zipper xs a (y:ys)) = Zipper (snoc a xs) y ys
 moveRight' (Zipper (x:xs) a []) = Zipper [] x (snoc a xs)
+
+moveLeft :: Workspace -> Workspace
+moveLeft (Workspace l z) = Workspace l $ fmap moveLeft' z
+
+moveLeft' :: Zipper a -> Zipper a
+moveLeft' z@(Zipper [] _ []) = z
+moveLeft' (Zipper xs@(_:_) a ys) = Zipper (init xs) (last xs) (a:ys)
+moveLeft' (Zipper [] a ys@(_:_)) = Zipper (a:init ys) (last ys) []

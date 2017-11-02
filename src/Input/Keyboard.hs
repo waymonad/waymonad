@@ -41,7 +41,7 @@ import Foreign.StablePtr
     )
 import Control.Monad (forM, when)
 
-import Waymonad (WayStateRef, LayoutCacheRef, BindingMap)
+import Waymonad (WayStateRef, LayoutCacheRef, BindingMap, WayBindingState (..), runWayBinding)
 
 import Text.XkbCommon.Keymap
 import Text.XkbCommon.Types
@@ -74,16 +74,16 @@ handleKeyPress
     :: Ord a
     => DisplayServer
     -> Ptr Backend
+    -> Ptr WlrSeat
     -> Word32
     -> Keysym
-    -> Ptr WlrSeat
     -> LayoutCacheRef
     -> IORef Int
     -> IORef [(a, Int)]
     -> WayStateRef a
     -> BindingMap a
     -> IO Bool
-handleKeyPress dsp backend modifiers sym@(Keysym key) seat cacheRef currentOut wsMapping stateRef bindings = case sym of
+handleKeyPress dsp backend seat modifiers sym@(Keysym key) cacheRef currentOut wsMapping stateRef bindings = case sym of
         Keysym_Escape -> displayTerminate dsp >> pure True
         -- Would be cooler if this wasn't a listing of VTs (probably TH)
         Keysym_XF86Switch_VT_1  -> switchVT backend 1  >> pure True
@@ -100,7 +100,8 @@ handleKeyPress dsp backend modifiers sym@(Keysym key) seat cacheRef currentOut w
         Keysym_XF86Switch_VT_12 -> switchVT backend 12 >> pure True
         _ -> case M.lookup (modifiers, key) bindings of
                 Nothing -> pure False
-                Just fun -> fun seat cacheRef currentOut wsMapping stateRef >> pure True
+                Just fun -> let state = WayBindingState cacheRef stateRef currentOut wsMapping seat
+                             in runWayBinding state fun >> pure True
 
 
 
@@ -132,7 +133,7 @@ handleKeyEvent dsp backend keyboard seat cacheRef currentOut wsMapping stateRef 
         -- We currently don't do anything special for releases
         KeyReleased -> pure False
         KeyPressed ->
-            handleKeyPress dsp backend modifiers sym seat cacheRef currentOut wsMapping stateRef bindings
+            handleKeyPress dsp backend seat modifiers sym cacheRef currentOut wsMapping stateRef bindings
 
     when (not $ foldr (||) False handled) $ tellClient seat keyboard event
 

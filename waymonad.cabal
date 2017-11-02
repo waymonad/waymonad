@@ -67,9 +67,11 @@ executable waymonad
   other-modules:        Layout
   other-modules:        Output
   other-modules:        Utility
+  other-modules:        WayUtil
   other-modules:        Compositor
 
   other-modules:        Layout.Full
+  other-modules:        Layout.Tall
 
   
   -- LANGUAGE extensions used by modules in this package.
