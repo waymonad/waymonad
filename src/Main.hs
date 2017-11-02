@@ -11,7 +11,7 @@ import Data.IORef (newIORef, IORef, writeIORef, readIORef)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Tuple (swap)
-import Foreign.Ptr (Ptr, ptrToIntPtr, intPtrToPtr)
+import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer, displayInitShm)
 import System.IO
 
@@ -37,12 +37,6 @@ import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
 import qualified Data.Map.Strict as M
-
-intToPtr :: Integral a => a -> Ptr b
-intToPtr = intPtrToPtr . fromIntegral
-
-ptrToInt :: Num b => Ptr a -> b
-ptrToInt = fromIntegral . ptrToIntPtr
 
 insertView
     :: Ord a
@@ -87,8 +81,8 @@ makeCompositor
     -> IORef [(a, Int)]
     -> IORef Int
     -> WayState a Compositor
-makeCompositor display backend ref mappings currentWS = do
-    let addFun = insertView ref currentWS mappings
+makeCompositor display backend ref mappings currentOut = do
+    let addFun = insertView ref currentOut mappings
     let delFun = removeView ref mappings
     renderer <- liftIO $ rendererCreate backend
     void $ liftIO $ displayInitShm display
@@ -98,7 +92,7 @@ makeCompositor display backend ref mappings currentWS = do
     xdgShell <- xdgShellCreate display   addFun delFun
     xway <- xwayShellCreate display comp addFun delFun
     layout <- liftIO $ createOutputLayout
-    input <- runLayoutCache (inputCreate display layout backend) ref
+    input <- runLayoutCache (inputCreate display layout backend currentOut) ref
     pure $ Compositor
         { compDisplay = display
         , compRenderer = renderer

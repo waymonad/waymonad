@@ -4,6 +4,7 @@ module Input
     )
 where
 
+import Data.IORef (IORef)
 import Foreign.Storable (Storable(peek))
 import Control.Monad.IO.Class (liftIO)
 import Input.Keyboard
@@ -61,12 +62,12 @@ setXCursorImage cursor xcursor = do
         (xCursorImageHotspotX image)
         (xCursorImageHotspotY image)
 
-inputCreate :: DisplayServer -> Ptr WlrOutputLayout -> Ptr Backend -> LayoutCache Input
-inputCreate display layout backend = do
+inputCreate :: DisplayServer -> Ptr WlrOutputLayout -> Ptr Backend -> IORef Int -> LayoutCache Input
+inputCreate display layout backend currentOut = do
     theme   <- liftIO $ loadCursorTheme "default" 16
     xcursor <- liftIO $ getCursor theme "left_ptr"
     seat    <- liftIO $ createSeat display "seat0"
-    cursor  <- cursorCreate layout seat
+    cursor  <- cursorCreate layout seat currentOut
 
     liftIO $ setSeatCapabilities seat [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
 
