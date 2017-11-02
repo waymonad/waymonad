@@ -50,13 +50,6 @@ class Typeable m => Message m
 
 data SomeMessage = forall m. Message m => SomeMessage m
 
-data Full = Full
-
-instance LayoutClass Full where
-    description _ = "Full"
-    handleMessage _ _ = Nothing
-    pureLayout _ box zipper  = [(zipFoc zipper, box)]
-
 addElem' :: Maybe (Zipper a) -> a -> Zipper a
 addElem' Nothing v = Zipper [] v []
 addElem' (Just (Zipper pre foc pos)) v = Zipper pre foc (v:pos)
@@ -120,3 +113,13 @@ instance Traversable Zipper where
         right <- mapM fun pos
         pure $ Zipper left middle right
 
+snoc :: a -> [a] -> [a]
+snoc x xs = xs ++ [x]
+
+moveRight :: Workspace -> Workspace
+moveRight (Workspace l z) = Workspace l $ fmap moveRight' z
+
+moveRight' :: Zipper a -> Zipper a
+moveRight' z@(Zipper [] _ []) = z
+moveRight' (Zipper xs a (y:ys)) = Zipper (snoc a xs) y ys
+moveRight' (Zipper (x:xs) a []) = Zipper [] x (snoc a xs)

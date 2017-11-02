@@ -5,6 +5,7 @@
 module Main
 where
 
+import Control.Monad.Reader (ask)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
@@ -15,9 +16,13 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer, displayInitShm)
 import System.IO
 
+import Text.XkbCommon.InternalTypes (Keysym(..))
+import Text.XkbCommon.KeysymList
+
 import Graphics.Wayland.WlRoots.Backend (Backend)
 import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
 import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
+import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifierToNum)
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 --import Graphics.Wayland.WlRoots.Shell
@@ -28,11 +33,12 @@ import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 import Compositor
 import Input (inputCreate)
 import Layout (reLayout)
+import Layout.Full (Full (..))
 import Output (handleOutputAdd)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import View (View)
-import ViewSet (Workspace(..), contains, addView, rmView, Layout (..), Full (..))
-import Waymonad (WayState, WayStateRef, LayoutCacheRef, get, modify, runLayoutCache, runWayState)
+import ViewSet (Workspace(..), contains, addView, rmView, Layout (..), moveRight)
+import Waymonad (WayState, WayStateRef, LayoutCacheRef, get, modify, runLayoutCache, runWayState, BindingMap)
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
@@ -72,6 +78,22 @@ removeView cacheRef wsMapping view = do
             hPutStrLn stderr "Found a view in a number of workspaces that's not 1!"
             hPutStrLn stderr $ show $ map fst xs
 
+bindings :: Ord a => BindingMap a
+bindings = M.fromList
+    [ ((modifierToNum modi, case keysym_j of (Keysym x) -> x),
+        \_ cacheRef currentOut wsMapping stateRef ->
+            runWayState (do
+                mapping <- liftIO $ readIORef wsMapping
+                current <- liftIO $ readIORef currentOut
+                case M.lookup current . M.fromList $ map swap mapping of
+                    Nothing -> pure ()
+                    Just ws -> do
+                        modify $ M.adjust moveRight ws
+                        reLayout cacheRef ws mapping) stateRef)
+
+
+    ]
+    where modi = Alt
 
 makeCompositor
     :: (Ord a, Show a)
@@ -92,7 +114,8 @@ makeCompositor display backend ref mappings currentOut = do
     xdgShell <- xdgShellCreate display   addFun delFun
     xway <- xwayShellCreate display comp addFun delFun
     layout <- liftIO $ createOutputLayout
-    input <- runLayoutCache (inputCreate display layout backend currentOut) ref
+    stateRef <- ask
+    input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef bindings) ref
     pure $ Compositor
         { compDisplay = display
         , compRenderer = renderer

@@ -13,13 +13,21 @@ module Waymonad
     , runLayoutCache
 
     , viewBelow
+
+    , KeyBinding
+    , BindingMap
     )
 where
 
-import Graphics.Wayland.WlRoots.Box (Point, WlrBox)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader, ask)
 import Data.IORef (IORef, modifyIORef, readIORef)
+import Data.Map (Map)
+import Data.Word (Word32)
+import Foreign.Ptr (Ptr)
+
+import Graphics.Wayland.WlRoots.Box (Point, WlrBox)
+import Graphics.Wayland.WlRoots.Seat (WlrSeat)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
@@ -64,3 +72,6 @@ viewBelow point ws = do
     case IM.lookup ws fullCache of
         Nothing -> pure Nothing
         Just x -> liftIO $ VS.viewBelow point x
+
+type KeyBinding a = Ptr WlrSeat -> LayoutCacheRef -> IORef Int -> IORef [(a, Int)] -> WayStateRef a -> IO ()
+type BindingMap a = Map (Word32, Int) (KeyBinding a)

@@ -4,6 +4,7 @@ module Input
     )
 where
 
+import Control.Monad.Reader (ask)
 import Data.IORef (IORef)
 import Foreign.Storable (Storable(peek))
 import Control.Monad.IO.Class (liftIO)
@@ -38,13 +39,25 @@ data Input = Input
     , inputAddToken :: ListenerToken
     }
 
-handleInputAdd :: Ptr WlrCursor -> DisplayServer -> Ptr Backend -> Ptr WlrSeat -> Ptr InputDevice -> IO ()
-handleInputAdd cursor dsp backend seat ptr = do
+handleInputAdd
+    :: Ord a
+    => Ptr WlrCursor
+    -> DisplayServer
+    -> Ptr Backend
+    -> Ptr WlrSeat
+    -> LayoutCacheRef
+    -> IORef Int
+    -> IORef [(a, Int)]
+    -> WayStateRef a
+    -> BindingMap a
+    -> Ptr InputDevice
+    -> IO ()
+handleInputAdd cursor dsp backend seat cacheRef currentOut wsMapping stateRef bindings ptr = do
     putStr "Found a new input of type: "
     iType <- inputDeviceType ptr
     print iType
     case iType of
-        (DeviceKeyboard kptr) -> handleKeyboardAdd dsp backend seat ptr kptr
+        (DeviceKeyboard kptr) -> handleKeyboardAdd dsp backend seat cacheRef currentOut wsMapping stateRef bindings ptr kptr
         (DevicePointer pptr) -> handlePointer cursor ptr pptr
         _ -> pure ()
 
@@ -62,8 +75,17 @@ setXCursorImage cursor xcursor = do
         (xCursorImageHotspotX image)
         (xCursorImageHotspotY image)
 
-inputCreate :: DisplayServer -> Ptr WlrOutputLayout -> Ptr Backend -> IORef Int -> LayoutCache Input
-inputCreate display layout backend currentOut = do
+inputCreate
+    :: Ord a
+    => DisplayServer
+    -> Ptr WlrOutputLayout
+    -> Ptr Backend
+    -> IORef Int
+    -> IORef [(a, Int)]
+    -> WayStateRef a
+    -> BindingMap a
+    -> LayoutCache Input
+inputCreate display layout backend currentOut wsMapping stateRef bindings = do
     theme   <- liftIO $ loadCursorTheme "default" 16
     xcursor <- liftIO $ getCursor theme "left_ptr"
     seat    <- liftIO $ createSeat display "seat0"
@@ -75,9 +97,11 @@ inputCreate display layout backend currentOut = do
         (cursorRoots $ cursor)
         xcursor
 
+    cacheRef <- ask
 
     let signals = backendGetSignals backend
-    tok <- liftIO $ addListener (WlListener $ handleInputAdd (cursorRoots cursor) display backend seat) (inputAdd signals)
+
+    tok <- liftIO $ addListener (WlListener $ handleInputAdd (cursorRoots cursor) display backend seat cacheRef currentOut wsMapping stateRef bindings) (inputAdd signals)
 
     pure Input
         { inputCursorTheme = theme

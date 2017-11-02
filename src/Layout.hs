@@ -4,26 +4,18 @@ module Layout
     )
 where
 
-import Foreign.Ptr (Ptr, intPtrToPtr)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef)
 
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
+import Utility (whenJust, intToPtr)
 import View (setViewBox)
-import Waymonad (LayoutCacheRef, get, WayState)
 import ViewSet (Workspace(..), Layout (..), pureLayout)
+import Waymonad (LayoutCacheRef, get, WayState)
 
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
-
-intToPtr :: Integral a => a -> Ptr b
-intToPtr = intPtrToPtr . fromIntegral
-
-whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
-whenJust Nothing _ = pure ()
-whenJust (Just x) f = f x
-
 
 reLayout :: Ord a => LayoutCacheRef -> a -> [(a, Int)] -> WayState a ()
 reLayout cacheRef ws xs = do
