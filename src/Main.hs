@@ -1,15 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 module Main
 where
 
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
-import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
+import Data.Tuple (swap)
 import Foreign.Ptr (Ptr, ptrToIntPtr, intPtrToPtr)
 import Graphics.Wayland.Server (DisplayServer, displayInitShm)
 import System.IO
@@ -46,16 +47,18 @@ ptrToInt = fromIntegral . ptrToIntPtr
 insertView
     :: Ord a
     => LayoutCacheRef
-    -> IORef a
+    -> IORef Int
     -> IORef [(a, Int)]
     -> View
     -> WayState a ()
-insertView cacheRef currentWS wsMapping view = do
+insertView cacheRef currentOut wsMapping view = do
     mapping <- liftIO $ readIORef wsMapping
-    ws <- liftIO $ readIORef currentWS
-
-    modify $ M.adjust (addView view) ws
-    reLayout cacheRef ws mapping
+    current <- liftIO $ readIORef currentOut
+    case M.lookup current . M.fromList $ map swap mapping of
+        Nothing -> liftIO $ hPutStrLn stderr "Couldn't lookup workspace for current output"
+        Just ws -> do
+            modify $ M.adjust (addView view) ws
+            reLayout cacheRef ws mapping
 
 removeView
     :: (Ord a, Show a)
@@ -82,7 +85,7 @@ makeCompositor
     -> Ptr Backend
     -> LayoutCacheRef
     -> IORef [(a, Int)]
-    -> IORef a
+    -> IORef Int
     -> WayState a Compositor
 makeCompositor display backend ref mappings currentWS = do
     let addFun = insertView ref currentWS mappings
@@ -109,24 +112,28 @@ makeCompositor display backend ref mappings currentWS = do
         , compInput = input
         }
 
+workspaces :: [Text]
+workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
-defaultMap :: Map Text Workspace
-defaultMap = M.fromList [("1", Workspace (Layout Full) Nothing)]
+
+defaultMap :: Ord a => [a] -> IO (WayStateRef a)
+defaultMap xs = newIORef $ M.fromList $
+    map (, Workspace (Layout Full) Nothing) xs
 
 realMain :: IO ()
 realMain = do
-    stateRef :: WayStateRef Text  <- newIORef defaultMap
+    stateRef  <- defaultMap workspaces
     layoutRef <- newIORef mempty
     dpRef <- newIORef undefined
     compRef <- newIORef undefined
     mapRef <- newIORef []
-    currentRef <- newIORef "1"
+    currentRef <- newIORef 0
     launchCompositor ignoreHooks
         { displayHook = writeIORef dpRef
         , backendPreHook = \backend -> do
             dsp <- readIORef dpRef
             writeIORef compRef =<< runWayState (makeCompositor dsp backend layoutRef mapRef currentRef) stateRef
-          , outputAddHook = handleOutputAdd compRef layoutRef mapRef
+          , outputAddHook = handleOutputAdd compRef layoutRef workspaces mapRef currentRef
         }
     pure ()
 

@@ -64,6 +64,8 @@ executable waymonad
   other-modules:        Input.Cursor
   other-modules:        Waymonad
   other-modules:        ViewSet
+  other-modules:        Layout
+  other-modules:        Output
   
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:    EmptyDataDecls, NumDecimals, ScopedTypeVariables, OverloadedStrings, LambdaCase, ExistentialQuantification, StandaloneDeriving, TupleSections, InstanceSigs, GeneralizedNewtypeDeriving, FlexibleContexts, FlexibleInstances

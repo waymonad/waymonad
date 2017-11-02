@@ -5,23 +5,23 @@ module Output
 where
 
 import Control.Exception (bracket_)
+import Data.List ((\\))
 import Control.Monad (when, forM_)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (IORef, writeIORef, readIORef)
-import Data.Text (Text)
+import Data.IORef (IORef, readIORef, modifyIORef, writeIORef)
 import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Graphics.Wayland.Server (callbackDone)
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPutStr, hPutStrLn, stderr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..))
+import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
 import Graphics.Wayland.WlRoots.Output
     ( Output
     , getTransMatrix
     , swapOutputBuffers
     , makeOutputCurrent
-    , setCursor
     )
 import Graphics.Wayland.WlRoots.OutputLayout (addOutputAuto)
 import Graphics.Wayland.WlRoots.Render
@@ -50,7 +50,8 @@ import Graphics.Wayland.WlRoots.XCursor
     )
 
 import Compositor
-import Input (Input(inputXCursor))
+import Input (Input(inputXCursor, inputCursor))
+import Input.Cursor (cursorRoots)
 import Shared (FrameHandler)
 import View (View, getViewSurface, renderViewAdditional, getViewBox)
 import Waymonad (LayoutCacheRef, LayoutCache, get, runLayoutCache)
@@ -101,21 +102,22 @@ outputHandleView comp secs output view = do
 frameHandler :: IORef Compositor -> Double -> Ptr Output -> LayoutCache ()
 frameHandler compRef secs output = do
     views <- get
+    comp <- liftIO $ readIORef compRef
     let viewsM = IM.lookup (ptrToInt output) views
-    case viewsM of
+    liftIO $ renderOn output (compRenderer comp) $ case viewsM of
         Nothing -> pure ()
-        Just wsViews -> liftIO $ do
-            comp <- readIORef compRef
-            renderOn output (compRenderer comp) $ do
-                mapM_ (outputHandleView comp secs output . fst) wsViews
+        Just wsViews ->
+            mapM_ (outputHandleView comp secs output . fst) wsViews
 
-setCursorImage :: Ptr Output -> Ptr WlrXCursor -> IO ()
-setCursorImage output xcursor = do
+setXCursorImage :: Ptr WlrCursor -> Ptr WlrXCursor -> IO ()
+setXCursorImage cursor xcursor = do
     images <- getImages xcursor
     image <- peek $ head images
 
-    setCursor
-        output
+    hPutStrLn stderr $ show image
+
+    setCursorImage
+        cursor
         (xCursorImageBuffer image)
         (xCursorImageWidth image)
         (xCursorImageWidth image)
@@ -124,20 +126,33 @@ setCursorImage output xcursor = do
         (xCursorImageHotspotY image)
 
 handleOutputAdd
-    :: IORef Compositor
+    :: (Eq a, Show a)
+    => IORef Compositor
     -> LayoutCacheRef
-    -> IORef [(Text, Int)]
-    -> Ptr Output 
+    -> [a]
+    -> IORef [(a, Int)]
+    -> IORef Int
+    -> Ptr Output
     -> IO FrameHandler
-handleOutputAdd ref stateRef mapRef output = do
-    hPutStrLn stderr "Found output"
-    writeIORef mapRef [("1", ptrToInt output)]
+handleOutputAdd ref stateRef wss mapRef current output = do
+    taken <- map fst <$> readIORef mapRef
+    case wss \\ taken of
+        (x:_) -> do
+            hPutStr stderr "Attached output to "
+            hPutStrLn stderr $ show x
+            modifyIORef mapRef $ (:) (x, ptrToInt output)
+        [] -> do
+            hPutStrLn stderr "Couldn't pick a workspace for the output."
+            pure ()
+
     comp <- readIORef ref
 
-    setCursorImage output (inputXCursor $ compInput comp)
-    hPutStrLn stderr "Set cursor image"
     addOutputAuto (compLayout comp) output
-    hPutStrLn stderr "Added output to layout "
+    setXCursorImage
+        (cursorRoots $ inputCursor $ compInput comp)
+        (inputXCursor $ compInput comp)
+
+    writeIORef current $ ptrToInt output
 
     pure $ \secs out ->
         runLayoutCache (frameHandler ref secs out) stateRef

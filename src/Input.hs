@@ -4,6 +4,7 @@ module Input
     )
 where
 
+import Foreign.Storable (Storable(peek))
 import Control.Monad.IO.Class (liftIO)
 import Input.Keyboard
 import Input.Pointer
@@ -15,8 +16,8 @@ import Graphics.Wayland.WlRoots.Input
     , DeviceType(..)
     )
 import Graphics.Wayland.WlRoots.Seat (WlrSeat, createSeat, setSeatCapabilities)
-import Graphics.Wayland.WlRoots.XCursor (WlrXCursorTheme, WlrXCursor, loadCursorTheme, getCursor)
-import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setXCursor)
+import Graphics.Wayland.WlRoots.XCursor (WlrXCursorTheme, WlrXCursor, loadCursorTheme, getCursor , WlrXCursorImage (..), getImages)
+import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
 import Graphics.Wayland.Server (DisplayServer(..), seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Backend (Backend, backendGetSignals, BackendSignals(..))
@@ -46,6 +47,20 @@ handleInputAdd cursor dsp backend seat ptr = do
         (DevicePointer pptr) -> handlePointer cursor ptr pptr
         _ -> pure ()
 
+setXCursorImage :: Ptr WlrCursor -> Ptr WlrXCursor -> IO ()
+setXCursorImage cursor xcursor = do
+    images <- getImages xcursor
+    image <- peek $ head images
+
+    setCursorImage
+        cursor
+        (xCursorImageBuffer image)
+        (xCursorImageWidth image)
+        (xCursorImageWidth image)
+        (xCursorImageHeight image)
+        (xCursorImageHotspotX image)
+        (xCursorImageHotspotY image)
+
 inputCreate :: DisplayServer -> Ptr WlrOutputLayout -> Ptr Backend -> LayoutCache Input
 inputCreate display layout backend = do
     theme   <- liftIO $ loadCursorTheme "default" 16
@@ -54,7 +69,11 @@ inputCreate display layout backend = do
     cursor  <- cursorCreate layout seat
 
     liftIO $ setSeatCapabilities seat [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
-    liftIO $ setXCursor (cursorRoots cursor) xcursor
+
+    liftIO $ setXCursorImage
+        (cursorRoots $ cursor)
+        xcursor
+
 
     let signals = backendGetSignals backend
     tok <- liftIO $ addListener (WlListener $ handleInputAdd (cursorRoots cursor) display backend seat) (inputAdd signals)
