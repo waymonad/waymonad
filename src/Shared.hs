@@ -106,7 +106,7 @@ handleOutputAdd hooks output = do
     hPutStrLn stderr "Going to get modes"
     modes <- getModes output
     hPutStrLn stderr "Got my modes"
-    case listToMaybe modes of
+    case listToMaybe $ reverse modes of
         Nothing -> pure ()
         Just x -> setOutputMode x output
 
