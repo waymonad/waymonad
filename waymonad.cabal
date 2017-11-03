@@ -81,7 +81,7 @@ executable waymonad
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.6.0.1 && <5, hsroots, hayland, clock
   build-depends:       xkbcommon, containers, composition
-  build-depends:       unix, mtl, text, hsroots
+  build-depends:       unix, mtl, text, hsroots, process
   
   -- Directories containing source files.
   hs-source-dirs:      src

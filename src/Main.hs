@@ -50,7 +50,7 @@ import Waymonad
     , BindingMap
     , KeyBinding
     )
-import WayUtil (modifyCurrentWS)
+import WayUtil (modifyCurrentWS, setWorkspace, spawn)
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
@@ -90,10 +90,21 @@ removeView cacheRef wsMapping view = do
             hPutStrLn stderr "Found a view in a number of workspaces that's not 1!"
             hPutStrLn stderr $ show $ map fst xs
 
-bindings :: Ord a => [(([WlrModifier], Keysym), KeyBinding a)]
+bindings :: [(([WlrModifier], Keysym), KeyBinding Text)]
 bindings =
     [ (([modi], keysym_j), modifyCurrentWS moveRight)
     , (([modi], keysym_k), modifyCurrentWS moveLeft)
+    , (([modi], keysym_1), setWorkspace "1")
+    , (([modi], keysym_2), setWorkspace "2")
+    , (([modi], keysym_3), setWorkspace "3")
+    , (([modi], keysym_4), setWorkspace "4")
+    , (([modi], keysym_5), setWorkspace "5")
+    , (([modi], keysym_6), setWorkspace "6")
+    , (([modi], keysym_7), setWorkspace "7")
+    , (([modi], keysym_8), setWorkspace "8")
+    , (([modi], keysym_9), setWorkspace "9")
+    , (([modi], keysym_0), setWorkspace "0")
+    , (([modi], keysym_Return), spawn "weston-terminal")
     ]
     where modi = Alt
 
@@ -108,8 +119,9 @@ makeCompositor
     -> LayoutCacheRef
     -> IORef [(a, Int)]
     -> IORef Int
+    -> [(([WlrModifier], Keysym), KeyBinding a)]
     -> WayState a Compositor
-makeCompositor display backend ref mappings currentOut = do
+makeCompositor display backend ref mappings currentOut keyBinds = do
     let addFun = insertView ref currentOut mappings
     let delFun = removeView ref mappings
     renderer <- liftIO $ rendererCreate backend
@@ -121,7 +133,7 @@ makeCompositor display backend ref mappings currentOut = do
     xway <- xwayShellCreate display comp addFun delFun
     layout <- liftIO $ createOutputLayout
     stateRef <- ask
-    input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef (makeBindingMap bindings)) ref
+    input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef (makeBindingMap keyBinds)) ref
     pure $ Compositor
         { compDisplay = display
         , compRenderer = renderer
@@ -155,7 +167,7 @@ realMain = do
         { displayHook = writeIORef dpRef
         , backendPreHook = \backend -> do
             dsp <- readIORef dpRef
-            writeIORef compRef =<< runWayState (makeCompositor dsp backend layoutRef mapRef currentRef) stateRef
+            writeIORef compRef =<< runWayState (makeCompositor dsp backend layoutRef mapRef currentRef bindings) stateRef
           , outputAddHook = handleOutputAdd compRef layoutRef workspaces mapRef currentRef
         }
     pure ()
