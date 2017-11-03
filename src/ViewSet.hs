@@ -126,6 +126,8 @@ moveLeft' t (Zipper xs) =
         pos = dropWhile ((/=) (Just t) . fst) xs
      in Zipper $ case pre of
 
-            [] -> init xs ++ [(Just t, snd $ last xs)]
-            [(Just _, c)] -> (Just t, c) : (Nothing, snd $ head pos) : tail pos
-            ys -> init ys ++ (Nothing, snd $ last ys) : (Nothing, snd $ head pos) : tail pos
+            [] -> (Nothing, snd $ head xs) : init (tail xs) ++ [(Just t, snd $ last xs)]
+            [(Nothing, c)] -> (Just t, c) : (Nothing, snd $ head pos) : tail pos
+            ys -> init ys ++ (Just t, snd $ last ys) : case pos of
+                ((_, z):zs) -> (Nothing, z) : zs
+                [] -> []
