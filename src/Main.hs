@@ -106,6 +106,7 @@ bindings =
     , (([modi], keysym_9), setWorkspace "9")
     , (([modi], keysym_0), setWorkspace "0")
     , (([modi], keysym_Return), spawn "weston-terminal")
+    , (([modi], keysym_d), spawn "dmenu_run")
     ]
     where modi = Alt
 
