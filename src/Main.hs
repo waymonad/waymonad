@@ -25,6 +25,7 @@ import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
+import Graphics.Wayland.WlRoots.Screenshooter (screenshooterCreate)
 --import Graphics.Wayland.WlRoots.Shell
 --    ( WlrShell
 --    , --shellCreate
@@ -134,6 +135,7 @@ makeCompositor display backend ref mappings currentOut keyBinds = do
     layout <- liftIO $ createOutputLayout
     stateRef <- ask
     input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef (makeBindingMap keyBinds)) ref
+    shooter <- liftIO $ screenshooterCreate display renderer
     pure $ Compositor
         { compDisplay = display
         , compRenderer = renderer
@@ -145,6 +147,7 @@ makeCompositor display backend ref mappings currentOut keyBinds = do
         , compBackend = backend
         , compLayout = layout
         , compInput = input
+        , compScreenshooter = shooter
         }
 
 workspaces :: [Text]

@@ -6,6 +6,7 @@ where
 
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef)
+import System.IO (hPutStrLn, hPutStr, stderr)
 
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
@@ -29,3 +30,6 @@ reLayout cacheRef ws xs = do
             modifyIORef cacheRef $ IM.insert out layout
 
             mapM_ (uncurry setViewBox) layout
+            -- TODO: Add output name
+            hPutStr stderr "Set the layout for an output to: "
+            hPutStrLn stderr $ show $ map snd layout

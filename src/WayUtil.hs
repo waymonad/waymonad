@@ -8,6 +8,7 @@ import Control.Monad.Reader (MonadReader, ask)
 import Data.IORef (readIORef, modifyIORef)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
+--import System.IO (hPutStr, hPutStrLn, stderr)
 import System.Process (spawnCommand)
 
 import Graphics.Wayland.WlRoots.Seat (keyboardNotifyEnter)
