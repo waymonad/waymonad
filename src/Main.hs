@@ -70,7 +70,7 @@ insertView cacheRef currentOut wsMapping view = do
     case M.lookup current . M.fromList $ map swap mapping of
         Nothing -> liftIO $ hPutStrLn stderr "Couldn't lookup workspace for current output"
         Just ws -> do
-            modify $ M.adjust (addView view) ws
+            modify $ M.adjust (addView Nothing view) ws
             reLayout cacheRef ws mapping
 
 removeView

@@ -8,10 +8,11 @@ import Control.Monad.Reader (MonadReader, ask)
 import Data.IORef (readIORef, modifyIORef)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
+import Foreign.Ptr (Ptr)
 --import System.IO (hPutStr, hPutStrLn, stderr)
 import System.Process (spawnCommand)
 
-import Graphics.Wayland.WlRoots.Seat (keyboardNotifyEnter)
+import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyEnter)
 
 import Layout (reLayout)
 import Utility (whenJust)
@@ -23,7 +24,7 @@ import qualified Data.Map as M
 
 modifyCurrentWS
     :: (Ord a, MonadIO m, MonadReader (WayBindingState a) m)
-    => (Workspace -> Workspace) -> m ()
+    => (Ptr WlrSeat -> Workspace -> Workspace) -> m ()
 modifyCurrentWS fun = do
     state <- ask
     mapping <- liftIO . readIORef $ wayBindingMapping state
@@ -32,9 +33,9 @@ modifyCurrentWS fun = do
     case M.lookup current . M.fromList $ map swap mapping of
         Nothing -> pure ()
         Just ws -> runWayState' (wayBindingState state) $ do
-            preWs <- getFocused . fromJust . M.lookup ws <$> get
-            modify (M.adjust fun ws)
-            postWs <- getFocused . fromJust . M.lookup ws <$> get
+            preWs <- getFocused seat . fromJust . M.lookup ws <$> get
+            modify (M.adjust (fun seat) ws)
+            postWs <- getFocused seat . fromJust . M.lookup ws <$> get
             reLayout (wayBindingCache state) ws mapping
 
             liftIO $ when (preWs /= postWs) $ whenJust postWs $ \v ->
