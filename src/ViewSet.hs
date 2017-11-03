@@ -31,6 +31,13 @@ data Workspace = Workspace
     , wsViews :: Maybe (Zipper (Ptr WlrSeat) View)
     }
 
+getMaster :: Workspace -> Maybe View
+getMaster (Workspace _ Nothing) = Nothing
+getMaster (Workspace _ (Just (Zipper xs))) = snd <$> listToMaybe xs
+
+setFocused :: View -> Ptr WlrSeat -> Workspace -> Workspace
+setFocused v t (Workspace l z) = Workspace l $ fmap (setFocused' t v) z
+
 getFocused :: Ptr WlrSeat -> Workspace -> Maybe View
 getFocused seat (Workspace _ (Just (Zipper z))) =
     fmap snd $ find ((==) (Just seat) . fst) z
@@ -63,6 +70,14 @@ data Layout = forall l. LayoutClass l => Layout l
 class Typeable m => Message m
 
 data SomeMessage = forall m. Message m => SomeMessage m
+
+setFocused' :: Eq b => a -> b -> Zipper a b -> Zipper a b
+setFocused' t v (Zipper xs) =
+    Zipper $ map update xs
+    where   update orig@(_, x) =
+                if x == v
+                    then (Just t, x)
+                    else orig
 
 addElem' :: Eq a => Maybe a -> Maybe (Zipper a b) -> b -> Zipper a b
 addElem' _ Nothing v = Zipper [(Nothing, v)]
