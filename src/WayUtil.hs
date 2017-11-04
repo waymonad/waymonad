@@ -32,13 +32,23 @@ import Waymonad (WayBindingState(..), runWayState', modify, get)
 
 import qualified Data.Map as M
 
+getCurrent
+    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
+    => m Int
+getCurrent = do
+    state <- ask
+    currents <- liftIO . readIORef $ wayBindingCurrent state
+    let seat = wayBindingSeat state
+        (Just current) = M.lookup seat $ M.fromList currents
+    pure current
+
 modifyCurrentWS
     :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
     => (Ptr WlrSeat -> Workspace -> Workspace) -> m ()
 modifyCurrentWS fun = do
     state <- ask
     mapping <- liftIO . readIORef $ wayBindingMapping state
-    current <- liftIO . readIORef $ wayBindingCurrent state
+    current <- getCurrent
     let seat = wayBindingSeat state
     case M.lookup current . M.fromList $ map swap mapping of
         Nothing -> pure ()
@@ -51,12 +61,14 @@ modifyCurrentWS fun = do
             liftIO $ when (preWs /= postWs) $ whenJust postWs $ \v ->
                 keyboardNotifyEnter seat =<< getViewSurface v
 
+    runLog
+
 setWorkspace
     :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
     => a -> m ()
 setWorkspace ws = do
     state <- ask
-    current <- liftIO . readIORef $ wayBindingCurrent state
+    current <- getCurrent
     liftIO $ modifyIORef
         (wayBindingMapping state)
         ((:) (ws, current) . filter ((/=) current . snd))
@@ -71,19 +83,16 @@ focusMaster
 focusMaster = do
     state <- ask
     mapping <- liftIO . readIORef $ wayBindingMapping state
-    current <- liftIO . readIORef $ wayBindingCurrent state
+    current <- getCurrent
     wss <- liftIO . readIORef $ wayBindingState state
     let seat = wayBindingSeat state
-    case M.lookup current . M.fromList $ map swap mapping of
-        Nothing -> pure ()
-        Just ws -> case getMaster =<< M.lookup ws wss of
-            Nothing -> pure ()
-            Just view -> do
-                modifyCurrentWS (setFocused view)
-                liftIO $ do
-                    activateView view True
-                    surf <- getViewSurface view
-                    keyboardNotifyEnter seat surf
+        ws = M.lookup current . M.fromList $ map swap mapping
+    whenJust (getMaster =<< flip M.lookup wss =<< ws) $ \view -> do
+        modifyCurrentWS (setFocused view)
+        liftIO $ do
+            activateView view True
+            surf <- getViewSurface view
+            keyboardNotifyEnter seat surf
 
 
 spawn :: (MonadIO m) => String -> m ()
@@ -104,3 +113,15 @@ sendMessage
     :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m, Message t)
     => t -> m ()
 sendMessage m = modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
+
+runLog
+    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
+    => m ()
+runLog = do
+    state <- ask
+    liftIO $ do
+        mapping <- readIORef $ wayBindingMapping state
+        foci <- readIORef $ wayBindingCurrent state
+        layout <- readIORef $ wayBindingCache state
+        vs <- readIORef $ wayBindingState state
+        wayLogFunction state mapping foci layout vs

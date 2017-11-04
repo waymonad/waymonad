@@ -78,7 +78,7 @@ handleKeyPress
     -> Word32
     -> Keysym
     -> LayoutCacheRef
-    -> IORef Int
+    -> IORef [(Ptr WlrSeat, Int)]
     -> IORef [(a, Int)]
     -> WayStateRef a
     -> BindingMap a
@@ -100,9 +100,9 @@ handleKeyPress dsp backend seat modifiers sym@(Keysym key) cacheRef currentOut w
         Keysym_XF86Switch_VT_12 -> switchVT backend 12 >> pure True
         _ -> case M.lookup (modifiers, key) bindings of
                 Nothing -> pure False
-                Just fun -> let state = WayBindingState cacheRef stateRef currentOut wsMapping seat
+                Just fun -> let logFun _ _ _ _ = pure ()
+                                state = WayBindingState cacheRef stateRef currentOut wsMapping seat logFun
                              in runWayBinding state fun >> pure True
-
 
 
 tellClient :: Ptr WlrSeat -> Keyboard -> EventKey -> IO ()
@@ -117,7 +117,7 @@ handleKeyEvent
     -> Keyboard
     -> Ptr WlrSeat
     -> LayoutCacheRef
-    -> IORef Int
+    -> IORef [(Ptr WlrSeat, Int)]
     -> IORef [(a, Int)]
     -> WayStateRef a
     -> BindingMap a
@@ -149,7 +149,7 @@ handleKeyboardAdd
     -> Ptr Backend
     -> Ptr WlrSeat
     -> LayoutCacheRef
-    -> IORef Int
+    -> IORef [(Ptr WlrSeat, Int)]
     -> IORef [(a, Int)]
     -> WayStateRef a
     -> BindingMap a

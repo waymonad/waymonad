@@ -51,7 +51,7 @@ data Cursor = Cursor
     , cursorTokens :: [ListenerToken]
     }
 
-cursorCreate :: Ptr WlrOutputLayout -> Ptr WlrSeat -> IORef Int -> LayoutCache Cursor
+cursorCreate :: Ptr WlrOutputLayout -> Ptr WlrSeat -> IORef [(Ptr WlrSeat, Int)] -> LayoutCache Cursor
 cursorCreate layout seat currentOut = do
     cursor <- liftIO $ createCursor
     stateRef <- ask
@@ -85,7 +85,7 @@ getCursorView layout cursor = do
             viewM <- viewBelow (Point x y) index
             pure $ (,fromIntegral x,fromIntegral y) <$> viewM
 
-updatePosition :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef Int -> Word32 -> LayoutCache ()
+updatePosition :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef [(Ptr WlrSeat, Int)] -> Word32 -> LayoutCache ()
 updatePosition layout cursor seat currentOut time = do
     curX <- liftIO  $ getCursorX cursor
     curY <- liftIO  $ getCursorY cursor
@@ -95,7 +95,8 @@ updatePosition layout cursor seat currentOut time = do
 
     liftIO $ case output of
         Nothing -> pure ()
-        Just out -> writeIORef currentOut $ ptrToInt out
+        -- TODO: Make sure this works with multiseat
+        Just out -> writeIORef currentOut $ [(seat, ptrToInt out)]
 
     case viewM of
         Nothing -> liftIO $ pointerClearFocus seat
@@ -106,7 +107,7 @@ updatePosition layout cursor seat currentOut time = do
             keyboardNotifyEnter seat surf
 
 
-handleCursorMotion :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef Int -> Ptr WlrEventPointerMotion -> LayoutCache ()
+handleCursorMotion :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef [(Ptr WlrSeat, Int)] -> Ptr WlrEventPointerMotion -> LayoutCache ()
 handleCursorMotion layout cursor seat currentOut event_ptr = do
     event <- liftIO $ peek event_ptr
 
@@ -117,7 +118,7 @@ handleCursorMotion layout cursor seat currentOut event_ptr = do
         (eventPointerMotionDeltaY event)
     updatePosition layout cursor seat currentOut (fromIntegral $ eventPointerMotionTime event)
 
-handleCursorMotionAbs :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef Int -> Ptr WlrEventPointerAbsMotion -> LayoutCache ()
+handleCursorMotionAbs :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef [(Ptr WlrSeat, Int)] -> Ptr WlrEventPointerAbsMotion -> LayoutCache ()
 handleCursorMotionAbs layout cursor seat currentOut event_ptr = do
     event <- liftIO $ peek event_ptr
 

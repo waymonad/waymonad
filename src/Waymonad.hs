@@ -18,6 +18,7 @@ module Waymonad
 
     , KeyBinding
     , BindingMap
+    , LogFun
 
     , WayBindingState (..)
     , runWayBinding
@@ -85,9 +86,10 @@ viewBelow point ws = do
 data WayBindingState a = WayBindingState
     { wayBindingCache :: LayoutCacheRef
     , wayBindingState :: WayStateRef a
-    , wayBindingCurrent :: IORef Int
+    , wayBindingCurrent :: IORef [(Ptr WlrSeat, Int)]
     , wayBindingMapping :: IORef [(a, Int)]
-    , wayBindingSeat :: Ptr WlrSeat
+    , wayBindingSeat ::  (Ptr WlrSeat)
+    , wayLogFunction :: LogFun a
     }
 
 newtype WayBinding a b = WayBinding (ReaderT (WayBindingState a) IO b)
@@ -98,3 +100,4 @@ runWayBinding val (WayBinding act) = liftIO $ runReaderT act val
 
 type KeyBinding a = WayBinding a ()
 type BindingMap a = Map (Word32, Int) (KeyBinding a)
+type LogFun a = [(a, Int)] -> [(Ptr WlrSeat, Int)] -> IntMap [(View, WlrBox)] -> VS.ViewSet a -> IO ()

@@ -9,7 +9,7 @@ import Control.Monad.Reader (ask)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust)
 import Data.Text (Text)
 import Data.Tuple (swap)
 import Foreign.Ptr (Ptr)
@@ -38,7 +38,7 @@ import Layout (reLayout)
 --import Layout.Full (Full (..))
 import Layout.Tall (Tall (..))
 import Layout.ToggleFull (ToggleFull (..), TMessage (..))
-import Output (handleOutputAdd)
+import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import Utility (whenJust)
 import View (View)
@@ -73,13 +73,18 @@ insertView
     :: WSTag a
     => LayoutCacheRef
     -> Maybe (Ptr WlrSeat)
-    -> IORef Int
+    -> IORef [(Ptr WlrSeat, Int)]
     -> IORef [(a, Int)]
+    -> IORef [Int]
     -> View
     -> WayState a ()
-insertView cacheRef seat currentOut wsMapping view = do
+insertView cacheRef seat currentOut wsMapping outputsRef view = do
     mapping <- liftIO $ readIORef wsMapping
-    current <- liftIO $ readIORef currentOut
+    currents <- liftIO $ readIORef currentOut
+    outputs <- liftIO $ readIORef outputsRef
+    let current = case seat of
+            Nothing -> head outputs
+            Just s -> fromJust $ M.lookup s $ M.fromList currents
     case M.lookup current . M.fromList $ map swap mapping of
         Nothing -> liftIO $ hPutStrLn stderr "Couldn't lookup workspace for current output"
         Just ws -> do
@@ -140,29 +145,31 @@ makeCompositor
     -> Ptr Backend
     -> LayoutCacheRef
     -> IORef [(a, Int)]
-    -> IORef Int
+    -> IORef [(Ptr WlrSeat, Int)]
     -> [(([WlrModifier], Keysym), KeyBinding a)]
+    -> IORef [Int]
     -> WayState a Compositor
-makeCompositor display backend ref mappings currentOut keyBinds = do
+makeCompositor display backend ref mappings currentOut keyBinds outputs = do
     renderer <- liftIO $ rendererCreate backend
     void $ liftIO $ displayInitShm display
     comp <- liftIO $ compositorCreate display renderer
     devManager <- liftIO $ managerCreate display
---    shell <- liftIO $ shellCreate display
     layout <- liftIO $ createOutputLayout
     stateRef <- ask
     input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef (makeBindingMap keyBinds)) ref
     shooter <- liftIO $ screenshooterCreate display renderer
 
-    let addFun = insertView ref (Just $ inputSeat input) currentOut mappings
+    let addFun = insertView ref (Just $ inputSeat input) currentOut mappings outputs
     let delFun = removeView ref mappings
     xdgShell <- xdgShellCreate display   addFun delFun
     xway <- xwayShellCreate display comp addFun delFun
+
+    shell <- pure undefined
     pure $ Compositor
         { compDisplay = display
         , compRenderer = renderer
         , compCompositor = comp
-        , compShell = undefined -- shell
+        , compShell = shell
         , compXdg = xdgShell
         , compManager = devManager
         , compXWayland = xway
@@ -175,7 +182,6 @@ makeCompositor display backend ref mappings currentOut keyBinds = do
 workspaces :: [Text]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
-
 defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
     map (, Workspace (Layout (ToggleFull False Tall)) Nothing) xs
@@ -187,13 +193,15 @@ realMain = do
     dpRef <- newIORef undefined
     compRef <- newIORef undefined
     mapRef <- newIORef []
-    currentRef <- newIORef 0
+    currentRef <- newIORef []
+    outputs <- newIORef []
     launchCompositor ignoreHooks
         { displayHook = writeIORef dpRef
         , backendPreHook = \backend -> do
             dsp <- readIORef dpRef
-            writeIORef compRef =<< runWayState (makeCompositor dsp backend layoutRef mapRef currentRef bindings) stateRef
-          , outputAddHook = handleOutputAdd compRef layoutRef workspaces mapRef currentRef
+            writeIORef compRef =<< runWayState (makeCompositor dsp backend layoutRef mapRef currentRef bindings outputs) stateRef
+        , outputAddHook = handleOutputAdd compRef layoutRef workspaces mapRef outputs
+        , outputRemoveHook = handleOutputRemove mapRef outputs
         }
     pure ()
 

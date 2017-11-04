@@ -7,7 +7,7 @@ where
 
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef)
-import System.IO (hPutStrLn, hPutStr, stderr)
+import System.IO (hPutStrLn, stderr)
 
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Output
     ( handleOutputAdd
+    , handleOutputRemove
     )
 where
 
@@ -8,7 +9,7 @@ import Control.Exception (bracket_)
 import Data.List ((\\))
 import Control.Monad (when, forM_)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (IORef, readIORef, modifyIORef, writeIORef)
+import Data.IORef (IORef, readIORef, modifyIORef)
 import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Graphics.Wayland.Server (callbackDone)
@@ -131,7 +132,7 @@ handleOutputAdd
     -> LayoutCacheRef
     -> [a]
     -> IORef [(a, Int)]
-    -> IORef Int
+    -> IORef [Int]
     -> Ptr Output
     -> IO FrameHandler
 handleOutputAdd ref stateRef wss mapRef current output = do
@@ -152,7 +153,13 @@ handleOutputAdd ref stateRef wss mapRef current output = do
         (cursorRoots $ inputCursor $ compInput comp)
         (inputXCursor $ compInput comp)
 
-    writeIORef current $ ptrToInt output
+    modifyIORef current ((ptrToInt output) :)
 
     pure $ \secs out ->
         runLayoutCache (frameHandler ref secs out) stateRef
+
+handleOutputRemove :: IORef [(a, Int)] -> IORef [Int] -> Ptr Output -> IO ()
+handleOutputRemove currentRef outputs output = do
+    let val = ptrToInt output
+    modifyIORef currentRef (filter ((/=) val . snd))
+    modifyIORef outputs (\xs -> xs \\ [val])

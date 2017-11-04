@@ -46,7 +46,7 @@ handleInputAdd
     -> Ptr Backend
     -> Ptr WlrSeat
     -> LayoutCacheRef
-    -> IORef Int
+    -> IORef [(Ptr WlrSeat, Int)]
     -> IORef [(a, Int)]
     -> WayStateRef a
     -> BindingMap a
@@ -80,7 +80,7 @@ inputCreate
     => DisplayServer
     -> Ptr WlrOutputLayout
     -> Ptr Backend
-    -> IORef Int
+    -> IORef [(Ptr WlrSeat, Int)]
     -> IORef [(a, Int)]
     -> WayStateRef a
     -> BindingMap a
