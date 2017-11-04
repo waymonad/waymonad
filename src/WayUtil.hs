@@ -21,9 +21,12 @@ import ViewSet
     ( Workspace (..)
     , Zipper (..)
     , WSTag
+    , SomeMessage (..)
+    , Message
     , getFocused
     , getMaster
     , setFocused
+    , messageWS
     )
 import Waymonad (WayBindingState(..), runWayState', modify, get)
 
@@ -96,3 +99,8 @@ setFocus (Just s, v) = liftIO $ do
 setFoci :: MonadIO m => Workspace -> m ()
 setFoci (Workspace _ Nothing) = pure ()
 setFoci (Workspace _ (Just (Zipper xs))) = mapM_ setFocus xs
+
+sendMessage
+    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m, Message t)
+    => t -> m ()
+sendMessage m = modifyCurrentWS $ \_ -> messageWS (SomeMessage m)

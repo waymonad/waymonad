@@ -72,6 +72,7 @@ executable waymonad
 
   other-modules:        Layout.Full
   other-modules:        Layout.Tall
+  other-modules:        Layout.ToggleFull
 
   
   -- LANGUAGE extensions used by modules in this package.

@@ -12,7 +12,7 @@ where
 import Data.Foldable (toList)
 import Data.List (find)
 import Data.Map (Map)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, isJust)
 import Data.Text (Text)
 import Data.Typeable
 import Foreign.Ptr (Ptr)
@@ -31,29 +31,6 @@ data Workspace = Workspace
     , wsViews :: Maybe (Zipper (Ptr WlrSeat) View)
     }
 
-getMaster :: Workspace -> Maybe View
-getMaster (Workspace _ Nothing) = Nothing
-getMaster (Workspace _ (Just (Zipper xs))) = snd <$> listToMaybe xs
-
-setFocused :: View -> Ptr WlrSeat -> Workspace -> Workspace
-setFocused v t (Workspace l z) = Workspace l $ fmap (setFocused' t v) z
-
-getFocused :: Ptr WlrSeat -> Workspace -> Maybe View
-getFocused seat (Workspace _ (Just (Zipper z))) =
-    fmap snd $ find ((==) (Just seat) . fst) z
-getFocused _ _ = Nothing
-
-addView :: Maybe (Ptr WlrSeat) -> View -> Workspace -> Workspace
-addView seat v (Workspace l z) = Workspace l $ addElem seat v z
-
-rmView :: View -> Workspace -> Workspace
-rmView v (Workspace l z) = Workspace l $ rmElem v z
-
-viewBelow :: Traversable t => Point -> t (View, WlrBox) -> IO (Maybe View)
-viewBelow point views = do
-    let candidates = filter (boxContainsPoint point . snd) $ toList views
-    pure . listToMaybe . map fst $ candidates
-
 class (Show a, Eq a, Ord a) => WSTag a where
     getName :: a -> Text
 
@@ -70,6 +47,47 @@ data Layout = forall l. LayoutClass l => Layout l
 class Typeable m => Message m
 
 data SomeMessage = forall m. Message m => SomeMessage m
+
+getMessage :: Message m => SomeMessage -> Maybe m
+getMessage (SomeMessage m) = cast m
+
+messageWS :: SomeMessage -> Workspace -> Workspace
+messageWS m w@(Workspace (Layout l) z) =
+    case handleMessage l  m of
+        Nothing -> w
+        Just nl -> Workspace (Layout nl) z
+
+getMaster :: Workspace -> Maybe View
+getMaster (Workspace _ z) = getMaster' =<< z
+
+getMaster' :: Zipper a b -> Maybe b
+getMaster' (Zipper xs) =  snd <$> listToMaybe xs
+
+setFocused :: View -> Ptr WlrSeat -> Workspace -> Workspace
+setFocused v t (Workspace l z) = Workspace l $ fmap (setFocused' t v) z
+
+getFocused :: Ptr WlrSeat -> Workspace -> Maybe View
+getFocused seat (Workspace _ (Just (Zipper z))) =
+    fmap snd $ find ((==) (Just seat) . fst) z
+getFocused _ _ = Nothing
+
+getFirstFocused :: Workspace -> Maybe View
+getFirstFocused (Workspace _ z) = getFirstFocused' =<< z
+
+getFirstFocused' :: Zipper a b -> Maybe b
+getFirstFocused' (Zipper z) =
+    fmap snd $ find (isJust . fst) z
+
+addView :: Maybe (Ptr WlrSeat) -> View -> Workspace -> Workspace
+addView seat v (Workspace l z) = Workspace l $ addElem seat v z
+
+rmView :: View -> Workspace -> Workspace
+rmView v (Workspace l z) = Workspace l $ rmElem v z
+
+viewBelow :: Traversable t => Point -> t (View, WlrBox) -> IO (Maybe View)
+viewBelow point views = do
+    let candidates = filter (boxContainsPoint point . snd) $ toList views
+    pure . listToMaybe . map fst $ candidates
 
 setFocused' :: Eq b => a -> b -> Zipper a b -> Zipper a b
 setFocused' t v (Zipper xs) =

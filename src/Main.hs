@@ -37,6 +37,7 @@ import Input (inputCreate, Input (inputSeat))
 import Layout (reLayout)
 --import Layout.Full (Full (..))
 import Layout.Tall (Tall (..))
+import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import Utility (whenJust)
@@ -62,7 +63,7 @@ import Waymonad
     , BindingMap
     , KeyBinding
     )
-import WayUtil (modifyCurrentWS, setWorkspace, spawn, setFoci)
+import WayUtil (modifyCurrentWS, setWorkspace, spawn, setFoci, sendMessage)
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
@@ -125,6 +126,7 @@ bindings =
     , (([modi], keysym_0), setWorkspace "0")
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi], keysym_d), spawn "dmenu_run")
+    , (([modi], keysym_f), sendMessage TMessage)
     ]
     where modi = Alt
 
@@ -176,7 +178,7 @@ workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
-    map (, Workspace (Layout Tall) Nothing) xs
+    map (, Workspace (Layout (ToggleFull False Tall)) Nothing) xs
 
 realMain :: IO ()
 realMain = do
