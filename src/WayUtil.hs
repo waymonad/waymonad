@@ -16,14 +16,21 @@ import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyEnter)
 
 import Layout (reLayout)
 import Utility (whenJust)
-import View (getViewSurface, activateView)
-import ViewSet (Workspace, getFocused, getMaster, setFocused)
+import View (View, getViewSurface, activateView)
+import ViewSet
+    ( Workspace (..)
+    , Zipper (..)
+    , WSTag
+    , getFocused
+    , getMaster
+    , setFocused
+    )
 import Waymonad (WayBindingState(..), runWayState', modify, get)
 
 import qualified Data.Map as M
 
 modifyCurrentWS
-    :: (Ord a, MonadIO m, MonadReader (WayBindingState a) m)
+    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
     => (Ptr WlrSeat -> Workspace -> Workspace) -> m ()
 modifyCurrentWS fun = do
     state <- ask
@@ -42,7 +49,7 @@ modifyCurrentWS fun = do
                 keyboardNotifyEnter seat =<< getViewSurface v
 
 setWorkspace
-    :: (Ord a, MonadIO m, MonadReader (WayBindingState a) m)
+    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
     => a -> m ()
 setWorkspace ws = do
     state <- ask
@@ -56,7 +63,7 @@ setWorkspace ws = do
     focusMaster
 
 focusMaster
-    :: (Ord a, MonadIO m, MonadReader (WayBindingState a) m)
+    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
     => m ()
 focusMaster = do
     state <- ask
@@ -78,3 +85,14 @@ focusMaster = do
 
 spawn :: (MonadIO m) => String -> m ()
 spawn = void . liftIO . spawnCommand
+
+setFocus :: MonadIO m => (Maybe (Ptr WlrSeat), View) -> m ()
+setFocus (Nothing, _) = pure ()
+setFocus (Just s, v) = liftIO $ do
+    activateView v True
+    surf <- getViewSurface v
+    keyboardNotifyEnter s surf
+
+setFoci :: MonadIO m => Workspace -> m ()
+setFoci (Workspace _ Nothing) = pure ()
+setFoci (Workspace _ (Just (Zipper xs))) = mapM_ setFocus xs

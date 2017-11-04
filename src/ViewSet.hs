@@ -22,7 +22,7 @@ import View (View)
 
 type ViewSet a = Map a Workspace
 
-newtype Zipper a b = Zipper [(Maybe a, b)]
+newtype Zipper a b = Zipper [(Maybe a {- This is probably going to become a List or Set in the near-ish future -}, b)]
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 
@@ -80,7 +80,7 @@ setFocused' t v (Zipper xs) =
                     else orig
 
 addElem' :: Eq a => Maybe a -> Maybe (Zipper a b) -> b -> Zipper a b
-addElem' _ Nothing v = Zipper [(Nothing, v)]
+addElem' t Nothing v = Zipper [(t, v)]
 addElem' Nothing (Just (Zipper xs)) v = Zipper $ (Nothing, v) : xs
 addElem' (Just t) (Just (Zipper xs)) v = 
     let pre = takeWhile ((/=) (Just t) . fst) xs

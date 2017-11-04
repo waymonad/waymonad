@@ -26,20 +26,31 @@ import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToFiel
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 import Graphics.Wayland.WlRoots.Screenshooter (screenshooterCreate)
+import Graphics.Wayland.WlRoots.Seat (WlrSeat)
 --import Graphics.Wayland.WlRoots.Shell
 --    ( WlrShell
 --    , --shellCreate
 --    )
 
 import Compositor
-import Input (inputCreate)
+import Input (inputCreate, Input (inputSeat))
 import Layout (reLayout)
 --import Layout.Full (Full (..))
 import Layout.Tall (Tall (..))
 import Output (handleOutputAdd)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
+import Utility (whenJust)
 import View (View)
-import ViewSet (Workspace(..), contains, addView, rmView, Layout (..), moveRight, moveLeft)
+import ViewSet
+    ( Workspace(..)
+    , Layout (..)
+    , WSTag
+    , contains
+    , addView
+    , rmView
+    , moveRight
+    , moveLeft
+    )
 import Waymonad
     ( WayState
     , WayStateRef
@@ -51,30 +62,34 @@ import Waymonad
     , BindingMap
     , KeyBinding
     )
-import WayUtil (modifyCurrentWS, setWorkspace, spawn)
+import WayUtil (modifyCurrentWS, setWorkspace, spawn, setFoci)
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
 import qualified Data.Map.Strict as M
 
 insertView
-    :: Ord a
+    :: WSTag a
     => LayoutCacheRef
+    -> Maybe (Ptr WlrSeat)
     -> IORef Int
     -> IORef [(a, Int)]
     -> View
     -> WayState a ()
-insertView cacheRef currentOut wsMapping view = do
+insertView cacheRef seat currentOut wsMapping view = do
     mapping <- liftIO $ readIORef wsMapping
     current <- liftIO $ readIORef currentOut
     case M.lookup current . M.fromList $ map swap mapping of
         Nothing -> liftIO $ hPutStrLn stderr "Couldn't lookup workspace for current output"
         Just ws -> do
-            modify $ M.adjust (addView Nothing view) ws
+            modify $ M.adjust (addView seat view) ws
             reLayout cacheRef ws mapping
 
+            state <- get
+            whenJust (M.lookup ws state) setFoci
+
 removeView
-    :: (Ord a, Show a)
+    :: (WSTag a)
     => LayoutCacheRef
     -> IORef [(a, Int)]
     -> View
@@ -87,6 +102,9 @@ removeView cacheRef wsMapping view = do
         [(ws, _)] -> do
             modify $ M.adjust (rmView view) ws
             reLayout cacheRef ws mapping
+
+            state <- get
+            whenJust (M.lookup ws state) setFoci
         xs -> liftIO $ do
             hPutStrLn stderr "Found a view in a number of workspaces that's not 1!"
             hPutStrLn stderr $ show $ map fst xs
@@ -110,12 +128,12 @@ bindings =
     ]
     where modi = Alt
 
-makeBindingMap :: Ord a => [(([WlrModifier], Keysym), KeyBinding a)] -> BindingMap a
+makeBindingMap :: WSTag a => [(([WlrModifier], Keysym), KeyBinding a)] -> BindingMap a
 makeBindingMap = M.fromList .
     map (\((mods, Keysym sym), fun) -> ((modifiersToField mods, sym), fun))
 
 makeCompositor
-    :: (Ord a, Show a)
+    :: WSTag a
     => DisplayServer
     -> Ptr Backend
     -> LayoutCacheRef
@@ -124,19 +142,20 @@ makeCompositor
     -> [(([WlrModifier], Keysym), KeyBinding a)]
     -> WayState a Compositor
 makeCompositor display backend ref mappings currentOut keyBinds = do
-    let addFun = insertView ref currentOut mappings
-    let delFun = removeView ref mappings
     renderer <- liftIO $ rendererCreate backend
     void $ liftIO $ displayInitShm display
     comp <- liftIO $ compositorCreate display renderer
     devManager <- liftIO $ managerCreate display
 --    shell <- liftIO $ shellCreate display
-    xdgShell <- xdgShellCreate display   addFun delFun
-    xway <- xwayShellCreate display comp addFun delFun
     layout <- liftIO $ createOutputLayout
     stateRef <- ask
     input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef (makeBindingMap keyBinds)) ref
     shooter <- liftIO $ screenshooterCreate display renderer
+
+    let addFun = insertView ref (Just $ inputSeat input) currentOut mappings
+    let delFun = removeView ref mappings
+    xdgShell <- xdgShellCreate display   addFun delFun
+    xway <- xwayShellCreate display comp addFun delFun
     pure $ Compositor
         { compDisplay = display
         , compRenderer = renderer
@@ -155,7 +174,7 @@ workspaces :: [Text]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 
-defaultMap :: Ord a => [a] -> IO (WayStateRef a)
+defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
     map (, Workspace (Layout Tall) Nothing) xs
 
