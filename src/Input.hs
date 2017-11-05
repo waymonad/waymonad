@@ -4,8 +4,6 @@ module Input
     )
 where
 
-import Control.Monad.Reader (ask)
-import Data.IORef (IORef)
 import Foreign.Storable (Storable(peek))
 import Control.Monad.IO.Class (liftIO)
 import Input.Keyboard
@@ -23,13 +21,11 @@ import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
 import Graphics.Wayland.Server (DisplayServer(..), seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Backend (Backend, backendGetSignals, BackendSignals(..))
-import Graphics.Wayland.Signal
-    ( addListener
-    , WlListener (..)
-    , ListenerToken
-    )
+import Graphics.Wayland.Signal (ListenerToken)
 
+import ViewSet (WSTag)
 import Waymonad
+import WayUtil
 
 data Input = Input
     { inputCursorTheme :: Ptr WlrXCursorTheme
@@ -40,25 +36,22 @@ data Input = Input
     }
 
 handleInputAdd
-    :: Ord a
+    :: WSTag a
     => Ptr WlrCursor
     -> DisplayServer
     -> Ptr Backend
     -> Ptr WlrSeat
-    -> LayoutCacheRef
-    -> IORef [(Ptr WlrSeat, Int)]
-    -> IORef [(a, Int)]
-    -> WayStateRef a
     -> BindingMap a
     -> Ptr InputDevice
-    -> IO ()
-handleInputAdd cursor dsp backend seat cacheRef currentOut wsMapping stateRef bindings ptr = do
-    putStr "Found a new input of type: "
-    iType <- inputDeviceType ptr
-    print iType
+    -> Way a ()
+handleInputAdd cursor dsp backend seat bindings ptr = do 
+    iType <- liftIO $ inputDeviceType ptr
+    liftIO $ do
+        putStr "Found a new input of type: "
+        print iType
     case iType of
-        (DeviceKeyboard kptr) -> handleKeyboardAdd dsp backend seat cacheRef currentOut wsMapping stateRef bindings ptr kptr
-        (DevicePointer pptr) -> handlePointer cursor ptr pptr
+        (DeviceKeyboard kptr) -> handleKeyboardAdd dsp backend seat bindings ptr kptr
+        (DevicePointer pptr) -> liftIO $ handlePointer cursor ptr pptr
         _ -> pure ()
 
 setXCursorImage :: Ptr WlrCursor -> Ptr WlrXCursor -> IO ()
@@ -76,37 +69,32 @@ setXCursorImage cursor xcursor = do
         (xCursorImageHotspotY image)
 
 inputCreate
-    :: Ord a
+    :: WSTag a
     => DisplayServer
     -> Ptr WlrOutputLayout
     -> Ptr Backend
-    -> IORef [(Ptr WlrSeat, Int)]
-    -> IORef [(a, Int)]
-    -> WayStateRef a
     -> BindingMap a
-    -> LayoutCache Input
-inputCreate display layout backend currentOut wsMapping stateRef bindings = do
+    -> Way a Input
+inputCreate display layout backend bindings = do
     theme   <- liftIO $ loadCursorTheme "default" 16
     xcursor <- liftIO $ getCursor theme "left_ptr"
     seat    <- liftIO $ createSeat display "seat0"
-    cursor  <- cursorCreate layout seat currentOut
+    withSeat (Just seat) $ do
+        cursor  <- cursorCreate layout
 
-    liftIO $ setSeatCapabilities seat [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
+        liftIO $ setSeatCapabilities seat [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
 
-    liftIO $ setXCursorImage
-        (cursorRoots $ cursor)
-        xcursor
+        liftIO $ setXCursorImage
+            (cursorRoots $ cursor)
+            xcursor
 
-    cacheRef <- ask
+        let signals = backendGetSignals backend
+        tok <- setSignalHandler (inputAdd signals) $ handleInputAdd (cursorRoots cursor) display backend seat bindings
 
-    let signals = backendGetSignals backend
-
-    tok <- liftIO $ addListener (WlListener $ handleInputAdd (cursorRoots cursor) display backend seat cacheRef currentOut wsMapping stateRef bindings) (inputAdd signals)
-
-    pure Input
-        { inputCursorTheme = theme
-        , inputXCursor = xcursor
-        , inputCursor = cursor
-        , inputSeat = seat
-        , inputAddToken = tok
-        }
+        pure Input
+            { inputCursorTheme = theme
+            , inputXCursor = xcursor
+            , inputCursor = cursor
+            , inputSeat = seat
+            , inputAddToken = tok
+            }

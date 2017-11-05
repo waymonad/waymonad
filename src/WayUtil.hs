@@ -4,14 +4,21 @@ where
 
 import Control.Monad (when, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Reader (MonadReader, ask)
-import Data.IORef (readIORef, modifyIORef)
+import Data.IORef (readIORef, modifyIORef, writeIORef)
 import Data.Maybe (fromJust)
+import Data.Time.Clock (getCurrentTime)
+import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Tuple (swap)
 import Foreign.Ptr (Ptr)
---import System.IO (hPutStr, hPutStrLn, stderr)
+import System.IO (hPutStr, hPutStrLn, stderr)
 import System.Process (spawnCommand)
 
+import Graphics.Wayland.Signal
+    ( addListener
+    , WlListener (..)
+    , ListenerToken
+    , WlSignal
+    )
 import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyEnter)
 
 import Layout (reLayout)
@@ -23,70 +30,71 @@ import ViewSet
     , WSTag
     , SomeMessage (..)
     , Message
+    , ViewSet
     , getFocused
     , getMaster
     , setFocused
     , messageWS
     )
-import Waymonad (WayBindingState(..), runWayState', modify, get)
+import Waymonad
+    ( WayBindingState(..)
+    , Way
+    , getState
+    , getSeat
+    , setCallback
+    )
 
 import qualified Data.Map as M
 
-getCurrent
-    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
-    => m Int
+getCurrent :: (WSTag a) => Way a Int
 getCurrent = do
-    state <- ask
+    state <- getState
+    (Just seat) <- getSeat
     currents <- liftIO . readIORef $ wayBindingCurrent state
-    let seat = wayBindingSeat state
-        (Just current) = M.lookup seat $ M.fromList currents
+    let (Just current) = M.lookup seat $ M.fromList currents
     pure current
 
 modifyCurrentWS
-    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
-    => (Ptr WlrSeat -> Workspace -> Workspace) -> m ()
+    :: (WSTag a)
+    => (Ptr WlrSeat -> Workspace -> Workspace) -> Way a ()
 modifyCurrentWS fun = do
-    state <- ask
+    state <- getState
+    (Just seat) <- getSeat
     mapping <- liftIO . readIORef $ wayBindingMapping state
     current <- getCurrent
-    let seat = wayBindingSeat state
     case M.lookup current . M.fromList $ map swap mapping of
         Nothing -> pure ()
-        Just ws -> runWayState' (wayBindingState state) $ do
-            preWs <- getFocused seat . fromJust . M.lookup ws <$> get
-            modify (M.adjust (fun seat) ws)
-            postWs <- getFocused seat . fromJust . M.lookup ws <$> get
-            reLayout (wayBindingCache state) ws mapping
+        Just ws -> do
+            logPutStr $ "Changing contents of workspace: " ++ show ws
+            preWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
+            modifyViewSet (M.adjust (fun seat) ws)
+            postWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
+            reLayout ws
 
             liftIO $ when (preWs /= postWs) $ whenJust postWs $ \v ->
                 keyboardNotifyEnter seat =<< getViewSurface v
 
     runLog
 
-setWorkspace
-    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
-    => a -> m ()
+setWorkspace :: WSTag a => a -> Way a ()
 setWorkspace ws = do
-    state <- ask
+    state <- getState
     current <- getCurrent
     liftIO $ modifyIORef
         (wayBindingMapping state)
         ((:) (ws, current) . filter ((/=) current . snd))
-    runWayState' (wayBindingState state) $ do
-        mapping <- liftIO $ readIORef (wayBindingMapping state)
-        reLayout (wayBindingCache state) ws mapping
+
+    reLayout ws
     focusMaster
 
-focusMaster
-    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
-    => m ()
+focusMaster :: WSTag a => Way a ()
 focusMaster = do
-    state <- ask
+    state <- getState
+    (Just seat) <- getSeat
     mapping <- liftIO . readIORef $ wayBindingMapping state
     current <- getCurrent
     wss <- liftIO . readIORef $ wayBindingState state
-    let seat = wayBindingSeat state
-        ws = M.lookup current . M.fromList $ map swap mapping
+    let ws = M.lookup current . M.fromList $ map swap mapping
     whenJust (getMaster =<< flip M.lookup wss =<< ws) $ \view -> do
         modifyCurrentWS (setFocused view)
         liftIO $ do
@@ -109,19 +117,49 @@ setFoci :: MonadIO m => Workspace -> m ()
 setFoci (Workspace _ Nothing) = pure ()
 setFoci (Workspace _ (Just (Zipper xs))) = mapM_ setFocus xs
 
-sendMessage
-    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m, Message t)
-    => t -> m ()
+sendMessage :: (WSTag a, Message t) => t -> Way a ()
 sendMessage m = modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
 
-runLog
-    :: (WSTag a, MonadIO m, MonadReader (WayBindingState a) m)
-    => m ()
+runLog :: (WSTag a) => Way a ()
 runLog = do
-    state <- ask
-    liftIO $ do
-        mapping <- readIORef $ wayBindingMapping state
-        foci <- readIORef $ wayBindingCurrent state
-        layout <- readIORef $ wayBindingCache state
-        vs <- readIORef $ wayBindingState state
-        wayLogFunction state mapping foci layout vs
+    state <- getState
+    wayLogFunction state
+
+setSignalHandler
+    :: Ptr (WlSignal a)
+    -> (Ptr a -> Way b ())
+    -> Way b ListenerToken
+setSignalHandler signal act = 
+    setCallback act (\fun -> addListener (WlListener fun) signal)
+
+
+setSeatOutput :: Ptr WlrSeat -> Int -> Way a ()
+setSeatOutput seat out = do
+    state <- getState
+    -- TODO: Make sure this works with multiseat
+    liftIO $ writeIORef (wayBindingCurrent state) [(seat, out)]
+
+
+modifyViewSet :: (ViewSet a -> ViewSet a) -> Way a ()
+modifyViewSet fun = do
+    ref <- wayBindingState <$> getState
+    liftIO $ modifyIORef ref fun
+
+getViewSet :: Way a (ViewSet a)
+getViewSet = liftIO . readIORef . wayBindingState =<< getState
+
+logPutTime :: IO ()
+logPutTime = do
+    time <- getCurrentTime
+    let formatted = formatTime defaultTimeLocale "%0Y-%m-%d %H:%M:%S - " time
+
+    hPutStr stderr formatted
+
+logPutStr :: MonadIO m => String -> m ()
+logPutStr arg = liftIO $ do
+    logPutTime
+    hPutStrLn stderr arg
+
+logPrint :: (Show a, MonadIO m) => a -> m ()
+logPrint = logPutStr . show
+

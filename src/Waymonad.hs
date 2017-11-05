@@ -13,6 +13,7 @@ module Waymonad
     , LayoutCacheRef
     , LayoutCache
     , runLayoutCache
+    , runLayoutCache'
 
     , viewBelow
 
@@ -22,11 +23,20 @@ module Waymonad
 
     , WayBindingState (..)
     , runWayBinding
+
+    , Way
+    , getState
+    , getSeat
+    , runWay
+    , makeCallback
+    , setCallback
+    , withSeat
     )
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Reader (ReaderT(..), MonadReader(..))
+import Control.Monad.Reader (ReaderT(..), MonadReader(..), local)
+import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
 import Data.Map (Map)
 import Data.Word (Word32)
@@ -76,9 +86,15 @@ runWayState' ref act = runWayState act ref
 runLayoutCache :: MonadIO m => LayoutCache a -> LayoutCacheRef -> m a
 runLayoutCache (LayoutCache m) ref = liftIO $ runReaderT m ref
 
-viewBelow :: Point -> Int -> LayoutCache (Maybe View)
+runLayoutCache' :: MonadIO m => LayoutCacheRef -> LayoutCache a -> m a
+runLayoutCache' ref act = runLayoutCache act ref
+
+viewBelow
+    :: Point
+    -> Int
+    -> Way a (Maybe View)
 viewBelow point ws = do
-    fullCache <- get
+    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
     case IM.lookup ws fullCache of
         Nothing -> pure Nothing
         Just x -> liftIO $ VS.viewBelow point x
@@ -88,7 +104,7 @@ data WayBindingState a = WayBindingState
     , wayBindingState :: WayStateRef a
     , wayBindingCurrent :: IORef [(Ptr WlrSeat, Int)]
     , wayBindingMapping :: IORef [(a, Int)]
-    , wayBindingSeat ::  (Ptr WlrSeat)
+    , wayBindingOutputs :: IORef [Int]
     , wayLogFunction :: LogFun a
     }
 
@@ -98,6 +114,39 @@ newtype WayBinding a b = WayBinding (ReaderT (WayBindingState a) IO b)
 runWayBinding :: MonadIO m => WayBindingState a -> WayBinding a b -> m b
 runWayBinding val (WayBinding act) = liftIO $ runReaderT act val
 
-type KeyBinding a = WayBinding a ()
+type KeyBinding a = Way a ()
 type BindingMap a = Map (Word32, Int) (KeyBinding a)
-type LogFun a = [(a, Int)] -> [(Ptr WlrSeat, Int)] -> IntMap [(View, WlrBox)] -> VS.ViewSet a -> IO ()
+type LogFun a = Way a ()
+
+newtype Way a b = Way (ReaderT (Maybe (Ptr WlrSeat)) (WayBinding a) b)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe (Ptr WlrSeat)))
+
+getState :: Way a (WayBindingState a)
+getState = Way $ lift ask
+
+getSeat :: Way a (Maybe (Ptr WlrSeat))
+getSeat = ask
+
+runWay
+    :: MonadIO m
+    => Maybe (Ptr WlrSeat)
+    -> WayBindingState a
+    -> Way a b
+    -> m b
+runWay seat state (Way m) =
+    liftIO $ runWayBinding state $ runReaderT m seat
+
+makeCallback :: (c -> Way a b) -> Way a (c -> IO b)
+makeCallback act = do
+    seat <- getSeat
+    state <- getState
+    pure (\arg -> runWay seat state (act arg))
+
+setCallback :: (c -> Way a b) -> ((c -> IO b) -> IO d) -> Way a d
+setCallback act fun = do
+    ioAct <- makeCallback act
+    liftIO $ fun ioAct
+
+
+withSeat :: Maybe (Ptr WlrSeat) -> Way a b -> Way a b
+withSeat seat (Way m) = Way $ local (const seat) m

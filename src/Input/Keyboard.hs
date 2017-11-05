@@ -1,8 +1,8 @@
 module Input.Keyboard
 where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Word (Word32)
-import Data.IORef (IORef)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(..))
 import Graphics.Wayland.Server
@@ -41,7 +41,13 @@ import Foreign.StablePtr
     )
 import Control.Monad (forM, when)
 
-import Waymonad (WayStateRef, LayoutCacheRef, BindingMap, WayBindingState (..), runWayBinding)
+import ViewSet (WSTag)
+import Waymonad
+    ( BindingMap
+    , withSeat
+    , Way
+    )
+import WayUtil (setSignalHandler)
 
 import Text.XkbCommon.Keymap
 import Text.XkbCommon.Types
@@ -71,38 +77,32 @@ switchVT backend vt = do
 
 
 handleKeyPress
-    :: Ord a
+    :: WSTag a
     => DisplayServer
     -> Ptr Backend
-    -> Ptr WlrSeat
+    -> BindingMap a
     -> Word32
     -> Keysym
-    -> LayoutCacheRef
-    -> IORef [(Ptr WlrSeat, Int)]
-    -> IORef [(a, Int)]
-    -> WayStateRef a
-    -> BindingMap a
-    -> IO Bool
-handleKeyPress dsp backend seat modifiers sym@(Keysym key) cacheRef currentOut wsMapping stateRef bindings = case sym of
-        Keysym_Escape -> displayTerminate dsp >> pure True
+    -> Way a Bool
+handleKeyPress dsp backend bindings modifiers sym@(Keysym key) =
+    case sym of
+        Keysym_Escape -> liftIO (displayTerminate dsp) >> pure True
         -- Would be cooler if this wasn't a listing of VTs (probably TH)
-        Keysym_XF86Switch_VT_1  -> switchVT backend 1  >> pure True
-        Keysym_XF86Switch_VT_2  -> switchVT backend 2  >> pure True
-        Keysym_XF86Switch_VT_3  -> switchVT backend 3  >> pure True
-        Keysym_XF86Switch_VT_4  -> switchVT backend 4  >> pure True
-        Keysym_XF86Switch_VT_5  -> switchVT backend 5  >> pure True
-        Keysym_XF86Switch_VT_6  -> switchVT backend 6  >> pure True
-        Keysym_XF86Switch_VT_7  -> switchVT backend 7  >> pure True
-        Keysym_XF86Switch_VT_8  -> switchVT backend 8  >> pure True
-        Keysym_XF86Switch_VT_9  -> switchVT backend 9  >> pure True
-        Keysym_XF86Switch_VT_10 -> switchVT backend 10 >> pure True
-        Keysym_XF86Switch_VT_11 -> switchVT backend 11 >> pure True
-        Keysym_XF86Switch_VT_12 -> switchVT backend 12 >> pure True
+        Keysym_XF86Switch_VT_1  -> liftIO (switchVT backend 1 ) >> pure True
+        Keysym_XF86Switch_VT_2  -> liftIO (switchVT backend 2 ) >> pure True
+        Keysym_XF86Switch_VT_3  -> liftIO (switchVT backend 3 ) >> pure True
+        Keysym_XF86Switch_VT_4  -> liftIO (switchVT backend 4 ) >> pure True
+        Keysym_XF86Switch_VT_5  -> liftIO (switchVT backend 5 ) >> pure True
+        Keysym_XF86Switch_VT_6  -> liftIO (switchVT backend 6 ) >> pure True
+        Keysym_XF86Switch_VT_7  -> liftIO (switchVT backend 7 ) >> pure True
+        Keysym_XF86Switch_VT_8  -> liftIO (switchVT backend 8 ) >> pure True
+        Keysym_XF86Switch_VT_9  -> liftIO (switchVT backend 9 ) >> pure True
+        Keysym_XF86Switch_VT_10 -> liftIO (switchVT backend 10) >> pure True
+        Keysym_XF86Switch_VT_11 -> liftIO (switchVT backend 11) >> pure True
+        Keysym_XF86Switch_VT_12 -> liftIO (switchVT backend 12) >> pure True
         _ -> case M.lookup (modifiers, key) bindings of
                 Nothing -> pure False
-                Just fun -> let logFun _ _ _ _ = pure ()
-                                state = WayBindingState cacheRef stateRef currentOut wsMapping seat logFun
-                             in runWayBinding state fun >> pure True
+                Just fun -> fun >> pure True
 
 
 tellClient :: Ptr WlrSeat -> Keyboard -> EventKey -> IO ()
@@ -111,31 +111,29 @@ tellClient seat keyboard event = do
     keyboardNotifyKey seat (timeSec event) (keyCode event) (state event)
 
 handleKeyEvent
-    :: Ord a
+    :: WSTag a
     => DisplayServer
     -> Ptr Backend
     -> Keyboard
     -> Ptr WlrSeat
-    -> LayoutCacheRef
-    -> IORef [(Ptr WlrSeat, Int)]
-    -> IORef [(a, Int)]
-    -> WayStateRef a
     -> BindingMap a
     -> Ptr EventKey
-    -> IO ()
-handleKeyEvent dsp backend keyboard seat cacheRef currentOut wsMapping stateRef bindings ptr = do
-    event <- peek ptr
+    -> Way a ()
+handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ do
+    event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
-    keyState <- getKeystate $ keyboardDevice keyboard
-    syms <- getStateSymsI keyState keycode
-    modifiers <- getModifiers $ keyboardDevice keyboard
+    keyState <- liftIO $ getKeystate $ keyboardDevice keyboard
+    syms <- liftIO $ getStateSymsI keyState keycode
+    modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
     handled <- forM syms $ \sym -> case (state event) of
         -- We currently don't do anything special for releases
         KeyReleased -> pure False
         KeyPressed ->
-            handleKeyPress dsp backend seat modifiers sym cacheRef currentOut wsMapping stateRef bindings
+            handleKeyPress dsp backend bindings modifiers sym
 
-    when (not $ foldr (||) False handled) $ tellClient seat keyboard event
+    liftIO $
+        when (not $ foldr (||) False handled) $
+            tellClient seat keyboard event
 
 handleModifiers :: Keyboard -> Ptr WlrSeat -> Ptr a -> IO ()
 handleModifiers keyboard seat _ = do
@@ -144,32 +142,32 @@ handleModifiers keyboard seat _ = do
     keyboardNotifyModifiers seat (modDepressed mods) (modLatched mods) (modLocked mods) (modGroup mods)
 
 handleKeyboardAdd
-    :: Ord a
+    :: WSTag a
     => DisplayServer
     -> Ptr Backend
     -> Ptr WlrSeat
-    -> LayoutCacheRef
-    -> IORef [(Ptr WlrSeat, Int)]
-    -> IORef [(a, Int)]
-    -> WayStateRef a
     -> BindingMap a
     -> Ptr InputDevice
     -> Ptr WlrKeyboard
-    -> IO ()
-handleKeyboardAdd dsp backend seat cacheRef currentOut wsMapping stateRef bindings dev ptr = do
+    -> Way a ()
+handleKeyboardAdd dsp backend seat bindings dev ptr = do
     let signals = getKeySignals ptr
 
-    (Just cxt) <- newContext defaultFlags
-    (Just keymap) <- newKeymapFromNamesI cxt noPrefs
-
-    setKeymap ptr keymap
+    liftIO $ do
+        (Just cxt) <- newContext defaultFlags
+        (Just keymap) <- newKeymapFromNamesI cxt noPrefs
+        setKeymap ptr keymap
 
     let keyboard = Keyboard ptr dev
 
-    kh <- addListener (WlListener $ handleKeyEvent dsp backend keyboard seat cacheRef currentOut wsMapping stateRef bindings) (keySignalKey signals)
-    mh <- addListener (WlListener $ handleModifiers keyboard seat) (keySignalModifiers signals)
-    sptr <- newStablePtr (kh, mh)
-    poke (getKeyDataPtr ptr) (castStablePtrToPtr sptr)
+    kh <- setSignalHandler
+        (keySignalKey signals)
+        (handleKeyEvent dsp backend keyboard seat bindings)
+    mh <- liftIO $ addListener (WlListener $ handleModifiers keyboard seat) (keySignalModifiers signals)
+
+    liftIO $ do
+        sptr <- newStablePtr (kh, mh)
+        poke (getKeyDataPtr ptr) (castStablePtrToPtr sptr)
 
 
 handleKeyboardRemove :: Ptr WlrKeyboard -> IO ()

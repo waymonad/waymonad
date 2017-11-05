@@ -5,7 +5,6 @@
 module Main
 where
 
-import Control.Monad.Reader (ask)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
@@ -26,14 +25,13 @@ import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToFiel
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 import Graphics.Wayland.WlRoots.Screenshooter (screenshooterCreate)
-import Graphics.Wayland.WlRoots.Seat (WlrSeat)
 --import Graphics.Wayland.WlRoots.Shell
 --    ( WlrShell
 --    , --shellCreate
 --    )
 
 import Compositor
-import Input (inputCreate, Input (inputSeat))
+import Input (inputCreate)
 import Layout (reLayout)
 --import Layout.Full (Full (..))
 import Layout.Tall (Tall (..))
@@ -53,17 +51,17 @@ import ViewSet
     , moveLeft
     )
 import Waymonad
-    ( WayState
+    ( Way
     , WayStateRef
-    , LayoutCacheRef
-    , get
-    , modify
-    , runLayoutCache
-    , runWayState
+    , runWay
     , BindingMap
     , KeyBinding
+    , getState
+    , getSeat
+    , WayBindingState (..)
+    , makeCallback
     )
-import WayUtil (modifyCurrentWS, setWorkspace, spawn, setFoci, sendMessage)
+import WayUtil (modifyCurrentWS, setWorkspace, spawn, setFoci, sendMessage, modifyViewSet, getViewSet, logPutStr)
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
@@ -71,45 +69,41 @@ import qualified Data.Map.Strict as M
 
 insertView
     :: WSTag a
-    => LayoutCacheRef
-    -> Maybe (Ptr WlrSeat)
-    -> IORef [(Ptr WlrSeat, Int)]
-    -> IORef [(a, Int)]
-    -> IORef [Int]
-    -> View
-    -> WayState a ()
-insertView cacheRef seat currentOut wsMapping outputsRef view = do
-    mapping <- liftIO $ readIORef wsMapping
-    currents <- liftIO $ readIORef currentOut
-    outputs <- liftIO $ readIORef outputsRef
+    => View
+    -> Way a ()
+insertView view = do
+    logPutStr "Adding new view"
+    seat <- getSeat
+    state <- getState
+    currents <- liftIO . readIORef $ wayBindingCurrent state
+    mapping <-  liftIO . readIORef $ wayBindingMapping state
+    outputs <-  liftIO . readIORef $ wayBindingOutputs state
     let current = case seat of
             Nothing -> head outputs
             Just s -> fromJust $ M.lookup s $ M.fromList currents
     case M.lookup current . M.fromList $ map swap mapping of
         Nothing -> liftIO $ hPutStrLn stderr "Couldn't lookup workspace for current output"
         Just ws -> do
-            modify $ M.adjust (addView seat view) ws
-            reLayout cacheRef ws mapping
+            modifyViewSet $ M.adjust (addView seat view) ws
+            reLayout ws
 
-            state <- get
-            whenJust (M.lookup ws state) setFoci
+            vs <- getViewSet
+            whenJust (M.lookup ws vs) setFoci
 
 removeView
     :: (WSTag a)
-    => LayoutCacheRef
-    -> IORef [(a, Int)]
-    -> View
-    -> WayState a ()
-removeView cacheRef wsMapping view = do
-    mapping <- liftIO $ readIORef wsMapping
-    wsL <- filter (fromMaybe False . fmap (contains view) . wsViews . snd) . M.toList <$> get
+    => View
+    -> Way a ()
+removeView view = do
+    logPutStr "Removing view"
+    wsL <- filter (fromMaybe False . fmap (contains view) . wsViews . snd) . M.toList <$> getViewSet
 
     case wsL of
         [(ws, _)] -> do
-            modify $ M.adjust (rmView view) ws
-            reLayout cacheRef ws mapping
+            modifyViewSet $ M.adjust (rmView view) ws
+            reLayout ws
 
-            state <- get
+            state <- getViewSet
             whenJust (M.lookup ws state) setFoci
         xs -> liftIO $ do
             hPutStrLn stderr "Found a view in a number of workspaces that's not 1!"
@@ -141,28 +135,23 @@ makeBindingMap = M.fromList .
 
 makeCompositor
     :: WSTag a
-    => DisplayServer
+    => IORef DisplayServer
     -> Ptr Backend
-    -> LayoutCacheRef
-    -> IORef [(a, Int)]
-    -> IORef [(Ptr WlrSeat, Int)]
     -> [(([WlrModifier], Keysym), KeyBinding a)]
-    -> IORef [Int]
-    -> WayState a Compositor
-makeCompositor display backend ref mappings currentOut keyBinds outputs = do
+    -> Way a Compositor
+makeCompositor dspRef backend keyBinds = do
+    display <- liftIO $ readIORef dspRef
     renderer <- liftIO $ rendererCreate backend
     void $ liftIO $ displayInitShm display
     comp <- liftIO $ compositorCreate display renderer
     devManager <- liftIO $ managerCreate display
     layout <- liftIO $ createOutputLayout
-    stateRef <- ask
-    input <- runLayoutCache (inputCreate display layout backend currentOut mappings stateRef (makeBindingMap keyBinds)) ref
     shooter <- liftIO $ screenshooterCreate display renderer
 
-    let addFun = insertView ref (Just $ inputSeat input) currentOut mappings outputs
-    let delFun = removeView ref mappings
-    xdgShell <- xdgShellCreate display   addFun delFun
-    xway <- xwayShellCreate display comp addFun delFun
+    input <- inputCreate display layout backend (makeBindingMap keyBinds)
+
+    xdgShell <- xdgShellCreate display insertView removeView
+    xway <- xwayShellCreate display comp insertView removeView
 
     shell <- pure undefined
     pure $ Compositor
@@ -186,24 +175,35 @@ defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
     map (, Workspace (Layout (ToggleFull False Tall)) Nothing) xs
 
-realMain :: IO ()
+realMain :: Way Text ()
 realMain = do
+    dspRef <- liftIO $ newIORef undefined
+    compRef <- liftIO $ newIORef undefined
+    compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
+    outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
+    outputRm <- makeCallback $ handleOutputRemove
+    liftIO $ launchCompositor ignoreHooks
+        { displayHook = writeIORef dspRef
+        , backendPreHook = compFun
+        , outputAddHook = outputAdd
+        , outputRemoveHook = outputRm
+        }
+
+main :: IO ()
+main =  do
     stateRef  <- defaultMap workspaces
     layoutRef <- newIORef mempty
-    dpRef <- newIORef undefined
-    compRef <- newIORef undefined
     mapRef <- newIORef []
     currentRef <- newIORef []
     outputs <- newIORef []
-    launchCompositor ignoreHooks
-        { displayHook = writeIORef dpRef
-        , backendPreHook = \backend -> do
-            dsp <- readIORef dpRef
-            writeIORef compRef =<< runWayState (makeCompositor dsp backend layoutRef mapRef currentRef bindings outputs) stateRef
-        , outputAddHook = handleOutputAdd compRef layoutRef workspaces mapRef outputs
-        , outputRemoveHook = handleOutputRemove mapRef outputs
-        }
-    pure ()
 
-main :: IO ()
-main = realMain
+    let state = WayBindingState
+            { wayBindingCache = layoutRef
+            , wayBindingState = stateRef
+            , wayBindingCurrent = currentRef
+            , wayBindingMapping = mapRef
+            , wayBindingOutputs = outputs
+            , wayLogFunction = pure ()
+            }
+
+    runWay Nothing state realMain

@@ -3,16 +3,14 @@
 module Input.Cursor
 where
 
-import Data.IORef (IORef, writeIORef)
 import View (View)
 import View (getViewEventSurface)
 import Data.Word (Word32)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ask)
-import Waymonad
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(..))
-import Graphics.Wayland.WlRoots.Box
+
+import Graphics.Wayland.WlRoots.Box (Point(..))
 import Graphics.Wayland.WlRoots.Input.Pointer
     ( WlrEventPointerButton (..)
     , WlrEventPointerMotion (..)
@@ -37,13 +35,18 @@ import Graphics.Wayland.WlRoots.OutputLayout
     , layoutGetOutput
     , layoutOuputGetPosition
     )
-import Graphics.Wayland.Signal
-    ( addListener
-    , WlListener (..)
-    , ListenerToken
-    )
+import Graphics.Wayland.Signal (ListenerToken)
 
 import Utility (ptrToInt)
+import Waymonad
+    ( Way
+    , getSeat
+    , viewBelow
+    )
+import WayUtil
+    ( setSignalHandler
+    , setSeatOutput
+    )
 
 
 data Cursor = Cursor
@@ -51,24 +54,27 @@ data Cursor = Cursor
     , cursorTokens :: [ListenerToken]
     }
 
-cursorCreate :: Ptr WlrOutputLayout -> Ptr WlrSeat -> IORef [(Ptr WlrSeat, Int)] -> LayoutCache Cursor
-cursorCreate layout seat currentOut = do
+cursorCreate :: Ptr WlrOutputLayout -> Way a Cursor
+cursorCreate layout = do
     cursor <- liftIO $ createCursor
-    stateRef <- ask
     liftIO $ attachOutputLayout cursor layout
     liftIO $ mapToRegion cursor Nothing
 
     let signal = cursorGetEvents cursor
-    tokb <- liftIO $ addListener (WlListener $ \evt -> runLayoutCache (handleCursorButton layout cursor seat evt) stateRef) $ cursorButton signal
-    tokm <- liftIO $ addListener (WlListener $ \evt -> runLayoutCache (handleCursorMotion layout cursor seat currentOut evt)    stateRef) $ cursorMotion signal
-    toka <- liftIO $ addListener (WlListener $ \evt -> runLayoutCache (handleCursorMotionAbs layout cursor seat currentOut evt) stateRef) $ cursorMotionAbs signal
+
+    tokb <- setSignalHandler (cursorButton signal   ) (handleCursorButton layout cursor)
+    tokm <- setSignalHandler (cursorMotion signal   ) (handleCursorMotion layout cursor)
+    toka <- setSignalHandler (cursorMotionAbs signal) (handleCursorMotionAbs layout cursor)
 
     pure Cursor
         { cursorRoots = cursor
         , cursorTokens = [tokb, tokm, toka]
         }
 
-getCursorView :: Ptr WlrOutputLayout -> Ptr WlrCursor -> LayoutCache (Maybe (View, Double, Double))
+getCursorView
+    :: Ptr WlrOutputLayout
+    -> Ptr WlrCursor
+    -> Way a (Maybe (View, Double, Double))
 getCursorView layout cursor = do
     baseX <- liftIO  $ getCursorX cursor
     baseY <- liftIO  $ getCursorY cursor
@@ -85,18 +91,23 @@ getCursorView layout cursor = do
             viewM <- viewBelow (Point x y) index
             pure $ (,fromIntegral x,fromIntegral y) <$> viewM
 
-updatePosition :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef [(Ptr WlrSeat, Int)] -> Word32 -> LayoutCache ()
-updatePosition layout cursor seat currentOut time = do
+updatePosition
+    :: Ptr WlrOutputLayout
+    -> Ptr WlrCursor
+    -> Word32
+    -> Way a ()
+updatePosition layout cursor time = do
     curX <- liftIO  $ getCursorX cursor
     curY <- liftIO  $ getCursorY cursor
     viewM <- getCursorView layout cursor
 
     output <- liftIO $ layoutAtPos layout curX curY
 
-    liftIO $ case output of
+    (Just seat) <- getSeat
+
+    case output of
         Nothing -> pure ()
-        -- TODO: Make sure this works with multiseat
-        Just out -> writeIORef currentOut $ [(seat, ptrToInt out)]
+        Just out -> setSeatOutput seat (ptrToInt out)
 
     case viewM of
         Nothing -> liftIO $ pointerClearFocus seat
@@ -107,8 +118,12 @@ updatePosition layout cursor seat currentOut time = do
             keyboardNotifyEnter seat surf
 
 
-handleCursorMotion :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef [(Ptr WlrSeat, Int)] -> Ptr WlrEventPointerMotion -> LayoutCache ()
-handleCursorMotion layout cursor seat currentOut event_ptr = do
+handleCursorMotion
+    :: Ptr WlrOutputLayout
+    -> Ptr WlrCursor
+    -> Ptr WlrEventPointerMotion
+    -> Way a ()
+handleCursorMotion layout cursor event_ptr = do
     event <- liftIO $ peek event_ptr
 
     liftIO $ moveCursor
@@ -116,10 +131,14 @@ handleCursorMotion layout cursor seat currentOut event_ptr = do
         (Just $ eventPointerMotionDevice event)
         (eventPointerMotionDeltaX event)
         (eventPointerMotionDeltaY event)
-    updatePosition layout cursor seat currentOut (fromIntegral $ eventPointerMotionTime event)
+    updatePosition layout cursor (fromIntegral $ eventPointerMotionTime event)
 
-handleCursorMotionAbs :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> IORef [(Ptr WlrSeat, Int)] -> Ptr WlrEventPointerAbsMotion -> LayoutCache ()
-handleCursorMotionAbs layout cursor seat currentOut event_ptr = do
+handleCursorMotionAbs
+    :: Ptr WlrOutputLayout
+    -> Ptr WlrCursor
+    -> Ptr WlrEventPointerAbsMotion
+    -> Way a ()
+handleCursorMotionAbs layout cursor event_ptr = do
     event <- liftIO $ peek event_ptr
 
     liftIO $ warpCursorAbs
@@ -127,12 +146,17 @@ handleCursorMotionAbs layout cursor seat currentOut event_ptr = do
         (Just $ eventPointerAbsMotionDevice event)
         (eventPointerAbsMotionX event / eventPointerAbsMotionWidth event)
         (eventPointerAbsMotionY event / eventPointerAbsMotionHeight event)
-    updatePosition layout cursor seat currentOut (fromIntegral $ eventPointerAbsMotionTime event)
+    updatePosition layout cursor (fromIntegral $ eventPointerAbsMotionTime event)
 
-handleCursorButton :: Ptr WlrOutputLayout -> Ptr WlrCursor -> Ptr WlrSeat -> Ptr WlrEventPointerButton -> LayoutCache ()
-handleCursorButton layout cursor seat event_ptr = do
+handleCursorButton
+    :: Ptr WlrOutputLayout
+    -> Ptr WlrCursor
+    -> Ptr WlrEventPointerButton
+    -> Way a ()
+handleCursorButton layout cursor event_ptr = do
     event <- liftIO $ peek event_ptr
     viewM <- getCursorView layout cursor
+    (Just seat) <- getSeat
 
     case viewM of
         Nothing -> liftIO $ pointerClearFocus seat

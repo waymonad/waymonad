@@ -6,23 +6,30 @@ module Layout
 where
 
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef)
+import Data.IORef (modifyIORef, readIORef)
 import System.IO (hPutStrLn, stderr)
 
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
 import Utility (whenJust, intToPtr)
 import View (setViewBox)
-import ViewSet (WSTag (..), Workspace(..), Layout (..), pureLayout)
-import Waymonad (LayoutCacheRef, get, WayState)
+import ViewSet (WSTag, Workspace (..), Layout (..), pureLayout)
+import Waymonad (Way, WayBindingState (..), getState)
+--import WayUtil (getViewSet)
 
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Text.IO as T
 
-reLayout :: WSTag a => LayoutCacheRef -> a -> [(a, Int)] -> WayState a ()
-reLayout cacheRef ws xs = do
-    wstate <- M.lookup ws <$> get
+reLayout
+    :: WSTag a
+    => a
+    -> Way a ()
+reLayout ws = do
+    state <- getState
+    wstate <- M.lookup ws <$> (liftIO . readIORef . wayBindingState $ state)
+    xs <- liftIO . readIORef $ wayBindingMapping state
+    let cacheRef = wayBindingCache state
 
     liftIO $ whenJust (M.lookup ws $ M.fromList xs) $ \out -> whenJust wstate $ \case
         (Workspace _ Nothing) -> modifyIORef cacheRef $ IM.delete out

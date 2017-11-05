@@ -8,6 +8,7 @@ where
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 
 import Data.Maybe (fromJust)
+import WayUtil (setSignalHandler)
 import Foreign.Storable (Storable(..))
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
@@ -15,7 +16,6 @@ import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..))
 import Data.IORef (newIORef, IORef, modifyIORef, readIORef)
 import Graphics.Wayland.Server (DisplayServer)
 import Control.Monad.IO.Class
-import Control.Monad.Reader (ask)
 import Waymonad
 import View
 import Foreign.StablePtr
@@ -24,7 +24,6 @@ import Foreign.StablePtr
     , freeStablePtr
     , castPtrToStablePtr
     )
-import Graphics.Wayland.Signal (WlListener(..), addListener)
 
 import qualified Data.IntMap.Strict as M
 import Data.IntMap (IntMap)
@@ -45,38 +44,61 @@ data XWayShell = XWayShell
     }
 
 
-xwayShellCreate :: DisplayServer -> Ptr WlrCompositor -> (View -> WayState a ()) -> (View -> WayState a ()) -> WayState a XWayShell
+xwayShellCreate
+    :: DisplayServer
+    -> Ptr WlrCompositor
+    -> (View -> Way a ())
+    -> (View -> Way a ())
+    -> Way a XWayShell
 xwayShellCreate display comp addFun delFun = do
     surfaces <- liftIO $ newIORef mempty
-    stateRef <- ask
     roots <- liftIO $ X.xwaylandCreate display comp
-    liftIO $ X.xwayBindNew roots (handleXwaySurface roots stateRef surfaces addFun delFun)
+
+    setCallback (handleXwaySurface roots surfaces addFun delFun) (X.xwayBindNew roots)
+
     pure $ XWayShell
         { xwaySurfaceRef = surfaces
         , xwayWlrootsShell = roots
         }
 
-handleXwayDestroy :: WayStateRef a -> MapRef -> (View -> WayState a ()) -> Ptr X.X11Surface -> IO ()
-handleXwayDestroy stateRef ref delFun surf = do
-    view <- fromJust . M.lookup (ptrToInt surf) <$> readIORef ref
-    modifyIORef ref $ M.delete (ptrToInt surf)
-    runWayState (delFun view) stateRef
+handleXwayDestroy
+    :: MapRef
+    -> (View -> Way a ())
+    -> Ptr X.X11Surface
+    -> Way a ()
+handleXwayDestroy ref delFun surf = do
+    view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
+    delFun view
 
-    sptr :: Ptr () <- peek (X.getX11SurfaceDataPtr surf)
-    freeStablePtr $ castPtrToStablePtr sptr
+    liftIO $ do
+        modifyIORef ref $ M.delete (ptrToInt surf)
+        sptr :: Ptr () <- peek (X.getX11SurfaceDataPtr surf)
+        freeStablePtr $ castPtrToStablePtr sptr
 
-handleXwaySurface :: Ptr X.XWayland -> WayStateRef a -> MapRef -> (View -> WayState a ()) -> (View -> WayState a ()) -> Ptr X.X11Surface -> IO ()
-handleXwaySurface xway stateRef ref addFun delFun surf = do
+handleXwaySurface
+    :: Ptr X.XWayland
+    -> MapRef
+    -> (View -> Way a ())
+    -> (View -> Way a ())
+    -> Ptr X.X11Surface
+    -> Way a ()
+handleXwaySurface xway ref addFun delFun surf = do
     let xwaySurf = XWaySurface xway surf
     view <- createView xwaySurf
-    modifyIORef ref $ M.insert (ptrToInt surf) view
-    runWayState (addFun view) stateRef
-    activate xwaySurf True
+    addFun view
+
+    liftIO $ do
+        modifyIORef ref $ M.insert (ptrToInt surf) view
+        activate xwaySurf True
 
     let signals = X.getX11SurfaceEvents surf
-    handler <- addListener (WlListener $ handleXwayDestroy stateRef ref delFun) (X.x11SurfacEvtDestroy signals)
-    sptr <- newStablePtr handler
-    poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr sptr)
+
+    handler <- setSignalHandler (X.x11SurfacEvtDestroy signals) $ handleXwayDestroy ref delFun
+
+    liftIO $ do
+        sptr <- newStablePtr handler
+        poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr sptr)
+
 
 instance ShellSurface XWaySurface where
     close (XWaySurface xway surf) = liftIO $ X.xwayCloseSurface xway surf

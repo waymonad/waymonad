@@ -55,7 +55,14 @@ import Input (Input(inputXCursor, inputCursor))
 import Input.Cursor (cursorRoots)
 import Shared (FrameHandler)
 import View (View, getViewSurface, renderViewAdditional, getViewBox)
-import Waymonad (LayoutCacheRef, LayoutCache, get, runLayoutCache)
+import Waymonad
+    ( Way
+    , LayoutCacheRef
+    , get
+    , runLayoutCache'
+    , WayBindingState (..)
+    , getState
+    )
 
 import qualified Data.IntMap.Strict as IM
 
@@ -100,8 +107,13 @@ outputHandleView comp secs output view = do
     renderViewAdditional (outputHandleSurface comp secs output) view
 
 
-frameHandler :: IORef Compositor -> Double -> Ptr Output -> LayoutCache ()
-frameHandler compRef secs output = do
+frameHandler
+    :: IORef Compositor
+    -> LayoutCacheRef
+    -> Double
+    -> Ptr Output
+    -> IO ()
+frameHandler compRef cacheRef secs output = runLayoutCache' cacheRef $ do
     views <- get
     comp <- liftIO $ readIORef compRef
     let viewsM = IM.lookup (ptrToInt output) views
@@ -129,15 +141,13 @@ setXCursorImage cursor xcursor = do
 handleOutputAdd
     :: (Eq a, Show a)
     => IORef Compositor
-    -> LayoutCacheRef
     -> [a]
-    -> IORef [(a, Int)]
-    -> IORef [Int]
     -> Ptr Output
-    -> IO FrameHandler
-handleOutputAdd ref stateRef wss mapRef current output = do
-    taken <- map fst <$> readIORef mapRef
-    case wss \\ taken of
+    -> Way a FrameHandler
+handleOutputAdd ref wss output = do
+    mapRef <- wayBindingMapping <$> getState
+    taken <- map fst <$> liftIO (readIORef mapRef)
+    liftIO $ case wss \\ taken of
         (x:_) -> do
             hPutStr stderr "Attached output to "
             hPutStrLn stderr $ show x
@@ -146,20 +156,27 @@ handleOutputAdd ref stateRef wss mapRef current output = do
             hPutStrLn stderr "Couldn't pick a workspace for the output."
             pure ()
 
-    comp <- readIORef ref
+    liftIO $ do
+        comp <- readIORef ref
 
-    addOutputAuto (compLayout comp) output
-    setXCursorImage
-        (cursorRoots $ inputCursor $ compInput comp)
-        (inputXCursor $ compInput comp)
+        addOutputAuto (compLayout comp) output
+        setXCursorImage
+            (cursorRoots $ inputCursor $ compInput comp)
+            (inputXCursor $ compInput comp)
 
-    modifyIORef current ((ptrToInt output) :)
+    current <- wayBindingOutputs <$> getState
+    liftIO $ modifyIORef current ((ptrToInt output) :)
 
-    pure $ \secs out ->
-        runLayoutCache (frameHandler ref secs out) stateRef
+    cacheRef <- wayBindingCache <$> getState
 
-handleOutputRemove :: IORef [(a, Int)] -> IORef [Int] -> Ptr Output -> IO ()
-handleOutputRemove currentRef outputs output = do
+    pure $ \secs out -> frameHandler ref cacheRef secs out
+
+handleOutputRemove
+    :: Ptr Output
+    -> Way a ()
+handleOutputRemove output = do
+    state <- getState
     let val = ptrToInt output
-    modifyIORef currentRef (filter ((/=) val . snd))
-    modifyIORef outputs (\xs -> xs \\ [val])
+    liftIO $ do
+        modifyIORef (wayBindingMapping state) $  filter ((/=) val . snd)
+        modifyIORef (wayBindingOutputs state) $  \xs -> xs \\ [val]
