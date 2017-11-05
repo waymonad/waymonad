@@ -142,13 +142,15 @@ setSignalHandler signal act =
 setSeatOutput :: Ptr WlrSeat -> Int -> Way a ()
 setSeatOutput seat out = do
     state <- getState
-    [(_, o)] <- liftIO $ readIORef (wayBindingCurrent state)
-    when (o /= out) $ liftIO $ do
-        old <- getOutputName $ intToPtr o
-        new <- getOutputName $ intToPtr out
+    prev <- liftIO $ readIORef (wayBindingCurrent state)
+    liftIO $ case prev of
+        [] -> writeIORef (wayBindingCurrent state) [(seat, out)]
+        [(_, o)] -> when (o /= out)  $ do
+            old <- getOutputName $ intToPtr o
+            new <- getOutputName $ intToPtr out
 
-        logPutText $ "Changed focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
-        writeIORef (wayBindingCurrent state) [(seat, out)]
+            logPutText $ "Changed focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
+            writeIORef (wayBindingCurrent state) [(seat, out)]
 
 
 modifyViewSet :: (ViewSet a -> ViewSet a) -> Way a ()
