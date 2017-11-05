@@ -208,6 +208,7 @@ main =  do
     currentRef <- newIORef []
     outputs <- newIORef []
     seats <- newIORef []
+    extensible <- newIORef mempty
 
     let state = WayBindingState
             { wayBindingCache = layoutRef
@@ -217,6 +218,7 @@ main =  do
             , wayBindingOutputs = outputs
             , wayBindingSeats = seats
             , wayLogFunction = pure ()
+            , wayExtensibleState = extensible
             }
 
     runWay Nothing state realMain

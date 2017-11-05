@@ -63,6 +63,7 @@ executable waymonad
   other-modules:        Input.Pointer
   other-modules:        Input.Cursor
   other-modules:        Waymonad
+  other-modules:        Waymonad.Extensible
   other-modules:        ViewSet
   other-modules:        Layout
   other-modules:        Output

@@ -46,6 +46,14 @@ import Waymonad
     , getSeat
     , setCallback
     )
+import Waymonad.Extensible
+    ( ExtensionClass
+    , StateMap
+
+    , getValue
+    , setValue
+    , modifyValue
+    )
 
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -187,3 +195,19 @@ logPutText :: MonadIO m => Text -> m ()
 logPutText arg = liftIO $ do
     logPutTime
     T.hPutStrLn stderr arg
+
+modifyStateRef :: (StateMap -> StateMap) -> Way a ()
+modifyStateRef fun = do
+    ref <- wayExtensibleState <$> getState
+    liftIO $ modifyIORef ref fun
+
+modifyEState :: ExtensionClass a => (a -> a) -> Way b ()
+modifyEState = modifyStateRef . modifyValue
+
+setEState :: ExtensionClass a => a -> Way b ()
+setEState = modifyStateRef . setValue
+
+getEState :: ExtensionClass a => Way b a
+getEState = do
+    state <- liftIO . readIORef . wayExtensibleState =<< getState
+    pure $ getValue state
