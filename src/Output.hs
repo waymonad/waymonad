@@ -13,7 +13,7 @@ import Data.IORef (IORef, readIORef, modifyIORef)
 import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Graphics.Wayland.Server (callbackDone)
-import System.IO (hPutStr, hPutStrLn, stderr)
+import System.IO (stderr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..))
@@ -23,6 +23,7 @@ import Graphics.Wayland.WlRoots.Output
     , getTransMatrix
     , swapOutputBuffers
     , makeOutputCurrent
+    , getOutputName
     )
 import Graphics.Wayland.WlRoots.OutputLayout (addOutputAuto)
 import Graphics.Wayland.WlRoots.Render
@@ -55,6 +56,7 @@ import Input (Input(inputXCursor, inputCursor))
 import Input.Cursor (cursorRoots)
 import Shared (FrameHandler)
 import View (View, getViewSurface, renderViewAdditional, getViewBox)
+import ViewSet (WSTag (..))
 import Waymonad
     ( Way
     , LayoutCacheRef
@@ -65,6 +67,7 @@ import Waymonad
     )
 
 import qualified Data.IntMap.Strict as IM
+import qualified Data.Text.IO as T
 
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
@@ -127,8 +130,6 @@ setXCursorImage cursor xcursor = do
     images <- getImages xcursor
     image <- peek $ head images
 
-    hPutStrLn stderr $ show image
-
     setCursorImage
         cursor
         (xCursorImageBuffer image)
@@ -139,21 +140,27 @@ setXCursorImage cursor xcursor = do
         (xCursorImageHotspotY image)
 
 handleOutputAdd
-    :: (Eq a, Show a)
+    :: WSTag a
     => IORef Compositor
     -> [a]
     -> Ptr Output
     -> Way a FrameHandler
 handleOutputAdd ref wss output = do
+    name <- liftIO $ getOutputName output
     mapRef <- wayBindingMapping <$> getState
     taken <- map fst <$> liftIO (readIORef mapRef)
     liftIO $ case wss \\ taken of
         (x:_) -> do
-            hPutStr stderr "Attached output to "
-            hPutStrLn stderr $ show x
+            T.hPutStr stderr "Attached new output: "
+            T.hPutStr stderr name
+            T.hPutStrLn stderr ". Attached workspace: "
+            T.hPutStrLn stderr $ getName x
+
             modifyIORef mapRef $ (:) (x, ptrToInt output)
         [] -> do
-            hPutStrLn stderr "Couldn't pick a workspace for the output."
+            T.hPutStrLn stderr "Couldn't pick a workspace for the output"
+            T.hPutStr stderr name
+            T.hPutStrLn stderr "."
             pure ()
 
     liftIO $ do
@@ -180,3 +187,8 @@ handleOutputRemove output = do
     liftIO $ do
         modifyIORef (wayBindingMapping state) $  filter ((/=) val . snd)
         modifyIORef (wayBindingOutputs state) $  \xs -> xs \\ [val]
+
+        name <- getOutputName output
+        T.hPutStr stderr "Detached output: "
+        T.hPutStr stderr name
+        T.hPutStrLn stderr "."

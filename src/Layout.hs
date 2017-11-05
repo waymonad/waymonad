@@ -9,11 +9,11 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import System.IO (hPutStrLn, stderr)
 
-import Graphics.Wayland.WlRoots.Output (getOutputBox)
+import Graphics.Wayland.WlRoots.Output (getOutputBox, getOutputName)
 
 import Utility (whenJust, intToPtr)
 import View (setViewBox)
-import ViewSet (WSTag, Workspace (..), Layout (..), pureLayout)
+import ViewSet (WSTag (..), Workspace (..), Layout (..), pureLayout)
 import Waymonad (Way, WayBindingState (..), getState)
 --import WayUtil (getViewSet)
 
@@ -39,6 +39,10 @@ reLayout ws = do
             modifyIORef cacheRef $ IM.insert out layout
 
             mapM_ (uncurry setViewBox) layout
-            -- TODO: Add output name
-            T.hPutStr stderr "Set the layout for an output to: "
+            name <- getOutputName $ intToPtr out
+            T.hPutStr stderr "Set the layout for "
+            T.hPutStr stderr (getName ws)
+            T.hPutStr stderr "  on "
+            T.hPutStr stderr name
+            T.hPutStr stderr " to: "
             hPutStrLn stderr $ show $ map snd layout
