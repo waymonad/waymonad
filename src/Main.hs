@@ -5,6 +5,8 @@
 module Main
 where
 
+import Config
+
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
@@ -202,23 +204,31 @@ realMain = do
 
 main :: IO ()
 main =  do
-    stateRef  <- defaultMap workspaces
-    layoutRef <- newIORef mempty
-    mapRef <- newIORef []
-    currentRef <- newIORef []
-    outputs <- newIORef []
-    seats <- newIORef []
-    extensible <- newIORef mempty
+    config <- loadConfig
+    case config of
+        Left str -> do
+            -- TODO: This should probably be visual later on when possible
+            hPutStrLn stderr "Error while loading config:"
+            hPutStrLn stderr str
+        Right conf -> do
+            stateRef  <- defaultMap workspaces
+            layoutRef <- newIORef mempty
+            mapRef <- newIORef []
+            currentRef <- newIORef []
+            outputs <- newIORef []
+            seats <- newIORef []
+            extensible <- newIORef mempty
 
-    let state = WayBindingState
-            { wayBindingCache = layoutRef
-            , wayBindingState = stateRef
-            , wayBindingCurrent = currentRef
-            , wayBindingMapping = mapRef
-            , wayBindingOutputs = outputs
-            , wayBindingSeats = seats
-            , wayLogFunction = pure ()
-            , wayExtensibleState = extensible
-            }
+            let state = WayBindingState
+                    { wayBindingCache = layoutRef
+                    , wayBindingState = stateRef
+                    , wayBindingCurrent = currentRef
+                    , wayBindingMapping = mapRef
+                    , wayBindingOutputs = outputs
+                    , wayBindingSeats = seats
+                    , wayLogFunction = pure ()
+                    , wayExtensibleState = extensible
+                    , wayConfig = conf
+                    }
 
-    runWay Nothing state realMain
+            runWay Nothing state realMain

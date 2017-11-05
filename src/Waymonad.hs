@@ -45,6 +45,7 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Box (Point, WlrBox)
 import Graphics.Wayland.WlRoots.Seat (WlrSeat)
 
+import Config (WayConfig)
 import View (View)
 import qualified ViewSet as VS
 import Waymonad.Extensible
@@ -109,6 +110,7 @@ data WayBindingState a = WayBindingState
     , wayBindingSeats   :: IORef [Ptr WlrSeat]
     , wayLogFunction :: LogFun a
     , wayExtensibleState :: IORef StateMap
+    , wayConfig :: WayConfig
     }
 
 newtype WayBinding a b = WayBinding (ReaderT (WayBindingState a) IO b)
