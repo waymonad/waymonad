@@ -9,4 +9,6 @@ data Full = Full
 instance LayoutClass Full where
     description _ = "Full"
     handleMessage _ _ = Nothing
-    pureLayout _ box zipper  = [(zipFoc zipper, box)]
+    pureLayout _ box zipper = case getMaster' zipper of
+        Nothing -> []
+        Just v -> [(v, box)]
