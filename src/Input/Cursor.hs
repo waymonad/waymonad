@@ -3,10 +3,10 @@
 module Input.Cursor
 where
 
-import View (View)
-import View (getViewEventSurface)
-import Data.Word (Word32)
+import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(..))
 
@@ -38,6 +38,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
 import Graphics.Wayland.Signal (ListenerToken)
 
 import Utility (ptrToInt)
+import View (View, getViewEventSurface)
 import Waymonad
     ( Way
     , getSeat
@@ -59,12 +60,14 @@ cursorCreate layout = do
     cursor <- liftIO $ createCursor
     liftIO $ attachOutputLayout cursor layout
     liftIO $ mapToRegion cursor Nothing
+    lastView <- liftIO $ newIORef Nothing
 
     let signal = cursorGetEvents cursor
 
+    tokm <- setSignalHandler (cursorMotion signal   ) (handleCursorMotion layout cursor lastView)
+    toka <- setSignalHandler (cursorMotionAbs signal) (handleCursorMotionAbs layout cursor lastView)
+
     tokb <- setSignalHandler (cursorButton signal   ) (handleCursorButton layout cursor)
-    tokm <- setSignalHandler (cursorMotion signal   ) (handleCursorMotion layout cursor)
-    toka <- setSignalHandler (cursorMotionAbs signal) (handleCursorMotionAbs layout cursor)
 
     pure Cursor
         { cursorRoots = cursor
@@ -94,9 +97,10 @@ getCursorView layout cursor = do
 updatePosition
     :: Ptr WlrOutputLayout
     -> Ptr WlrCursor
+    -> IORef (Maybe View)
     -> Word32
     -> Way a ()
-updatePosition layout cursor time = do
+updatePosition layout cursor lastView time = do
     curX <- liftIO  $ getCursorX cursor
     curY <- liftIO  $ getCursorY cursor
     viewM <- getCursorView layout cursor
@@ -115,15 +119,20 @@ updatePosition layout cursor time = do
             (surf, x, y) <- getViewEventSurface view baseX baseY
             pointerNotifyEnter seat surf x y
             pointerNotifyMotion seat time x y
-            keyboardNotifyEnter seat surf
+
+            lastV <- readIORef lastView
+            when (Just view /= lastV) $ do
+                keyboardNotifyEnter seat surf
+                writeIORef lastView $ Just view
 
 
 handleCursorMotion
     :: Ptr WlrOutputLayout
     -> Ptr WlrCursor
+    -> IORef (Maybe View)
     -> Ptr WlrEventPointerMotion
     -> Way a ()
-handleCursorMotion layout cursor event_ptr = do
+handleCursorMotion layout cursor lastView event_ptr = do
     event <- liftIO $ peek event_ptr
 
     liftIO $ moveCursor
@@ -131,14 +140,15 @@ handleCursorMotion layout cursor event_ptr = do
         (Just $ eventPointerMotionDevice event)
         (eventPointerMotionDeltaX event)
         (eventPointerMotionDeltaY event)
-    updatePosition layout cursor (fromIntegral $ eventPointerMotionTime event)
+    updatePosition layout cursor lastView (fromIntegral $ eventPointerMotionTime event)
 
 handleCursorMotionAbs
     :: Ptr WlrOutputLayout
     -> Ptr WlrCursor
+    -> IORef (Maybe View)
     -> Ptr WlrEventPointerAbsMotion
     -> Way a ()
-handleCursorMotionAbs layout cursor event_ptr = do
+handleCursorMotionAbs layout cursor lastView event_ptr = do
     event <- liftIO $ peek event_ptr
 
     liftIO $ warpCursorAbs
@@ -146,7 +156,7 @@ handleCursorMotionAbs layout cursor event_ptr = do
         (Just $ eventPointerAbsMotionDevice event)
         (eventPointerAbsMotionX event / eventPointerAbsMotionWidth event)
         (eventPointerAbsMotionY event / eventPointerAbsMotionHeight event)
-    updatePosition layout cursor (fromIntegral $ eventPointerAbsMotionTime event)
+    updatePosition layout cursor lastView (fromIntegral $ eventPointerAbsMotionTime event)
 
 handleCursorButton
     :: Ptr WlrOutputLayout
