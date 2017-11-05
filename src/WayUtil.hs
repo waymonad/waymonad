@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 module WayUtil
 where
@@ -6,6 +7,7 @@ import Control.Monad (when, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (readIORef, modifyIORef, writeIORef)
 import Data.Maybe (fromJust)
+import Data.Text (Text)
 import Data.Time.Clock (getCurrentTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Tuple (swap)
@@ -19,10 +21,11 @@ import Graphics.Wayland.Signal
     , ListenerToken
     , WlSignal
     )
+import Graphics.Wayland.WlRoots.Output (getOutputName)
 import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyEnter)
 
 import Layout (reLayout)
-import Utility (whenJust)
+import Utility (whenJust, intToPtr)
 import View (View, getViewSurface, activateView)
 import ViewSet
     ( Workspace (..)
@@ -45,6 +48,8 @@ import Waymonad
     )
 
 import qualified Data.Map as M
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 
 getCurrent :: (WSTag a) => Way a Int
 getCurrent = do
@@ -133,11 +138,17 @@ setSignalHandler signal act =
     setCallback act (\fun -> addListener (WlListener fun) signal)
 
 
+-- TODO: Real multiseat support
 setSeatOutput :: Ptr WlrSeat -> Int -> Way a ()
 setSeatOutput seat out = do
     state <- getState
-    -- TODO: Make sure this works with multiseat
-    liftIO $ writeIORef (wayBindingCurrent state) [(seat, out)]
+    [(_, o)] <- liftIO $ readIORef (wayBindingCurrent state)
+    when (o /= out) $ liftIO $ do
+        old <- getOutputName $ intToPtr o
+        new <- getOutputName $ intToPtr out
+
+        logPutText $ "Changed focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
+        writeIORef (wayBindingCurrent state) [(seat, out)]
 
 
 modifyViewSet :: (ViewSet a -> ViewSet a) -> Way a ()
@@ -163,3 +174,7 @@ logPutStr arg = liftIO $ do
 logPrint :: (Show a, MonadIO m) => a -> m ()
 logPrint = logPutStr . show
 
+logPutText :: MonadIO m => Text -> m ()
+logPutText arg = liftIO $ do
+    logPutTime
+    T.hPutStrLn stderr arg
