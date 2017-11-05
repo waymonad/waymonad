@@ -105,6 +105,7 @@ data WayBindingState a = WayBindingState
     , wayBindingCurrent :: IORef [(Ptr WlrSeat, Int)]
     , wayBindingMapping :: IORef [(a, Int)]
     , wayBindingOutputs :: IORef [Int]
+    , wayBindingSeats   :: IORef [Ptr WlrSeat]
     , wayLogFunction :: LogFun a
     }
 
@@ -125,7 +126,15 @@ getState :: Way a (WayBindingState a)
 getState = Way $ lift ask
 
 getSeat :: Way a (Maybe (Ptr WlrSeat))
-getSeat = ask
+getSeat = do
+    current <- ask
+    case current of
+        Just _ -> pure current
+        Nothing -> do
+            seats <- liftIO . readIORef . wayBindingSeats =<< getState
+            pure $ case seats of
+                [x] -> Just x
+                _ -> Nothing
 
 runWay
     :: MonadIO m

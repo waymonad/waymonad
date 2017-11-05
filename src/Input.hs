@@ -6,6 +6,7 @@ where
 
 import Foreign.Storable (Storable(peek))
 import Control.Monad.IO.Class (liftIO)
+import Data.IORef (modifyIORef)
 import Input.Keyboard
 import Input.Pointer
 import Input.Cursor
@@ -79,6 +80,10 @@ inputCreate display layout backend bindings = do
     theme   <- liftIO $ loadCursorTheme "default" 16
     xcursor <- liftIO $ getCursor theme "left_ptr"
     seat    <- liftIO $ createSeat display "seat0"
+
+    seatRef <- wayBindingSeats <$> getState
+    liftIO $ modifyIORef seatRef ((:) seat)
+
     withSeat (Just seat) $ do
         cursor  <- cursorCreate layout
 

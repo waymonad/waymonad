@@ -196,6 +196,7 @@ main =  do
     mapRef <- newIORef []
     currentRef <- newIORef []
     outputs <- newIORef []
+    seats <- newIORef []
 
     let state = WayBindingState
             { wayBindingCache = layoutRef
@@ -203,6 +204,7 @@ main =  do
             , wayBindingCurrent = currentRef
             , wayBindingMapping = mapRef
             , wayBindingOutputs = outputs
+            , wayBindingSeats = seats
             , wayLogFunction = pure ()
             }
 

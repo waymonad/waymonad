@@ -151,9 +151,9 @@ handleOutputAdd ref wss output = do
     taken <- map fst <$> liftIO (readIORef mapRef)
     liftIO $ case wss \\ taken of
         (x:_) -> do
-            T.hPutStr stderr "Attached new output: "
+            T.hPutStr stderr "Added output: "
             T.hPutStr stderr name
-            T.hPutStrLn stderr ". Attached workspace: "
+            T.hPutStr stderr ". Attached workspace: "
             T.hPutStrLn stderr $ getName x
 
             modifyIORef mapRef $ (:) (x, ptrToInt output)
