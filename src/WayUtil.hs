@@ -137,6 +137,13 @@ setSignalHandler
 setSignalHandler signal act = 
     setCallback act (\fun -> addListener (WlListener fun) signal)
 
+focusNextOut :: WSTag a => Way a ()
+focusNextOut = do
+    (Just seat) <- getSeat
+    current <- getCurrent
+    possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
+    let new = head . tail . dropWhile (/= current) $ cycle possibles
+    setSeatOutput seat new
 
 -- TODO: Real multiseat support
 setSeatOutput :: Ptr WlrSeat -> Int -> Way a ()

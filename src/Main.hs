@@ -61,7 +61,17 @@ import Waymonad
     , WayBindingState (..)
     , makeCallback
     )
-import WayUtil (modifyCurrentWS, setWorkspace, spawn, setFoci, sendMessage, modifyViewSet, getViewSet, logPutStr)
+import WayUtil
+    ( modifyCurrentWS
+    , setWorkspace
+    , spawn
+    , setFoci
+    , sendMessage
+    , modifyViewSet
+    , getViewSet
+    , logPutStr
+    , focusNextOut
+    )
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
@@ -126,6 +136,7 @@ bindings =
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_f), sendMessage TMessage)
+    , (([modi], keysym_n), focusNextOut)
     ]
     where modi = Alt
 
