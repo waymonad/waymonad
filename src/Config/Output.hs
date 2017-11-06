@@ -15,9 +15,9 @@ data OutputConfig = OutputConfig
     } deriving (Eq, Show)
 
 data Mode = Mode
-    { modeWidth :: Word
-    , modeHeight :: Word
-    , modeRefresh :: Word
+    { modeCWidth :: Word
+    , modeCHeight :: Word
+    , modeCRefresh :: Word
     } deriving (Eq, Show)
 
 

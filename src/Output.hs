@@ -6,10 +6,14 @@ module Output
 where
 
 import Control.Exception (bracket_)
-import Data.List ((\\))
-import Control.Monad (when, forM_)
-import Control.Monad.IO.Class (liftIO)
+import Data.List ((\\), sortOn)
+import Data.Ratio (Ratio, (%))
+import Control.Monad (when, forM_, forM)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, readIORef, modifyIORef)
+import Data.Map (Map)
+import Data.Maybe (listToMaybe)
+import Data.Text (Text)
 import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Graphics.Wayland.Server (callbackDone)
@@ -20,12 +24,15 @@ import Graphics.Wayland.WlRoots.Box (WlrBox(..))
 import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
 import Graphics.Wayland.WlRoots.Output
     ( Output
+    , OutputMode (..)
+    , setOutputMode
+    , getModes
     , getTransMatrix
     , swapOutputBuffers
     , makeOutputCurrent
     , getOutputName
     )
-import Graphics.Wayland.WlRoots.OutputLayout (addOutputAuto)
+import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout, addOutput, addOutputAuto)
 import Graphics.Wayland.WlRoots.Render
     ( Renderer
     , renderWithMatrix
@@ -52,9 +59,13 @@ import Graphics.Wayland.WlRoots.XCursor
     )
 
 import Compositor
+import Config (configOutputs)
+import Config.Box (Point (..))
+import Config.Output (OutputConfig (..), Mode (..))
 import Input (Input(inputXCursor, inputCursor))
 import Input.Cursor (cursorRoots)
 import Shared (FrameHandler)
+import Utility (whenJust)
 import View (View, getViewSurface, renderViewAdditional, getViewBox)
 import ViewSet (WSTag (..))
 import Waymonad
@@ -67,6 +78,7 @@ import Waymonad
     )
 
 import qualified Data.IntMap.Strict as IM
+import qualified Data.Map.Strict as M
 import qualified Data.Text.IO as T
 
 ptrToInt :: Num b => Ptr a -> b
@@ -139,6 +151,58 @@ setXCursorImage cursor xcursor = do
         (xCursorImageHotspotX image)
         (xCursorImageHotspotY image)
 
+pickMode
+    :: MonadIO m
+    => Ptr Output
+    -> Maybe Mode
+    -> m (Maybe (Ptr OutputMode))
+-- If there's no config, just pick the "last" mode, it's the native resolution
+pickMode output Nothing = liftIO $ do
+    modes <- getModes output
+    pure $ listToMaybe $ reverse modes
+pickMode output (Just cfg) = liftIO $ do
+    modes <- getModes output
+    pared <- forM modes $ \x -> do
+        marshalled <- peek x
+        pure (marshalled, x)
+    -- First try to find modes that match *exactly* on resolution
+    let matches = map snd . sortOn (refreshDist . fst) $ filter (sameResolution . fst) pared
+    let ratio = map snd . sortOn (\m -> (resDist $ fst m, refreshDist $ fst m)) $ filter (sameAspect . fst) pared
+
+    pure . listToMaybe . reverse $ modes ++ ratio ++ matches
+    where   sameResolution :: OutputMode -> Bool
+            sameResolution mode =
+                fromIntegral (modeWidth mode) == modeCWidth cfg
+                && fromIntegral (modeHeight mode) == modeCHeight cfg
+            refreshDist :: OutputMode -> Int -- Cast to Int, so we don't get wrapping arithmetic, *should* be big enough!
+            refreshDist mode = abs $ fromIntegral (modeRefresh mode) - fromIntegral (modeCRefresh cfg)
+            confAspect :: Ratio Word
+            confAspect = modeCWidth cfg % modeCHeight cfg
+            aspect :: OutputMode -> Ratio Word
+            aspect mode = fromIntegral (modeWidth mode) % fromIntegral (modeHeight mode)
+            sameAspect :: OutputMode -> Bool
+            sameAspect = (==) confAspect . aspect
+            resDist :: OutputMode -> Int -- We know it's the same ration, so be lazy here
+            resDist mode = abs $ fromIntegral (modeWidth mode) - fromIntegral (modeCWidth cfg)
+
+
+configureOutput
+    :: Ptr WlrOutputLayout
+    -> Map Text OutputConfig
+    -> Text
+    -> Ptr Output
+    -> Way a ()
+configureOutput layout configs name output = do
+    let conf = M.lookup name configs
+        position = outPosition =<< conf
+        confMode = outMode =<< conf
+    liftIO $ case position of
+        Nothing -> addOutputAuto layout output
+        Just (Point x y) -> addOutput layout output x y
+    mode <- pickMode output confMode
+
+    liftIO $ whenJust mode (flip setOutputMode output)
+
 handleOutputAdd
     :: WSTag a
     => IORef Compositor
@@ -146,9 +210,14 @@ handleOutputAdd
     -> Ptr Output
     -> Way a FrameHandler
 handleOutputAdd ref wss output = do
+    comp <- liftIO $ readIORef ref
+    state <- getState
     name <- liftIO $ getOutputName output
     mapRef <- wayBindingMapping <$> getState
     taken <- map fst <$> liftIO (readIORef mapRef)
+
+    configureOutput (compLayout comp) (configOutputs $ wayConfig state) name output
+
     liftIO $ case wss \\ taken of
         (x:_) -> do
             T.hPutStr stderr "Added output: "
@@ -164,7 +233,6 @@ handleOutputAdd ref wss output = do
             pure ()
 
     liftIO $ do
-        comp <- readIORef ref
 
         addOutputAuto (compLayout comp) output
         setXCursorImage
