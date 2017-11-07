@@ -12,7 +12,7 @@ import Data.Time.Clock (getCurrentTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Tuple (swap)
 import Foreign.Ptr (Ptr)
-import System.IO (hPutStr, hPutStrLn, stderr)
+import System.IO (hPutStr, stderr)
 import System.Process (spawnCommand)
 
 import Graphics.Wayland.Signal
@@ -45,6 +45,9 @@ import Waymonad
     , getState
     , getSeat
     , setCallback
+    , getLoggers
+    , WayLoggers (..)
+    , Logger (..)
     )
 import Waymonad.Extensible
     ( ExtensionClass
@@ -78,7 +81,7 @@ modifyCurrentWS fun = do
     case M.lookup current . M.fromList $ map swap mapping of
         Nothing -> pure ()
         Just ws -> do
-            logPutStr $ "Changing contents of workspace: " ++ show ws
+            logPutStr loggerWS $ "Changing contents of workspace: " ++ show ws
             preWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
             modifyViewSet (M.adjust (fun seat) ws)
             postWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
@@ -158,14 +161,14 @@ setSeatOutput :: Ptr WlrSeat -> Int -> Way a ()
 setSeatOutput seat out = do
     state <- getState
     prev <- liftIO $ readIORef (wayBindingCurrent state)
-    liftIO $ case prev of
-        [] -> writeIORef (wayBindingCurrent state) [(seat, out)]
+    case prev of
+        [] -> liftIO $ writeIORef (wayBindingCurrent state) [(seat, out)]
         [(_, o)] -> when (o /= out)  $ do
-            old <- getOutputName $ intToPtr o
-            new <- getOutputName $ intToPtr out
+            old <- liftIO $ getOutputName $ intToPtr o
+            new <- liftIO $ getOutputName $ intToPtr out
+            liftIO $ writeIORef (wayBindingCurrent state) [(seat, out)]
 
-            logPutText $ "Changed focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
-            writeIORef (wayBindingCurrent state) [(seat, out)]
+            logPutText loggerFocus $ "Changed focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
 
 
 modifyViewSet :: (ViewSet a -> ViewSet a) -> Way a ()
@@ -183,18 +186,21 @@ logPutTime = do
 
     hPutStr stderr formatted
 
-logPutStr :: MonadIO m => String -> m ()
-logPutStr arg = liftIO $ do
-    logPutTime
-    hPutStrLn stderr arg
+logPutText :: (WayLoggers -> Logger) -> Text -> Way a ()
+logPutText select arg = do
+    (Logger active name) <- select <$> getLoggers
+    when active $ liftIO $ do
+        logPutTime
+        T.hPutStr stderr name
+        T.hPutStr stderr ": "
+        T.hPutStrLn stderr arg
 
-logPrint :: (Show a, MonadIO m) => a -> m ()
-logPrint = logPutStr . show
+logPutStr :: (WayLoggers -> Logger) -> String -> Way a ()
+logPutStr select arg = logPutText select (T.pack arg)
 
-logPutText :: MonadIO m => Text -> m ()
-logPutText arg = liftIO $ do
-    logPutTime
-    T.hPutStrLn stderr arg
+logPrint :: (Show a) => (WayLoggers -> Logger) -> a -> Way b ()
+logPrint fun = logPutStr fun . show
+
 
 modifyStateRef :: (StateMap -> StateMap) -> Way a ()
 modifyStateRef fun = do

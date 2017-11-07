@@ -36,6 +36,7 @@ import Compositor
 import Input (inputCreate)
 import Layout (reLayout)
 --import Layout.Full (Full (..))
+import Layout.Mirror (Mirror (..), MMessage (..))
 import Layout.Tall (Tall (..))
 import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove)
@@ -62,6 +63,9 @@ import Waymonad
     , getSeat
     , WayBindingState (..)
     , makeCallback
+
+    , WayLoggers (..)
+    , Logger (..)
     )
 import WayUtil
     ( modifyCurrentWS
@@ -71,7 +75,6 @@ import WayUtil
     , sendMessage
     , modifyViewSet
     , getViewSet
-    , logPutStr
     , focusNextOut
     )
 import XWayland (xwayShellCreate)
@@ -84,7 +87,6 @@ insertView
     => View
     -> Way a ()
 insertView view = do
-    logPutStr "Adding new view"
     seat <- getSeat
     state <- getState
     currents <- liftIO . readIORef $ wayBindingCurrent state
@@ -107,7 +109,6 @@ removeView
     => View
     -> Way a ()
 removeView view = do
-    logPutStr "Removing view"
     wsL <- filter (fromMaybe False . fmap (contains view) . wsViews . snd) . M.toList <$> getViewSet
 
     case wsL of
@@ -138,6 +139,7 @@ bindings =
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_f), sendMessage TMessage)
+    , (([modi], keysym_m), sendMessage MMessage)
     , (([modi], keysym_n), focusNextOut)
     ]
     where modi = Alt
@@ -186,7 +188,7 @@ workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
-    map (, Workspace (Layout (ToggleFull False Tall)) Nothing) xs
+    map (, Workspace (Layout (Mirror False (ToggleFull False Tall))) Nothing) xs
 
 realMain :: Way Text ()
 realMain = do
@@ -231,4 +233,12 @@ main =  do
                     , wayConfig = conf
                     }
 
-            runWay Nothing state realMain
+            let loggers = WayLoggers
+                    { loggerOutput = Logger True "Output"
+                    , loggerWS = Logger True "Workspaces"
+                    , loggerFocus = Logger True "Focus"
+                    , loggerXdg = Logger True "Xdg_Shell"
+
+                    }
+
+            runWay Nothing state loggers realMain

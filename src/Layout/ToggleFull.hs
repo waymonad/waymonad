@@ -31,7 +31,7 @@ instance LayoutClass l => LayoutClass (ToggleFull l) where
     handleMessage (ToggleFull state l) m =
         case getMessage m of
             (Just TMessage) -> Just $ ToggleFull (not state) l
-            Nothing -> Nothing
+            Nothing -> ToggleFull state <$> handleMessage l m
     description :: ToggleFull l -> Text
     description (ToggleFull _ l) =
         "ToggleFull(" `T.append` description l `T.append` ")"

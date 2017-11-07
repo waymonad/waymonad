@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 module XdgShell
     ( xdgShellCreate
     , XdgShell
@@ -8,7 +9,7 @@ where
 
 import View
 import Waymonad
-import WayUtil (setSignalHandler, logPrint)
+import WayUtil (setSignalHandler, logPutText)
 import Control.Monad (when, filterM, forM_)
 import Control.Monad.IO.Class
 import Data.Maybe (fromJust)
@@ -53,7 +54,7 @@ xdgShellCreate display addFun delFun = do
         (\surf -> handleXdgSurface surfaces addFun delFun surf)
         (\act -> R.xdgShellCreate act display)
 
-    logPrint "Created xdg_shell_v6 handler"
+    logPutText loggerXdg "Created xdg_shell_v6 handler"
 
     pure $ XdgShell
         { xdgSurfaceRef = surfaces
@@ -66,7 +67,7 @@ handleXdgDestroy
     -> Ptr R.WlrXdgSurface
     -> Way a ()
 handleXdgDestroy ref delFun surf = do
-    logPrint "Destroying xdg toplevel surface"
+    logPutText loggerXdg "Destroying xdg toplevel surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     liftIO $ modifyIORef ref $ M.delete (ptrToInt surf)
 
@@ -86,7 +87,7 @@ handleXdgSurface
 handleXdgSurface ref addFun delFun surf = do
     isPopup <- liftIO $ R.isXdgPopup surf
     when (not isPopup) $ do
-        logPrint "New xdg toplevel surface"
+        logPutText loggerXdg "New xdg toplevel surface"
         let xdgSurf = XdgSurface surf
         view <- createView xdgSurf
         addFun view

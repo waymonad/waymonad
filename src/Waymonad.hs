@@ -31,6 +31,10 @@ module Waymonad
     , makeCallback
     , setCallback
     , withSeat
+
+    , WayLoggers (..)
+    , Logger (..)
+    , getLoggers
     )
 where
 
@@ -39,6 +43,7 @@ import Control.Monad.Reader (ReaderT(..), MonadReader(..), local)
 import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
 import Data.Map (Map)
+import Data.Text (Text)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
@@ -101,6 +106,18 @@ viewBelow point ws = do
         Nothing -> pure Nothing
         Just x -> liftIO $ VS.viewBelow point x
 
+data Logger = Logger
+    { loggerActive :: Bool
+    , loggerName :: Text
+    }
+
+data WayLoggers = WayLoggers
+    { loggerOutput :: Logger
+    , loggerWS :: Logger
+    , loggerFocus :: Logger
+    , loggerXdg :: Logger
+    }
+
 data WayBindingState a = WayBindingState
     { wayBindingCache :: LayoutCacheRef
     , wayBindingState :: WayStateRef a
@@ -113,11 +130,11 @@ data WayBindingState a = WayBindingState
     , wayConfig :: WayConfig
     }
 
-newtype WayBinding a b = WayBinding (ReaderT (WayBindingState a) IO b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState a))
+newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader WayLoggers)
 
-runWayBinding :: MonadIO m => WayBindingState a -> WayBinding a b -> m b
-runWayBinding val (WayBinding act) = liftIO $ runReaderT act val
+newtype WayBinding a b = WayBinding (ReaderT (WayBindingState a) WayLogging b)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState a))
 
 type KeyBinding a = Way a ()
 type BindingMap a = Map (Word32, Int) (KeyBinding a)
@@ -125,6 +142,11 @@ type LogFun a = Way a ()
 
 newtype Way a b = Way (ReaderT (Maybe (Ptr WlrSeat)) (WayBinding a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe (Ptr WlrSeat)))
+
+getLoggers :: Way a WayLoggers
+getLoggers = Way $ lift getLoggers'
+    where   getLoggers' :: WayBinding a WayLoggers
+            getLoggers' = WayBinding $ lift ask
 
 getState :: Way a (WayBindingState a)
 getState = Way $ lift ask
@@ -140,20 +162,30 @@ getSeat = do
                 [x] -> Just x
                 _ -> Nothing
 
+runWayLogging :: MonadIO m => WayLoggers -> WayLogging a -> m a
+runWayLogging val (WayLogging act) = liftIO $ runReaderT act val
+
+runWayBinding :: MonadIO m => WayLoggers -> WayBindingState a -> WayBinding a b -> m b
+runWayBinding logger val (WayBinding act) =
+    liftIO $ runWayLogging logger $ runReaderT act val
+
+
 runWay
     :: MonadIO m
     => Maybe (Ptr WlrSeat)
     -> WayBindingState a
+    -> WayLoggers
     -> Way a b
     -> m b
-runWay seat state (Way m) =
-    liftIO $ runWayBinding state $ runReaderT m seat
+runWay seat state logger (Way m) =
+    liftIO $ runWayBinding logger state $ runReaderT m seat
 
 makeCallback :: (c -> Way a b) -> Way a (c -> IO b)
 makeCallback act = do
     seat <- getSeat
     state <- getState
-    pure (\arg -> runWay seat state (act arg))
+    loggers <- getLoggers
+    pure (\arg -> runWay seat state loggers (act arg))
 
 setCallback :: (c -> Way a b) -> ((c -> IO b) -> IO d) -> Way a d
 setCallback act fun = do

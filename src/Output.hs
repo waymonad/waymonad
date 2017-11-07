@@ -169,6 +169,7 @@ pickMode output (Just cfg) = liftIO $ do
     let matches = map snd . sortOn (refreshDist . fst) $ filter (sameResolution . fst) pared
     let ratio = map snd . sortOn (\m -> (resDist $ fst m, refreshDist $ fst m)) $ filter (sameAspect . fst) pared
 
+    -- TODO: Sanitize this
     pure . listToMaybe . reverse $ modes ++ ratio ++ matches
     where   sameResolution :: OutputMode -> Bool
             sameResolution mode =
@@ -232,10 +233,7 @@ handleOutputAdd ref wss output = do
             T.hPutStrLn stderr "."
             pure ()
 
-    liftIO $ do
-
-        addOutputAuto (compLayout comp) output
-        setXCursorImage
+    liftIO $ setXCursorImage
             (cursorRoots $ inputCursor $ compInput comp)
             (inputXCursor $ compInput comp)
 
