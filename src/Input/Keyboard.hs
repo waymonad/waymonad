@@ -51,7 +51,7 @@ import Waymonad
     , Way
     , WayLoggers (..)
     )
-import WayUtil (setSignalHandler, logPutText, logPrint)
+import WayUtil (setSignalHandler, logPutText)
 
 import Text.XkbCommon.Context
 import Text.XkbCommon.KeyboardState
@@ -89,7 +89,6 @@ handleKeyPress
     -> Keysym
     -> Way a Bool
 handleKeyPress dsp backend bindings modifiers sym@(Keysym key) = do
-    logPrint loggerKeybinds (modifiers, key)
     case sym of
         Keysym_Escape -> liftIO (displayTerminate dsp) >> pure True
         -- Would be cooler if this wasn't a listing of VTs (probably TH)
@@ -174,7 +173,6 @@ handleKeyEvent
 handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ do
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
-    logPrint loggerKeybinds keycode
 
     handled <- case (state event) of
         -- We currently don't do anything special for releases
