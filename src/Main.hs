@@ -76,6 +76,7 @@ import WayUtil
     , modifyViewSet
     , getViewSet
     , focusNextOut
+    , sendTo
     )
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
@@ -136,6 +137,8 @@ bindings =
     , (([modi], keysym_8), setWorkspace "8")
     , (([modi], keysym_9), setWorkspace "9")
     , (([modi], keysym_0), setWorkspace "0")
+    , (([modi, Shift], keysym_1), sendTo "1")
+    , (([modi, Shift], keysym_2), sendTo "2")
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_f), sendMessage TMessage)
@@ -238,7 +241,7 @@ main =  do
                     , loggerWS = Logger True "Workspaces"
                     , loggerFocus = Logger True "Focus"
                     , loggerXdg = Logger True "Xdg_Shell"
-
+                    , loggerKeybinds = Logger True "Keybindings"
                     }
 
             runWay Nothing state loggers realMain

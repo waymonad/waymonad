@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Input.Keyboard
 where
 
@@ -46,8 +47,9 @@ import Waymonad
     ( BindingMap
     , withSeat
     , Way
+    , WayLoggers (..)
     )
-import WayUtil (setSignalHandler)
+import WayUtil (setSignalHandler, logPutText, logPrint)
 
 import Text.XkbCommon.Keymap
 import Text.XkbCommon.Types
@@ -84,7 +86,8 @@ handleKeyPress
     -> Word32
     -> Keysym
     -> Way a Bool
-handleKeyPress dsp backend bindings modifiers sym@(Keysym key) =
+handleKeyPress dsp backend bindings modifiers sym@(Keysym key) = do
+    logPrint loggerKeybinds (modifiers, key)
     case sym of
         Keysym_Escape -> liftIO (displayTerminate dsp) >> pure True
         -- Would be cooler if this wasn't a listing of VTs (probably TH)
@@ -102,7 +105,10 @@ handleKeyPress dsp backend bindings modifiers sym@(Keysym key) =
         Keysym_XF86Switch_VT_12 -> liftIO (switchVT backend 12) >> pure True
         _ -> case M.lookup (modifiers, key) bindings of
                 Nothing -> pure False
-                Just fun -> fun >> pure True
+                Just fun -> do
+                    logPutText loggerKeybinds "Found a keybind"
+                    fun
+                    pure True
 
 
 tellClient :: Ptr WlrSeat -> Keyboard -> EventKey -> IO ()

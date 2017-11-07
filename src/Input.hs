@@ -28,6 +28,8 @@ import ViewSet (WSTag)
 import Waymonad
 import WayUtil
 
+import qualified Data.Map as M
+
 data Input = Input
     { inputCursorTheme :: Ptr WlrXCursorTheme
     , inputXCursor :: Ptr WlrXCursor
@@ -77,6 +79,7 @@ inputCreate
     -> BindingMap a
     -> Way a Input
 inputCreate display layout backend bindings = do
+    logPutStr loggerKeybinds $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
     theme   <- liftIO $ loadCursorTheme "default" 16
     xcursor <- liftIO $ getCursor theme "left_ptr"
     seat    <- liftIO $ createSeat display "seat0"

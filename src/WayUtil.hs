@@ -38,6 +38,8 @@ import ViewSet
     , getMaster
     , setFocused
     , messageWS
+    , rmView
+    , addView
     )
 import Waymonad
     ( WayBindingState(..)
@@ -62,40 +64,74 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
-getCurrent :: (WSTag a) => Way a Int
-getCurrent = do
+getCurrentOutput :: (WSTag a) => Way a Int
+getCurrentOutput = do
     state <- getState
     (Just seat) <- getSeat
     currents <- liftIO . readIORef $ wayBindingCurrent state
     let (Just current) = M.lookup seat $ M.fromList currents
     pure current
 
+getCurrentWS :: (WSTag a) => Way a a
+getCurrentWS = do
+    mapping <- liftIO . readIORef . wayBindingMapping =<< getState
+    current <- getCurrentOutput
+    pure . fromJust . M.lookup current . M.fromList $ map swap mapping
+
+withCurrentWS
+    :: (WSTag a)
+    => (Ptr WlrSeat -> Workspace -> b)
+    -> Way a b
+withCurrentWS fun = do
+    Just seat <- getSeat
+    ws <- getCurrentWS
+    vs <- getViewSet
+
+    pure . fun seat . fromJust $  M.lookup ws vs
+
+modifyWS
+    :: (WSTag a)
+    => (Ptr WlrSeat -> Workspace -> Workspace)
+    -> a
+    -> Way a ()
+modifyWS fun ws = do
+    logPutStr loggerWS $ "Changing contents of workspace: " ++ show ws
+    (Just seat) <- getSeat
+
+    preWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
+    modifyViewSet (M.adjust (fun seat) ws)
+    postWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
+    reLayout ws
+
+    liftIO $ when (preWs /= postWs) $ whenJust postWs $ \v ->
+        keyboardNotifyEnter seat =<< getViewSurface v
+
 modifyCurrentWS
     :: (WSTag a)
     => (Ptr WlrSeat -> Workspace -> Workspace) -> Way a ()
 modifyCurrentWS fun = do
-    state <- getState
-    (Just seat) <- getSeat
-    mapping <- liftIO . readIORef $ wayBindingMapping state
-    current <- getCurrent
-    case M.lookup current . M.fromList $ map swap mapping of
-        Nothing -> pure ()
-        Just ws -> do
-            logPutStr loggerWS $ "Changing contents of workspace: " ++ show ws
-            preWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
-            modifyViewSet (M.adjust (fun seat) ws)
-            postWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
-            reLayout ws
-
-            liftIO $ when (preWs /= postWs) $ whenJust postWs $ \v ->
-                keyboardNotifyEnter seat =<< getViewSurface v
+    modifyWS fun =<< getCurrentWS
 
     runLog
+
+getCurrentView :: WSTag a => Way a (Maybe View)
+getCurrentView = do
+    withCurrentWS getFocused
+
+sendTo
+    :: (WSTag a)
+    => a
+    -> Way a ()
+sendTo ws = do
+    viewM <- getCurrentView
+    whenJust viewM $ \view -> do
+        modifyCurrentWS (\_ -> rmView view)
+        modifyWS (\seat -> addView (Just seat) view) ws
 
 setWorkspace :: WSTag a => a -> Way a ()
 setWorkspace ws = do
     state <- getState
-    current <- getCurrent
+    current <- getCurrentOutput
     liftIO $ modifyIORef
         (wayBindingMapping state)
         ((:) (ws, current) . filter ((/=) current . snd))
@@ -111,7 +147,7 @@ focusMaster = do
     state <- getState
     (Just seat) <- getSeat
     mapping <- liftIO . readIORef $ wayBindingMapping state
-    current <- getCurrent
+    current <- getCurrentOutput
     wss <- liftIO . readIORef $ wayBindingState state
     let ws = M.lookup current . M.fromList $ map swap mapping
     whenJust (getMaster =<< flip M.lookup wss =<< ws) $ \view -> do
@@ -154,7 +190,7 @@ setSignalHandler signal act =
 focusNextOut :: WSTag a => Way a ()
 focusNextOut = do
     (Just seat) <- getSeat
-    current <- getCurrent
+    current <- getCurrentOutput
     possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
     let new = head . tail . dropWhile (/= current) $ cycle possibles
     setSeatOutput seat new
