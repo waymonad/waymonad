@@ -21,7 +21,10 @@ import ViewSet
 
 import qualified Data.Text as T
 
-data TMessage = TMessage
+data TMessage
+    = TMessage
+    | SetFull
+    | UnsetFull
     deriving (Show, Eq, Message)
 
 data ToggleFull l = ToggleFull Bool l
@@ -31,6 +34,8 @@ instance LayoutClass l => LayoutClass (ToggleFull l) where
     handleMessage (ToggleFull state l) m =
         case getMessage m of
             (Just TMessage) -> Just $ ToggleFull (not state) l
+            (Just SetFull) -> Just $ ToggleFull True l
+            (Just UnsetFull) -> Just $ ToggleFull False l
             Nothing -> ToggleFull state <$> handleMessage l m
     description :: ToggleFull l -> Text
     description (ToggleFull _ l) =

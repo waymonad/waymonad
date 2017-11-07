@@ -52,6 +52,8 @@ import ViewSet
     , rmView
     , moveRight
     , moveLeft
+    , moveViewLeft
+    , moveViewRight
     )
 import Waymonad
     ( Way
@@ -77,6 +79,7 @@ import WayUtil
     , getViewSet
     , focusNextOut
     , sendTo
+    , killCurrent
     )
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
@@ -125,8 +128,10 @@ removeView view = do
 
 bindings :: [(([WlrModifier], Keysym), KeyBinding Text)]
 bindings =
-    [ (([modi], keysym_j), modifyCurrentWS moveRight)
-    , (([modi], keysym_k), modifyCurrentWS moveLeft)
+    [ (([modi], keysym_k), modifyCurrentWS moveLeft)
+    , (([modi], keysym_j), modifyCurrentWS moveRight)
+    , (([modi, Shift], keysym_k), modifyCurrentWS moveViewLeft)
+    , (([modi, Shift], keysym_j), modifyCurrentWS moveViewRight)
     , (([modi], keysym_1), setWorkspace "1")
     , (([modi], keysym_2), setWorkspace "2")
     , (([modi], keysym_3), setWorkspace "3")
@@ -144,6 +149,7 @@ bindings =
     , (([modi], keysym_f), sendMessage TMessage)
     , (([modi], keysym_m), sendMessage MMessage)
     , (([modi], keysym_n), focusNextOut)
+    , (([modi], keysym_q), killCurrent)
     ]
     where modi = Alt
 

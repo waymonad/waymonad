@@ -90,7 +90,7 @@ handleKeyPress
     -> Way a Bool
 handleKeyPress dsp backend bindings modifiers sym@(Keysym key) = do
     case sym of
-        Keysym_Escape -> liftIO (displayTerminate dsp) >> pure True
+        Keysym_e -> when (modifiers == 9) (liftIO (displayTerminate dsp)) >> pure False
         -- Would be cooler if this wasn't a listing of VTs (probably TH)
         Keysym_XF86Switch_VT_1  -> liftIO (switchVT backend 1 ) >> pure True
         Keysym_XF86Switch_VT_2  -> liftIO (switchVT backend 2 ) >> pure True

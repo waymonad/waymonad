@@ -26,7 +26,7 @@ import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyEnter)
 
 import Layout (reLayout)
 import Utility (whenJust, intToPtr)
-import View (View, getViewSurface, activateView)
+import View (View, getViewSurface, activateView, closeView)
 import ViewSet
     ( Workspace (..)
     , Zipper (..)
@@ -256,3 +256,9 @@ getEState :: ExtensionClass a => Way b a
 getEState = do
     state <- liftIO . readIORef . wayExtensibleState =<< getState
     pure $ getValue state
+
+
+killCurrent :: WSTag a => Way a ()
+killCurrent = do
+    view <- getCurrentView
+    whenJust view closeView

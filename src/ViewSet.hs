@@ -167,3 +167,32 @@ moveLeft' t (Zipper xs) =
             ys -> init ys ++ (Just t, snd $ last ys) : case pos of
                 ((_, z):zs) -> (Nothing, z) : zs
                 [] -> []
+
+moveViewLeft :: Ptr WlrSeat -> Workspace -> Workspace
+moveViewLeft t (Workspace l z) = Workspace l $ fmap (moveElemLeft' t) z
+
+moveElemLeft' :: Eq a => a -> Zipper a b -> Zipper a b
+moveElemLeft' _ z@(Zipper [_]) = z
+moveElemLeft' t (Zipper xs) =
+    let pre = takeWhile ((/=) (Just t) . fst) xs
+        pos = dropWhile ((/=) (Just t) . fst) xs
+     in Zipper $ case pre of
+        [] -> snoc (head pos) (tail pos)
+        ys -> case pos of
+            [] -> ys
+            (z:zs) ->  let left = last ys
+                        in (init ys) ++ z : left : zs
+
+moveViewRight :: Ptr WlrSeat -> Workspace -> Workspace
+moveViewRight t (Workspace l z) = Workspace l $ fmap (moveElemRight' t) z
+
+moveElemRight' :: Eq a => a -> Zipper a b -> Zipper a b
+moveElemRight' _ z@(Zipper [_]) = z
+moveElemRight' t (Zipper xs) =
+    let pre = takeWhile ((/=) (Just t) . fst) xs
+        pos = dropWhile ((/=) (Just t) . fst) xs
+     in Zipper $ case pos of
+        [] -> xs -- We didn't find a focused view
+        (y:ys) -> case ys of
+            [] -> y : pre
+            (z:zs) ->  pre ++ z : y : zs

@@ -12,6 +12,7 @@ module View
     , renderViewAdditional
     , getViewEventSurface
     , setViewBox
+    , closeView
     )
 where
 
@@ -72,6 +73,8 @@ createView surf = do
         , viewSurface = surf
         }
 
+closeView :: MonadIO m => View -> m ()
+closeView (View _ _ surf) = close surf
 
 moveView :: MonadIO m => View -> Double -> Double -> m ()
 moveView (View xref yref surf) x y = do
