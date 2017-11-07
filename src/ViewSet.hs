@@ -64,7 +64,8 @@ getMaster' :: Zipper a b -> Maybe b
 getMaster' (Zipper xs) =  snd <$> listToMaybe xs
 
 setFocused :: View -> Ptr WlrSeat -> Workspace -> Workspace
-setFocused v t (Workspace l z) = Workspace l $ fmap (setFocused' t v) z
+setFocused v t (Workspace l z) =
+    Workspace l $ fmap (setFocused' t v) z
 
 getFocused :: Ptr WlrSeat -> Workspace -> Maybe View
 getFocused seat (Workspace _ (Just (Zipper z))) =
@@ -89,12 +90,14 @@ viewBelow point views = do
     let candidates = filter (boxContainsPoint point . snd) $ toList views
     pure . listToMaybe . map fst $ candidates
 
-setFocused' :: Eq b => a -> b -> Zipper a b -> Zipper a b
+-- TODO: Refactor :(
+setFocused' :: (Eq a, Eq b) => a -> b -> Zipper a b -> Zipper a b
 setFocused' t v (Zipper xs) =
     Zipper $ map update xs
-    where   update orig@(_, x) =
-                if x == v
-                    then (Just t, x)
+    where   update orig@(ot, x) = if x == v
+                then (Just t, x)
+                else if ot == Just t
+                    then (Nothing, x)
                     else orig
 
 addElem' :: Eq a => Maybe a -> Maybe (Zipper a b) -> b -> Zipper a b

@@ -39,6 +39,7 @@ import Graphics.Wayland.Signal (ListenerToken)
 
 import Utility (ptrToInt)
 import View (View, getViewEventSurface)
+import ViewSet (WSTag)
 import Waymonad
     ( Way
     , getSeat
@@ -47,6 +48,7 @@ import Waymonad
 import WayUtil
     ( setSignalHandler
     , setSeatOutput
+    , focusView
     )
 
 
@@ -55,7 +57,7 @@ data Cursor = Cursor
     , cursorTokens :: [ListenerToken]
     }
 
-cursorCreate :: Ptr WlrOutputLayout -> Way a Cursor
+cursorCreate :: WSTag a => Ptr WlrOutputLayout -> Way a Cursor
 cursorCreate layout = do
     cursor <- liftIO $ createCursor
     liftIO $ attachOutputLayout cursor layout
@@ -95,7 +97,8 @@ getCursorView layout cursor = do
             pure $ (,fromIntegral x,fromIntegral y) <$> viewM
 
 updatePosition
-    :: Ptr WlrOutputLayout
+    :: WSTag a
+    => Ptr WlrOutputLayout
     -> Ptr WlrCursor
     -> IORef (Maybe View)
     -> Word32
@@ -115,19 +118,21 @@ updatePosition layout cursor lastView time = do
 
     case viewM of
         Nothing -> liftIO $ pointerClearFocus seat
-        Just (view, baseX, baseY) -> liftIO $ do
-            (surf, x, y) <- getViewEventSurface view baseX baseY
-            pointerNotifyEnter seat surf x y
-            pointerNotifyMotion seat time x y
+        Just (view, baseX, baseY) -> do
+            (surf, x, y) <- liftIO $ getViewEventSurface view baseX baseY
+            liftIO $ pointerNotifyEnter seat surf x y
+            liftIO $ pointerNotifyMotion seat time x y
 
-            lastV <- readIORef lastView
+            lastV <- liftIO $ readIORef lastView
             when (Just view /= lastV) $ do
-                keyboardNotifyEnter seat surf
-                writeIORef lastView $ Just view
+                liftIO $ keyboardNotifyEnter seat surf
+                liftIO $ writeIORef lastView $ Just view
+                focusView view
 
 
 handleCursorMotion
-    :: Ptr WlrOutputLayout
+    :: WSTag a
+    => Ptr WlrOutputLayout
     -> Ptr WlrCursor
     -> IORef (Maybe View)
     -> Ptr WlrEventPointerMotion
@@ -143,7 +148,8 @@ handleCursorMotion layout cursor lastView event_ptr = do
     updatePosition layout cursor lastView (fromIntegral $ eventPointerMotionTime event)
 
 handleCursorMotionAbs
-    :: Ptr WlrOutputLayout
+    :: WSTag a
+    => Ptr WlrOutputLayout
     -> Ptr WlrCursor
     -> IORef (Maybe View)
     -> Ptr WlrEventPointerAbsMotion

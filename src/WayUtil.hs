@@ -103,6 +103,9 @@ setWorkspace ws = do
     reLayout ws
     focusMaster
 
+focusView :: WSTag a => View -> Way a ()
+focusView = modifyCurrentWS . setFocused
+
 focusMaster :: WSTag a => Way a ()
 focusMaster = do
     state <- getState
