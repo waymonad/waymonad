@@ -3,6 +3,7 @@ module Input.Keyboard
 where
 
 import Control.Monad.IO.Class (liftIO)
+import Data.Bits ((.&.), complement)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(..))
@@ -28,6 +29,7 @@ import Graphics.Wayland.WlRoots.Input.Keyboard
     , KeyState (..)
     , setKeymap
     , getKeystate
+    , getKeymap
 
     , KeyboardModifiers (..)
     , readModifiers
@@ -51,12 +53,12 @@ import Waymonad
     )
 import WayUtil (setSignalHandler, logPutText, logPrint)
 
-import Text.XkbCommon.Keymap
-import Text.XkbCommon.Types
 import Text.XkbCommon.Context
 import Text.XkbCommon.KeyboardState
 import Text.XkbCommon.KeycodeList
+import Text.XkbCommon.Keymap
 import Text.XkbCommon.KeysymPatterns
+import Text.XkbCommon.Types
 
 import qualified Data.Map as M
 
@@ -116,6 +118,50 @@ tellClient seat keyboard event = do
     seatSetKeyboard seat $ keyboardIDevice keyboard
     keyboardNotifyKey seat (timeSec event) (keyCode event) (state event)
 
+handleKeySimple
+    :: WSTag a
+    => DisplayServer
+    -> Ptr Backend
+    -> BindingMap a
+    -> Keyboard
+    -> CKeycode
+    -> Way a Bool
+handleKeySimple dsp backend bindings keyboard keycode = do
+    keystate <- liftIO . getKeystate $ keyboardDevice keyboard
+    keymap   <- liftIO . getKeymap $ keyboardDevice keyboard
+    modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
+
+    layoutL <- liftIO $ keyGetLayoutI keystate keycode
+    syms <- liftIO $ keymapSymsByLevelI keymap keycode layoutL (CLevelIndex 0)
+
+    handled <- forM syms $
+        handleKeyPress dsp backend bindings modifiers
+
+    pure $ foldr (||) False handled
+
+handleKeyXkb
+    :: WSTag a
+    => DisplayServer
+    -> Ptr Backend
+    -> BindingMap a
+    -> Keyboard
+    -> CKeycode
+    -> Way a Bool
+handleKeyXkb dsp backend bindings keyboard keycode = do
+    keystate <- liftIO . getKeystate $ keyboardDevice keyboard
+    modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
+    consumed <- liftIO $ keyGetConsumedMods2 keystate keycode
+
+    let usedMods = modifiers .&. complement (fromIntegral consumed)
+
+    syms <- liftIO $ getStateSymsI keystate keycode
+
+    handled <- forM syms $
+        handleKeyPress dsp backend bindings usedMods
+
+    pure $ foldr (||) False handled
+
+
 handleKeyEvent
     :: WSTag a
     => DisplayServer
@@ -128,18 +174,18 @@ handleKeyEvent
 handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ do
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
-    keyState <- liftIO $ getKeystate $ keyboardDevice keyboard
-    syms <- liftIO $ getStateSymsI keyState keycode
-    modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
-    handled <- forM syms $ \sym -> case (state event) of
+    logPrint loggerKeybinds keycode
+
+    handled <- case (state event) of
         -- We currently don't do anything special for releases
         KeyReleased -> pure False
-        KeyPressed ->
-            handleKeyPress dsp backend bindings modifiers sym
+        KeyPressed -> do
+            handled <- handleKeyXkb dsp backend bindings keyboard keycode
+            if handled
+                then pure handled
+                else handleKeySimple dsp backend bindings keyboard keycode
 
-    liftIO $
-        when (not $ foldr (||) False handled) $
-            tellClient seat keyboard event
+    liftIO . when (not handled) $ tellClient seat keyboard event
 
 handleModifiers :: Keyboard -> Ptr WlrSeat -> Ptr a -> IO ()
 handleModifiers keyboard seat _ = do
