@@ -200,7 +200,7 @@ focusNextOut = do
     setSeatOutput seat new
 
 -- TODO: Real multiseat support
-setSeatOutput :: Seat -> Int -> Way a ()
+setSeatOutput :: WSTag a => Seat -> Int -> Way a ()
 setSeatOutput seat out = do
     state <- getState
     prev <- liftIO $ readIORef (wayBindingCurrent state)
@@ -212,6 +212,7 @@ setSeatOutput seat out = do
             liftIO $ writeIORef (wayBindingCurrent state) [(seat, out)]
 
             logPutText loggerFocus $ "Changed focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
+    join $ withCurrentWS $ const setFoci
 
 
 getViewSet :: Way a (ViewSet a)
