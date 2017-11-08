@@ -11,6 +11,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
 import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer, displayInitShm)
@@ -42,7 +43,7 @@ import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import Utility (whenJust)
-import Utility.Spawn (spawn, spawnNamed, manageNamed)
+import Utility.Spawn (spawn, spawnManaged, manageNamed, manageSpawnOn, namedSpawner, onSpawner)
 import View (View)
 import ViewSet
     ( Workspace(..)
@@ -127,7 +128,8 @@ bindings dsp =
     , (([modi], keysym_0), setWorkspace "0")
     , (([modi, Shift], keysym_1), sendTo "1")
     , (([modi, Shift], keysym_2), sendTo "2")
-    , (([modi], keysym_Return), spawnNamed dsp "terminal" "weston-terminal" [])
+    , (([modi], keysym_Return), spawn "weston-terminal")
+    , (([modi, Shift], keysym_Return), spawnManaged dsp [onSpawner "2", namedSpawner "terminal"] "weston-terminal" [])
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_f), sendMessage TMessage)
     , (([modi], keysym_m), sendMessage MMessage)
@@ -157,7 +159,7 @@ makeCompositor dspRef backend keyBinds = do
 
     input <- inputCreate display layout backend (makeBindingMap $ keyBinds display)
 
-    let addFun = insertView manageNamed
+    let addFun = insertView (manageSpawnOn <> manageNamed)
     xdgShell <- xdgShellCreate display addFun removeView
     xway <- xwayShellCreate display comp addFun removeView
 

@@ -31,7 +31,7 @@ data Workspace = Workspace
     , wsViews :: Maybe (Zipper (Ptr WlrSeat) View)
     }
 
-class (Show a, Eq a, Ord a) => WSTag a where
+class (Typeable a, Show a, Eq a, Ord a) => WSTag a where
     getName :: a -> Text
 
 instance WSTag Text where
