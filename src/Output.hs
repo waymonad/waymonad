@@ -66,7 +66,7 @@ import Input (Input(inputXCursor, inputCursor))
 import Input.Cursor (cursorRoots)
 import Shared (FrameHandler)
 import Utility (whenJust)
-import View (View, getViewSurface, renderViewAdditional, getViewBox)
+import View (View, getViewSurface, renderViewAdditional)
 import ViewSet (WSTag (..))
 import Waymonad
     ( Way
@@ -112,10 +112,9 @@ outputHandleSurface comp secs output surface x y = do
             subsurf <- subSurfaceGetSurface sub
             outputHandleSurface comp secs output subsurf (x + boxX box) (y + boxY box)
 
-outputHandleView :: Compositor -> Double -> Ptr Output -> View -> IO ()
-outputHandleView comp secs output view = do
+outputHandleView :: Compositor -> Double -> Ptr Output -> View -> WlrBox -> IO ()
+outputHandleView comp secs output view box = do
     surface <- getViewSurface view
-    box <- getViewBox view
     let x = boxX box
     let y = boxY box
     outputHandleSurface comp secs output surface x y
@@ -129,13 +128,12 @@ frameHandler
     -> Ptr Output
     -> IO ()
 frameHandler compRef cacheRef secs output = runLayoutCache' cacheRef $ do
-    views <- get
     comp <- liftIO $ readIORef compRef
-    let viewsM = IM.lookup (ptrToInt output) views
+    viewsM <- IM.lookup (ptrToInt output) <$> get
     liftIO $ renderOn output (compRenderer comp) $ case viewsM of
         Nothing -> pure ()
         Just wsViews ->
-            mapM_ (outputHandleView comp secs output . fst) wsViews
+            mapM_ (uncurry $ outputHandleView comp secs output) wsViews
 
 setXCursorImage :: Ptr WlrCursor -> Ptr WlrXCursor -> IO ()
 setXCursorImage cursor xcursor = do
