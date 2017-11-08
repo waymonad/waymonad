@@ -69,6 +69,7 @@ executable waymonad
   other-modules:        Layout.Tall
   other-modules:        Layout.ToggleFull
 
+  other-modules:        Managehook
   other-modules:        Output
   other-modules:        Shared
   other-modules:        Utility

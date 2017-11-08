@@ -3,7 +3,7 @@
 module WayUtil
 where
 
-import Control.Monad (when)
+import Control.Monad (when, join)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (readIORef, modifyIORef, writeIORef)
 import Data.Maybe (fromJust)
@@ -99,8 +99,8 @@ modifyWS fun ws = do
 
     preWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
     modifyViewSet (M.adjust (fun seat) ws)
-    postWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
     reLayout ws
+    postWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
 
     liftIO $ when (preWs /= postWs) $ whenJust postWs $ \v ->
         keyboardNotifyEnter seat =<< getViewSurface v
@@ -110,8 +110,15 @@ modifyCurrentWS
     => (Ptr WlrSeat -> Workspace -> Workspace) -> Way a ()
 modifyCurrentWS fun = do
     modifyWS fun =<< getCurrentWS
+    join $ withCurrentWS $ const setFoci
 
     runLog
+
+modifyViewSet :: (ViewSet a -> ViewSet a) -> Way a ()
+modifyViewSet fun = do
+    ref <- wayBindingState <$> getState
+    liftIO $ modifyIORef ref fun
+
 
 getCurrentView :: WSTag a => Way a (Maybe View)
 getCurrentView = do
@@ -205,11 +212,6 @@ setSeatOutput seat out = do
 
             logPutText loggerFocus $ "Changed focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
 
-
-modifyViewSet :: (ViewSet a -> ViewSet a) -> Way a ()
-modifyViewSet fun = do
-    ref <- wayBindingState <$> getState
-    liftIO $ modifyIORef ref fun
 
 getViewSet :: Way a (ViewSet a)
 getViewSet = liftIO . readIORef . wayBindingState =<< getState

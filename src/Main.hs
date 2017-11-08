@@ -10,9 +10,8 @@ import Config
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
-import Data.Maybe (fromMaybe, fromJust)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
-import Data.Tuple (swap)
 import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer, displayInitShm)
 import System.IO
@@ -34,6 +33,7 @@ import Graphics.Wayland.WlRoots.Screenshooter (screenshooterCreate)
 
 import Compositor
 import Input (inputCreate)
+import Managehook (Managehook, runQuery, enactInsert, InsertAction (InsertFocused))
 import Layout (reLayout)
 --import Layout.Full (Full (..))
 import Layout.Mirror (Mirror (..), MMessage (..))
@@ -42,14 +42,13 @@ import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import Utility (whenJust)
-import Utility.Spawn (spawn, spawnNamed, getClientName)
-import View (View, getViewClient)
+import Utility.Spawn (spawn, spawnNamed, manageNamed)
+import View (View)
 import ViewSet
     ( Workspace(..)
     , Layout (..)
     , WSTag
     , contains
-    , addView
     , rmView
     , moveRight
     , moveLeft
@@ -62,8 +61,6 @@ import Waymonad
     , runWay
     , BindingMap
     , KeyBinding
-    , getState
-    , getSeat
     , WayBindingState (..)
     , makeCallback
 
@@ -80,39 +77,19 @@ import WayUtil
     , focusNextOut
     , sendTo
     , killCurrent
-    , logPutText
     )
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
 import qualified Data.Map.Strict as M
-import qualified Data.Text as T
 
 insertView
     :: WSTag a
-    => View
+    => Managehook a
+    -> View
     -> Way a ()
-insertView view = do
-    (Just c) <- getViewClient view
-    nameM <- getClientName c
-    whenJust nameM $ \name -> 
-        logPutText loggerSpawner $ "Client \"" `T.append` name `T.append` "\" just spawned"
-    seat <- getSeat
-    state <- getState
-    currents <- liftIO . readIORef $ wayBindingCurrent state
-    mapping <-  liftIO . readIORef $ wayBindingMapping state
-    outputs <-  liftIO . readIORef $ wayBindingOutputs state
-    let current = case seat of
-            Nothing -> head outputs
-            Just s -> fromJust $ M.lookup s $ M.fromList currents
-    case M.lookup current . M.fromList $ map swap mapping of
-        Nothing -> liftIO $ hPutStrLn stderr "Couldn't lookup workspace for current output"
-        Just ws -> do
-            modifyViewSet $ M.adjust (addView seat view) ws
-            reLayout ws
-
-            vs <- getViewSet
-            whenJust (M.lookup ws vs) setFoci
+insertView hook view = do
+    runQuery view $ enactInsert . flip mappend InsertFocused =<< hook
 
 removeView
     :: (WSTag a)
@@ -180,8 +157,9 @@ makeCompositor dspRef backend keyBinds = do
 
     input <- inputCreate display layout backend (makeBindingMap $ keyBinds display)
 
-    xdgShell <- xdgShellCreate display insertView removeView
-    xway <- xwayShellCreate display comp insertView removeView
+    let addFun = insertView manageNamed
+    xdgShell <- xdgShellCreate display addFun removeView
+    xway <- xwayShellCreate display comp addFun removeView
 
     shell <- pure undefined
     pure $ Compositor

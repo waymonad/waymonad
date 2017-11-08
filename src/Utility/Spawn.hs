@@ -4,6 +4,7 @@ module Utility.Spawn
     ( spawn
     , spawnNamed
     , getClientName
+    , manageNamed
     )
 where
 
@@ -27,7 +28,9 @@ import System.Process (spawnCommand)
 import Graphics.Wayland.Server (Client (..), clientCreate, DisplayServer)
 import Graphics.Wayland.Server.Client (addDestroyListener)
 
+import Managehook (Managehook, query, liftWay)
 import Utility (whenJust, ptrToInt)
+import View (getViewClient)
 import Waymonad (Way, setCallback, WayLoggers(loggerSpawner))
 import Waymonad.Extensible (ExtensionClass (..))
 import WayUtil
@@ -78,3 +81,12 @@ spawnNamed dsp name cmd args = do
 
 getClientName :: Client -> Way a (Maybe (Text))
 getClientName c = IM.lookup (clientToInt c) . unNM <$> getEState
+
+manageNamed :: Managehook a
+manageNamed = do
+    (Just c) <- getViewClient =<< query
+    liftWay $ do
+        nameM <- getClientName c
+        whenJust nameM $ \name ->
+            logPutText loggerSpawner $ "Client \"" `T.append` name `T.append` "\" just spawned"
+    mempty

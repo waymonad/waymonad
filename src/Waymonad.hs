@@ -1,5 +1,6 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module Waymonad
     ( get
@@ -44,6 +45,7 @@ import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
 import Data.Map (Map)
 import Data.Text (Text)
+import Data.Typeable (Typeable, typeOf)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
@@ -144,6 +146,9 @@ type LogFun a = Way a ()
 
 newtype Way a b = Way (ReaderT (Maybe (Ptr WlrSeat)) (WayBinding a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe (Ptr WlrSeat)))
+
+instance forall a b. (Typeable a, Typeable b) => Show (Way a b) where
+    show =  show . typeOf
 
 getLoggers :: Way a WayLoggers
 getLoggers = Way $ lift getLoggers'
