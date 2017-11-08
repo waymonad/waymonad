@@ -77,8 +77,8 @@ pointerButton seat view baseX baseY event = liftIO $ do
     let time = (fromIntegral $ eventPointerButtonTime event)
     pointerNotifyButton (seatRoots seat) time (eventPointerButtonButton event) (eventPointerButtonState event)
 
-    Just (surf, x, y) <- getViewEventSurface view baseX baseY
-    pointerEnter seat surf view x y
+    Just (surf, _, _) <- getViewEventSurface view baseX baseY
+    keyboardEnter' seat surf view
 
 pointerEnter :: MonadIO m => Seat -> Ptr WlrSurface -> View -> Double -> Double -> m ()
 pointerEnter seat surf view x y = liftIO $ do
