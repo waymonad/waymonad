@@ -3,7 +3,7 @@
 module WayUtil
 where
 
-import Control.Monad (when, void)
+import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (readIORef, modifyIORef, writeIORef)
 import Data.Maybe (fromJust)
@@ -13,7 +13,6 @@ import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Tuple (swap)
 import Foreign.Ptr (Ptr)
 import System.IO (hPutStr, stderr)
-import System.Process (spawnCommand)
 
 import Graphics.Wayland.Signal
     ( addListener
@@ -157,9 +156,6 @@ focusMaster = do
             surf <- getViewSurface view
             keyboardNotifyEnter seat surf
 
-
-spawn :: (MonadIO m) => String -> m ()
-spawn = void . liftIO . spawnCommand
 
 setFocus :: MonadIO m => (Maybe (Ptr WlrSeat), View) -> m ()
 setFocus (Nothing, _) = pure ()

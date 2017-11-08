@@ -13,6 +13,7 @@ module View
     , getViewEventSurface
     , setViewBox
     , closeView
+    , getViewClient
     )
 where
 
@@ -20,7 +21,11 @@ import Data.IORef (IORef, readIORef, writeIORef, newIORef)
 import Control.Monad.IO.Class
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
-import Graphics.Wayland.WlRoots.Surface (WlrSurface)
+
+import Graphics.Wayland.Resource (resourceGetClient)
+import Graphics.Wayland.Server (Client)
+
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..))
 
 class ShellSurface a where
@@ -107,3 +112,8 @@ getViewEventSurface (View xref yref surf) x y = do
     ownX <- liftIO $ readIORef xref
     ownY <- liftIO $ readIORef yref
     getEventSurface surf (x - ownX) (y - ownY)
+
+getViewClient :: MonadIO m => View -> m (Maybe Client)
+getViewClient (View _ _ surf) = do
+    res <- liftIO . getSurfaceResource =<< getSurface surf
+    Just <$> liftIO (resourceGetClient res)

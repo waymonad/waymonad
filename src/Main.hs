@@ -42,7 +42,8 @@ import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import Utility (whenJust)
-import View (View)
+import Utility.Spawn (spawn, spawnNamed, getClientName)
+import View (View, getViewClient)
 import ViewSet
     ( Workspace(..)
     , Layout (..)
@@ -72,7 +73,6 @@ import Waymonad
 import WayUtil
     ( modifyCurrentWS
     , setWorkspace
-    , spawn
     , setFoci
     , sendMessage
     , modifyViewSet
@@ -80,17 +80,23 @@ import WayUtil
     , focusNextOut
     , sendTo
     , killCurrent
+    , logPutText
     )
 import XWayland (xwayShellCreate)
 import XdgShell (xdgShellCreate)
 
 import qualified Data.Map.Strict as M
+import qualified Data.Text as T
 
 insertView
     :: WSTag a
     => View
     -> Way a ()
 insertView view = do
+    (Just c) <- getViewClient view
+    nameM <- getClientName c
+    whenJust nameM $ \name -> 
+        logPutText loggerSpawner $ "Client \"" `T.append` name `T.append` "\" just spawned"
     seat <- getSeat
     state <- getState
     currents <- liftIO . readIORef $ wayBindingCurrent state
@@ -126,8 +132,8 @@ removeView view = do
             hPutStrLn stderr "Found a view in a number of workspaces that's not 1!"
             hPutStrLn stderr $ show $ map fst xs
 
-bindings :: [(([WlrModifier], Keysym), KeyBinding Text)]
-bindings =
+bindings :: DisplayServer -> [(([WlrModifier], Keysym), KeyBinding Text)]
+bindings dsp =
     [ (([modi], keysym_k), modifyCurrentWS moveLeft)
     , (([modi], keysym_j), modifyCurrentWS moveRight)
     , (([modi, Shift], keysym_k), modifyCurrentWS moveViewLeft)
@@ -144,7 +150,7 @@ bindings =
     , (([modi], keysym_0), setWorkspace "0")
     , (([modi, Shift], keysym_1), sendTo "1")
     , (([modi, Shift], keysym_2), sendTo "2")
-    , (([modi], keysym_Return), spawn "weston-terminal")
+    , (([modi], keysym_Return), spawnNamed dsp "terminal" "weston-terminal" [])
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_f), sendMessage TMessage)
     , (([modi], keysym_m), sendMessage MMessage)
@@ -161,7 +167,7 @@ makeCompositor
     :: WSTag a
     => IORef DisplayServer
     -> Ptr Backend
-    -> [(([WlrModifier], Keysym), KeyBinding a)]
+    -> (DisplayServer -> [(([WlrModifier], Keysym), KeyBinding a)])
     -> Way a Compositor
 makeCompositor dspRef backend keyBinds = do
     display <- liftIO $ readIORef dspRef
@@ -172,7 +178,7 @@ makeCompositor dspRef backend keyBinds = do
     layout <- liftIO $ createOutputLayout
     shooter <- liftIO $ screenshooterCreate display renderer
 
-    input <- inputCreate display layout backend (makeBindingMap keyBinds)
+    input <- inputCreate display layout backend (makeBindingMap $ keyBinds display)
 
     xdgShell <- xdgShellCreate display insertView removeView
     xway <- xwayShellCreate display comp insertView removeView
@@ -248,6 +254,7 @@ main =  do
                     , loggerFocus = Logger True "Focus"
                     , loggerXdg = Logger True "Xdg_Shell"
                     , loggerKeybinds = Logger True "Keybindings"
+                    , loggerSpawner = Logger True "Spawner"
                     }
 
             runWay Nothing state loggers realMain

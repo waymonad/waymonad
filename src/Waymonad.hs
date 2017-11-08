@@ -117,6 +117,7 @@ data WayLoggers = WayLoggers
     , loggerFocus :: Logger
     , loggerXdg :: Logger
     , loggerKeybinds :: Logger
+    , loggerSpawner :: Logger
     }
 
 data WayBindingState a = WayBindingState

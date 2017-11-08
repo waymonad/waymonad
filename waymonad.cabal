@@ -54,30 +54,32 @@ executable waymonad
   main-is:             Main.hs
   
   -- Modules included in this executable, other than Main.
-  other-modules:        Shared
-  other-modules:        XdgShell
-  other-modules:        XWayland
-  other-modules:        View
-  other-modules:        Input
-  other-modules:        Input.Keyboard
-  other-modules:        Input.Pointer
-  other-modules:        Input.Cursor
-  other-modules:        Waymonad
-  other-modules:        Waymonad.Extensible
-  other-modules:        ViewSet
-  other-modules:        Layout
-  other-modules:        Output
-  other-modules:        Utility
-  other-modules:        WayUtil
   other-modules:        Compositor
-
-  other-modules:        Layout.Full
-  other-modules:        Layout.Tall
-  other-modules:        Layout.ToggleFull
-  other-modules:        Layout.Mirror
-
   other-modules:        Config
   other-modules:        Config.Output
+
+  other-modules:        Input
+  other-modules:        Input.Cursor
+  other-modules:        Input.Keyboard
+  other-modules:        Input.Pointer
+
+  other-modules:        Layout
+  other-modules:        Layout.Full
+  other-modules:        Layout.Mirror
+  other-modules:        Layout.Tall
+  other-modules:        Layout.ToggleFull
+
+  other-modules:        Output
+  other-modules:        Shared
+  other-modules:        Utility
+  other-modules:        Utility.Spawn
+  other-modules:        View
+  other-modules:        ViewSet
+  other-modules:        WayUtil
+  other-modules:        Waymonad
+  other-modules:        Waymonad.Extensible
+  other-modules:        XWayland
+  other-modules:        XdgShell
   
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:    EmptyDataDecls, NumDecimals, ScopedTypeVariables, OverloadedStrings, LambdaCase, ExistentialQuantification, StandaloneDeriving, TupleSections, InstanceSigs, GeneralizedNewtypeDeriving, FlexibleContexts, FlexibleInstances
@@ -87,7 +89,7 @@ executable waymonad
   build-depends:       base >=4.6.0.1 && <5, hsroots, hayland, clock
   build-depends:       xkbcommon, containers, composition, time
   build-depends:       unix, mtl, text, hsroots, process, transformers
-  build-depends:       config-schema, config-value, xdg-basedir
+  build-depends:       config-schema, config-value, xdg-basedir, network
   
   -- Directories containing source files.
   hs-source-dirs:      src
