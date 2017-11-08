@@ -17,6 +17,7 @@ module Waymonad
     , runLayoutCache'
 
     , viewBelow
+    , floatBelow
 
     , KeyBinding
     , BindingMap
@@ -39,26 +40,32 @@ module Waymonad
     )
 where
 
+import System.IO.Unsafe (unsafeInterleaveIO)
+
+import Control.Applicative ((<|>))
+import Control.Monad (forM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), local)
 import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
 import Data.Map (Map)
+import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.WlRoots.Box (Point, WlrBox)
+import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox)
 import Graphics.Wayland.WlRoots.Seat (WlrSeat)
 
 import Config (WayConfig)
-import View (View)
+import View (View, getViewEventSurface)
 import qualified ViewSet as VS
 import Waymonad.Extensible
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
+import qualified Data.Set as S
 
 
 -- All of this makes for a fake `Monad State` in IO
@@ -98,6 +105,17 @@ runLayoutCache (LayoutCache m) ref = liftIO $ runReaderT m ref
 runLayoutCache' :: MonadIO m => LayoutCacheRef -> LayoutCache a -> m a
 runLayoutCache' ref act = runLayoutCache act ref
 
+floatBelow
+    :: Point
+    -> Way a (Maybe View)
+floatBelow (Point x y) = do
+    views <- liftIO . fmap S.toList . readIORef . wayFloating =<< getState
+    candidates <- liftIO $ forM views $
+        \view -> unsafeInterleaveIO $ (fmap . fmap) (const view) $
+            getViewEventSurface view (fromIntegral x) (fromIntegral y)
+
+    pure $ foldl (<|>) Nothing candidates
+
 viewBelow
     :: Point
     -> Int
@@ -132,6 +150,7 @@ data WayBindingState a = WayBindingState
     , wayLogFunction :: LogFun a
     , wayExtensibleState :: IORef StateMap
     , wayConfig :: WayConfig
+    , wayFloating :: IORef (Set View)
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)

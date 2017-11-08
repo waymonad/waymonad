@@ -8,16 +8,23 @@ module Managehook
     , Managehook
     , InsertAction (..)
     , query
+    , withView
     )
 where
 
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
+import Graphics.Wayland.WlRoots.Box (WlrBox (..))
+import Graphics.Wayland.WlRoots.Seat (keyboardNotifyEnter)
+
+import Utility (whenJust)
 import View
 import ViewSet (WSTag, addView)
 import Waymonad
 import WayUtil
+
+import qualified Data.Set as S
 
 newtype Query a b = Query (ReaderT View (Way a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader View)
@@ -29,6 +36,9 @@ instance Monoid b => Monoid (Query a b) where
 liftWay :: Way a b -> Query a b
 liftWay = Query . lift
 
+withView :: (View -> Way a b) -> Query a b
+withView act = liftWay . act =<< ask
+
 runQuery :: View -> Query a b -> Way a b
 runQuery v (Query m) = runReaderT m v
 
@@ -36,6 +46,7 @@ data InsertAction a
     = InsertNone
     | InsertFocused
     | InsertInto a
+    | InsertFloating WlrBox
     | InsertCustom (Way a ())
     deriving (Show)
 
@@ -56,7 +67,14 @@ enactInsert act = do
         InsertNone -> pure ()
         InsertFocused -> modifyCurrentWS (flip addView view . Just)
         InsertInto ws -> modifyWS (flip addView view . Just) ws
-        InsertCustom act -> act
+        InsertFloating (WlrBox x y width height) -> do
+            moveView view (fromIntegral x) (fromIntegral y)
+            resizeView view (fromIntegral width) (fromIntegral height)
+            modifyFloating $ S.insert view
+            seat <- getSeat
+            surf <- getViewSurface view
+            liftIO . whenJust seat $ flip keyboardNotifyEnter surf
+        InsertCustom ins -> ins
 
 
 query :: Query a View

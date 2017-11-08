@@ -3,6 +3,7 @@
 module View
     ( ShellSurface (..)
     , View (..)
+    , getViewSize
     , getViewBox
     , createView
     , moveView
@@ -14,11 +15,13 @@ module View
     , setViewBox
     , closeView
     , getViewClient
+    , getViewInner
     )
 where
 
 import Data.IORef (IORef, readIORef, writeIORef, newIORef)
 import Control.Monad.IO.Class
+import Data.Typeable (Typeable, cast)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
@@ -28,7 +31,7 @@ import Graphics.Wayland.Server (Client)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..))
 
-class ShellSurface a where
+class Typeable a => ShellSurface a where
     getSurface :: MonadIO m => a -> m (Ptr WlrSurface)
     getSize :: MonadIO m => a -> m (Double, Double)
     resize :: MonadIO m => a -> Word32 -> Word32 -> m ()
@@ -36,7 +39,7 @@ class ShellSurface a where
     close :: MonadIO m => a -> m ()
     renderAdditional :: MonadIO m => (Ptr WlrSurface -> Int -> Int -> m ()) -> a -> Int -> Int -> m ()
     renderAdditional _ _ _ _ = pure ()
-    getEventSurface :: MonadIO m => a -> Double -> Double -> m (Ptr WlrSurface, Double, Double)
+    getEventSurface :: MonadIO m => a -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
     setPosition :: MonadIO m => a -> Double -> Double -> m ()
     setPosition _ _ _ = pure ()
     getID :: a -> Int
@@ -47,9 +50,15 @@ data View = forall a. ShellSurface a => View
     , viewSurface :: a
     }
 
+instance Ord View where
+    compare (View _ _ left) (View _ _ right) = compare (getID left) (getID right)
+
 instance Eq View where
     (View _ _ left) == (View _ _ right) =
         getID left == getID right
+
+getViewSize :: MonadIO m => View -> m (Double, Double)
+getViewSize (View _ _ surf) = getSize surf
 
 getViewBox :: MonadIO m => View -> m WlrBox
 getViewBox (View xref yref surf) = do
@@ -107,7 +116,7 @@ renderViewAdditional fun (View xref yref surf) = do
     renderAdditional fun surf (floor x) (floor y)
 
 
-getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Ptr WlrSurface, Double, Double)
+getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
 getViewEventSurface (View xref yref surf) x y = do
     ownX <- liftIO $ readIORef xref
     ownY <- liftIO $ readIORef yref
@@ -117,3 +126,6 @@ getViewClient :: MonadIO m => View -> m (Maybe Client)
 getViewClient (View _ _ surf) = do
     res <- liftIO . getSurfaceResource =<< getSurface surf
     Just <$> liftIO (resourceGetClient res)
+
+getViewInner :: Typeable a => View -> Maybe a
+getViewInner (View _ _ surf) = cast surf

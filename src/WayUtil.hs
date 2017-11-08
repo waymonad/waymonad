@@ -7,6 +7,7 @@ import Control.Monad (when, join)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (readIORef, modifyIORef, writeIORef)
 import Data.Maybe (fromJust)
+import Data.Set (Set)
 import Data.Text (Text)
 import Data.Time.Clock (getCurrentTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
@@ -260,3 +261,9 @@ killCurrent :: WSTag a => Way a ()
 killCurrent = do
     view <- getCurrentView
     whenJust view closeView
+
+modifyFloating :: (Set View -> Set View) -> Way a ()
+modifyFloating fun = liftIO . flip modifyIORef fun . wayFloating =<< getState
+
+getFloats :: Way a (Set View)
+getFloats = liftIO . readIORef . wayFloating =<< getState

@@ -44,6 +44,7 @@ import Waymonad
     ( Way
     , getSeat
     , viewBelow
+    , floatBelow
     )
 import WayUtil
     ( setSignalHandler
@@ -83,18 +84,22 @@ getCursorView
 getCursorView layout cursor = do
     baseX <- liftIO  $ getCursorX cursor
     baseY <- liftIO  $ getCursorY cursor
-
-    outputM <- liftIO $ layoutAtPos layout baseX baseY
-    case outputM of
-        Nothing -> pure Nothing
-        Just out -> do
-            lout <- liftIO $ layoutGetOutput layout out
-            (Point offX offY) <- liftIO $ layoutOuputGetPosition lout
-            let x = floor baseX - offX
-            let y = floor baseY - offY
-            let index = ptrToInt out
-            viewM <- viewBelow (Point x y) index
-            pure $ (,fromIntegral x,fromIntegral y) <$> viewM
+    -- TODO: Pretty this up. probably with unsafeInterleaveIO
+    floatM <- floatBelow (Point (floor baseX) (floor baseY))
+    case floatM of
+        Just v -> pure $ Just (v, baseX, baseY)
+        Nothing -> do
+            outputM <- liftIO $ layoutAtPos layout baseX baseY
+            case outputM of
+                Nothing -> pure Nothing
+                Just out -> do
+                    lout <- liftIO $ layoutGetOutput layout out
+                    (Point offX offY) <- liftIO $ layoutOuputGetPosition lout
+                    let x = floor baseX - offX
+                    let y = floor baseY - offY
+                    let index = ptrToInt out
+                    viewM <- viewBelow (Point x y) index
+                    pure $ (,fromIntegral x,fromIntegral y) <$> viewM
 
 updatePosition
     :: WSTag a
@@ -119,7 +124,7 @@ updatePosition layout cursor lastView time = do
     case viewM of
         Nothing -> liftIO $ pointerClearFocus seat
         Just (view, baseX, baseY) -> do
-            (surf, x, y) <- liftIO $ getViewEventSurface view baseX baseY
+            Just (surf, x, y) <- liftIO $ getViewEventSurface view baseX baseY
             liftIO $ pointerNotifyEnter seat surf x y
             liftIO $ pointerNotifyMotion seat time x y
 

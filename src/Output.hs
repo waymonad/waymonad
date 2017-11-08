@@ -8,11 +8,12 @@ where
 import Control.Exception (bracket_)
 import Data.List ((\\), sortOn)
 import Data.Ratio (Ratio, (%))
-import Control.Monad (when, forM_, forM)
+import Control.Monad (when, forM_, forM, filterM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, readIORef, modifyIORef)
 import Data.Map (Map)
 import Data.Maybe (listToMaybe)
+import Data.Set (Set)
 import Data.Text (Text)
 import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
@@ -20,7 +21,7 @@ import Graphics.Wayland.Server (callbackDone)
 import System.IO (stderr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
-import Graphics.Wayland.WlRoots.Box (WlrBox(..))
+import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
 import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
 import Graphics.Wayland.WlRoots.Output
     ( Output
@@ -32,7 +33,15 @@ import Graphics.Wayland.WlRoots.Output
     , makeOutputCurrent
     , getOutputName
     )
-import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout, addOutput, addOutputAuto)
+import Graphics.Wayland.WlRoots.OutputLayout
+    ( WlrOutputLayout
+    , addOutput
+    , addOutputAuto
+    , outputIntersects
+-- TODO: I think wlroots made this simpler
+    , layoutOuputGetPosition
+    , layoutGetOutput
+    )
 import Graphics.Wayland.WlRoots.Render
     ( Renderer
     , renderWithMatrix
@@ -60,13 +69,13 @@ import Graphics.Wayland.WlRoots.XCursor
 
 import Compositor
 import Config (configOutputs)
-import Config.Box (Point (..))
+import qualified Config.Box as C (Point (..))
 import Config.Output (OutputConfig (..), Mode (..))
 import Input (Input(inputXCursor, inputCursor))
 import Input.Cursor (cursorRoots)
 import Shared (FrameHandler)
 import Utility (whenJust)
-import View (View, getViewSurface, renderViewAdditional)
+import View (View, getViewSurface, renderViewAdditional, getViewBox)
 import ViewSet (WSTag (..))
 import Waymonad
     ( Way
@@ -76,9 +85,9 @@ import Waymonad
     , WayBindingState (..)
     , getState
     )
-
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 import qualified Data.Text.IO as T
 
 ptrToInt :: Num b => Ptr a -> b
@@ -124,16 +133,28 @@ outputHandleView comp secs output view box = do
 frameHandler
     :: IORef Compositor
     -> LayoutCacheRef
+    -> IORef (Set View)
     -> Double
     -> Ptr Output
     -> IO ()
-frameHandler compRef cacheRef secs output = runLayoutCache' cacheRef $ do
+frameHandler compRef cacheRef fRef secs output = runLayoutCache' cacheRef $ do
     comp <- liftIO $ readIORef compRef
+    (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
     viewsM <- IM.lookup (ptrToInt output) <$> get
-    liftIO $ renderOn output (compRenderer comp) $ case viewsM of
-        Nothing -> pure ()
-        Just wsViews ->
-            mapM_ (uncurry $ outputHandleView comp secs output) wsViews
+    floats <- filterM (intersects $ compLayout comp) . S.toList =<< liftIO (readIORef fRef)
+    liftIO $ renderOn output (compRenderer comp) $ do
+        case viewsM of
+            Nothing -> pure ()
+            Just wsViews ->
+                mapM_ (uncurry $ outputHandleView comp secs output) wsViews
+        forM_ floats $ \view -> do
+            (WlrBox x y w h) <- getViewBox view
+            let box = WlrBox (x - ox) (y - oy) w h
+            outputHandleView comp secs output view box
+
+    where  intersects layout view = liftIO $ do
+                (WlrBox x y w h) <- getViewBox view
+                outputIntersects layout output x y (x + w) (y + h)
 
 setXCursorImage :: Ptr WlrCursor -> Ptr WlrXCursor -> IO ()
 setXCursorImage cursor xcursor = do
@@ -197,7 +218,7 @@ configureOutput layout configs name output = do
         confMode = outMode =<< conf
     liftIO $ case position of
         Nothing -> addOutputAuto layout output
-        Just (Point x y) -> addOutput layout output x y
+        Just (C.Point x y) -> addOutput layout output x y
     mode <- pickMode output confMode
 
     liftIO $ whenJust mode (flip setOutputMode output)
@@ -239,8 +260,9 @@ handleOutputAdd ref wss output = do
     liftIO $ modifyIORef current ((ptrToInt output) :)
 
     cacheRef <- wayBindingCache <$> getState
+    floats <- wayFloating <$> getState
 
-    pure $ \secs out -> frameHandler ref cacheRef secs out
+    pure $ \secs out -> frameHandler ref cacheRef floats secs out
 
 handleOutputRemove
     :: Ptr Output

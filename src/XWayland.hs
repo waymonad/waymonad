@@ -2,20 +2,25 @@
 module XWayland
     ( xwayShellCreate
     , XWayShell
+    , overrideXRedirect
     )
 where
 
+import System.IO
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 
+import Control.Monad.Reader (ask)
 import Data.Maybe (fromJust)
 import WayUtil (setSignalHandler)
 import Foreign.Storable (Storable(..))
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
-import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..))
+import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
 import Data.IORef (newIORef, IORef, modifyIORef, readIORef)
 import Graphics.Wayland.Server (DisplayServer)
 import Control.Monad.IO.Class
+
+import Managehook
 import Waymonad
 import View
 import Foreign.StablePtr
@@ -114,9 +119,29 @@ instance ShellSurface XWaySurface where
     activate (XWaySurface xway surf) True = liftIO $ X.activateX11Surface xway (Just surf)
     activate (XWaySurface xway _) False = liftIO $ X.activateX11Surface xway Nothing
     getEventSurface (XWaySurface _ surf) x y = liftIO $ do
-        ret <- X.xwaySurfaceGetSurface surf
-        pure (ret, x, y)
+        box <- X.getX11SurfaceGeometry surf
+        if boxContainsPoint (Point (floor x) (floor y)) box
+           then do
+                ret <- X.xwaySurfaceGetSurface surf
+                pure $ Just (ret, x, y)
+            else pure Nothing
     setPosition (XWaySurface _ surf) x y =
         let point = Point (floor x) (floor y)
          in liftIO $ X.setX11SurfacePosition surf point
     getID (XWaySurface _ surf) = ptrToInt surf
+
+
+overrideXRedirect :: Managehook a
+overrideXRedirect = do
+    view <- ask
+    case getViewInner view of
+        Nothing -> mempty
+        Just (XWaySurface _ surf) -> do
+            override <- liftIO $ X.x11SurfaceOverrideRedirect surf
+            if override
+                then liftIO $ do
+                    hPutStrLn stderr "Overriding a redirect"
+                    (Point x y) <- X.getX11SurfacePosition surf
+                    (width, height) <- getViewSize view
+                    pure . InsertFloating $ WlrBox x y (floor width) (floor height)
+                else mempty

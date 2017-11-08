@@ -15,7 +15,7 @@ import Control.Monad.IO.Class
 import Data.Maybe (fromJust)
 import Data.Composition ((.:))
 
-import Graphics.Wayland.WlRoots.Box (WlrBox (..))
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxContainsPoint)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Foreign.Storable (Storable(..))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
@@ -142,10 +142,14 @@ instance ShellSurface XdgSurface where
         mPop <- R.xdgPopupAt surf x y
         case mPop of
             Nothing -> do
-                realS <- R.xdgSurfaceGetSurface surf
-                pure (realS, x, y)
+                box <- R.getGeometry surf
+                if boxContainsPoint (Point (floor x) (floor y)) box
+                    then do
+                        realS <- R.xdgSurfaceGetSurface surf
+                        pure $ Just (realS, x, y)
+                    else pure Nothing
             Just (popup, newx, newy) -> do
                 realS <- R.xdgSurfaceGetSurface popup
-                pure (realS, x - newx, y - newy)
+                pure $ Just (realS, x - newx, y - newy)
     getID (XdgSurface surf) = ptrToInt surf
 

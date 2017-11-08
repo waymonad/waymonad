@@ -78,11 +78,13 @@ import WayUtil
     , focusNextOut
     , sendTo
     , killCurrent
+    , modifyFloating
     )
-import XWayland (xwayShellCreate)
+import XWayland (xwayShellCreate, overrideXRedirect)
 import XdgShell (xdgShellCreate)
 
 import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 
 insertView
     :: WSTag a
@@ -106,9 +108,11 @@ removeView view = do
 
             state <- getViewSet
             whenJust (M.lookup ws state) setFoci
+        [] -> pure ()
         xs -> liftIO $ do
-            hPutStrLn stderr "Found a view in a number of workspaces that's not 1!"
+            hPutStrLn stderr "Found a view in a number of workspaces that's not <2!"
             hPutStrLn stderr $ show $ map fst xs
+    modifyFloating (S.delete view)
 
 bindings :: DisplayServer -> [(([WlrModifier], Keysym), KeyBinding Text)]
 bindings dsp =
@@ -159,7 +163,7 @@ makeCompositor dspRef backend keyBinds = do
 
     input <- inputCreate display layout backend (makeBindingMap $ keyBinds display)
 
-    let addFun = insertView (manageSpawnOn <> manageNamed)
+    let addFun = insertView (overrideXRedirect <> manageSpawnOn <> manageNamed)
     xdgShell <- xdgShellCreate display addFun removeView
     xway <- xwayShellCreate display comp addFun removeView
 
@@ -215,6 +219,7 @@ main =  do
             outputs <- newIORef []
             seats <- newIORef []
             extensible <- newIORef mempty
+            floats <- newIORef mempty
 
             let state = WayBindingState
                     { wayBindingCache = layoutRef
@@ -226,6 +231,7 @@ main =  do
                     , wayLogFunction = pure ()
                     , wayExtensibleState = extensible
                     , wayConfig = conf
+                    , wayFloating = floats
                     }
 
             let loggers = WayLoggers
