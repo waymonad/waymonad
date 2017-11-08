@@ -21,7 +21,6 @@ import Text.XkbCommon.InternalTypes (Keysym(..))
 import Text.XkbCommon.KeysymList
 
 import Graphics.Wayland.WlRoots.Backend (Backend)
-import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
 import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)

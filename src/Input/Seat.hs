@@ -6,6 +6,7 @@ module Input.Seat
     , pointerClear
     , pointerButton
     , getPointerFocus
+    , getKeyboardFocus
     )
 where
 
@@ -95,6 +96,8 @@ pointerClear seat = liftIO $ do
     pointerClearFocus (seatRoots seat)
     writeIORef (seatPointer seat) Nothing
 
-
 getPointerFocus :: MonadIO m => Seat -> m (Maybe View)
 getPointerFocus = liftIO . readIORef . seatPointer
+
+getKeyboardFocus :: MonadIO m => Seat -> m (Maybe View)
+getKeyboardFocus = liftIO . readIORef . seatKeyboard

@@ -24,7 +24,7 @@ import Graphics.Wayland.Signal
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Graphics.Wayland.WlRoots.Output (getOutputName, getOutputBox)
 
-import Input.Seat (Seat, keyboardEnter, getPointerFocus)
+import Input.Seat (Seat, keyboardEnter, getKeyboardFocus)
 import Layout (reLayout)
 import Utility (whenJust, intToPtr)
 import View (View, activateView, closeView, moveView, resizeView)
@@ -125,7 +125,7 @@ modifyViewSet fun = do
 
 getCurrentView :: WSTag a => Way a (Maybe View)
 getCurrentView =
-    getPointerFocus . fromJust =<< getSeat
+    getKeyboardFocus . fromJust =<< getSeat
 
 sendTo
     :: (WSTag a)

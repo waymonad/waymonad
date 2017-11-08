@@ -41,9 +41,11 @@ getLayoutBoxes ws = do
     outs <- getBoxes ws
 
     let smallest :: WlrBox = foldr shrink (WlrBox 0 0 maxBound maxBound) $ map snd outs
-    pure $ map (fmap $ centerBox smallest) outs
+    pure $ map (fmap $ centerBox smallest . toOrigin) outs
     where   shrink :: WlrBox -> WlrBox -> WlrBox
             shrink (WlrBox _ _ lw lh) (WlrBox _ _ rw rh) = WlrBox 0 0 (min lw rw) (min lh rh)
+            toOrigin :: WlrBox -> WlrBox
+            toOrigin (WlrBox _ _ w h) = WlrBox 0 0 w h
 
 reLayout
     :: WSTag a
