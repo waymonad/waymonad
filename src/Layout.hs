@@ -5,6 +5,7 @@ module Layout
     )
 where
 
+import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import System.IO (hPutStrLn, stderr)
@@ -31,7 +32,7 @@ reLayout ws = do
     xs <- liftIO . readIORef $ wayBindingMapping state
     let cacheRef = wayBindingCache state
 
-    liftIO $ whenJust (M.lookup ws $ M.fromList xs) $ \out -> whenJust wstate $ \case
+    liftIO $ forM_ (map snd $ filter ((==) ws . fst) xs) $ \out -> whenJust wstate $ \case
         (Workspace _ Nothing) -> modifyIORef cacheRef $ IM.delete out
         (Workspace (Layout l) (Just vs)) -> do
             box <- getOutputBox $ intToPtr out
