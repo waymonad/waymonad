@@ -13,10 +13,9 @@ import Graphics.Wayland.WlRoots.Input
     , inputDeviceType
     , DeviceType(..)
     )
-import Graphics.Wayland.WlRoots.Seat (WlrSeat, createSeat, setSeatCapabilities)
 import Graphics.Wayland.WlRoots.XCursor (WlrXCursorTheme, WlrXCursor, loadCursorTheme, getCursor , WlrXCursorImage (..), getImages)
 import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
-import Graphics.Wayland.Server (DisplayServer(..), seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer)
+import Graphics.Wayland.Server (DisplayServer(..))
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Backend
     ( Backend
@@ -39,7 +38,7 @@ data Input = Input
     { inputCursorTheme :: Ptr WlrXCursorTheme
     , inputXCursor :: Ptr WlrXCursor
     , inputCursor :: Cursor
-    , inputSeat :: Ptr WlrSeat
+    , inputSeat :: Seat
     , inputAddToken :: ListenerToken
     }
 
@@ -48,7 +47,7 @@ handleInputAdd
     => Ptr WlrCursor
     -> DisplayServer
     -> Ptr Backend
-    -> Ptr WlrSeat
+    -> Seat
     -> BindingMap a
     -> Ptr InputDevice
     -> Way a ()
@@ -87,15 +86,13 @@ inputCreate display layout backend bindings = do
     logPutStr loggerKeybinds $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
     theme   <- liftIO $ loadCursorTheme "default" 16
     xcursor <- liftIO $ getCursor theme "left_ptr"
-    seat    <- liftIO $ createSeat display "seat0"
+    seat    <- liftIO $ seatCreate display "seat0"
 
     seatRef <- wayBindingSeats <$> getState
     liftIO $ modifyIORef seatRef ((:) seat)
 
     withSeat (Just seat) $ do
         cursor  <- cursorCreate layout
-
-        liftIO $ setSeatCapabilities seat [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
 
         liftIO $ setXCursorImage
             (cursorRoots $ cursor)

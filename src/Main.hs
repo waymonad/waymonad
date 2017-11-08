@@ -21,6 +21,7 @@ import Text.XkbCommon.InternalTypes (Keysym(..))
 import Text.XkbCommon.KeysymList
 
 import Graphics.Wayland.WlRoots.Backend (Backend)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
 import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
@@ -79,6 +80,7 @@ import WayUtil
     , sendTo
     , killCurrent
     , modifyFloating
+    , centerFloat
     )
 import XWayland (xwayShellCreate, overrideXRedirect)
 import XdgShell (xdgShellCreate)
@@ -139,6 +141,7 @@ bindings dsp =
     , (([modi], keysym_m), sendMessage MMessage)
     , (([modi], keysym_n), focusNextOut)
     , (([modi], keysym_q), killCurrent)
+    , (([modi], keysym_o), centerFloat)
     ]
     where modi = Alt
 

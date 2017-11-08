@@ -15,7 +15,6 @@ import Graphics.Wayland.Signal
     ( addListener
     , WlListener (..)
     )
-import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyKey, keyboardNotifyModifiers, seatSetKeyboard)
 import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
 import Graphics.Wayland.WlRoots.Backend (Backend)
@@ -36,6 +35,12 @@ import Graphics.Wayland.WlRoots.Input.Keyboard
 
     , getModifiers
     )
+import Graphics.Wayland.WlRoots.Seat
+    ( seatSetKeyboard
+    , keyboardNotifyKey
+    , seatSetKeyboard
+    , keyboardNotifyModifiers
+    )
 import Foreign.StablePtr
     ( newStablePtr
     , castStablePtrToPtr
@@ -44,6 +49,7 @@ import Foreign.StablePtr
     )
 import Control.Monad (forM, when)
 
+import Input.Seat
 import ViewSet (WSTag)
 import Waymonad
     ( BindingMap
@@ -112,10 +118,10 @@ handleKeyPress dsp backend bindings modifiers sym@(Keysym key) = do
                     pure True
 
 
-tellClient :: Ptr WlrSeat -> Keyboard -> EventKey -> IO ()
+tellClient :: Seat -> Keyboard -> EventKey -> IO ()
 tellClient seat keyboard event = do
-    seatSetKeyboard seat $ keyboardIDevice keyboard
-    keyboardNotifyKey seat (timeSec event) (keyCode event) (state event)
+    seatSetKeyboard   (seatRoots seat) $ keyboardIDevice keyboard
+    keyboardNotifyKey (seatRoots seat) (timeSec event) (keyCode event) (state event)
 
 handleKeySimple
     :: WSTag a
@@ -166,7 +172,7 @@ handleKeyEvent
     => DisplayServer
     -> Ptr Backend
     -> Keyboard
-    -> Ptr WlrSeat
+    -> Seat
     -> BindingMap a
     -> Ptr EventKey
     -> Way a ()
@@ -185,17 +191,17 @@ handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ d
 
     liftIO . when (not handled) $ tellClient seat keyboard event
 
-handleModifiers :: Keyboard -> Ptr WlrSeat -> Ptr a -> IO ()
+handleModifiers :: Keyboard -> Seat -> Ptr a -> IO ()
 handleModifiers keyboard seat _ = do
     mods <- readModifiers $ keyboardDevice keyboard
-    seatSetKeyboard seat $ keyboardIDevice keyboard
-    keyboardNotifyModifiers seat (modDepressed mods) (modLatched mods) (modLocked mods) (modGroup mods)
+    seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
+    keyboardNotifyModifiers (seatRoots seat) (modDepressed mods) (modLatched mods) (modLocked mods) (modGroup mods)
 
 handleKeyboardAdd
     :: WSTag a
     => DisplayServer
     -> Ptr Backend
-    -> Ptr WlrSeat
+    -> Seat
     -> BindingMap a
     -> Ptr InputDevice
     -> Ptr WlrKeyboard

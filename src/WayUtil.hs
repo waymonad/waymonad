@@ -22,12 +22,12 @@ import Graphics.Wayland.Signal
     , WlSignal
     )
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
-import Graphics.Wayland.WlRoots.Output (getOutputName)
-import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyEnter)
+import Graphics.Wayland.WlRoots.Output (getOutputName, getOutputBox)
 
+import Input.Seat (Seat, keyboardEnter, getPointerFocus)
 import Layout (reLayout)
 import Utility (whenJust, intToPtr)
-import View (View, getViewSurface, activateView, closeView, moveView, resizeView)
+import View (View, activateView, closeView, moveView, resizeView)
 import ViewSet
     ( Workspace (..)
     , Zipper (..)
@@ -66,7 +66,7 @@ import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
-getCurrentOutput :: (WSTag a) => Way a Int
+getCurrentOutput :: Way a Int
 getCurrentOutput = do
     state <- getState
     (Just seat) <- getSeat
@@ -82,7 +82,7 @@ getCurrentWS = do
 
 withCurrentWS
     :: (WSTag a)
-    => (Ptr WlrSeat -> Workspace -> b)
+    => (Seat -> Workspace -> b)
     -> Way a b
 withCurrentWS fun = do
     Just seat <- getSeat
@@ -93,7 +93,7 @@ withCurrentWS fun = do
 
 modifyWS
     :: (WSTag a)
-    => (Ptr WlrSeat -> Workspace -> Workspace)
+    => (Seat -> Workspace -> Workspace)
     -> a
     -> Way a ()
 modifyWS fun ws = do
@@ -106,11 +106,11 @@ modifyWS fun ws = do
     postWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
 
     liftIO $ when (preWs /= postWs) $ whenJust postWs $ \v ->
-        keyboardNotifyEnter seat =<< getViewSurface v
+        keyboardEnter seat v
 
 modifyCurrentWS
     :: (WSTag a)
-    => (Ptr WlrSeat -> Workspace -> Workspace) -> Way a ()
+    => (Seat -> Workspace -> Workspace) -> Way a ()
 modifyCurrentWS fun = do
     modifyWS fun =<< getCurrentWS
     join $ withCurrentWS $ const setFoci
@@ -124,8 +124,8 @@ modifyViewSet fun = do
 
 
 getCurrentView :: WSTag a => Way a (Maybe View)
-getCurrentView = do
-    withCurrentWS getFocused
+getCurrentView =
+    getPointerFocus . fromJust =<< getSeat
 
 sendTo
     :: (WSTag a)
@@ -163,16 +163,14 @@ focusMaster = do
         modifyCurrentWS (setFocused view)
         liftIO $ do
             activateView view True
-            surf <- getViewSurface view
-            keyboardNotifyEnter seat surf
+            keyboardEnter seat view
 
 
-setFocus :: MonadIO m => (Maybe (Ptr WlrSeat), View) -> m ()
+setFocus :: MonadIO m => (Maybe (Seat), View) -> m ()
 setFocus (Nothing, _) = pure ()
 setFocus (Just s, v) = liftIO $ do
     activateView v True
-    surf <- getViewSurface v
-    keyboardNotifyEnter s surf
+    keyboardEnter s v
 
 setFoci :: MonadIO m => Workspace -> m ()
 setFoci (Workspace _ Nothing) = pure ()
@@ -202,7 +200,7 @@ focusNextOut = do
     setSeatOutput seat new
 
 -- TODO: Real multiseat support
-setSeatOutput :: Ptr WlrSeat -> Int -> Way a ()
+setSeatOutput :: Seat -> Int -> Way a ()
 setSeatOutput seat out = do
     state <- getState
     prev <- liftIO $ readIORef (wayBindingCurrent state)
@@ -280,4 +278,36 @@ setFloating view (WlrBox x y width height) = do
     resizeView view (fromIntegral width) (fromIntegral height)
     modifyFloating $ S.insert view
 
+unsetFloating
+    :: WSTag a => View -> Way a ()
+unsetFloating view = do
+    floats <- isFloating view
+    when floats $ do
+        modifyFloating $ S.delete view
+        modifyCurrentWS (flip addView view . Just)
 
+toggleFloat
+    :: WSTag a => WlrBox ->  Way a ()
+toggleFloat box = do
+    viewM <- getCurrentView
+    whenJust viewM $ \view -> do
+        floats <- isFloating view
+        if floats
+            then unsetFloating view
+            else do
+                modifyCurrentWS (const $ rmView view)
+                setFloating view box
+
+getCurrentBox
+    :: Way a (WlrBox)
+getCurrentBox = do
+    liftIO . getOutputBox . intToPtr =<< getCurrentOutput
+
+
+centerFloat
+    :: WSTag a => Way a ()
+centerFloat = do
+    (WlrBox x y w h) <- getCurrentBox
+    let nw = w `div` 2
+    let nh = h `div` 2
+    toggleFloat $ WlrBox (x + nw `div` 2) (y + nh `div` 2) nw nh

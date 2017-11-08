@@ -15,9 +15,9 @@ import Data.Map (Map)
 import Data.Maybe (listToMaybe, isJust)
 import Data.Text (Text)
 import Data.Typeable
-import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Box (boxContainsPoint, Point, WlrBox)
-import Graphics.Wayland.WlRoots.Seat (WlrSeat)
+
+import Input.Seat (Seat)
 import View (View)
 
 type ViewSet a = Map a Workspace
@@ -28,7 +28,7 @@ newtype Zipper a b = Zipper [(Maybe a {- This is probably going to become a List
 
 data Workspace = Workspace
     { wsLayout :: Layout
-    , wsViews :: Maybe (Zipper (Ptr WlrSeat) View)
+    , wsViews :: Maybe (Zipper (Seat) View)
     }
 
 class (Typeable a, Show a, Eq a, Ord a) => WSTag a where
@@ -63,11 +63,11 @@ getMaster (Workspace _ z) = getMaster' =<< z
 getMaster' :: Zipper a b -> Maybe b
 getMaster' (Zipper xs) =  snd <$> listToMaybe xs
 
-setFocused :: View -> Ptr WlrSeat -> Workspace -> Workspace
+setFocused :: View -> Seat -> Workspace -> Workspace
 setFocused v t (Workspace l z) =
     Workspace l $ fmap (setFocused' t v) z
 
-getFocused :: Ptr WlrSeat -> Workspace -> Maybe View
+getFocused :: Seat -> Workspace -> Maybe View
 getFocused seat (Workspace _ (Just (Zipper z))) =
     fmap snd $ find ((==) (Just seat) . fst) z
 getFocused _ _ = Nothing
@@ -79,7 +79,7 @@ getFirstFocused' :: Zipper a b -> Maybe b
 getFirstFocused' (Zipper z) =
     fmap snd $ find (isJust . fst) z
 
-addView :: Maybe (Ptr WlrSeat) -> View -> Workspace -> Workspace
+addView :: Maybe (Seat) -> View -> Workspace -> Workspace
 addView seat v (Workspace l z) = Workspace l $ addElem seat v z
 
 rmView :: View -> Workspace -> Workspace
@@ -136,7 +136,7 @@ contains x (Zipper xs) = elem x $ map snd xs
 snoc :: a -> [a] -> [a]
 snoc x xs = xs ++ [x]
 
-moveRight :: (Ptr WlrSeat) -> Workspace -> Workspace
+moveRight :: (Seat) -> Workspace -> Workspace
 moveRight t (Workspace l z) = Workspace l $ fmap (moveRight' t) z
 
 moveRight' :: Eq a => a -> Zipper a b -> Zipper a b
@@ -152,7 +152,7 @@ moveRight' t (Zipper xs) =
             -- This case should be impossible
             ((Nothing, _):_) -> error "moveRight hit an impossible case"
 
-moveLeft :: Ptr WlrSeat -> Workspace -> Workspace
+moveLeft :: Seat -> Workspace -> Workspace
 moveLeft t (Workspace l z) = Workspace l $ fmap (moveLeft' t) z
 
 moveLeft' :: Eq a => a -> Zipper a b -> Zipper a b
@@ -168,7 +168,7 @@ moveLeft' t (Zipper xs) =
                 ((_, z):zs) -> (Nothing, z) : zs
                 [] -> []
 
-moveViewLeft :: Ptr WlrSeat -> Workspace -> Workspace
+moveViewLeft :: Seat -> Workspace -> Workspace
 moveViewLeft t (Workspace l z) = Workspace l $ fmap (moveElemLeft' t) z
 
 moveElemLeft' :: Eq a => a -> Zipper a b -> Zipper a b
@@ -183,7 +183,7 @@ moveElemLeft' t (Zipper xs) =
             (z:zs) ->  let left = last ys
                         in (init ys) ++ z : left : zs
 
-moveViewRight :: Ptr WlrSeat -> Workspace -> Workspace
+moveViewRight :: Seat -> Workspace -> Workspace
 moveViewRight t (Workspace l z) = Workspace l $ fmap (moveElemRight' t) z
 
 moveElemRight' :: Eq a => a -> Zipper a b -> Zipper a b

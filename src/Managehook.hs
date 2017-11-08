@@ -16,8 +16,8 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
-import Graphics.Wayland.WlRoots.Seat (keyboardNotifyEnter)
 
+import Input.Seat
 import Utility (whenJust)
 import View
 import ViewSet (WSTag, addView)
@@ -68,8 +68,7 @@ enactInsert act = do
         InsertFloating box -> do
             setFloating view box
             seat <- getSeat
-            surf <- getViewSurface view
-            liftIO . whenJust seat $ flip keyboardNotifyEnter surf
+            liftIO $ whenJust seat $ flip keyboardEnter view
         InsertCustom ins -> ins
 
 

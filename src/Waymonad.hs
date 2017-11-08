@@ -48,22 +48,22 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), local)
 import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
+import Data.IntMap (IntMap)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf)
 import Data.Word (Word32)
-import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox)
-import Graphics.Wayland.WlRoots.Seat (WlrSeat)
 
 import Config (WayConfig)
+import Input.Seat (Seat)
 import View (View, getViewEventSurface)
-import qualified ViewSet as VS
 import Waymonad.Extensible
 
-import Data.IntMap (IntMap)
+
+import qualified ViewSet as VS
 import qualified Data.IntMap as IM
 import qualified Data.Set as S
 
@@ -143,10 +143,10 @@ data WayLoggers = WayLoggers
 data WayBindingState a = WayBindingState
     { wayBindingCache :: LayoutCacheRef
     , wayBindingState :: WayStateRef a
-    , wayBindingCurrent :: IORef [(Ptr WlrSeat, Int)]
+    , wayBindingCurrent :: IORef [(Seat, Int)]
     , wayBindingMapping :: IORef [(a, Int)]
     , wayBindingOutputs :: IORef [Int]
-    , wayBindingSeats   :: IORef [Ptr WlrSeat]
+    , wayBindingSeats   :: IORef [Seat]
     , wayLogFunction :: LogFun a
     , wayExtensibleState :: IORef StateMap
     , wayConfig :: WayConfig
@@ -163,8 +163,8 @@ type KeyBinding a = Way a ()
 type BindingMap a = Map (Word32, Int) (KeyBinding a)
 type LogFun a = Way a ()
 
-newtype Way a b = Way (ReaderT (Maybe (Ptr WlrSeat)) (WayBinding a) b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe (Ptr WlrSeat)))
+newtype Way a b = Way (ReaderT (Maybe Seat) (WayBinding a) b)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe Seat))
 
 instance forall a b. (Typeable a, Typeable b) => Show (Way a b) where
     show =  show . typeOf
@@ -177,7 +177,7 @@ getLoggers = Way $ lift getLoggers'
 getState :: Way a (WayBindingState a)
 getState = Way $ lift ask
 
-getSeat :: Way a (Maybe (Ptr WlrSeat))
+getSeat :: Way a (Maybe Seat)
 getSeat = do
     current <- ask
     case current of
@@ -198,7 +198,7 @@ runWayBinding logger val (WayBinding act) =
 
 runWay
     :: MonadIO m
-    => Maybe (Ptr WlrSeat)
+    => Maybe Seat
     -> WayBindingState a
     -> WayLoggers
     -> Way a b
@@ -219,5 +219,5 @@ setCallback act fun = do
     liftIO $ fun ioAct
 
 
-withSeat :: Maybe (Ptr WlrSeat) -> Way a b -> Way a b
+withSeat :: Maybe Seat -> Way a b -> Way a b
 withSeat seat (Way m) = Way $ local (const seat) m
