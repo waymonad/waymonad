@@ -21,12 +21,13 @@ import Graphics.Wayland.Signal
     , ListenerToken
     , WlSignal
     )
+import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Graphics.Wayland.WlRoots.Output (getOutputName)
 import Graphics.Wayland.WlRoots.Seat (WlrSeat, keyboardNotifyEnter)
 
 import Layout (reLayout)
 import Utility (whenJust, intToPtr)
-import View (View, getViewSurface, activateView, closeView)
+import View (View, getViewSurface, activateView, closeView, moveView, resizeView)
 import ViewSet
     ( Workspace (..)
     , Zipper (..)
@@ -61,6 +62,7 @@ import Waymonad.Extensible
     )
 
 import qualified Data.Map as M
+import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -267,3 +269,15 @@ modifyFloating fun = liftIO . flip modifyIORef fun . wayFloating =<< getState
 
 getFloats :: Way a (Set View)
 getFloats = liftIO . readIORef . wayFloating =<< getState
+
+isFloating :: View -> Way a Bool
+isFloating v = S.member v <$> getFloats
+
+setFloating
+    :: WSTag a => View -> WlrBox -> Way a ()
+setFloating view (WlrBox x y width height) = do
+    moveView view (fromIntegral x) (fromIntegral y)
+    resizeView view (fromIntegral width) (fromIntegral height)
+    modifyFloating $ S.insert view
+
+

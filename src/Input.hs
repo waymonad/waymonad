@@ -7,9 +7,6 @@ where
 import Foreign.Storable (Storable(peek))
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef)
-import Input.Keyboard
-import Input.Pointer
-import Input.Cursor
 import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Input
     ( InputDevice
@@ -21,12 +18,20 @@ import Graphics.Wayland.WlRoots.XCursor (WlrXCursorTheme, WlrXCursor, loadCursor
 import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
 import Graphics.Wayland.Server (DisplayServer(..), seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
-import Graphics.Wayland.WlRoots.Backend (Backend, backendGetSignals, BackendSignals(..))
+import Graphics.Wayland.WlRoots.Backend
+    ( Backend
+    , backendGetSignals
+    , BackendSignals(..)
+    )
 import Graphics.Wayland.Signal (ListenerToken)
 
+import Input.Cursor
+import Input.Keyboard
+import Input.Pointer
+import Input.Seat
 import ViewSet (WSTag)
-import Waymonad
 import WayUtil
+import Waymonad
 
 import qualified Data.Map as M
 

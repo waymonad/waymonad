@@ -24,8 +24,6 @@ import ViewSet (WSTag, addView)
 import Waymonad
 import WayUtil
 
-import qualified Data.Set as S
-
 newtype Query a b = Query (ReaderT View (Way a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader View)
 
@@ -67,10 +65,8 @@ enactInsert act = do
         InsertNone -> pure ()
         InsertFocused -> modifyCurrentWS (flip addView view . Just)
         InsertInto ws -> modifyWS (flip addView view . Just) ws
-        InsertFloating (WlrBox x y width height) -> do
-            moveView view (fromIntegral x) (fromIntegral y)
-            resizeView view (fromIntegral width) (fromIntegral height)
-            modifyFloating $ S.insert view
+        InsertFloating box -> do
+            setFloating view box
             seat <- getSeat
             surf <- getViewSurface view
             liftIO . whenJust seat $ flip keyboardNotifyEnter surf
