@@ -22,3 +22,12 @@ Currently more a place for me to write down thoughts and provide a platform to d
 * predictable layouting
 * based on the compositor library [wlroots](https://github.com/SirCmpwn/wlroots)
 
+---
+
+### Things I did by accident that are now a feature
+
+I was working on `view`/`greedyView` implementation and accidently mapped the same workspace to two outputs.
+That looked weird, so I implemented a logic that will give the layout a box centered the respective outputs with width and height being the minimum from all outputs the workspace is shown on.
+
+Now it's a feature!
+![Workspace on two outputs](https://i.imgur.com/FD53fWa.jpg)
