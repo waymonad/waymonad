@@ -3,10 +3,11 @@
 module WayUtil
 where
 
+import Control.Applicative ((<|>))
 import Control.Monad (when, join)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (readIORef, modifyIORef, writeIORef)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Time.Clock (getCurrentTime)
@@ -66,13 +67,21 @@ import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
+getPointerOutput :: Way a Int
+getPointerOutput = do
+    state <- getState
+    (Just seat) <- getSeat
+    currents <- liftIO . readIORef $ wayBindingCurrent state
+    let (Just current) = M.lookup seat $ M.fromList currents
+    pure . fst $ current
+
 getCurrentOutput :: Way a Int
 getCurrentOutput = do
     state <- getState
     (Just seat) <- getSeat
     currents <- liftIO . readIORef $ wayBindingCurrent state
     let (Just current) = M.lookup seat $ M.fromList currents
-    pure current
+    pure . snd $ current
 
 getCurrentWS :: (WSTag a) => Way a a
 getCurrentWS = do
@@ -197,22 +206,30 @@ focusNextOut = do
     current <- getCurrentOutput
     possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
     let new = head . tail . dropWhile (/= current) $ cycle possibles
-    setSeatOutput seat new
+    setSeatOutput seat Nothing (Just new)
     join $ withCurrentWS $ const setFoci
 
 -- TODO: Real multiseat support
-setSeatOutput :: WSTag a => Seat -> Int -> Way a ()
-setSeatOutput seat out = do
+setSeatOutput :: WSTag a => Seat -> Maybe Int -> Maybe Int -> Way a ()
+setSeatOutput seat pout kout = do
     state <- getState
     prev <- liftIO $ readIORef (wayBindingCurrent state)
+    let fall = (fromJust (pout <|> kout), fromJust (kout <|> pout))
     case prev of
-        [] -> liftIO $ writeIORef (wayBindingCurrent state) [(seat, out)]
-        [(_, o)] -> when (o /= out)  $ do
-            old <- liftIO $ getOutputName $ intToPtr o
-            new <- liftIO $ getOutputName $ intToPtr out
-            liftIO $ writeIORef (wayBindingCurrent state) [(seat, out)]
+        [] -> liftIO $ writeIORef (wayBindingCurrent state) [(seat, fall)]
+        [(_, (p, k))] -> do
+            let new = (fromMaybe p pout, fromMaybe k kout)
+            liftIO $ writeIORef (wayBindingCurrent state) [(seat, new)]
 
-            logPutText loggerFocus $ "Changed focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
+            whenJust pout $ \out -> do
+                old <- liftIO $ getOutputName $ intToPtr p
+                new <- liftIO $ getOutputName $ intToPtr out
+                logPutText loggerFocus $ "Changed pointer focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
+
+            whenJust kout $ \out -> do
+                old <- liftIO $ getOutputName $ intToPtr k
+                new <- liftIO $ getOutputName $ intToPtr out
+                logPutText loggerFocus $ "Changed pointer focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
 
 
 getViewSet :: Way a (ViewSet a)
@@ -296,13 +313,13 @@ toggleFloat box = do
         if floats
             then unsetFloating view
             else do
-                modifyCurrentWS (const $ rmView view)
+                modifyViewSet (fmap $ rmView view)
                 setFloating view box
 
 getCurrentBox
     :: Way a (WlrBox)
 getCurrentBox = do
-    liftIO . getOutputBox . intToPtr =<< getCurrentOutput
+    liftIO . getOutputBox . intToPtr =<< getPointerOutput
 
 
 centerFloat

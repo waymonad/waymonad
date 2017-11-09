@@ -116,7 +116,7 @@ updatePosition layout cursor time = do
 
     case output of
         Nothing -> pure ()
-        Just out -> setSeatOutput seat (ptrToInt out)
+        Just out -> setSeatOutput seat (Just $ ptrToInt out) Nothing
 
     case viewM of
         Nothing -> pointerClear seat

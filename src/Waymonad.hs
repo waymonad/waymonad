@@ -143,7 +143,8 @@ data WayLoggers = WayLoggers
 data WayBindingState a = WayBindingState
     { wayBindingCache :: LayoutCacheRef
     , wayBindingState :: WayStateRef a
-    , wayBindingCurrent :: IORef [(Seat, Int)]
+    -- Left Pointer, Right Keyboard
+    , wayBindingCurrent :: IORef [(Seat, (Int, Int))]
     , wayBindingMapping :: IORef [(a, Int)]
     , wayBindingOutputs :: IORef [Int]
     , wayBindingSeats   :: IORef [Seat]
