@@ -22,6 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 module Output
     ( handleOutputAdd
     , handleOutputRemove
+    , OutputAddEvent (..)
     )
 where
 
@@ -104,6 +105,8 @@ import Waymonad
     , runLayoutCache'
     , WayBindingState (..)
     , getState
+    , EventClass
+    , sendEvent
     )
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
@@ -243,6 +246,11 @@ configureOutput layout configs name output = do
 
     liftIO $ whenJust mode (flip setOutputMode output)
 
+newtype OutputAddEvent = OutputAdd Int
+    deriving (Eq, Show)
+
+instance EventClass OutputAddEvent
+
 handleOutputAdd
     :: WSTag a
     => IORef Compositor
@@ -281,6 +289,8 @@ handleOutputAdd ref wss output = do
 
     cacheRef <- wayBindingCache <$> getState
     floats <- wayFloating <$> getState
+
+    sendEvent $ OutputAdd $ ptrToInt output
 
     pure $ \secs out -> frameHandler ref cacheRef floats secs out
 

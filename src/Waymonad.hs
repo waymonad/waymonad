@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -57,6 +58,11 @@ module Waymonad
     , WayLoggers (..)
     , Logger (..)
     , getLoggers
+
+    , EventClass
+    , SomeEvent
+    , getEvent
+    , sendEvent
     )
 where
 
@@ -72,7 +78,7 @@ import Data.IntMap (IntMap)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
-import Data.Typeable (Typeable, typeOf)
+import Data.Typeable (Typeable, typeOf, cast)
 import Data.Word (Word32)
 
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox)
@@ -146,6 +152,16 @@ viewBelow point ws = do
         Nothing -> pure Nothing
         Just x -> liftIO $ VS.viewBelow point x
 
+class Typeable e => EventClass e
+
+data SomeEvent = forall e. EventClass e => SomeEvent e
+
+getEvent :: EventClass e => SomeEvent -> Maybe (e)
+getEvent (SomeEvent e) = cast e
+
+sendEvent :: EventClass e => e -> Way a ()
+sendEvent e = flip wayEventHook (SomeEvent e) =<< getState
+
 data Logger = Logger
     { loggerActive :: Bool
     , loggerName :: Text
@@ -172,6 +188,7 @@ data WayBindingState a = WayBindingState
     , wayExtensibleState :: IORef StateMap
     , wayConfig :: WayConfig
     , wayFloating :: IORef (Set View)
+    , wayEventHook :: SomeEvent -> Way a ()
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)

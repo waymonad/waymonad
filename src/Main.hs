@@ -60,7 +60,7 @@ import Layout (reLayout)
 import Layout.Mirror (Mirror (..), MMessage (..))
 import Layout.Tall (Tall (..))
 import Layout.ToggleFull (ToggleFull (..), TMessage (..))
-import Output (handleOutputAdd, handleOutputRemove)
+import Output (handleOutputAdd, handleOutputRemove, OutputAddEvent)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import Utility (whenJust)
 import Utility.Spawn (spawn, spawnManaged, manageNamed, manageSpawnOn, namedSpawner, onSpawner)
@@ -87,6 +87,7 @@ import Waymonad
 
     , WayLoggers (..)
     , Logger (..)
+    , getEvent
     )
 import WayUtil
     ( modifyCurrentWS
@@ -254,6 +255,7 @@ main =  do
                     , wayExtensibleState = extensible
                     , wayConfig = conf
                     , wayFloating = floats
+                    , wayEventHook = liftIO . hPutStrLn stderr . (show :: Maybe OutputAddEvent -> String) . getEvent
                     }
 
             let loggers = WayLoggers
