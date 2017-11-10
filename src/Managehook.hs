@@ -42,7 +42,6 @@ import Utility (whenJust)
 import View
 import ViewSet (WSTag, addView)
 import Waymonad
-import WayUtil
 import WayUtil.Floating
 import WayUtil.ViewSet (modifyCurrentWS, modifyWS)
 

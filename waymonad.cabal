@@ -56,6 +56,7 @@ executable waymonad
   -- Modules included in this executable, other than Main.
   other-modules:        Compositor
   other-modules:        Config
+  other-modules:        Config.Box
   other-modules:        Config.Output
 
   other-modules:        Input
