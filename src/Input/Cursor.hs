@@ -25,6 +25,7 @@ where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
+import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(..))
@@ -56,7 +57,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     )
 import Graphics.Wayland.Signal (ListenerToken)
 
-import Utility (ptrToInt)
+import Utility (ptrToInt, doJust)
 import View (View)
 import ViewSet (WSTag)
 import Waymonad
@@ -82,11 +83,12 @@ cursorCreate layout = do
     cursor <- liftIO $ createCursor
     liftIO $ attachOutputLayout cursor layout
     liftIO $ mapToRegion cursor Nothing
+    outref <- liftIO $ newIORef 0
 
     let signal = cursorGetEvents cursor
 
-    tokm <- setSignalHandler (cursorMotion signal   ) (handleCursorMotion layout cursor)
-    toka <- setSignalHandler (cursorMotionAbs signal) (handleCursorMotionAbs layout cursor)
+    tokm <- setSignalHandler (cursorMotion signal   ) (handleCursorMotion layout cursor outref)
+    toka <- setSignalHandler (cursorMotionAbs signal) (handleCursorMotionAbs layout cursor outref)
 
     tokb <- setSignalHandler (cursorButton signal   ) (handleCursorButton layout cursor)
 
@@ -123,20 +125,21 @@ updatePosition
     :: WSTag a
     => Ptr WlrOutputLayout
     -> Ptr WlrCursor
+    -> IORef Int
     -> Word32
     -> Way a ()
-updatePosition layout cursor time = do
+updatePosition layout cursor outref time = do
     curX <- liftIO  $ getCursorX cursor
     curY <- liftIO  $ getCursorY cursor
     viewM <- getCursorView layout cursor
 
-    output <- liftIO $ layoutAtPos layout curX curY
-
     (Just seat) <- getSeat
 
-    case output of
-        Nothing -> pure ()
-        Just out -> setSeatOutput seat (Just $ ptrToInt out) Nothing
+    doJust (liftIO $ layoutAtPos layout curX curY) $ \out -> do
+        old <- liftIO $ readIORef outref
+        when (old /= ptrToInt out) $ do
+            liftIO $ writeIORef outref $ ptrToInt out
+            setSeatOutput seat (Just $ ptrToInt out) (Just $ ptrToInt out)
 
     case viewM of
         Nothing -> pointerClear seat
@@ -150,9 +153,10 @@ handleCursorMotion
     :: WSTag a
     => Ptr WlrOutputLayout
     -> Ptr WlrCursor
+    -> IORef Int
     -> Ptr WlrEventPointerMotion
     -> Way a ()
-handleCursorMotion layout cursor event_ptr = do
+handleCursorMotion layout cursor outref event_ptr = do
     event <- liftIO $ peek event_ptr
 
     liftIO $ moveCursor
@@ -160,15 +164,16 @@ handleCursorMotion layout cursor event_ptr = do
         (Just $ eventPointerMotionDevice event)
         (eventPointerMotionDeltaX event)
         (eventPointerMotionDeltaY event)
-    updatePosition layout cursor (fromIntegral $ eventPointerMotionTime event)
+    updatePosition layout cursor outref (fromIntegral $ eventPointerMotionTime event)
 
 handleCursorMotionAbs
     :: WSTag a
     => Ptr WlrOutputLayout
     -> Ptr WlrCursor
+    -> IORef Int
     -> Ptr WlrEventPointerAbsMotion
     -> Way a ()
-handleCursorMotionAbs layout cursor event_ptr = do
+handleCursorMotionAbs layout cursor outref event_ptr = do
     event <- liftIO $ peek event_ptr
 
     liftIO $ warpCursorAbs
@@ -176,7 +181,7 @@ handleCursorMotionAbs layout cursor event_ptr = do
         (Just $ eventPointerAbsMotionDevice event)
         (eventPointerAbsMotionX event / eventPointerAbsMotionWidth event)
         (eventPointerAbsMotionY event / eventPointerAbsMotionHeight event)
-    updatePosition layout cursor (fromIntegral $ eventPointerAbsMotionTime event)
+    updatePosition layout cursor outref (fromIntegral $ eventPointerAbsMotionTime event)
 
 handleCursorButton
     :: WSTag a

@@ -45,7 +45,7 @@ import Waymonad
     , getState
     )
 import WayUtil.Current (getCurrentBox, getCurrentView)
-import WayUtil.ViewSet (modifyCurrentWS, modifyViewSet)
+import WayUtil.ViewSet (modifyCurrentWS)
 
 import qualified Data.Set as S
 
@@ -80,7 +80,7 @@ toggleFloat box = doJust getCurrentView $ \view -> do
     if floats
         then unsetFloating view
         else do
-            modifyViewSet (fmap $ rmView view)
+            modifyCurrentWS $ const $ rmView view
             setFloating view box
 
 

@@ -39,7 +39,7 @@ import Graphics.Wayland.Signal
 import Graphics.Wayland.WlRoots.Output (getOutputName)
 
 import Input.Seat (Seat)
-import Utility (whenJust, intToPtr)
+import Utility (whenJust, intToPtr, doJust)
 import View (closeView)
 import ViewSet
     ( WSTag
@@ -104,13 +104,12 @@ setSignalHandler signal act =
     setCallback act (\fun -> addListener (WlListener fun) signal)
 
 focusNextOut :: WSTag a => Way a ()
-focusNextOut = do
-    (Just seat) <- getSeat
-    current <- getCurrentOutput
-    possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
-    let new = head . tail . dropWhile (/= current) $ cycle possibles
-    setSeatOutput seat Nothing (Just new)
-    forceFocused
+focusNextOut = doJust getSeat $ \seat -> do
+    doJust getCurrentOutput $ \current -> do
+        possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
+        let new = head . tail . dropWhile (/= current) $ cycle possibles
+        setSeatOutput seat Nothing (Just new)
+        forceFocused
 
 -- TODO: Real multiseat support
 setSeatOutput :: WSTag a => Seat -> Maybe Int -> Maybe Int -> Way a ()

@@ -30,7 +30,7 @@ import Data.IORef (readIORef, modifyIORef)
 import Data.Tuple (swap)
 
 import Layout (reLayout)
-import Utility (whenJust)
+import Utility (whenJust, doJust)
 import View (View)
 import ViewSet (WSTag, setFocused, getMaster)
 import Waymonad
@@ -48,8 +48,7 @@ import qualified Data.Map as M
 setWorkspace :: WSTag a => a -> Way a ()
 setWorkspace ws = do
     state <- getState
-    current <- getCurrentOutput
-    liftIO $ modifyIORef
+    doJust getCurrentOutput $ \current -> liftIO $ modifyIORef
         (wayBindingMapping state)
         ((:) (ws, current) . filter ((/=) current . snd))
 
@@ -65,7 +64,7 @@ focusMaster :: WSTag a => Way a ()
 focusMaster = do
     state <- getState
     mapping <- liftIO . readIORef $ wayBindingMapping state
-    current <- getCurrentOutput
-    wss <- liftIO . readIORef $ wayBindingState state
-    let ws = M.lookup current . M.fromList $ map swap mapping
-    whenJust (getMaster =<< flip M.lookup wss =<< ws) focusView
+    doJust getCurrentOutput $ \current -> do
+        wss <- liftIO . readIORef $ wayBindingState state
+        let ws = M.lookup current . M.fromList $ map swap mapping
+        whenJust (getMaster =<< flip M.lookup wss =<< ws) focusView

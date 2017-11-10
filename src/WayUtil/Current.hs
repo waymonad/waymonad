@@ -30,7 +30,7 @@ module WayUtil.Current
 where
 
 import Control.Monad.IO.Class (liftIO)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, listToMaybe)
 import Data.IORef (readIORef)
 import Data.Tuple (swap)
 
@@ -59,18 +59,21 @@ getPointerOutput = do
     let (Just current) = M.lookup seat $ M.fromList currents
     pure . fst $ current
 
-getCurrentOutput :: Way a Int
+getCurrentOutput :: Way a (Maybe Int)
 getCurrentOutput = do
     state <- getState
     (Just seat) <- getSeat
     currents <- liftIO . readIORef $ wayBindingCurrent state
-    let (Just current) = M.lookup seat $ M.fromList currents
-    pure . snd $ current
+    case M.lookup seat $ M.fromList currents of
+        Just current -> pure . Just . snd $ current
+        Nothing -> liftIO $ do
+            outs <- readIORef $ wayBindingOutputs state
+            pure $ listToMaybe outs
 
 getCurrentWS :: (WSTag a) => Way a a
 getCurrentWS = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
-    current <- getCurrentOutput
+    (Just current) <- getCurrentOutput
     pure . fromJust . M.lookup current . M.fromList $ map swap mapping
 
 withCurrentWS
