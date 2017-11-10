@@ -2,12 +2,12 @@
 
 set -e -u
 
-#if [ -n "`git status --porcelain`" ]
-#then
-#	echo "This script will modify your state, therefore I will refuse \
-#to run on a dirty git repository"
-#	exit 1
-#fi
+if ! git diff --exit-code >/dev/null
+then
+	echo "This script will modify your files, therefore I will refuse \
+to run until you stage your changes"
+	exit 1
+fi
 
 # If I need to generalise this
 REACH="Reach us at https:\\/\\/github.com\\/ongy\\/waymonad"
