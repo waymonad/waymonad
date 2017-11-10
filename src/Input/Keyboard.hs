@@ -50,9 +50,6 @@ import Graphics.Wayland.WlRoots.Input.Keyboard
     , getKeystate
     , getKeymap
 
-    , KeyboardModifiers (..)
-    , readModifiers
-
     , getModifiers
     )
 import Graphics.Wayland.WlRoots.Seat
@@ -214,9 +211,8 @@ handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ d
 
 handleModifiers :: Keyboard -> Seat -> Ptr a -> IO ()
 handleModifiers keyboard seat _ = do
-    mods <- readModifiers $ keyboardDevice keyboard
     seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
-    keyboardNotifyModifiers (seatRoots seat) (modDepressed mods) (modLatched mods) (modLocked mods) (modGroup mods)
+    keyboardNotifyModifiers (seatRoots seat)
 
 handleKeyboardAdd
     :: WSTag a
