@@ -30,6 +30,7 @@ module Input.Seat
     )
 where
 
+import Control.Monad (when, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Word (Word32)
@@ -52,10 +53,10 @@ import Graphics.Wayland.Server (DisplayServer, seatCapabilityTouch, seatCapabili
 import View (View, getViewSurface, getViewEventSurface)
 
 data Seat = Seat
-    { seatRoots    :: Ptr WlrSeat
--- Should those be Maybe View?
-    , seatPointer  :: IORef (Maybe View)
-    , seatKeyboard :: IORef (Maybe View)
+    { seatRoots     :: Ptr WlrSeat
+    , seatPointer   :: IORef (Maybe View)
+    , seatKeyboard  :: IORef (Maybe View)
+    , seatFocusView :: Seat -> View -> IO ()
     }
 
 instance Eq Seat where
@@ -68,8 +69,9 @@ seatCreate
     :: MonadIO m
     => DisplayServer
     -> String
+    -> (Seat -> View -> IO ())
     -> m Seat
-seatCreate dsp name = liftIO $ do
+seatCreate dsp name focus = liftIO $ do
     roots    <- createSeat dsp name
     pointer  <- newIORef Nothing
     keyboard <- newIORef Nothing
@@ -77,20 +79,27 @@ seatCreate dsp name = liftIO $ do
     setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
 
     pure $ Seat
-        { seatRoots    = roots
-        , seatPointer  = pointer
-        , seatKeyboard = keyboard
+        { seatRoots     = roots
+        , seatPointer   = pointer
+        , seatKeyboard  = keyboard
+        , seatFocusView = focus
         }
 
-keyboardEnter' :: MonadIO m => Seat -> Ptr WlrSurface -> View -> m ()
+keyboardEnter' :: MonadIO m => Seat -> Ptr WlrSurface -> View -> m Bool
 keyboardEnter' seat surf view = liftIO $ do
+    -- TODO: I should probably check what wlroots actually does here in case of
+    -- grabs
     liftIO $ keyboardNotifyEnter (seatRoots seat) surf
-    writeIORef (seatKeyboard seat) (Just view)
+    prev <- readIORef (seatKeyboard seat)
+    let changed = prev /= Just view
+    when changed $ do
+        writeIORef (seatKeyboard seat) (Just view)
+    pure changed
 
 keyboardEnter :: MonadIO m => Seat -> View -> m ()
 keyboardEnter seat view = liftIO $ do
     surf <- getViewSurface view
-    keyboardEnter' seat surf view
+    void $ keyboardEnter' seat surf view
 
 pointerButton :: MonadIO m => Seat -> View -> Double -> Double -> WlrEventPointerButton -> m ()
 pointerButton seat view baseX baseY event = liftIO $ do
@@ -98,7 +107,8 @@ pointerButton seat view baseX baseY event = liftIO $ do
     pointerNotifyButton (seatRoots seat) time (eventPointerButtonButton event) (eventPointerButtonState event)
 
     Just (surf, _, _) <- getViewEventSurface view baseX baseY
-    keyboardEnter' seat surf view
+    changed <- keyboardEnter' seat surf view
+    when changed (seatFocusView seat seat view)
 
 pointerEnter :: MonadIO m => Seat -> Ptr WlrSurface -> View -> Double -> Double -> m ()
 pointerEnter seat surf view x y = liftIO $ do

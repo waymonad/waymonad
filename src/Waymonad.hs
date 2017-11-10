@@ -54,6 +54,7 @@ module Waymonad
     , makeCallback
     , setCallback
     , withSeat
+    , getViewSet
 
     , WayLoggers (..)
     , Logger (..)
@@ -174,6 +175,7 @@ data WayLoggers = WayLoggers
     , loggerXdg :: Logger
     , loggerKeybinds :: Logger
     , loggerSpawner :: Logger
+    , loggerLayout :: Logger
     }
 
 data WayBindingState a = WayBindingState
@@ -225,6 +227,9 @@ getSeat = do
             pure $ case seats of
                 [x] -> Just x
                 _ -> Nothing
+
+getViewSet :: Way a (VS.ViewSet a)
+getViewSet = liftIO . readIORef . wayBindingState =<< getState
 
 runWayLogging :: MonadIO m => WayLoggers -> WayLogging a -> m a
 runWayLogging val (WayLogging act) = liftIO $ runReaderT act val

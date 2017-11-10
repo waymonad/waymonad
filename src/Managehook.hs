@@ -43,6 +43,8 @@ import View
 import ViewSet (WSTag, addView)
 import Waymonad
 import WayUtil
+import WayUtil.Floating
+import WayUtil.ViewSet (modifyCurrentWS, modifyWS)
 
 newtype Query a b = Query (ReaderT View (Way a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader View)

@@ -68,8 +68,8 @@ import Waymonad
 import WayUtil
     ( setSignalHandler
     , setSeatOutput
-    , focusView
     )
+import WayUtil.Focus (focusView)
 
 
 data Cursor = Cursor

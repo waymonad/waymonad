@@ -22,6 +22,7 @@ module Utility
     ( intToPtr
     , ptrToInt
     , whenJust
+    , doJust
     )
 where
 
@@ -37,3 +38,6 @@ ptrToInt = fromIntegral . ptrToIntPtr
 whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
 whenJust Nothing _ = pure ()
 whenJust (Just x) f = f x
+
+doJust :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
+doJust val act = flip whenJust act =<< val

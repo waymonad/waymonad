@@ -29,7 +29,8 @@ where
 
 import View
 import Waymonad
-import WayUtil (setSignalHandler, logPutText)
+import WayUtil (setSignalHandler)
+import WayUtil.Log (logPutText)
 import Control.Monad (when, filterM, forM_)
 import Control.Monad.IO.Class
 import Data.Maybe (fromJust)

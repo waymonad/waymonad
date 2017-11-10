@@ -67,10 +67,10 @@ import ViewSet (WSTag)
 import Waymonad (Way, setCallback, WayLoggers(loggerSpawner))
 import Waymonad.Extensible (ExtensionClass (..))
 import WayUtil
-    ( logPutText
-    , getEState
+    ( getEState
     , modifyEState
     )
+import WayUtil.Log (logPutText)
 
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Text as T

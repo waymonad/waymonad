@@ -50,7 +50,9 @@ import Input.Pointer
 import Input.Seat
 import ViewSet (WSTag)
 import WayUtil
+import WayUtil.Log (logPutStr)
 import Waymonad
+import WayUtil.Focus (focusView)
 
 import qualified Data.Map as M
 
@@ -106,7 +108,9 @@ inputCreate display layout backend bindings = do
     logPutStr loggerKeybinds $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
     theme   <- liftIO $ loadCursorTheme "default" 16
     xcursor <- liftIO $ getCursor theme "left_ptr"
-    seat    <- liftIO $ seatCreate display "seat0"
+
+    focus <- makeCallback $ \(seat, view) -> withSeat (Just seat) $ focusView view
+    seat  <- liftIO $ seatCreate display "seat0" (curry focus)
 
     seatRef <- wayBindingSeats <$> getState
     liftIO $ modifyIORef seatRef ((:) seat)

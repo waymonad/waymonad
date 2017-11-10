@@ -30,7 +30,6 @@ where
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
-import System.IO (hPutStrLn, stderr)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getOutputBox, getOutputName)
@@ -38,11 +37,12 @@ import Graphics.Wayland.WlRoots.Output (getOutputBox, getOutputName)
 import Utility (whenJust, intToPtr)
 import View (setViewBox)
 import ViewSet (WSTag (..), Workspace (..), Layout (..), pureLayout)
-import Waymonad (Way, WayBindingState (..), getState)
+import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
+import WayUtil.Log (logPutText)
 
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
-import qualified Data.Text.IO as T
+import qualified Data.Text as T
 
 getBoxes
     :: WSTag a
@@ -78,17 +78,18 @@ reLayout ws = do
 
     boxes <- getLayoutBoxes ws
 
-    liftIO $ forM_ boxes $ \(out, box) -> whenJust wstate $ \case
-        (Workspace _ Nothing) -> modifyIORef cacheRef $ IM.delete out
+    forM_ boxes $ \(out, box) -> whenJust wstate $ \case
+        (Workspace _ Nothing) -> liftIO $ modifyIORef cacheRef $ IM.delete out
         (Workspace (Layout l) (Just vs)) -> do
             let layout = pureLayout l box vs
-            modifyIORef cacheRef $ IM.insert out layout
+            liftIO $ modifyIORef cacheRef $ IM.insert out layout
 
             mapM_ (uncurry setViewBox) layout
-            name <- getOutputName $ intToPtr out
-            T.hPutStr stderr "Set the layout for "
-            T.hPutStr stderr (getName ws)
-            T.hPutStr stderr "  on "
-            T.hPutStr stderr name
-            T.hPutStr stderr " to: "
-            hPutStrLn stderr $ show $ map snd layout
+            name <- liftIO $ getOutputName $ intToPtr out
+            logPutText loggerLayout $
+                "Set the layout for "
+                `T.append` (getName ws)
+                `T.append` "  on "
+                `T.append` name
+                `T.append` " to: "
+                `T.append` (T.pack $ show $ map snd layout)

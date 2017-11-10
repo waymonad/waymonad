@@ -62,7 +62,6 @@ import Layout.Tall (Tall (..))
 import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove, OutputAddEvent)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
-import Utility (whenJust)
 import Utility.Spawn (spawn, spawnManaged, manageNamed, manageSpawnOn, namedSpawner, onSpawner)
 import View (View)
 import ViewSet
@@ -88,20 +87,17 @@ import Waymonad
     , WayLoggers (..)
     , Logger (..)
     , getEvent
+    , getViewSet
     )
 import WayUtil
-    ( modifyCurrentWS
-    , setWorkspace
-    , setFoci
-    , sendMessage
-    , modifyViewSet
-    , getViewSet
+    ( sendMessage
     , focusNextOut
     , sendTo
     , killCurrent
-    , modifyFloating
-    , centerFloat
     )
+import WayUtil.Focus (setWorkspace)
+import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyCurrentWS)
+import WayUtil.Floating (centerFloat, modifyFloating)
 import XWayland (xwayShellCreate, overrideXRedirect)
 import XdgShell (xdgShellCreate)
 
@@ -128,8 +124,7 @@ removeView view = do
             modifyViewSet $ M.adjust (rmView view) ws
             reLayout ws
 
-            state <- getViewSet
-            whenJust (M.lookup ws state) setFoci
+            forceFocused
         [] -> pure ()
         xs -> liftIO $ do
             hPutStrLn stderr "Found a view in a number of workspaces that's not <2!"
@@ -265,6 +260,7 @@ main =  do
                     , loggerXdg = Logger True "Xdg_Shell"
                     , loggerKeybinds = Logger True "Keybindings"
                     , loggerSpawner = Logger True "Spawner"
+                    , loggerLayout = Logger True "Layout"
                     }
 
             runWay Nothing state loggers realMain

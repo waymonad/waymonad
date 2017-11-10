@@ -77,7 +77,14 @@ executable waymonad
   other-modules:        Utility.Spawn
   other-modules:        View
   other-modules:        ViewSet
+
   other-modules:        WayUtil
+  other-modules:        WayUtil.Current
+  other-modules:        WayUtil.Floating
+  other-modules:        WayUtil.Focus
+  other-modules:        WayUtil.Log
+  other-modules:        WayUtil.ViewSet
+
   other-modules:        Waymonad
   other-modules:        Waymonad.Extensible
   other-modules:        XWayland

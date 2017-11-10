@@ -77,7 +77,8 @@ import Waymonad
     , Way
     , WayLoggers (..)
     )
-import WayUtil (setSignalHandler, logPutText)
+import WayUtil (setSignalHandler)
+import WayUtil.Log (logPutText)
 
 import Text.XkbCommon.Context
 import Text.XkbCommon.KeyboardState
