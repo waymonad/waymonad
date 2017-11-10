@@ -70,6 +70,9 @@ data View = forall a. ShellSurface a => View
     , viewSurface :: a
     }
 
+instance Show View where
+    show (View _ _ v) = show $ getID v
+
 instance Ord View where
     compare (View _ _ left) (View _ _ right) = compare (getID left) (getID right)
 
@@ -138,9 +141,9 @@ renderViewAdditional fun (View xref yref surf) = do
 
 getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
 getViewEventSurface (View xref yref surf) x y = do
-    ownX <- liftIO $ readIORef xref
-    ownY <- liftIO $ readIORef yref
-    getEventSurface surf (x - ownX) (y - ownY)
+--    ownX <- liftIO $ readIORef xref
+--    ownY <- liftIO $ readIORef yref
+    getEventSurface surf (x) (y)
 
 getViewClient :: MonadIO m => View -> m (Maybe Client)
 getViewClient (View _ _ surf) = do

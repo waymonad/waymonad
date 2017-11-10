@@ -65,10 +65,12 @@ setFoci :: MonadIO m => Workspace -> m ()
 setFoci (Workspace _ Nothing) = pure ()
 setFoci (Workspace _ (Just (Zipper xs))) = mapM_ setFocus xs
 
-modifyViewSet :: (ViewSet a -> ViewSet a) -> Way a ()
+modifyViewSet :: Show a => (ViewSet a -> ViewSet a) -> Way a ()
 modifyViewSet fun = do
     ref <- wayBindingState <$> getState
     liftIO $ modifyIORef ref fun
+    vs <- getViewSet
+    logPutStr loggerWS $ "Changed viewset, now is: " ++ show vs
 
 modifyWS
     :: (WSTag a)

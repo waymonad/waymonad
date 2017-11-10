@@ -65,11 +65,13 @@ import Waymonad
     , getSeat
     , viewBelow
     , floatBelow
+    , WayLoggers (..)
     )
 import WayUtil
     ( setSignalHandler
     , setSeatOutput
     )
+import WayUtil.Log (logPutStr)
 import WayUtil.Focus (focusView)
 
 
@@ -100,26 +102,28 @@ cursorCreate layout = do
 getCursorView
     :: Ptr WlrOutputLayout
     -> Ptr WlrCursor
-    -> Way a (Maybe (View, Double, Double))
+    -> Way a (Maybe (View, Int, Int))
 getCursorView layout cursor = do
     baseX <- liftIO  $ getCursorX cursor
     baseY <- liftIO  $ getCursorY cursor
     -- TODO: Pretty this up. probably with unsafeInterleaveIO
     floatM <- floatBelow (Point (floor baseX) (floor baseY))
     case floatM of
-        Just v -> pure $ Just (v, baseX, baseY)
+        Just v ->  do
+            pure $ Just (v, floor baseX, floor baseY)
         Nothing -> do
             outputM <- liftIO $ layoutAtPos layout baseX baseY
             case outputM of
-                Nothing -> pure Nothing
+                Nothing -> do
+                    logPutStr loggerFocus "Couldn't determine a current output"
+                    pure Nothing
                 Just out -> do
                     lout <- liftIO $ layoutGetOutput layout out
                     (Point offX offY) <- liftIO $ layoutOuputGetPosition lout
                     let x = floor baseX - offX
                     let y = floor baseY - offY
                     let index = ptrToInt out
-                    viewM <- viewBelow (Point x y) index
-                    pure $ (,fromIntegral x,fromIntegral y) <$> viewM
+                    viewBelow (Point x y) index
 
 updatePosition
     :: WSTag a
@@ -145,7 +149,7 @@ updatePosition layout cursor outref time = do
         Nothing -> pointerClear seat
         Just (view, baseX, baseY) -> do
             pre <- getPointerFocus seat
-            pointerMotion seat view time baseX baseY
+            pointerMotion seat view time (fromIntegral baseX) (fromIntegral baseY)
             when (Just view /= pre) (focusView view)
 
 
@@ -198,5 +202,5 @@ handleCursorButton layout cursor event_ptr = do
         Nothing -> pointerClear seat
         Just (view, x, y) -> do
             pre <- getPointerFocus seat
-            pointerButton seat view x y event
+            pointerButton seat view (fromIntegral x) (fromIntegral y) event
             when (Just view /= pre) (focusView view)

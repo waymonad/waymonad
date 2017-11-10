@@ -35,10 +35,12 @@ import Data.Map (Map)
 import Data.Maybe (listToMaybe, isJust)
 import Data.Text (Text)
 import Data.Typeable
-import Graphics.Wayland.WlRoots.Box (boxContainsPoint, Point, WlrBox)
+import Graphics.Wayland.WlRoots.Box (boxContainsPoint, Point (..), WlrBox (..))
 
 import Input.Seat (Seat)
 import View (View)
+
+import qualified Data.Text as T
 
 type ViewSet a = Map a Workspace
 
@@ -49,7 +51,7 @@ newtype Zipper a b = Zipper [(Maybe a {- This is probably going to become a List
 data Workspace = Workspace
     { wsLayout :: Layout
     , wsViews :: Maybe (Zipper (Seat) View)
-    }
+    } deriving (Show)
 
 class (Typeable a, Show a, Eq a, Ord a) => WSTag a where
     getName :: a -> Text
@@ -63,6 +65,9 @@ class LayoutClass a where
     description :: a -> Text
 
 data Layout = forall l. LayoutClass l => Layout l
+
+instance Show Layout where
+    show (Layout l) = T.unpack $ description l
 
 class Typeable m => Message m
 
@@ -105,10 +110,17 @@ addView seat v (Workspace l z) = Workspace l $ addElem seat v z
 rmView :: View -> Workspace -> Workspace
 rmView v (Workspace l z) = Workspace l $ rmElem v z
 
-viewBelow :: Traversable t => Point -> t (View, WlrBox) -> IO (Maybe View)
+viewBelow
+    :: Traversable t
+    => Point
+    -> t (View, WlrBox)
+    -> IO (Maybe (View, Int, Int))
 viewBelow point views = do
     let candidates = filter (boxContainsPoint point . snd) $ toList views
-    pure . listToMaybe . map fst $ candidates
+    pure . fmap (uncurry makeLocal) . listToMaybe $ candidates
+    where   makeLocal :: View -> WlrBox -> (View, Int, Int)
+            makeLocal view (WlrBox x y _ _) =
+                (view, pointX point - x, pointY point - y)
 
 -- TODO: Refactor :(
 setFocused' :: (Eq a, Eq b) => a -> b -> Zipper a b -> Zipper a b

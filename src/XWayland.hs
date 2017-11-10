@@ -136,11 +136,10 @@ instance ShellSurface XWaySurface where
         X.configureX11Surface xway surf
             (fromIntegral x) (fromIntegral y)
             (fromIntegral width) (fromIntegral height)
-    activate (XWaySurface xway surf) True = liftIO $ X.activateX11Surface xway (Just surf)
-    activate (XWaySurface xway _) False = liftIO $ X.activateX11Surface xway Nothing
+    activate (XWaySurface xway surf) active = liftIO $ X.activateX11Surface xway surf active
     getEventSurface (XWaySurface _ surf) x y = liftIO $ do
-        box <- X.getX11SurfaceGeometry surf
-        if boxContainsPoint (Point (floor x) (floor y)) box
+        (WlrBox _ _ w h) <- X.getX11SurfaceGeometry surf
+        if boxContainsPoint (Point (floor x) (floor y)) (WlrBox 0 0 w h)
            then do
                 ret <- X.xwaySurfaceGetSurface surf
                 pure $ Just (ret, x, y)

@@ -209,10 +209,13 @@ handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ d
 
     liftIO . when (not handled) $ tellClient seat keyboard event
 
-handleModifiers :: Keyboard -> Seat -> Ptr a -> IO ()
+handleModifiers :: Keyboard -> Seat -> Ptr a -> Way b ()
 handleModifiers keyboard seat _ = do
-    seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
-    keyboardNotifyModifiers (seatRoots seat)
+    logPutText loggerKeybinds "Sending in the modifiers"
+
+    liftIO $ do
+        seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
+        keyboardNotifyModifiers (seatRoots seat)
 
 handleKeyboardAdd
     :: WSTag a
@@ -236,7 +239,9 @@ handleKeyboardAdd dsp backend seat bindings dev ptr = do
     kh <- setSignalHandler
         (keySignalKey signals)
         (handleKeyEvent dsp backend keyboard seat bindings)
-    mh <- liftIO $ addListener (WlListener $ handleModifiers keyboard seat) (keySignalModifiers signals)
+    mh <- setSignalHandler
+        (keySignalModifiers signals)
+        (handleModifiers keyboard seat)
 
     liftIO $ do
         sptr <- newStablePtr (kh, mh)

@@ -146,7 +146,7 @@ floatBelow (Point x y) = do
 viewBelow
     :: Point
     -> Int
-    -> Way a (Maybe View)
+    -> Way a (Maybe (View, Int, Int))
 viewBelow point ws = do
     fullCache <- liftIO . readIORef . wayBindingCache =<< getState
     case IM.lookup ws fullCache of
