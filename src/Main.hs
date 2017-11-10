@@ -131,24 +131,30 @@ removeView view = do
             hPutStrLn stderr $ show $ map fst xs
     modifyFloating (S.delete view)
 
+wsSyms :: [Keysym]
+wsSyms =
+    [ keysym_1
+    , keysym_2
+    , keysym_3
+    , keysym_4
+    , keysym_5
+    , keysym_6
+    , keysym_7
+    , keysym_8
+    , keysym_9
+    , keysym_0
+    ]
+
+
+workspaces :: [Text]
+workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+
 bindings :: DisplayServer -> [(([WlrModifier], Keysym), KeyBinding Text)]
 bindings dsp =
     [ (([modi], keysym_k), modifyCurrentWS moveLeft)
     , (([modi], keysym_j), modifyCurrentWS moveRight)
     , (([modi, Shift], keysym_k), modifyCurrentWS moveViewLeft)
     , (([modi, Shift], keysym_j), modifyCurrentWS moveViewRight)
-    , (([modi], keysym_1), setWorkspace "1")
-    , (([modi], keysym_2), setWorkspace "2")
-    , (([modi], keysym_3), setWorkspace "3")
-    , (([modi], keysym_4), setWorkspace "4")
-    , (([modi], keysym_5), setWorkspace "5")
-    , (([modi], keysym_6), setWorkspace "6")
-    , (([modi], keysym_7), setWorkspace "7")
-    , (([modi], keysym_8), setWorkspace "8")
-    , (([modi], keysym_9), setWorkspace "9")
-    , (([modi], keysym_0), setWorkspace "0")
-    , (([modi, Shift], keysym_1), sendTo "1")
-    , (([modi, Shift], keysym_2), sendTo "2")
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi, Shift], keysym_Return), spawnManaged dsp [onSpawner "2", namedSpawner "terminal"] "weston-terminal" [])
     , (([modi], keysym_d), spawn "dmenu_run")
@@ -157,7 +163,7 @@ bindings dsp =
     , (([modi], keysym_n), focusNextOut)
     , (([modi], keysym_q), killCurrent)
     , (([modi], keysym_o), centerFloat)
-    ]
+    ] ++ concatMap (\(sym, ws) -> [(([modi], sym), setWorkspace ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
     where modi = Alt
 
 makeBindingMap :: WSTag a => [(([WlrModifier], Keysym), KeyBinding a)] -> BindingMap a
@@ -200,8 +206,6 @@ makeCompositor dspRef backend keyBinds = do
         , compScreenshooter = shooter
         }
 
-workspaces :: [Text]
-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
