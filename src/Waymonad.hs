@@ -23,6 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Waymonad
     ( get
     , modify
@@ -206,6 +207,10 @@ type LogFun a = Way a ()
 
 newtype Way a b = Way (ReaderT (Maybe Seat) (WayBinding a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe Seat))
+
+instance Monoid a => Monoid (Way b a) where
+    mempty = pure mempty
+    left `mappend` right = mappend <$> left <*> right
 
 instance forall a b. (Typeable a, Typeable b) => Show (Way a b) where
     show =  show . typeOf

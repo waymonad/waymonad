@@ -26,8 +26,10 @@ where
 import Control.Applicative ((<|>))
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (readIORef, modifyIORef, writeIORef)
+import Data.IORef (readIORef, modifyIORef)
+import Data.List (lookup)
 import Data.Maybe (fromJust, fromMaybe)
+import Data.Tuple (swap)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Signal
@@ -36,9 +38,9 @@ import Graphics.Wayland.Signal
     , ListenerToken
     , WlSignal
     )
-import Graphics.Wayland.WlRoots.Output (getOutputName)
+import Graphics.Wayland.WlRoots.Output (Output, getOutputName)
 
-import Input.Seat (Seat)
+import Input.Seat (Seat (seatName))
 import Utility (whenJust, intToPtr, doJust)
 import View (closeView)
 import ViewSet
@@ -55,6 +57,10 @@ import Waymonad
     , getState
     , getSeat
     , setCallback
+    , EventClass
+    , SomeEvent
+    , sendEvent
+    , getEvent
     , WayLoggers (..)
     )
 import Waymonad.Extensible
@@ -69,13 +75,10 @@ import WayUtil.Current
     ( getCurrentOutput
     , getCurrentView
     )
-import WayUtil.Log
-    ( logPutText
-    )
+import WayUtil.Log (logPutText)
 import WayUtil.ViewSet
 
 import qualified Data.Text as T
-
 
 sendTo
     :: (WSTag a)
@@ -111,28 +114,73 @@ focusNextOut = doJust getSeat $ \seat -> do
         setSeatOutput seat Nothing (Just new)
         forceFocused
 
+data SeatOutputChangeEvent
+    = PointerOutputChangeEvent
+        { seatOutChangeEvtSeat :: Seat
+        , seatOutChangeEvtPre :: Maybe (Ptr Output)
+        , seatOutChangeEvtNew :: Maybe (Ptr Output)
+        }
+    | KeyboardOutputChangeEvent
+        { seatOutChangeEvtSeat :: Seat
+        , seatOutChangeEvtPre :: Maybe (Ptr Output)
+        , seatOutChangeEvtNew :: Maybe (Ptr Output)
+        }
+
+instance EventClass SeatOutputChangeEvent
+
 -- TODO: Real multiseat support
+-- TODO: Better type than 2xMaybe
 setSeatOutput :: WSTag a => Seat -> Maybe Int -> Maybe Int -> Way a ()
 setSeatOutput seat pout kout = do
     state <- getState
-    prev <- liftIO $ readIORef (wayBindingCurrent state)
-    let fall = (fromJust (pout <|> kout), fromJust (kout <|> pout))
-    case prev of
-        [] -> liftIO $ writeIORef (wayBindingCurrent state) [(seat, fall)]
-        [(_, (p, k))] -> do
-            let updated = (fromMaybe p pout, fromMaybe k kout)
-            liftIO $ writeIORef (wayBindingCurrent state) [(seat, updated)]
+    current <- lookup seat <$> liftIO (readIORef (wayBindingCurrent state))
+    let curp = fst <$> current
+    let curk = snd <$> current
+    let newp = pout <|> curp <|> kout
+    let newk = kout <|> curk <|> pout
 
-            whenJust pout $ \out -> when (out /= p) $ do
-                old <- liftIO $ getOutputName $ intToPtr p
-                new <- liftIO $ getOutputName $ intToPtr out
-                logPutText loggerFocus $ "Changed pointer focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
+    -- This *should* be guaranteed. Type!
+    let new = (fromJust newp, fromJust newk)
 
-            whenJust kout $ \out -> when (out /= k) $ do
-                old <- liftIO $ getOutputName $ intToPtr k
-                new <- liftIO $ getOutputName $ intToPtr out
-                logPutText loggerFocus $ "Changed keyboard focus from " `T.append` old `T.append` " to " `T.append` new `T.append` "."
+    liftIO $ modifyIORef
+        (wayBindingCurrent state)
+        ((:) (seat, new) . filter ((/=) seat . fst))
 
+    when (newp /= curp) $ sendEvent $
+        PointerOutputChangeEvent seat (intToPtr <$> curp) (intToPtr <$> newp)
+
+    when (newk /= curk) $ sendEvent $
+        KeyboardOutputChangeEvent seat (intToPtr <$> curk) (intToPtr <$> newk)
+
+
+seatOutputEventHandler
+    :: WSTag a
+    => SomeEvent
+    -> Way a ()
+seatOutputEventHandler e = case getEvent e of
+    Nothing -> pure ()
+    (Just (PointerOutputChangeEvent seat pre new)) -> do
+        pName <- liftIO $ traverse getOutputName pre
+        nName <- liftIO $ traverse getOutputName new
+        let sName = seatName seat
+        logPutText loggerOutput $
+            "Seat " `T.append`
+            T.pack sName `T.append`
+            " changed pointer focus from " `T.append`
+            fromMaybe "None" pName `T.append`
+            " to " `T.append`
+            fromMaybe "None" nName
+    (Just (KeyboardOutputChangeEvent seat pre new)) -> do
+        pName <- liftIO $ traverse getOutputName pre
+        nName <- liftIO $ traverse getOutputName new
+        let sName = seatName seat
+        logPutText loggerOutput $
+            "Seat " `T.append`
+            T.pack sName `T.append`
+            " changed keyboard focus from " `T.append`
+            fromMaybe "None" pName `T.append`
+            " to " `T.append`
+            fromMaybe "None" nName
 
 modifyStateRef :: (StateMap -> StateMap) -> Way a ()
 modifyStateRef fun = do
@@ -155,3 +203,18 @@ killCurrent :: WSTag a => Way a ()
 killCurrent = do
     view <- getCurrentView
     whenJust view closeView
+
+getOutputWS :: WSTag a => Int -> Way a (Maybe a)
+getOutputWS output =  do
+    mapping <- liftIO . readIORef . wayBindingMapping =<< getState
+    pure $ lookup output $ map swap mapping
+
+getOutputPointers :: Int -> Way a [Seat]
+getOutputPointers out = do
+    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
+    pure . map fst . filter ((==) out . fst . snd) $ currents
+
+getOutputKeyboards :: Int -> Way a [Seat]
+getOutputKeyboards out = do
+    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
+    pure . map fst . filter ((==) out . snd . snd) $ currents

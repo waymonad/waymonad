@@ -65,6 +65,8 @@ executable waymonad
   other-modules:        Input.Pointer
   other-modules:        Input.Seat
 
+  other-modules:        Hooks.SeatMapping
+
   other-modules:        Layout
   other-modules:        Layout.Full
   other-modules:        Layout.Mirror

@@ -27,6 +27,7 @@ module Input.Seat
     , pointerButton
     , getPointerFocus
     , getKeyboardFocus
+    , keyboardClear
     )
 where
 
@@ -46,6 +47,7 @@ import Graphics.Wayland.WlRoots.Seat
     , pointerNotifyMotion
     , pointerNotifyButton
     , setSeatCapabilities
+    , keyboardClearFocus
     )
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.Server (DisplayServer, seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer)
@@ -137,3 +139,8 @@ getPointerFocus = liftIO . readIORef . seatPointer
 
 getKeyboardFocus :: MonadIO m => Seat -> m (Maybe View)
 getKeyboardFocus = liftIO . readIORef . seatKeyboard
+
+keyboardClear :: MonadIO m => Seat -> m ()
+keyboardClear seat = liftIO $ do
+    keyboardClearFocus (seatRoots seat)
+    writeIORef (seatKeyboard seat) Nothing

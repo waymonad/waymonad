@@ -31,7 +31,7 @@ import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.Maybe (fromJust)
 import Data.IORef (modifyIORef)
 
-import Input.Seat (Seat, keyboardEnter)
+import Input.Seat (Seat, keyboardEnter, keyboardClear)
 import Layout (reLayout)
 import Utility (whenJust, doJust)
 import View (View, activateView)
@@ -61,8 +61,9 @@ setFocus (Just s, v) = liftIO $ do
     activateView v True
     keyboardEnter s v
 
-setFoci :: MonadIO m => Workspace -> m ()
+setFoci :: Workspace -> Way a ()
 setFoci (Workspace _ Nothing) = pure ()
+setFoci (Workspace _ (Just (Zipper []))) = doJust getSeat keyboardClear
 setFoci (Workspace _ (Just (Zipper xs))) = mapM_ setFocus xs
 
 modifyViewSet :: Show a => (ViewSet a -> ViewSet a) -> Way a ()

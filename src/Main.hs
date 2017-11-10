@@ -25,6 +25,8 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Hooks.SeatMapping
+
 import Config
 
 import Control.Monad (void)
@@ -94,6 +96,7 @@ import WayUtil
     , focusNextOut
     , sendTo
     , killCurrent
+    , seatOutputEventHandler
     )
 import WayUtil.Focus (setWorkspace)
 import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyCurrentWS)
@@ -254,7 +257,7 @@ main =  do
                     , wayExtensibleState = extensible
                     , wayConfig = conf
                     , wayFloating = floats
-                    , wayEventHook = liftIO . hPutStrLn stderr . (show :: Maybe OutputAddEvent -> String) . getEvent
+                    , wayEventHook = seatOutputEventHandler <> wsChangeEvtHook <> wsChangeLogHook
                     , wayUserWorkspaces = workspaces
                     }
 

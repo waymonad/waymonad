@@ -22,15 +22,21 @@ module WayUtil.Focus
     ( setWorkspace
     , focusView
     , focusMaster
+    , OutputMappingEvent (..)
     )
 where
 
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef, modifyIORef)
+import Data.List (lookup)
 import Data.Tuple (swap)
+import Data.Typeable (Typeable)
+import Foreign.Ptr (Ptr)
+
+import Graphics.Wayland.WlRoots.Output (Output)
 
 import Layout (reLayout)
-import Utility (whenJust, doJust)
+import Utility (whenJust, doJust, intToPtr)
 import View (View)
 import ViewSet (WSTag, setFocused, getMaster)
 import Waymonad
@@ -38,6 +44,8 @@ import Waymonad
     , getState
     , WayBindingState (..)
     , WayLoggers (..)
+    , EventClass
+    , sendEvent
     )
 import WayUtil.Current (getCurrentOutput)
 import WayUtil.ViewSet (modifyCurrentWS, forceFocused)
@@ -45,12 +53,28 @@ import WayUtil.Log (logPutStr)
 
 import qualified Data.Map as M
 
+data OutputMappingEvent a = OutputMappingEvent
+    { outputMappingEvtOutput :: Ptr Output
+    , outputMappingEvtPre    :: Maybe a
+    , outputMappingEvtCur    :: Maybe a
+    }
+
+instance Typeable a => EventClass (OutputMappingEvent a)
+
 setWorkspace :: WSTag a => a -> Way a ()
 setWorkspace ws = do
     state <- getState
-    doJust getCurrentOutput $ \current -> liftIO $ modifyIORef
-        (wayBindingMapping state)
-        ((:) (ws, current) . filter ((/=) current . snd))
+    doJust getCurrentOutput $ \current -> do
+        -- Do this manually here, since we don't want the defaulting to first
+        -- rule. It's only about output<->ws mapping!
+        mapping <- liftIO . readIORef . wayBindingMapping =<< getState
+        let pre = lookup current $ map swap mapping
+
+        liftIO $ modifyIORef
+            (wayBindingMapping state)
+            ((:) (ws, current) . filter ((/=) current . snd))
+
+        sendEvent $ OutputMappingEvent (intToPtr current) pre (Just ws)
 
     forceFocused
     reLayout ws
@@ -60,11 +84,12 @@ focusView view = do
     logPutStr loggerFocus "Calling focusView"
     modifyCurrentWS $ setFocused view
 
+-- TODO: This should clearly be more simple
 focusMaster :: WSTag a => Way a ()
 focusMaster = do
     state <- getState
     mapping <- liftIO . readIORef $ wayBindingMapping state
     doJust getCurrentOutput $ \current -> do
         wss <- liftIO . readIORef $ wayBindingState state
-        let ws = M.lookup current . M.fromList $ map swap mapping
+        let ws = lookup current $ map swap mapping
         whenJust (getMaster =<< flip M.lookup wss =<< ws) focusView
