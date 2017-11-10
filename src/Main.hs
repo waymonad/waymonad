@@ -251,6 +251,7 @@ main =  do
                     , wayConfig = conf
                     , wayFloating = floats
                     , wayEventHook = liftIO . hPutStrLn stderr . (show :: Maybe OutputAddEvent -> String) . getEvent
+                    , wayUserWorkspaces = workspaces
                     }
 
             let loggers = WayLoggers

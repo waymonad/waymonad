@@ -191,6 +191,7 @@ data WayBindingState a = WayBindingState
     , wayConfig :: WayConfig
     , wayFloating :: IORef (Set View)
     , wayEventHook :: SomeEvent -> Way a ()
+    , wayUserWorkspaces :: [a]
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)

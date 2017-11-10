@@ -73,8 +73,12 @@ getCurrentOutput = do
 getCurrentWS :: (WSTag a) => Way a a
 getCurrentWS = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
-    (Just current) <- getCurrentOutput
-    pure . fromJust . M.lookup current . M.fromList $ map swap mapping
+    output <- getCurrentOutput
+    let ws = (\out -> M.lookup out . M.fromList $ map swap mapping) =<< output
+    case ws of
+        Just x -> pure x
+-- TODO: Make this a better error message!
+        Nothing -> head . wayUserWorkspaces <$> getState
 
 withCurrentWS
     :: (WSTag a)
