@@ -50,6 +50,7 @@ import Graphics.Wayland.WlRoots.Seat
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.Server (DisplayServer, seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer)
 
+import Utility (doJust)
 import View (View, getViewSurface, getViewEventSurface)
 
 data Seat = Seat
@@ -106,9 +107,9 @@ pointerButton seat view baseX baseY event = liftIO $ do
     let time = (fromIntegral $ eventPointerButtonTime event)
     pointerNotifyButton (seatRoots seat) time (eventPointerButtonButton event) (eventPointerButtonState event)
 
-    Just (surf, _, _) <- getViewEventSurface view baseX baseY
-    changed <- keyboardEnter' seat surf view
-    when changed (seatFocusView seat seat view)
+    doJust (getViewEventSurface view baseX baseY) $ \(surf, _, _) -> do
+        changed <- keyboardEnter' seat surf view
+        when changed (seatFocusView seat seat view)
 
 pointerEnter :: MonadIO m => Seat -> Ptr WlrSurface -> View -> Double -> Double -> m ()
 pointerEnter seat surf view x y = liftIO $ do
@@ -117,9 +118,9 @@ pointerEnter seat surf view x y = liftIO $ do
 
 pointerMotion :: MonadIO m => Seat -> View -> Word32 -> Double -> Double -> m ()
 pointerMotion seat view time baseX baseY = liftIO $ do
-    Just (surf, x, y) <- getViewEventSurface view baseX baseY
-    pointerEnter seat surf view x y
-    pointerNotifyMotion (seatRoots seat) time x y
+    doJust (getViewEventSurface view baseX baseY) $ \(surf, x, y) -> do
+        pointerEnter seat surf view x y
+        pointerNotifyMotion (seatRoots seat) time x y
 
 pointerClear :: MonadIO m => Seat -> m ()
 pointerClear seat = liftIO $ do
