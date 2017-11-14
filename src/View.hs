@@ -36,11 +36,13 @@ module View
     , closeView
     , getViewClient
     , getViewInner
+    , getViewTitle
     )
 where
 
 import Data.IORef (IORef, readIORef, writeIORef, newIORef)
 import Control.Monad.IO.Class
+import Data.Text (Text)
 import Data.Typeable (Typeable, cast)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
@@ -63,6 +65,7 @@ class Typeable a => ShellSurface a where
     setPosition :: MonadIO m => a -> Double -> Double -> m ()
     setPosition _ _ _ = pure ()
     getID :: a -> Int
+    getTitle :: MonadIO m => a -> m Text
 
 data View = forall a. ShellSurface a => View
     { viewX :: IORef Double
@@ -152,3 +155,6 @@ getViewClient (View _ _ surf) = do
 
 getViewInner :: Typeable a => View -> Maybe a
 getViewInner (View _ _ surf) = cast surf
+
+getViewTitle :: MonadIO m => View -> m Text
+getViewTitle (View _ _ surf) = getTitle surf

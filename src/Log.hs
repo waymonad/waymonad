@@ -51,8 +51,10 @@ import Network.Socket
     )
 import Network.Socket.ByteString (sendAll)
 
+import View (getViewTitle)
 import ViewSet (WSTag (..))
 import Waymonad
+import WayUtil.Current (getCurrentView)
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
@@ -64,13 +66,19 @@ hLogFun prnt = do
 
     let tagged = map (\ws -> (ws `elem` actives, ws)) allWS
 
-    let out = T.concat $ flip map tagged (\(active, ws) ->
+    let workspaces = T.concat $ flip map tagged (\(active, ws) ->
             "| "
             `T.append` (if active then "<" else "")
             `T.append` getName ws
             `T.append` (if active then "> " else " ")
-            ) ++ ["|\n"]
-    liftIO $ prnt out
+            )
+    view <- getCurrentView
+    out <- case view of
+        Nothing -> pure $ workspaces
+        Just v -> do
+            title <- getViewTitle v
+            pure $ workspaces `T.append` " : " `T.append` title
+    liftIO $ prnt $ out `T.append` "\n"
 
 
 getRuntimeDir :: IO String

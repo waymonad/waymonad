@@ -172,5 +172,6 @@ instance ShellSurface XdgSurface where
             Just (popup, newx, newy) -> do
                 realS <- R.xdgSurfaceGetSurface popup
                 pure $ Just (realS, x - newx, y - newy)
-    getID (XdgSurface surf) = ptrToInt surf
+    getID = ptrToInt . unXdg
+    getTitle = liftIO . R.getTitle . unXdg
 
