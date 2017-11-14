@@ -149,6 +149,7 @@ instance ShellSurface XWaySurface where
          in liftIO $ X.setX11SurfacePosition surf point
     getID (XWaySurface _ surf) = ptrToInt surf
     getTitle = liftIO . X.getTitle . unXway
+    getAppId = liftIO . X.getClass . unXway
 
 
 overrideXRedirect :: Managehook a

@@ -174,4 +174,5 @@ instance ShellSurface XdgSurface where
                 pure $ Just (realS, x - newx, y - newy)
     getID = ptrToInt . unXdg
     getTitle = liftIO . R.getTitle . unXdg
+    getAppId = liftIO . R.getAppId . unXdg
 

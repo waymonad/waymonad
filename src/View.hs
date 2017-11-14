@@ -66,6 +66,7 @@ class Typeable a => ShellSurface a where
     setPosition _ _ _ = pure ()
     getID :: a -> Int
     getTitle :: MonadIO m => a -> m Text
+    getAppId :: MonadIO m => a -> m Text
 
 data View = forall a. ShellSurface a => View
     { viewX :: IORef Double
