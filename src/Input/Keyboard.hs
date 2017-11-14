@@ -31,10 +31,6 @@ import Graphics.Wayland.Server
     ( DisplayServer
     , displayTerminate
     )
-import Graphics.Wayland.Signal
-    ( addListener
-    , WlListener (..)
-    )
 import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
 import Graphics.Wayland.WlRoots.Backend (Backend)
@@ -211,8 +207,6 @@ handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ d
 
 handleModifiers :: Keyboard -> Seat -> Ptr a -> Way b ()
 handleModifiers keyboard seat _ = do
-    logPutText loggerKeybinds "Sending in the modifiers"
-
     liftIO $ do
         seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
         keyboardNotifyModifiers (seatRoots seat)

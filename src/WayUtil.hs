@@ -86,9 +86,10 @@ sendTo
     -> Way a ()
 sendTo ws = do
     viewM <- getCurrentView
+    seat <- getSeat
     whenJust viewM $ \view -> do
         modifyCurrentWS (\_ -> rmView view)
-        modifyWS (\seat -> addView (Just seat) view) ws
+        modifyWS (addView seat view) ws
 
 
 sendMessage :: (WSTag a, Message t) => t -> Way a ()
@@ -151,7 +152,7 @@ setSeatOutput seat pout kout = do
 
     when (newk /= curk) $ sendEvent $
         KeyboardOutputChangeEvent seat (intToPtr <$> curk) (intToPtr <$> newk)
-
+    runLog
 
 seatOutputEventHandler
     :: WSTag a

@@ -26,6 +26,7 @@ module WayUtil.Focus
     )
 where
 
+import Control.Monad (join)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef, modifyIORef)
 import Data.List (lookup)
@@ -47,7 +48,8 @@ import Waymonad
     , EventClass
     , sendEvent
     )
-import WayUtil.Current (getCurrentOutput)
+import WayUtil (runLog)
+import WayUtil.Current (getCurrentOutput, withCurrentWS)
 import WayUtil.ViewSet (modifyCurrentWS, forceFocused)
 import WayUtil.Log (logPutStr)
 
@@ -76,7 +78,7 @@ setWorkspace ws = do
 
         sendEvent $ OutputMappingEvent (intToPtr current) pre (Just ws)
 
-    forceFocused
+    runLog
     reLayout ws
 
 focusView :: WSTag a => View -> Way a ()
@@ -87,9 +89,5 @@ focusView view = do
 -- TODO: This should clearly be more simple
 focusMaster :: WSTag a => Way a ()
 focusMaster = do
-    state <- getState
-    mapping <- liftIO . readIORef $ wayBindingMapping state
-    doJust getCurrentOutput $ \current -> do
-        wss <- liftIO . readIORef $ wayBindingState state
-        let ws = lookup current $ map swap mapping
-        whenJust (getMaster =<< flip M.lookup wss =<< ws) focusView
+    view <- withCurrentWS $ const getMaster
+    whenJust (join view) focusView

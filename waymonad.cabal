@@ -65,6 +65,7 @@ executable waymonad
   other-modules:        Input.Pointer
   other-modules:        Input.Seat
 
+  other-modules:        Hooks.KeyboardFocus
   other-modules:        Hooks.SeatMapping
 
   other-modules:        Layout
@@ -72,6 +73,8 @@ executable waymonad
   other-modules:        Layout.Mirror
   other-modules:        Layout.Tall
   other-modules:        Layout.ToggleFull
+
+  other-modules:        Log
 
   other-modules:        Managehook
   other-modules:        Output
@@ -99,9 +102,10 @@ executable waymonad
   -- Other library packages from which modules are imported.
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.6.0.1 && <5, hsroots, hayland, clock
-  build-depends:       xkbcommon, containers, composition, time
+  build-depends:       xkbcommon, containers, composition, time, directory
   build-depends:       unix, mtl, text, hsroots, process, transformers
   build-depends:       config-schema, config-value, xdg-basedir, network
+  build-depends:       bytestring
   
   -- Directories containing source files.
   hs-source-dirs:      src

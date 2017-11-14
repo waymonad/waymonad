@@ -26,6 +26,8 @@ module Main
 where
 
 import Hooks.SeatMapping
+import Hooks.KeyboardFocus
+import Log
 
 import Config
 
@@ -245,6 +247,7 @@ main =  do
             seats <- newIORef []
             extensible <- newIORef mempty
             floats <- newIORef mempty
+            log <- logFun
 
             let state = WayBindingState
                     { wayBindingCache = layoutRef
@@ -253,11 +256,14 @@ main =  do
                     , wayBindingMapping = mapRef
                     , wayBindingOutputs = outputs
                     , wayBindingSeats = seats
-                    , wayLogFunction = pure ()
+                    , wayLogFunction = log
                     , wayExtensibleState = extensible
                     , wayConfig = conf
                     , wayFloating = floats
-                    , wayEventHook = seatOutputEventHandler <> wsChangeEvtHook <> wsChangeLogHook
+                    , wayEventHook = seatOutputEventHandler
+                            <> wsChangeEvtHook
+                            <> wsChangeLogHook
+                            <> handleKeyboardSwitch
                     , wayUserWorkspaces = workspaces
                     }
 

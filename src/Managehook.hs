@@ -85,7 +85,9 @@ enactInsert act = do
     liftWay $ case act of
         InsertNone -> pure ()
         InsertFocused -> modifyCurrentWS (flip addView view . Just)
-        InsertInto ws -> modifyWS (flip addView view . Just) ws
+        InsertInto ws -> do
+            seat <- getSeat
+            modifyWS (addView seat view) ws
         InsertFloating box -> do
             setFloating view box
             seat <- getSeat
