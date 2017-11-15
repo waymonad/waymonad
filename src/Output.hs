@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Output
     ( handleOutputAdd
     , handleOutputRemove
@@ -29,7 +30,7 @@ where
 import Control.Exception (bracket_)
 import Data.List ((\\), sortOn)
 import Data.Ratio (Ratio, (%))
-import Control.Monad (when, forM_, forM, filterM)
+import Control.Monad (forM_, forM, filterM, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, readIORef, modifyIORef)
 import Data.Map (Map)
@@ -68,8 +69,14 @@ import Graphics.Wayland.WlRoots.Render
     , renderWithMatrix
     , isTextureValid
     , doRender
+    , getTextureSize
     )
-import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixTranslate)
+import Graphics.Wayland.WlRoots.Render.Matrix
+    ( withMatrix
+    , matrixTranslate
+    , matrixScale
+    , matrixMul
+    )
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface
     , surfaceGetSubs
@@ -122,35 +129,68 @@ renderOn output rend act = bracket_
     (swapOutputBuffers output)
     (doRender rend output act)
 
-outputHandleSurface :: Compositor -> Double -> Ptr Output -> Ptr WlrSurface -> Int -> Int -> IO ()
-outputHandleSurface comp secs output surface x y = do
+outputHandleSurface :: Compositor -> Double -> Ptr Output -> Ptr WlrSurface -> WlrBox -> IO (Float, Float)
+outputHandleSurface comp secs output surface box = do
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
-    when isValid $ withMatrix $ \trans -> do
-        matrixTranslate trans (realToFrac x) (realToFrac y) 0
-        withSurfaceMatrix surface (getTransMatrix output) trans $ \mat -> do
-            renderWithMatrix (compRenderer comp) texture mat
+    if isValid
+        then withMatrix $ \trans -> withMatrix $ \scale -> withMatrix $ \final -> do
+            (twidth, theight) <- getTextureSize texture
+            let x = boxX box
+                y = boxY box
+                bwidth = boxWidth box
+                bheight = boxHeight box
+                wscale :: Float = fromIntegral bwidth / fromIntegral twidth
+                hscale :: Float = fromIntegral bheight / fromIntegral theight
 
-        callbacks <- surfaceGetCallbacks =<< getCurrentState surface
-        forM_ callbacks $ \callback -> do
-            cb <- callbackGetCallback callback
-            callbackDone cb (floor $ secs * 1000)
-            res <- callbackGetResource callback
-            resourceDestroy res
+            matrixTranslate trans (realToFrac x) (realToFrac y) 0
+            matrixScale scale wscale hscale 1
+            matrixMul trans scale final
+            withSurfaceMatrix surface (getTransMatrix output) final $ \mat -> do
+                renderWithMatrix (compRenderer comp) texture mat
 
-        subs <- surfaceGetSubs surface
-        forM_ subs $ \sub -> do
-            box <- subSurfaceGetBox sub
-            subsurf <- subSurfaceGetSurface sub
-            outputHandleSurface comp secs output subsurf (x + boxX box) (y + boxY box)
+            callbacks <- surfaceGetCallbacks =<< getCurrentState surface
+            forM_ callbacks $ \callback -> do
+                cb <- callbackGetCallback callback
+                callbackDone cb (floor $ secs * 1000)
+                res <- callbackGetResource callback
+                resourceDestroy res
+
+            subs <- surfaceGetSubs surface
+            forM_ subs $ \sub -> do
+                sbox <- subSurfaceGetBox sub
+                subsurf <- subSurfaceGetSurface sub
+                outputHandleSurface
+                    comp
+                    secs
+                    output
+                    subsurf
+                    sbox{ boxX = boxX sbox + boxX box
+                        , boxY = boxY sbox + boxY box
+                        , boxWidth = floor $ fromIntegral (boxWidth sbox) * wscale
+                        , boxHeight = floor $ fromIntegral (boxHeight sbox) * hscale
+                        }
+            pure (wscale, hscale)
+        else
+            pure (1, 1)
 
 outputHandleView :: Compositor -> Double -> Ptr Output -> View -> WlrBox -> IO ()
 outputHandleView comp secs output view box = do
     surface <- getViewSurface view
-    let x = boxX box
-    let y = boxY box
-    outputHandleSurface comp secs output surface x y
-    renderViewAdditional (outputHandleSurface comp secs output) view
+    (wscale, hscale) <- outputHandleSurface comp secs output surface box
+    renderViewAdditional (\v b ->
+        void $ outputHandleSurface
+            comp
+            secs
+            output
+            v
+            b   { boxX = floor (fromIntegral (boxX b) * wscale) + boxX box
+                , boxY = floor (fromIntegral (boxY b) * hscale) + boxY box
+                , boxWidth = floor $ fromIntegral (boxWidth b) * wscale
+                , boxHeight = floor $ fromIntegral (boxHeight b) * hscale
+                }
+        )
+        view
 
 
 frameHandler

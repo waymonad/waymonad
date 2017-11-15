@@ -125,8 +125,8 @@ handleXdgSurface ref addFun delFun surf = do
             poke (R.getXdgSurfaceDataPtr surf) (castStablePtrToPtr sptr)
 
 
-renderPopups :: MonadIO m => (Ptr WlrSurface -> Int -> Int -> m ()) -> Ptr R.WlrXdgSurface -> Int -> Int -> m ()
-renderPopups fun surf baseX baseY = do
+renderPopups :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> Ptr R.WlrXdgSurface -> m ()
+renderPopups fun surf = do
     popups <- liftIO $ filterM R.isConfigured =<< R.getPopups surf
     surfBox <- liftIO $ R.getGeometry surf
     let surfX = boxX surfBox
@@ -140,13 +140,17 @@ renderPopups fun surf baseX baseY = do
         let stateX = boxX stateBox
         let stateY = boxY stateBox
 
-        let x = baseX + surfX + stateX - popX
-        let y = baseY + surfY + stateY - popY
+        let x = surfX + stateX - popX
+        let y = surfY + stateY - popY
+
+        let box = WlrBox x y (boxWidth popBox) (boxHeight popBox)
 
         wlrsurf <- liftIO $ R.xdgSurfaceGetSurface popup
 
-        fun wlrsurf x y
-        renderPopups fun popup x y
+        fun wlrsurf box
+        renderPopups
+            (\v b -> fun v b {boxX = boxX b + x, boxY = boxY b + y})
+            popup
 
 
 instance ShellSurface XdgSurface where
@@ -158,7 +162,7 @@ instance ShellSurface XdgSurface where
     resize (XdgSurface surf) width height =
         liftIO $ R.setSize surf width height
     activate = liftIO .: R.setActivated . unXdg
-    renderAdditional fun (XdgSurface surf) x y = renderPopups fun surf x y
+    renderAdditional fun (XdgSurface surf) = renderPopups fun surf
     getEventSurface (XdgSurface surf) x y = liftIO $ do
         mPop <- R.xdgPopupAt surf x y
         case mPop of
