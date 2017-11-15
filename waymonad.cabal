@@ -66,6 +66,7 @@ executable waymonad
   other-modules:        Input.Seat
 
   other-modules:        Hooks.KeyboardFocus
+  other-modules:        Hooks.OutputAdd
   other-modules:        Hooks.SeatMapping
 
   other-modules:        Layout
@@ -89,6 +90,8 @@ executable waymonad
   other-modules:        WayUtil.Floating
   other-modules:        WayUtil.Focus
   other-modules:        WayUtil.Log
+  other-modules:        WayUtil.Timing
+  other-modules:        WayUtil.View
   other-modules:        WayUtil.ViewSet
 
   other-modules:        Waymonad

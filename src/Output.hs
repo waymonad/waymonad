@@ -257,28 +257,12 @@ handleOutputAdd
     -> [a]
     -> Ptr Output
     -> Way a FrameHandler
-handleOutputAdd ref wss output = do
+handleOutputAdd ref _ output = do
     comp <- liftIO $ readIORef ref
     state <- getState
     name <- liftIO $ getOutputName output
-    mapRef <- wayBindingMapping <$> getState
-    taken <- map fst <$> liftIO (readIORef mapRef)
 
     configureOutput (compLayout comp) (configOutputs $ wayConfig state) name output
-
-    liftIO $ case wss \\ taken of
-        (x:_) -> do
-            T.hPutStr stderr "Added output: "
-            T.hPutStr stderr name
-            T.hPutStr stderr ". Attached workspace: "
-            T.hPutStrLn stderr $ getName x
-
-            modifyIORef mapRef $ (:) (x, ptrToInt output)
-        [] -> do
-            T.hPutStrLn stderr "Couldn't pick a workspace for the output"
-            T.hPutStr stderr name
-            T.hPutStrLn stderr "."
-            pure ()
 
     liftIO $ setXCursorImage
             (cursorRoots $ inputCursor $ compInput comp)

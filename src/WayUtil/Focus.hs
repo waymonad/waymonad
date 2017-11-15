@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 module WayUtil.Focus
     ( setWorkspace
+    , setOutputWorkspace
     , focusView
     , focusMaster
     , OutputMappingEvent (..)
@@ -63,23 +64,26 @@ data OutputMappingEvent a = OutputMappingEvent
 
 instance Typeable a => EventClass (OutputMappingEvent a)
 
-setWorkspace :: WSTag a => a -> Way a ()
-setWorkspace ws = do
+setOutputWorkspace :: WSTag a => a -> Int -> Way a ()
+setOutputWorkspace ws current = do
     state <- getState
-    doJust getCurrentOutput $ \current -> do
-        -- Do this manually here, since we don't want the defaulting to first
-        -- rule. It's only about output<->ws mapping!
-        mapping <- liftIO . readIORef . wayBindingMapping =<< getState
-        let pre = lookup current $ map swap mapping
+    -- Do this manually here, since we don't want the defaulting to first
+    -- rule. It's only about output<->ws mapping!
+    mapping <- liftIO . readIORef . wayBindingMapping =<< getState
+    let pre = lookup current $ map swap mapping
 
-        liftIO $ modifyIORef
-            (wayBindingMapping state)
-            ((:) (ws, current) . filter ((/=) current . snd))
+    liftIO $ modifyIORef
+        (wayBindingMapping state)
+        ((:) (ws, current) . filter ((/=) current . snd))
 
-        sendEvent $ OutputMappingEvent (intToPtr current) pre (Just ws)
+    sendEvent $ OutputMappingEvent (intToPtr current) pre (Just ws)
 
     runLog
     reLayout ws
+
+setWorkspace :: WSTag a => a -> Way a ()
+setWorkspace ws =
+    doJust getCurrentOutput $ setOutputWorkspace ws
 
 focusView :: WSTag a => View -> Way a ()
 focusView view = do

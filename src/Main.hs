@@ -25,6 +25,9 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import qualified Hooks.OutputAdd as H
+import WayUtil.View
+import WayUtil.Timing
 import Hooks.SeatMapping
 import Hooks.KeyboardFocus
 import Log
@@ -64,7 +67,7 @@ import Layout (reLayout)
 import Layout.Mirror (Mirror (..), MMessage (..))
 import Layout.Tall (Tall (..))
 import Layout.ToggleFull (ToggleFull (..), TMessage (..))
-import Output (handleOutputAdd, handleOutputRemove, OutputAddEvent)
+import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import Utility.Spawn (spawn, spawnManaged, manageNamed, manageSpawnOn, namedSpawner, onSpawner)
 import View (View)
@@ -90,7 +93,6 @@ import Waymonad
 
     , WayLoggers (..)
     , Logger (..)
-    , getEvent
     , getViewSet
     )
 import WayUtil
@@ -100,7 +102,6 @@ import WayUtil
     , killCurrent
     , seatOutputEventHandler
     )
-import WayUtil.Focus (setWorkspace)
 import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyCurrentWS)
 import WayUtil.Floating (centerFloat, modifyFloating)
 import XWayland (xwayShellCreate, overrideXRedirect)
@@ -114,19 +115,19 @@ insertView
     => Managehook a
     -> View
     -> Way a ()
-insertView hook view = do
-    runQuery view $ enactInsert . flip mappend InsertFocused =<< hook
+insertView hook v = do
+    runQuery v $ enactInsert . flip mappend InsertFocused =<< hook
 
 removeView
     :: (WSTag a)
     => View
     -> Way a ()
-removeView view = do
-    wsL <- filter (fromMaybe False . fmap (contains view) . wsViews . snd) . M.toList <$> getViewSet
+removeView v = do
+    wsL <- filter (fromMaybe False . fmap (contains v) . wsViews . snd) . M.toList <$> getViewSet
 
     case wsL of
         [(ws, _)] -> do
-            modifyViewSet $ M.adjust (rmView view) ws
+            modifyViewSet $ M.adjust (rmView v) ws
             reLayout ws
 
             forceFocused
@@ -134,7 +135,7 @@ removeView view = do
         xs -> liftIO $ do
             hPutStrLn stderr "Found a view in a number of workspaces that's not <2!"
             hPutStrLn stderr $ show $ map fst xs
-    modifyFloating (S.delete view)
+    modifyFloating (S.delete v)
 
 wsSyms :: [Keysym]
 wsSyms =
@@ -168,7 +169,7 @@ bindings dsp =
     , (([modi], keysym_n), focusNextOut)
     , (([modi], keysym_q), killCurrent)
     , (([modi], keysym_o), centerFloat)
-    ] ++ concatMap (\(sym, ws) -> [(([modi], sym), setWorkspace ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
+    ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
     where modi = Alt
 
 makeBindingMap :: WSTag a => [(([WlrModifier], Keysym), KeyBinding a)] -> BindingMap a
@@ -218,6 +219,7 @@ defaultMap xs = newIORef $ M.fromList $
 
 realMain :: Way Text ()
 realMain = do
+    setBaseTime
     dspRef <- liftIO $ newIORef undefined
     compRef <- liftIO $ newIORef undefined
     compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
@@ -247,7 +249,7 @@ main =  do
             seats <- newIORef []
             extensible <- newIORef mempty
             floats <- newIORef mempty
-            log <- logFun
+            logF <- logFun
 
             let state = WayBindingState
                     { wayBindingCache = layoutRef
@@ -256,7 +258,7 @@ main =  do
                     , wayBindingMapping = mapRef
                     , wayBindingOutputs = outputs
                     , wayBindingSeats = seats
-                    , wayLogFunction = log
+                    , wayLogFunction = logF
                     , wayExtensibleState = extensible
                     , wayConfig = conf
                     , wayFloating = floats
@@ -264,6 +266,7 @@ main =  do
                             <> wsChangeEvtHook
                             <> wsChangeLogHook
                             <> handleKeyboardSwitch
+                            <> H.outputAddHook
                     , wayUserWorkspaces = workspaces
                     }
 
