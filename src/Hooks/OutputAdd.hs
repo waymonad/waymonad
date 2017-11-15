@@ -55,7 +55,7 @@ handleEvent
     -> Way a ()
 handleEvent (OutputAdd out) = do
     time :: Word <- getSeconds <$> getBasedTime
-    when (time < 500) $ attachFreeWS out
+    when (time < 300) $ attachFreeWS out
 
 outputAddHook
     :: WSTag a
