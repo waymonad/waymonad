@@ -30,9 +30,9 @@ module ViewSet
 where
 
 import Data.Foldable (toList)
-import Data.List (find)
+import Data.List (find, delete)
 import Data.Map (Map)
-import Data.Maybe (listToMaybe, isJust)
+import Data.Maybe (listToMaybe, maybeToList)
 import Data.Text (Text)
 import Data.Typeable
 import Graphics.Wayland.WlRoots.Box (boxContainsPoint, Point (..), WlrBox (..))
@@ -44,13 +44,13 @@ import qualified Data.Text as T
 
 type ViewSet a = Map a Workspace
 
-newtype Zipper a b = Zipper [(Maybe a {- This is probably going to become a List or Set in the near-ish future -}, b)]
+newtype Zipper a b = Zipper [([a], b)]
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 
 data Workspace = Workspace
     { wsLayout :: Layout
-    , wsViews :: Maybe (Zipper (Seat) View)
+    , wsViews :: Maybe (Zipper Seat View)
     } deriving (Show)
 
 class (Typeable a, Show a, Eq a, Ord a) => WSTag a where
@@ -94,7 +94,7 @@ setFocused v t (Workspace l z) =
 
 getFocused :: Seat -> Workspace -> Maybe View
 getFocused seat (Workspace _ (Just (Zipper z))) =
-    fmap snd $ find ((==) (Just seat) . fst) z
+    fmap snd $ find (elem seat . fst) z
 getFocused _ _ = Nothing
 
 getFirstFocused :: Workspace -> Maybe View
@@ -102,7 +102,7 @@ getFirstFocused (Workspace _ z) = getFirstFocused' =<< z
 
 getFirstFocused' :: Zipper a b -> Maybe b
 getFirstFocused' (Zipper z) =
-    fmap snd $ find (isJust . fst) z
+    fmap snd $ find (not . null . fst) z
 
 addView :: Maybe (Seat) -> View -> Workspace -> Workspace
 addView seat v (Workspace l z) = Workspace l $ addElem seat v z
@@ -126,21 +126,19 @@ viewBelow point views = do
 setFocused' :: (Eq a, Eq b) => a -> b -> Zipper a b -> Zipper a b
 setFocused' t v (Zipper xs) =
     Zipper $ map update xs
-    where   update orig@(ot, x) = if x == v
-                then (Just t, x)
-                else if ot == Just t
-                    then (Nothing, x)
-                    else orig
+    where   update (ot, x) = if x == v
+                then (t:ot, x)
+                else (t `delete` ot, x)
 
 addElem' :: Eq a => Maybe a -> Maybe (Zipper a b) -> b -> Zipper a b
-addElem' t Nothing v = Zipper [(t, v)]
-addElem' Nothing (Just (Zipper xs)) v = Zipper $ (Nothing, v) : xs
+addElem' t Nothing v = Zipper [(maybeToList t, v)]
+addElem' Nothing (Just (Zipper xs)) v = Zipper $ (mempty, v) : xs
 addElem' (Just t) (Just (Zipper xs)) v = 
-    let pre = takeWhile ((/=) (Just t) . fst) xs
-        pos = dropWhile ((/=) (Just t) . fst) xs
+    let pre = takeWhile (not . elem t . fst) xs
+        pos = dropWhile (not . elem t . fst) xs
      in Zipper $ case pos of
-            [] -> (Just t, v) : pre
-            ((_, c):ys) -> pre ++ (Just t, v) : (Nothing, c) : ys
+            [] -> ([t], v) : pre
+            ((_, c):ys) -> pre ++ ([t], v) : (mempty, c) : ys
 
 -- This asumes the element is in the zipper only once!
 rmElem' :: Eq a => a -> Zipper b a -> Maybe (Zipper b a)
@@ -152,9 +150,9 @@ rmElem' y z@(Zipper xs) =
         pos = dropWhile ((/=) y . snd) xs
      in Just $ case pos of
             [] -> z
-            ((Nothing, _):ys) -> Zipper $ pre ++ ys
-            [(Just t, _)] -> Zipper $ (Just t, snd $ head pre) : tail pre
-            ((Just t, _):ys) -> Zipper $ pre ++ (Just t, snd $ head ys) : tail ys
+            (([], _):ys) -> Zipper $ pre ++ ys
+            [(zs, _)] -> Zipper $ (zs, snd $ head pre) : tail pre
+            ((zs, _):ys) -> Zipper $ pre ++ (zs, snd $ head ys) : tail ys
 
 addElem :: Eq a => Maybe a -> b -> Maybe (Zipper a b) -> Maybe (Zipper a b)
 addElem t v z = Just $ addElem' t z v
@@ -174,15 +172,12 @@ moveRight t (Workspace l z) = Workspace l $ fmap (moveRight' t) z
 moveRight' :: Eq a => a -> Zipper a b -> Zipper a b
 moveRight' _ z@(Zipper [_]) = z
 moveRight' t (Zipper xs) =
-    let pre = takeWhile ((/=) (Just t) . fst) xs
-        pos = dropWhile ((/=) (Just t) . fst) xs
+    let pre = takeWhile (not . elem t . fst) xs
+        pos = dropWhile (not . elem t . fst) xs
      in Zipper $ case pos of
-            [] -> (Just t, snd $ head xs) : tail xs
-            [(Just _, c)] -> (Just t, snd $ head pre) : tail pre ++ [(Nothing, c)]
-            ((Just _, c):ys) -> pre ++ (Nothing ,c): (Just t, snd $ head ys) : tail ys
-
-            -- This case should be impossible
-            ((Nothing, _):_) -> error "moveRight hit an impossible case"
+            [] -> ([t], snd $ head xs) : tail xs
+            [(zs, c)] -> (t:zs, snd $ head pre) : tail pre ++ [(t `delete` zs, c)]
+            ((zs, c):ys) -> pre ++ (t `delete` zs ,c): (t : fst (head ys), snd $ head ys) : tail ys
 
 moveLeft :: Seat -> Workspace -> Workspace
 moveLeft t (Workspace l z) = Workspace l $ fmap (moveLeft' t) z
@@ -190,14 +185,14 @@ moveLeft t (Workspace l z) = Workspace l $ fmap (moveLeft' t) z
 moveLeft' :: Eq a => a -> Zipper a b -> Zipper a b
 moveLeft' _ z@(Zipper [_]) = z
 moveLeft' t (Zipper xs) =
-    let pre = takeWhile ((/=) (Just t) . fst) xs
-        pos = dropWhile ((/=) (Just t) . fst) xs
+    let pre = takeWhile (not . elem t . fst) xs
+        pos = dropWhile (not . elem t . fst) xs
      in Zipper $ case pre of
 
-            [] -> (Nothing, snd $ head xs) : init (tail xs) ++ [(Just t, snd $ last xs)]
-            [(Nothing, c)] -> (Just t, c) : (Nothing, snd $ head pos) : tail pos
-            ys -> init ys ++ (Just t, snd $ last ys) : case pos of
-                ((_, z):zs) -> (Nothing, z) : zs
+            [] -> (t `delete` (fst $ head xs), snd $ head xs) : init (tail xs) ++ [(t: (fst $ last xs), snd $ last xs)]
+            [(zs, c)] -> (t:zs, c) : (t `delete` (fst $ head pos), snd $ head pos) : tail pos
+            ys -> init ys ++ (t: (fst $ last ys), snd $ last ys) : case pos of
+                ((ts, z):zs) -> (t `delete` ts, z) : zs
                 [] -> []
 
 moveViewLeft :: Seat -> Workspace -> Workspace
@@ -206,8 +201,8 @@ moveViewLeft t (Workspace l z) = Workspace l $ fmap (moveElemLeft' t) z
 moveElemLeft' :: Eq a => a -> Zipper a b -> Zipper a b
 moveElemLeft' _ z@(Zipper [_]) = z
 moveElemLeft' t (Zipper xs) =
-    let pre = takeWhile ((/=) (Just t) . fst) xs
-        pos = dropWhile ((/=) (Just t) . fst) xs
+    let pre = takeWhile (not . elem t . fst) xs
+        pos = dropWhile (not . elem t . fst) xs
      in Zipper $ case pre of
         [] -> snoc (head pos) (tail pos)
         ys -> case pos of
@@ -221,8 +216,8 @@ moveViewRight t (Workspace l z) = Workspace l $ fmap (moveElemRight' t) z
 moveElemRight' :: Eq a => a -> Zipper a b -> Zipper a b
 moveElemRight' _ z@(Zipper [_]) = z
 moveElemRight' t (Zipper xs) =
-    let pre = takeWhile ((/=) (Just t) . fst) xs
-        pos = dropWhile ((/=) (Just t) . fst) xs
+    let pre = takeWhile (not . elem t . fst) xs
+        pos = dropWhile (not . elem t . fst) xs
      in Zipper $ case pos of
         [] -> xs -- We didn't find a focused view
         (y:ys) -> case ys of

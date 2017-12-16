@@ -58,9 +58,8 @@ runLog = do
     state <- getState
     wayLogFunction state
 
-setFocus :: MonadIO m => Seat -> (Maybe (Seat), View) -> m ()
-setFocus _ (Nothing, _) = pure ()
-setFocus s (Just s', v) = when (s == s') $ liftIO $ do
+setFocus :: MonadIO m => Seat -> ([Seat], View) -> m ()
+setFocus s (s', v) = when (s `elem` s') $ liftIO $ do
     activateView v True
     keyboardEnter s v
 
@@ -93,9 +92,8 @@ setFocused seat ws = join . withWS ws $ setFoci seat
 forceFocused :: WSTag a => Way a ()
 forceFocused = doJust (withCurrentWS $ setFoci) id
 
-unsetFocus' :: MonadIO m => Seat -> (Maybe Seat, View) -> m ()
-unsetFocus' _ (Nothing, _) = pure ()
-unsetFocus' s (Just s', v) = when (s == s') $ do
+unsetFocus' :: MonadIO m => Seat -> ([Seat], View) -> m ()
+unsetFocus' s (s', v) = when ([s] == s') $ do
     activateView v False
 
 unsetFoci :: Seat -> Workspace -> Way a ()

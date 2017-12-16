@@ -244,12 +244,12 @@ pickMode output Nothing = liftIO $ do
     pure $ listToMaybe $ reverse modes
 pickMode output (Just cfg) = liftIO $ do
     modes <- getModes output
-    pared <- forM modes $ \x -> do
+    paired <- forM modes $ \x -> do
         marshalled <- peek x
         pure (marshalled, x)
     -- First try to find modes that match *exactly* on resolution
-    let matches = map snd . sortOn (refreshDist . fst) $ filter (sameResolution . fst) pared
-    let ratio = map snd . sortOn (\m -> (resDist $ fst m, refreshDist $ fst m)) $ filter (sameAspect . fst) pared
+    let matches = map snd . sortOn (refreshDist . fst) $ filter (sameResolution . fst) paired
+    let ratio = map snd . sortOn (\m -> (resDist $ fst m, refreshDist $ fst m)) $ filter (sameAspect . fst) paired
 
     -- TODO: Sanitize this
     pure . listToMaybe . reverse $ modes ++ ratio ++ matches

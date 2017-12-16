@@ -41,7 +41,7 @@ import Graphics.Wayland.Signal
 import Graphics.Wayland.WlRoots.Output (Output, getOutputName)
 
 import Input.Seat (Seat (seatName))
-import Utility (whenJust, intToPtr, doJust)
+import Utility (whenJust, intToPtr, doJust, These(..), getThis, getThat)
 import View (closeView)
 import ViewSet
     ( WSTag
@@ -112,7 +112,7 @@ focusNextOut = doJust getSeat $ \seat -> do
     doJust getCurrentOutput $ \current -> do
         possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
         let new = head . tail . dropWhile (/= current) $ cycle possibles
-        setSeatOutput seat Nothing (Just new)
+        setSeatOutput seat (That new)
         forceFocused
 
 data SeatOutputChangeEvent
@@ -129,18 +129,20 @@ data SeatOutputChangeEvent
 
 instance EventClass SeatOutputChangeEvent
 
--- TODO: Real multiseat support
--- TODO: Better type than 2xMaybe
-setSeatOutput :: WSTag a => Seat -> Maybe Int -> Maybe Int -> Way a ()
-setSeatOutput seat pout kout = do
+-- This: Pointer Focus
+-- That: Keyboard Focus
+setSeatOutput :: WSTag a => Seat -> These Int -> Way a ()
+setSeatOutput seat foci = do
     state <- getState
     current <- lookup seat <$> liftIO (readIORef (wayBindingCurrent state))
     let curp = fst <$> current
     let curk = snd <$> current
-    let newp = pout <|> curp <|> kout
-    let newk = kout <|> curk <|> pout
 
-    -- This *should* be guaranteed. Type!
+    let newp = getThis foci <|> curp <|> getThat foci
+    let newk = getThat foci <|> curk <|> getThis foci
+
+    -- This is guaranteed by the These type. At least getThis or getThat
+    -- returns a Just value
     let new = (fromJust newp, fromJust newk)
 
     liftIO $ modifyIORef

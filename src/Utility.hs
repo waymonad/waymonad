@@ -23,6 +23,10 @@ module Utility
     , ptrToInt
     , whenJust
     , doJust
+
+    , These (..)
+    , getThis
+    , getThat
     )
 where
 
@@ -41,3 +45,21 @@ whenJust (Just x) f = f x
 
 doJust :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
 doJust val act = flip whenJust act =<< val
+
+data These a = This a | That a | These a a
+    deriving (Eq, Show, Read)
+
+instance Functor These where
+    fmap f (This a) = This $ f a
+    fmap f (That a) = That $ f a
+    fmap f (These a b) = These (f a) (f b)
+
+getThis :: These a -> Maybe a
+getThis (This x) = Just x
+getThis (These x _) = Just x
+getThis _ = Nothing
+
+getThat :: These a -> Maybe a
+getThat (That x) = Just x
+getThat (These _ x) = Just x
+getThat _ = Nothing
