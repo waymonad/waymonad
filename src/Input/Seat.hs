@@ -34,6 +34,7 @@ where
 import Control.Monad (when, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
+import Data.Maybe (isJust)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
@@ -56,11 +57,12 @@ import Utility (doJust)
 import View (View, getViewSurface, getViewEventSurface)
 
 data Seat = Seat
-    { seatRoots     :: Ptr WlrSeat
-    , seatPointer   :: IORef (Maybe View)
-    , seatKeyboard  :: IORef (Maybe View)
-    , seatFocusView :: Seat -> View -> IO ()
-    , seatName      :: String
+    { seatRoots          :: Ptr WlrSeat
+    , seatPointer        :: IORef (Maybe View)
+    , seatKeyboard       :: IORef (Maybe View)
+    , seatFocusView      :: Seat -> View -> IO ()
+    , seatName           :: String
+    , seatRequestDefault :: IO ()
     }
 
 instance Show Seat where
@@ -77,8 +79,9 @@ seatCreate
     => DisplayServer
     -> String
     -> (Seat -> View -> IO ())
+    -> IO ()
     -> m Seat
-seatCreate dsp name focus = liftIO $ do
+seatCreate dsp name focus reqDefault = liftIO $ do
     roots    <- createSeat dsp name
     pointer  <- newIORef Nothing
     keyboard <- newIORef Nothing
@@ -86,11 +89,12 @@ seatCreate dsp name focus = liftIO $ do
     setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
 
     pure $ Seat
-        { seatRoots     = roots
-        , seatPointer   = pointer
-        , seatKeyboard  = keyboard
-        , seatFocusView = focus
-        , seatName = name
+        { seatRoots          = roots
+        , seatPointer        = pointer
+        , seatKeyboard       = keyboard
+        , seatFocusView      = focus
+        , seatName           = name
+        , seatRequestDefault = reqDefault
         }
 
 keyboardEnter' :: MonadIO m => Seat -> Ptr WlrSurface -> View -> m Bool
@@ -131,6 +135,8 @@ pointerMotion seat view time baseX baseY = liftIO $ do
 
 pointerClear :: MonadIO m => Seat -> m ()
 pointerClear seat = liftIO $ do
+    getDefault <- (isJust <$> readIORef (seatPointer seat))
+    when getDefault (seatRequestDefault seat)
     pointerClearFocus (seatRoots seat)
     writeIORef (seatPointer seat) Nothing
 

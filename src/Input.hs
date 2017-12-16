@@ -21,26 +21,41 @@ Reach us at https://github.com/ongy/waymonad
 module Input
     ( Input (..)
     , inputCreate
+    , inputLoadScale
     )
 where
 
+import System.IO
+import System.IO.Unsafe (unsafePerformIO)
 import Foreign.Storable (Storable(peek))
-import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef)
+import Control.Monad (when)
+import Control.Monad.IO.Class (liftIO, MonadIO)
+import Data.IORef (modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
 import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
     , DeviceType(..)
     )
-import Graphics.Wayland.WlRoots.XCursor (WlrXCursorTheme, WlrXCursor, loadCursorTheme, getCursor , WlrXCursorImage (..), getImages)
-import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
+import Graphics.Wayland.WlRoots.XCursorManager
+    ( WlrXCursorManager
+    , xCursorManagerCreate
+    , xCursorSetImage
+    , xCursorLoad
+    )
+import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorSurface)
 import Graphics.Wayland.Server (DisplayServer(..))
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
+import Graphics.Wayland.WlRoots.Seat
+    ( seatGetSignals
+    , SeatSignals (..)
+    , SetCursorEvent (..)
+    , seatClientGetClient
+    )
 import Graphics.Wayland.WlRoots.Backend
     ( Backend
     , backendGetSignals
-    , BackendSignals(..)
+    , BackendSignals (..)
     )
 import Graphics.Wayland.Signal (ListenerToken)
 
@@ -48,7 +63,9 @@ import Input.Cursor
 import Input.Keyboard
 import Input.Pointer
 import Input.Seat
+import View (getViewClient)
 import ViewSet (WSTag)
+import Utility (doJust)
 import WayUtil
 import WayUtil.Log (logPutStr)
 import Waymonad
@@ -57,11 +74,11 @@ import WayUtil.Focus (focusView)
 import qualified Data.Map as M
 
 data Input = Input
-    { inputCursorTheme :: Ptr WlrXCursorTheme
-    , inputXCursor :: Ptr WlrXCursor
+    { inputXCursorManager :: Ptr WlrXCursorManager
     , inputCursor :: Cursor
     , inputSeat :: Seat
     , inputAddToken :: ListenerToken
+    , inputImageToken :: ListenerToken
     }
 
 handleInputAdd
@@ -83,19 +100,23 @@ handleInputAdd cursor dsp backend seat bindings ptr = do
         (DevicePointer pptr) -> liftIO $ handlePointer cursor ptr pptr
         _ -> pure ()
 
-setXCursorImage :: Ptr WlrCursor -> Ptr WlrXCursor -> IO ()
-setXCursorImage cursor xcursor = do
-    images <- getImages xcursor
-    image <- peek $ head images
+inputLoadScale :: MonadIO m => Input -> Float -> m ()
+inputLoadScale input scale =
+    liftIO $ xCursorLoad (inputXCursorManager input) scale
 
-    setCursorImage
-        cursor
-        (xCursorImageBuffer image)
-        (xCursorImageWidth image)
-        (xCursorImageWidth image)
-        (xCursorImageHeight image)
-        (xCursorImageHotspotX image)
-        (xCursorImageHotspotY image)
+setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way a ()
+setCursorSurf cursor evt = do
+    (Just seat) <- getSeat
+    doJust (getKeyboardFocus seat) $ \view ->
+        doJust (getViewClient view) $ \client -> do
+            event <- liftIO $ peek evt
+            evtClient <- liftIO . seatClientGetClient $ seatCursorSurfaceClient event
+            when (evtClient == client) $ do
+                liftIO $ setCursorSurface
+                    (cursorRoots cursor)
+                    (seatCursorSurfaceSurface event)
+                    (seatCursorSurfaceHotspotX event)
+                    (seatCursorSurfaceHotspotY event)
 
 inputCreate
     :: WSTag a
@@ -106,29 +127,35 @@ inputCreate
     -> Way a Input
 inputCreate display layout backend bindings = do
     logPutStr loggerKeybinds $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
-    theme   <- liftIO $ loadCursorTheme "default" 16
-    xcursor <- liftIO $ getCursor theme "left_ptr"
+    xcursor <- liftIO $ xCursorManagerCreate "default" 16
+    liftIO $ xCursorLoad xcursor 1.0
 
     focus <- makeCallback $ \(seat, view) -> withSeat (Just seat) $ focusView view
-    seat  <- liftIO $ seatCreate display "seat0" (curry focus)
+    cursorRef <- liftIO $ newIORef undefined
+    seat  <- liftIO $
+        seatCreate
+            display
+            "seat0"
+            (curry focus)
+            (xCursorSetImage xcursor "left_ptr" (cursorRoots $ unsafePerformIO $ readIORef cursorRef))
 
     seatRef <- wayBindingSeats <$> getState
     liftIO $ modifyIORef seatRef ((:) seat)
 
     withSeat (Just seat) $ do
         cursor  <- cursorCreate layout
-
-        liftIO $ setXCursorImage
-            (cursorRoots $ cursor)
-            xcursor
+        liftIO $ writeIORef cursorRef cursor
+        liftIO $ xCursorSetImage xcursor "left_ptr" (cursorRoots cursor)
 
         let signals = backendGetSignals backend
-        tok <- setSignalHandler (inputAdd signals) $ handleInputAdd (cursorRoots cursor) display backend seat bindings
+        aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd (cursorRoots cursor) display backend seat bindings
+        let iSignals = seatGetSignals $ seatRoots seat
+        iTok <- setSignalHandler (seatSignalSetCursor iSignals) $ setCursorSurf cursor
 
         pure Input
-            { inputCursorTheme = theme
-            , inputXCursor = xcursor
+            { inputXCursorManager = xcursor
             , inputCursor = cursor
             , inputSeat = seat
-            , inputAddToken = tok
+            , inputAddToken = aTok
+            , inputImageToken = iTok
             }

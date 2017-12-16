@@ -40,11 +40,10 @@ import Data.Text (Text)
 import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Graphics.Wayland.Server (callbackDone)
-import System.IO (stderr)
+import System.IO (hPutStrLn, stderr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
-import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorImage)
 import Graphics.Wayland.WlRoots.Output
     ( Output
     , OutputMode (..)
@@ -54,6 +53,7 @@ import Graphics.Wayland.WlRoots.Output
     , swapOutputBuffers
     , makeOutputCurrent
     , getOutputName
+    , getOutputScale
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( WlrOutputLayout
@@ -89,18 +89,13 @@ import Graphics.Wayland.WlRoots.Surface
     , withSurfaceMatrix
     , surfaceGetTexture
     )
-import Graphics.Wayland.WlRoots.XCursor
-    ( WlrXCursor
-    , getImages
-    , WlrXCursorImage (..)
-    )
 
 import Compositor
 import Config (configOutputs)
 import qualified Config.Box as C (Point (..))
 import Config.Output (OutputConfig (..), Mode (..))
-import Input (Input(inputXCursor, inputCursor))
-import Input.Cursor (cursorRoots)
+--import Input (Input(inputXCursor, inputCursor))
+--import Input.Cursor (cursorRoots)
 import Shared (FrameHandler)
 import Utility (whenJust)
 import View (View, getViewSurface, renderViewAdditional, getViewBox)
@@ -219,20 +214,6 @@ frameHandler compRef cacheRef fRef secs output = runLayoutCache' cacheRef $ do
                 (WlrBox x y w h) <- getViewBox view
                 outputIntersects layout output x y (x + w) (y + h)
 
-setXCursorImage :: Ptr WlrCursor -> Ptr WlrXCursor -> IO ()
-setXCursorImage cursor xcursor = do
-    images <- getImages xcursor
-    image <- peek $ head images
-
-    setCursorImage
-        cursor
-        (xCursorImageBuffer image)
-        (xCursorImageWidth image)
-        (xCursorImageWidth image)
-        (xCursorImageHeight image)
-        (xCursorImageHotspotX image)
-        (xCursorImageHotspotY image)
-
 pickMode
     :: MonadIO m
     => Ptr Output
@@ -303,10 +284,6 @@ handleOutputAdd ref _ output = do
     name <- liftIO $ getOutputName output
 
     configureOutput (compLayout comp) (configOutputs $ wayConfig state) name output
-
-    liftIO $ setXCursorImage
-            (cursorRoots $ inputCursor $ compInput comp)
-            (inputXCursor $ compInput comp)
 
     current <- wayBindingOutputs <$> getState
     liftIO $ modifyIORef current ((ptrToInt output) :)
