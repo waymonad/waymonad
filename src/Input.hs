@@ -25,11 +25,10 @@ module Input
     )
 where
 
-import System.IO
 import System.IO.Unsafe (unsafePerformIO)
 import Foreign.Storable (Storable(peek))
 import Control.Monad (when, forM_)
-import Control.Monad.IO.Class (liftIO, MonadIO)
+import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
 import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Input
@@ -85,19 +84,17 @@ data Input = Input
 handleInputAdd
     :: WSTag a
     => Ptr WlrCursor
-    -> DisplayServer
-    -> Ptr Backend
     -> Seat
     -> BindingMap a
     -> Ptr InputDevice
     -> Way a ()
-handleInputAdd cursor dsp backend seat bindings ptr = do 
+handleInputAdd cursor seat bindings ptr = do 
     iType <- liftIO $ inputDeviceType ptr
     liftIO $ do
         putStr "Found a new input of type: "
         print iType
     case iType of
-        (DeviceKeyboard kptr) -> handleKeyboardAdd dsp backend seat bindings ptr kptr
+        (DeviceKeyboard kptr) -> handleKeyboardAdd seat bindings ptr kptr
         (DevicePointer pptr) -> liftIO $ handlePointer cursor ptr pptr
         _ -> pure ()
 
@@ -153,7 +150,7 @@ inputCreate display layout backend bindings = do
         liftIO $ xCursorSetImage xcursor "left_ptr" (cursorRoots cursor)
 
         let signals = backendGetSignals backend
-        aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd (cursorRoots cursor) display backend seat bindings
+        aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd (cursorRoots cursor) seat bindings
         let iSignals = seatGetSignals $ seatRoots seat
         iTok <- setSignalHandler (seatSignalSetCursor iSignals) $ setCursorSurf cursor
 

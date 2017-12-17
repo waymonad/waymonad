@@ -270,7 +270,7 @@ main =  do
                             <> handleKeyboardSwitch
                             <> H.outputAddHook
                     , wayUserWorkspaces = workspaces
-                    , wayComposiotr = unsafePerformIO (readIORef compRef)
+                    , wayCompositor = unsafePerformIO (readIORef compRef)
                     }
 
             let loggers = WayLoggers

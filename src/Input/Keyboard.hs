@@ -69,7 +69,9 @@ import Waymonad
     , withSeat
     , Way
     , WayLoggers (..)
+    , getState
     )
+import Waymonad.Types (Compositor(compBackend, compDisplay), WayBindingState (wayCompositor))
 import WayUtil (setSignalHandler)
 import WayUtil.Log (logPutText)
 
@@ -102,13 +104,13 @@ switchVT backend vt = do
 
 handleKeyPress
     :: WSTag a
-    => DisplayServer
-    -> Ptr Backend
-    -> BindingMap a
+    => BindingMap a
     -> Word32
     -> Keysym
     -> Way a Bool
-handleKeyPress dsp backend bindings modifiers sym@(Keysym key) = do
+handleKeyPress bindings modifiers sym@(Keysym key) = do
+    backend <- compBackend . wayCompositor <$> getState
+    dsp <- compDisplay . wayCompositor <$> getState
     case sym of
         Keysym_e -> when (modifiers == 9) (liftIO (displayTerminate dsp)) >> pure False
         -- Would be cooler if this wasn't a listing of VTs (probably TH)
@@ -139,13 +141,11 @@ tellClient seat keyboard event = do
 
 handleKeySimple
     :: WSTag a
-    => DisplayServer
-    -> Ptr Backend
-    -> BindingMap a
+    => BindingMap a
     -> Keyboard
     -> CKeycode
     -> Way a Bool
-handleKeySimple dsp backend bindings keyboard keycode = do
+handleKeySimple bindings keyboard keycode = do
     keystate <- liftIO . getKeystate $ keyboardDevice keyboard
     keymap   <- liftIO . getKeymap $ keyboardDevice keyboard
     modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
@@ -154,19 +154,17 @@ handleKeySimple dsp backend bindings keyboard keycode = do
     syms <- liftIO $ keymapSymsByLevelI keymap keycode layoutL (CLevelIndex 0)
 
     handled <- forM syms $
-        handleKeyPress dsp backend bindings modifiers
+        handleKeyPress bindings modifiers
 
     pure $ foldr (||) False handled
 
 handleKeyXkb
     :: WSTag a
-    => DisplayServer
-    -> Ptr Backend
-    -> BindingMap a
+    => BindingMap a
     -> Keyboard
     -> CKeycode
     -> Way a Bool
-handleKeyXkb dsp backend bindings keyboard keycode = do
+handleKeyXkb bindings keyboard keycode = do
     keystate <- liftIO . getKeystate $ keyboardDevice keyboard
     modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
     consumed <- liftIO $ keyGetConsumedMods2 keystate keycode
@@ -176,21 +174,19 @@ handleKeyXkb dsp backend bindings keyboard keycode = do
     syms <- liftIO $ getStateSymsI keystate keycode
 
     handled <- forM syms $
-        handleKeyPress dsp backend bindings usedMods
+        handleKeyPress bindings usedMods
 
     pure $ foldr (||) False handled
 
 
 handleKeyEvent
     :: WSTag a
-    => DisplayServer
-    -> Ptr Backend
-    -> Keyboard
+    => Keyboard
     -> Seat
     -> BindingMap a
     -> Ptr EventKey
     -> Way a ()
-handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ do
+handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
 
@@ -198,10 +194,10 @@ handleKeyEvent dsp backend keyboard seat bindings ptr = withSeat (Just seat) $ d
         -- We currently don't do anything special for releases
         KeyReleased -> pure False
         KeyPressed -> do
-            handled <- handleKeyXkb dsp backend bindings keyboard keycode
+            handled <- handleKeyXkb bindings keyboard keycode
             if handled
                 then pure handled
-                else handleKeySimple dsp backend bindings keyboard keycode
+                else handleKeySimple bindings keyboard keycode
 
     liftIO . when (not handled) $ tellClient seat keyboard event
 
@@ -213,14 +209,12 @@ handleModifiers keyboard seat _ = do
 
 handleKeyboardAdd
     :: WSTag a
-    => DisplayServer
-    -> Ptr Backend
-    -> Seat
+    => Seat
     -> BindingMap a
     -> Ptr InputDevice
     -> Ptr WlrKeyboard
     -> Way a ()
-handleKeyboardAdd dsp backend seat bindings dev ptr = do
+handleKeyboardAdd seat bindings dev ptr = do
     let signals = getKeySignals ptr
 
     liftIO $ do
@@ -232,7 +226,7 @@ handleKeyboardAdd dsp backend seat bindings dev ptr = do
 
     kh <- setSignalHandler
         (keySignalKey signals)
-        (handleKeyEvent dsp backend keyboard seat bindings)
+        (handleKeyEvent keyboard seat bindings)
     mh <- setSignalHandler
         (keySignalModifiers signals)
         (handleModifiers keyboard seat)

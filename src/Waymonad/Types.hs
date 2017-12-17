@@ -122,7 +122,7 @@ data WayBindingState a = WayBindingState
     , wayFloating :: IORef (Set View)
     , wayEventHook :: SomeEvent -> Way a ()
     , wayUserWorkspaces :: [a]
-    , wayComposiotr :: Compositor
+    , wayCompositor :: Compositor
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)
