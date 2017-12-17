@@ -21,14 +21,13 @@ Reach us at https://github.com/ongy/waymonad
 module Input
     ( Input (..)
     , inputCreate
-    , inputLoadScale
     )
 where
 
 import System.IO
 import System.IO.Unsafe (unsafePerformIO)
 import Foreign.Storable (Storable(peek))
-import Control.Monad (when)
+import Control.Monad (when, forM_)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
 import Foreign.Ptr (Ptr)
@@ -45,6 +44,7 @@ import Graphics.Wayland.WlRoots.XCursorManager
     )
 import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorSurface)
 import Graphics.Wayland.Server (DisplayServer(..))
+import Graphics.Wayland.WlRoots.Output (getOutputScale)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Seat
     ( seatGetSignals
@@ -100,10 +100,6 @@ handleInputAdd cursor dsp backend seat bindings ptr = do
         (DevicePointer pptr) -> liftIO $ handlePointer cursor ptr pptr
         _ -> pure ()
 
-inputLoadScale :: MonadIO m => Input -> Float -> m ()
-inputLoadScale input scale =
-    liftIO $ xCursorLoad (inputXCursorManager input) scale
-
 setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way a ()
 setCursorSurf cursor evt = do
     (Just seat) <- getSeat
@@ -118,6 +114,13 @@ setCursorSurf cursor evt = do
                     (seatCursorSurfaceHotspotX event)
                     (seatCursorSurfaceHotspotY event)
 
+loadCurrentScales :: Ptr WlrXCursorManager -> Way a ()
+loadCurrentScales manager = do
+    outputs <- getOutputs
+    forM_ outputs $ \output -> liftIO $ do
+        scale <- getOutputScale output
+        xCursorLoad manager scale
+
 inputCreate
     :: WSTag a
     => DisplayServer
@@ -128,7 +131,7 @@ inputCreate
 inputCreate display layout backend bindings = do
     logPutStr loggerKeybinds $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
     xcursor <- liftIO $ xCursorManagerCreate "default" 16
-    liftIO $ xCursorLoad xcursor 1.0
+    loadCurrentScales xcursor
 
     focus <- makeCallback $ \(seat, view) -> withSeat (Just seat) $ focusView view
     cursorRef <- liftIO $ newIORef undefined
@@ -138,6 +141,7 @@ inputCreate display layout backend bindings = do
             "seat0"
             (curry focus)
             (xCursorSetImage xcursor "left_ptr" (cursorRoots $ unsafePerformIO $ readIORef cursorRef))
+            (xCursorLoad xcursor)
 
     seatRef <- wayBindingSeats <$> getState
     liftIO $ modifyIORef seatRef ((:) seat)

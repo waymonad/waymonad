@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 module Input.Seat
-    ( Seat (seatRoots, seatName)
+    ( Seat (seatRoots, seatName, seatLoadScale)
     , seatCreate
     , keyboardEnter
     , pointerMotion
@@ -63,6 +63,7 @@ data Seat = Seat
     , seatFocusView      :: Seat -> View -> IO ()
     , seatName           :: String
     , seatRequestDefault :: IO ()
+    , seatLoadScale      :: Float -> IO ()
     }
 
 instance Show Seat where
@@ -80,8 +81,9 @@ seatCreate
     -> String
     -> (Seat -> View -> IO ())
     -> IO ()
+    -> (Float -> IO ())
     -> m Seat
-seatCreate dsp name focus reqDefault = liftIO $ do
+seatCreate dsp name focus reqDefault loadScale = liftIO $ do
     roots    <- createSeat dsp name
     pointer  <- newIORef Nothing
     keyboard <- newIORef Nothing
@@ -95,6 +97,7 @@ seatCreate dsp name focus reqDefault = liftIO $ do
         , seatFocusView      = focus
         , seatName           = name
         , seatRequestDefault = reqDefault
+        , seatLoadScale      = loadScale
         }
 
 keyboardEnter' :: MonadIO m => Seat -> Ptr WlrSurface -> View -> m Bool

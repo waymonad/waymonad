@@ -96,6 +96,7 @@ import qualified Config.Box as C (Point (..))
 import Config.Output (OutputConfig (..), Mode (..))
 --import Input (Input(inputXCursor, inputCursor))
 --import Input.Cursor (cursorRoots)
+import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (whenJust)
 import View (View, getViewSurface, renderViewAdditional, getViewBox)
@@ -110,6 +111,7 @@ import Waymonad
     , EventClass
     , sendEvent
     )
+import WayUtil (getSeats)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
@@ -290,6 +292,10 @@ handleOutputAdd ref _ output = do
 
     cacheRef <- wayBindingCache <$> getState
     floats <- wayFloating <$> getState
+
+    scale <- liftIO $ getOutputScale output
+    seats <- getSeats
+    liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
 
     sendEvent $ OutputAdd $ ptrToInt output
 

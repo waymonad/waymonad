@@ -221,3 +221,9 @@ getOutputKeyboards :: Int -> Way a [Seat]
 getOutputKeyboards out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . snd . snd) $ currents
+
+getOutputs :: Way a [Ptr Output]
+getOutputs = (fmap . fmap) intToPtr . liftIO . readIORef . wayBindingOutputs =<< getState
+
+getSeats :: Way a [Seat]
+getSeats = liftIO . readIORef . wayBindingSeats =<< getState
