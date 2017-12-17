@@ -74,7 +74,6 @@ import WayUtil
 import WayUtil.Log (logPutStr)
 import WayUtil.Focus (focusView)
 
-
 data Cursor = Cursor
     { cursorRoots :: Ptr WlrCursor
     , cursorTokens :: [ListenerToken]

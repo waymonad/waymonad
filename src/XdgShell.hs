@@ -33,6 +33,7 @@ import WayUtil (setSignalHandler)
 import WayUtil.Log (logPutText)
 import Control.Monad (when, filterM, forM_)
 import Control.Monad.IO.Class
+import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
 import Data.Composition ((.:))
 
@@ -50,12 +51,6 @@ import Foreign.StablePtr
     , castPtrToStablePtr
     )
 import qualified Data.IntMap.Strict as M
-import Data.IntMap (IntMap)
-
-ptrToInt :: Num b => Ptr a -> b
-ptrToInt = fromIntegral . ptrToIntPtr
-
-newtype XdgSurface = XdgSurface { unXdg :: (Ptr R.WlrXdgSurface) }
 
 type MapRef =  IORef (IntMap View)
 
@@ -63,6 +58,12 @@ data XdgShell = XdgShell
     { xdgSurfaceRef :: MapRef
     , xdgWlrootsShell :: Ptr R.WlrXdgShell
     }
+
+
+ptrToInt :: Num b => Ptr a -> b
+ptrToInt = fromIntegral . ptrToIntPtr
+
+newtype XdgSurface = XdgSurface { unXdg :: (Ptr R.WlrXdgSurface) }
 
 xdgShellCreate
     :: DisplayServer

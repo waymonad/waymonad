@@ -95,6 +95,7 @@ executable waymonad
   other-modules:        WayUtil.ViewSet
 
   other-modules:        Waymonad
+  other-modules:        Waymonad.Types
   other-modules:        Waymonad.Extensible
   other-modules:        XWayland
   other-modules:        XdgShell

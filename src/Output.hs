@@ -90,7 +90,7 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceGetTexture
     )
 
-import Compositor
+import Waymonad.Types (Compositor (..))
 import Config (configOutputs)
 import qualified Config.Box as C (Point (..))
 import Config.Output (OutputConfig (..), Mode (..))

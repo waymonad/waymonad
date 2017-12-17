@@ -53,6 +53,14 @@ import Foreign.StablePtr
 import qualified Data.IntMap.Strict as M
 import Data.IntMap (IntMap)
 
+type MapRef =  IORef (IntMap View)
+
+data XWayShell = XWayShell
+    { xwaySurfaceRef :: MapRef
+    , xwayWlrootsShell :: Ptr X.XWayland
+    }
+
+
 data XWaySurface = XWaySurface
     { _surfXWay :: Ptr X.XWayland
     , unXway :: Ptr X.X11Surface
@@ -60,13 +68,6 @@ data XWaySurface = XWaySurface
 
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
-
-type MapRef =  IORef (IntMap View)
-
-data XWayShell = XWayShell
-    { xwaySurfaceRef :: MapRef
-    , xwayWlrootsShell :: Ptr X.XWayland
-    }
 
 
 xwayShellCreate

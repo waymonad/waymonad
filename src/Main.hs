@@ -43,6 +43,7 @@ import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer, displayInitShm)
 import System.IO
+import System.IO.Unsafe (unsafePerformIO)
 
 import Text.XkbCommon.InternalTypes (Keysym(..))
 import Text.XkbCommon.KeysymList
@@ -59,7 +60,7 @@ import Graphics.Wayland.WlRoots.Screenshooter (screenshooterCreate)
 --    , --shellCreate
 --    )
 
-import Compositor
+-- import Compositor
 import Input (inputCreate)
 import Managehook (Managehook, runQuery, enactInsert, InsertAction (InsertFocused))
 import Layout (reLayout)
@@ -95,6 +96,7 @@ import Waymonad
     , Logger (..)
     , getViewSet
     )
+import Waymonad.Types (Compositor (..))
 import WayUtil
     ( sendMessage
     , focusNextOut
@@ -202,7 +204,7 @@ makeCompositor dspRef backend keyBinds = do
         { compDisplay = display
         , compRenderer = renderer
         , compCompositor = comp
-        , compShell = shell
+        --, compShell = shell
         , compXdg = xdgShell
         , compManager = devManager
         , compXWayland = xway
@@ -217,11 +219,10 @@ defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
     map (, Workspace (Layout (Mirror False (ToggleFull False Tall))) Nothing) xs
 
-realMain :: Way Text ()
-realMain = do
+realMain :: IORef Compositor -> Way Text ()
+realMain compRef = do
     setBaseTime
     dspRef <- liftIO $ newIORef undefined
-    compRef <- liftIO $ newIORef undefined
     compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
@@ -249,6 +250,7 @@ main =  do
             seats <- newIORef []
             extensible <- newIORef mempty
             floats <- newIORef mempty
+            compRef <- newIORef undefined
             logF <- logFun
 
             let state = WayBindingState
@@ -268,6 +270,7 @@ main =  do
                             <> handleKeyboardSwitch
                             <> H.outputAddHook
                     , wayUserWorkspaces = workspaces
+                    , wayComposiotr = unsafePerformIO (readIORef compRef)
                     }
 
             let loggers = WayLoggers
@@ -280,4 +283,4 @@ main =  do
                     , loggerLayout = Logger True "Layout"
                     }
 
-            runWay Nothing state loggers realMain
+            runWay Nothing state loggers (realMain compRef)

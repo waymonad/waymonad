@@ -44,6 +44,7 @@ import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 
+
 getBoxes
     :: WSTag a
     => a
@@ -52,6 +53,7 @@ getBoxes ws = do
     xs <- liftIO . readIORef . wayBindingMapping =<< getState
     let outputs = map snd . filter ((==) ws . fst) $ xs
     liftIO $ mapM (\out -> fmap (out,) . getOutputBox $ intToPtr out) outputs
+
 
 getLayoutBoxes
     :: WSTag a
@@ -66,6 +68,7 @@ getLayoutBoxes ws = do
             shrink (WlrBox _ _ lw lh) (WlrBox _ _ rw rh) = WlrBox 0 0 (min lw rw) (min lh rh)
             toOrigin :: WlrBox -> WlrBox
             toOrigin (WlrBox _ _ w h) = WlrBox 0 0 w h
+
 
 reLayout
     :: WSTag a

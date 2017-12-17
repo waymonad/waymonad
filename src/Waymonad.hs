@@ -85,10 +85,10 @@ import Data.Word (Word32)
 
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox)
 
-import Config (WayConfig)
 import Input.Seat (Seat)
 import View (View, getViewEventSurface)
 import Waymonad.Extensible
+import Waymonad.Types
 
 
 import qualified ViewSet as VS
@@ -96,22 +96,6 @@ import qualified Data.IntMap as IM
 import qualified Data.Set as S
 
 
--- All of this makes for a fake `Monad State` in IO
--- We need this because we run into callbacks *a lot*.
--- We have to preserve/modify state around those, which cannot be
--- done with the normal StateT (since we exit our Monad-Stack all the time)
--- but we are in IO, which can be abused with this trick.
--- It should all be hidden in the high level apis, low level APIs will
--- require the get and runWayState around callbacks that are IO
-type WayStateRef a = IORef (VS.ViewSet a)
-
-type LayoutCacheRef = IORef (IntMap [(View, WlrBox)])
-
-newtype LayoutCache a = LayoutCache (ReaderT (LayoutCacheRef) IO a)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader LayoutCacheRef)
-
-newtype WayState a b = WayState (ReaderT (WayStateRef a) IO b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayStateRef a))
 
 get :: (MonadReader (IORef a) m, MonadIO m) => m a
 get = liftIO . readIORef =<< ask
@@ -154,66 +138,12 @@ viewBelow point ws = do
         Nothing -> pure Nothing
         Just x -> liftIO $ VS.viewBelow point x
 
-class Typeable e => EventClass e
-
-data SomeEvent = forall e. EventClass e => SomeEvent e
 
 getEvent :: EventClass e => SomeEvent -> Maybe (e)
 getEvent (SomeEvent e) = cast e
 
 sendEvent :: EventClass e => e -> Way a ()
 sendEvent e = flip wayEventHook (SomeEvent e) =<< getState
-
-data Logger = Logger
-    { loggerActive :: Bool
-    , loggerName :: Text
-    }
-
-data WayLoggers = WayLoggers
-    { loggerOutput :: Logger
-    , loggerWS :: Logger
-    , loggerFocus :: Logger
-    , loggerXdg :: Logger
-    , loggerKeybinds :: Logger
-    , loggerSpawner :: Logger
-    , loggerLayout :: Logger
-    }
-
-data WayBindingState a = WayBindingState
-    { wayBindingCache :: LayoutCacheRef
-    , wayBindingState :: WayStateRef a
-    -- Left Pointer, Right Keyboard
-    , wayBindingCurrent :: IORef [(Seat, (Int, Int))]
-    , wayBindingMapping :: IORef [(a, Int)]
-    , wayBindingOutputs :: IORef [Int]
-    , wayBindingSeats   :: IORef [Seat]
-    , wayLogFunction :: LogFun a
-    , wayExtensibleState :: IORef StateMap
-    , wayConfig :: WayConfig
-    , wayFloating :: IORef (Set View)
-    , wayEventHook :: SomeEvent -> Way a ()
-    , wayUserWorkspaces :: [a]
-    }
-
-newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader WayLoggers)
-
-newtype WayBinding a b = WayBinding (ReaderT (WayBindingState a) WayLogging b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState a))
-
-type KeyBinding a = Way a ()
-type BindingMap a = Map (Word32, Int) (KeyBinding a)
-type LogFun a = Way a ()
-
-newtype Way a b = Way (ReaderT (Maybe Seat) (WayBinding a) b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe Seat))
-
-instance Monoid a => Monoid (Way b a) where
-    mempty = pure mempty
-    left `mappend` right = mappend <$> left <*> right
-
-instance forall a b. (Typeable a, Typeable b) => Show (Way a b) where
-    show =  show . typeOf
 
 getLoggers :: Way a WayLoggers
 getLoggers = Way $ lift getLoggers'
