@@ -120,7 +120,7 @@ handleXdgSurface ref addFun delFun surf = do
             R.setMaximized surf True
 
         let signals = R.getXdgSurfaceEvents surf
-        handler <- setSignalHandler (R.xdgSurfacEvtDestroy signals) (handleXdgDestroy ref delFun)
+        handler <- setSignalHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref delFun)
         liftIO $ do
             sptr <- newStablePtr handler
             poke (R.getXdgSurfaceDataPtr surf) (castStablePtrToPtr sptr)

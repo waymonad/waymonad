@@ -120,24 +120,27 @@ handleXwaySurface xway ref addFun delFun surf = do
     let signals = X.getX11SurfaceEvents surf
 
     handler <- setSignalHandler (X.x11SurfacEvtDestroy signals) $ handleXwayDestroy ref delFun
+    handler2 <- setSignalHandler (X.x11SurfacEvtType signals) $ (const $ liftIO $ hPutStrLn stderr "Some surface set type")
 
     liftIO $ do
-        sptr <- newStablePtr handler
+        sptr <- newStablePtr (handler, handler2)
         poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr sptr)
 
 
 instance ShellSurface XWaySurface where
-    close (XWaySurface xway surf) = liftIO $ X.xwayCloseSurface xway surf
+    close (XWaySurface _ surf) = liftIO $ X.xwayCloseSurface surf
     getSurface = liftIO . X.xwaySurfaceGetSurface . unXway
     getSize (XWaySurface _ surf) = liftIO $ do
         box <- X.getX11SurfaceGeometry surf
         pure (fromIntegral $ boxWidth box, fromIntegral $ boxHeight box)
-    resize (XWaySurface xway surf) width height = liftIO $ do
-        (Point x y) <- X.getX11SurfacePosition surf
-        X.configureX11Surface xway surf
+    resize (XWaySurface _ surf) width height = liftIO $ do
+        p@(Point x y) <- X.getX11SurfacePosition surf
+        hPutStrLn stderr $ show p
+        X.configureX11Surface surf
             (fromIntegral x) (fromIntegral y)
             (fromIntegral width) (fromIntegral height)
-    activate (XWaySurface xway surf) active = liftIO $ X.activateX11Surface xway surf active
+        hPutStrLn stderr "Survived!"
+    activate (XWaySurface _ surf) active = liftIO $ X.activateX11Surface surf active
     getEventSurface (XWaySurface _ surf) x y = liftIO $ do
         (WlrBox _ _ w h) <- X.getX11SurfaceGeometry surf
         if boxContainsPoint (Point (floor x) (floor y)) (WlrBox 0 0 w h)
