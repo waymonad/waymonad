@@ -119,8 +119,8 @@ handleXwaySurface xway ref addFun delFun surf = do
 
     let signals = X.getX11SurfaceEvents surf
 
-    handler <- setSignalHandler (X.x11SurfacEvtDestroy signals) $ handleXwayDestroy ref delFun
-    handler2 <- setSignalHandler (X.x11SurfacEvtType signals) $ (const $ liftIO $ hPutStrLn stderr "Some surface set type")
+    handler <- setSignalHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref delFun
+    handler2 <- setSignalHandler (X.x11SurfaceEvtType signals) $ (const $ liftIO $ hPutStrLn stderr "Some surface set type")
 
     liftIO $ do
         sptr <- newStablePtr (handler, handler2)
