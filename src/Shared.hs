@@ -49,7 +49,7 @@ import Graphics.Wayland.WlRoots.Backend
     )
 import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Output
-    ( Output
+    ( WlrOutput
     , getName
     , getModes
     , setOutputMode
@@ -81,7 +81,7 @@ import Graphics.Wayland.Signal
 
 data Handlers = Handlers ListenerToken ListenerToken ListenerToken ListenerToken
 
-type FrameHandler = Double -> Ptr Output -> IO ()
+type FrameHandler = Double -> Ptr WlrOutput -> IO ()
 
 data CompHooks = CompHooks
     { displayHook :: DisplayServer -> IO ()
@@ -89,9 +89,9 @@ data CompHooks = CompHooks
     , backendPostHook :: Ptr Backend -> IO ()
 
     , inputAddHook :: Ptr InputDevice -> IO ()
-    , outputAddHook :: Ptr Output -> IO FrameHandler
+    , outputAddHook :: Ptr WlrOutput -> IO FrameHandler
     , keyPressHook :: Keysym -> Direction -> IO ()
-    , outputRemoveHook :: Ptr Output -> IO ()
+    , outputRemoveHook :: Ptr WlrOutput -> IO ()
     }
 
 
@@ -107,7 +107,7 @@ ignoreHooks = CompHooks
     }
 
 
-handleFrame :: FrameHandler -> IORef Integer -> Ptr Output -> IO ()
+handleFrame :: FrameHandler -> IORef Integer -> Ptr WlrOutput -> IO ()
 handleFrame hook ref output = do
     old <- readIORef ref
     time <- toNanoSecs <$> getTime Monotonic
@@ -118,7 +118,7 @@ handleFrame hook ref output = do
 
     hook secs output
 
-handleOutputAdd :: CompHooks -> Ptr Output -> IO ()
+handleOutputAdd :: CompHooks -> Ptr WlrOutput -> IO ()
 handleOutputAdd hooks output = do
     hPutStr stderr "Found output: "
     hPutStrLn stderr =<< getName output
@@ -139,7 +139,7 @@ handleOutputAdd hooks output = do
     sptr <- newStablePtr handler
     poke (getDataPtr output) (castStablePtrToPtr sptr)
 
-handleOutputRemove :: CompHooks -> Ptr Output -> IO ()
+handleOutputRemove :: CompHooks -> Ptr WlrOutput -> IO ()
 handleOutputRemove hooks output = do
     sptr :: Ptr () <- peek (getDataPtr output)
     freeStablePtr $ castPtrToStablePtr sptr

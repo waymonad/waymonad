@@ -38,7 +38,7 @@ import Graphics.Wayland.Signal
     , ListenerToken
     , WlSignal
     )
-import Graphics.Wayland.WlRoots.Output (Output, getOutputName)
+import Graphics.Wayland.WlRoots.Output (WlrOutput, getOutputName)
 
 import Input.Seat (Seat (seatName))
 import Utility (whenJust, intToPtr, doJust, These(..), getThis, getThat)
@@ -118,13 +118,13 @@ focusNextOut = doJust getSeat $ \seat -> do
 data SeatOutputChangeEvent
     = PointerOutputChangeEvent
         { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe (Ptr Output)
-        , seatOutChangeEvtNew :: Maybe (Ptr Output)
+        , seatOutChangeEvtPre :: Maybe (Ptr WlrOutput)
+        , seatOutChangeEvtNew :: Maybe (Ptr WlrOutput)
         }
     | KeyboardOutputChangeEvent
         { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe (Ptr Output)
-        , seatOutChangeEvtNew :: Maybe (Ptr Output)
+        , seatOutChangeEvtPre :: Maybe (Ptr WlrOutput)
+        , seatOutChangeEvtNew :: Maybe (Ptr WlrOutput)
         }
 
 instance EventClass SeatOutputChangeEvent
@@ -222,7 +222,7 @@ getOutputKeyboards out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . snd . snd) $ currents
 
-getOutputs :: Way a [Ptr Output]
+getOutputs :: Way a [Ptr WlrOutput]
 getOutputs = (fmap . fmap) intToPtr . liftIO . readIORef . wayBindingOutputs =<< getState
 
 getSeats :: Way a [Seat]

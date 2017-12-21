@@ -45,7 +45,7 @@ import System.IO (hPutStrLn, stderr)
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
 import Graphics.Wayland.WlRoots.Output
-    ( Output
+    ( WlrOutput
     , OutputMode (..)
     , setOutputMode
     , getModes
@@ -120,13 +120,13 @@ import qualified Data.Text.IO as T
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
 
-renderOn :: Ptr Output -> Ptr Renderer -> IO a -> IO a
+renderOn :: Ptr WlrOutput -> Ptr Renderer -> IO a -> IO a
 renderOn output rend act = bracket_
     (makeOutputCurrent output)
     (swapOutputBuffers output)
     (doRender rend output act)
 
-outputHandleSurface :: Compositor -> Double -> Ptr Output -> Ptr WlrSurface -> WlrBox -> IO (Float, Float)
+outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -> WlrBox -> IO (Float, Float)
 outputHandleSurface comp secs output surface box = do
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
@@ -171,7 +171,7 @@ outputHandleSurface comp secs output surface box = do
         else
             pure (1, 1)
 
-outputHandleView :: Compositor -> Double -> Ptr Output -> View -> WlrBox -> IO ()
+outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> View -> WlrBox -> IO ()
 outputHandleView comp secs output view box = do
     surface <- getViewSurface view
     (wscale, hscale) <- outputHandleSurface comp secs output surface box
@@ -195,7 +195,7 @@ frameHandler
     -> LayoutCacheRef
     -> IORef (Set View)
     -> Double
-    -> Ptr Output
+    -> Ptr WlrOutput
     -> IO ()
 frameHandler compRef cacheRef fRef secs output = runLayoutCache' cacheRef $ do
     comp <- liftIO $ readIORef compRef
@@ -218,7 +218,7 @@ frameHandler compRef cacheRef fRef secs output = runLayoutCache' cacheRef $ do
 
 pickMode
     :: MonadIO m
-    => Ptr Output
+    => Ptr WlrOutput
     -> Maybe Mode
     -> m (Maybe (Ptr OutputMode))
 -- If there's no config, just pick the "last" mode, it's the native resolution
@@ -256,7 +256,7 @@ configureOutput
     :: Ptr WlrOutputLayout
     -> Map Text OutputConfig
     -> Text
-    -> Ptr Output
+    -> Ptr WlrOutput
     -> Way a ()
 configureOutput layout configs name output = do
     let conf = M.lookup name configs
@@ -278,7 +278,7 @@ handleOutputAdd
     :: WSTag a
     => IORef Compositor
     -> [a]
-    -> Ptr Output
+    -> Ptr WlrOutput
     -> Way a FrameHandler
 handleOutputAdd ref _ output = do
     comp <- liftIO $ readIORef ref
@@ -302,7 +302,7 @@ handleOutputAdd ref _ output = do
     pure $ \secs out -> frameHandler ref cacheRef floats secs out
 
 handleOutputRemove
-    :: Ptr Output
+    :: Ptr WlrOutput
     -> Way a ()
 handleOutputRemove output = do
     state <- getState

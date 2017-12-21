@@ -35,7 +35,7 @@ import Data.Tuple (swap)
 import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.WlRoots.Output (Output)
+import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Layout (reLayout)
 import Utility (whenJust, doJust, intToPtr)
@@ -57,7 +57,7 @@ import WayUtil.Log (logPutStr)
 import qualified Data.Map as M
 
 data OutputMappingEvent a = OutputMappingEvent
-    { outputMappingEvtOutput :: Ptr Output
+    { outputMappingEvtOutput :: Ptr WlrOutput
     , outputMappingEvtPre    :: Maybe a
     , outputMappingEvtCur    :: Maybe a
     }

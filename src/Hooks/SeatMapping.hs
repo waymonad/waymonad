@@ -31,7 +31,7 @@ import Data.Monoid ((<>))
 import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.WlRoots.Output (Output)
+import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Input.Seat (Seat)
 import Utility (ptrToInt, whenJust)
@@ -58,8 +58,8 @@ instance Typeable a => EventClass (SeatWSChangeEvent a)
 
 checkOutput
     :: WSTag a
-    => Maybe (Ptr Output)
-    -> Maybe (Ptr Output)
+    => Maybe (Ptr WlrOutput)
+    -> Maybe (Ptr WlrOutput)
     -> (Maybe a -> Maybe a -> SeatWSChangeEvent a)
     -> Way a ()
 checkOutput pre cur con = do
