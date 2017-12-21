@@ -23,7 +23,6 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
 module Waymonad.Types
 where
 
@@ -69,7 +68,7 @@ type WayStateRef a = IORef (ViewSet a)
 
 type LayoutCacheRef = IORef (IntMap [(View, WlrBox)])
 
-newtype LayoutCache a = LayoutCache (ReaderT (LayoutCacheRef) IO a)
+newtype LayoutCache a = LayoutCache (ReaderT LayoutCacheRef IO a)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader LayoutCacheRef)
 
 newtype WayState a b = WayState (ReaderT (WayStateRef a) IO b)
@@ -83,6 +82,11 @@ data SomeEvent = forall e. EventClass e => SomeEvent e
 data Logger = Logger
     { loggerActive :: Bool
     , loggerName :: Text
+    }
+
+data WayHooks = WayHooks
+    {
+
     }
 
 data WayLoggers = WayLoggers
@@ -109,20 +113,21 @@ data Compositor = Compositor
     }
 
 data WayBindingState a = WayBindingState
-    { wayBindingCache :: LayoutCacheRef
-    , wayBindingState :: WayStateRef a
+    { wayBindingCache    :: LayoutCacheRef
+    , wayBindingState    :: WayStateRef a
     -- Left Pointer, Right Keyboard
-    , wayBindingCurrent :: IORef [(Seat, (Int, Int))]
-    , wayBindingMapping :: IORef [(a, Int)]
-    , wayBindingOutputs :: IORef [Int]
-    , wayBindingSeats   :: IORef [Seat]
-    , wayLogFunction :: LogFun a
+    , wayBindingCurrent  :: IORef [(Seat, (Int, Int))]
+    , wayBindingMapping  :: IORef [(a, Int)]
+    , wayBindingOutputs  :: IORef [Int]
+    , wayBindingSeats    :: IORef [Seat]
+    , wayFloating        :: IORef (Set View)
     , wayExtensibleState :: IORef StateMap
-    , wayConfig :: WayConfig
-    , wayFloating :: IORef (Set View)
-    , wayEventHook :: SomeEvent -> Way a ()
-    , wayUserWorkspaces :: [a]
-    , wayCompositor :: Compositor
+
+    , wayLogFunction     :: LogFun a
+    , wayConfig          :: WayConfig
+    , wayEventHook       :: SomeEvent -> Way a ()
+    , wayUserWorkspaces  :: [a]
+    , wayCompositor      :: Compositor
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)

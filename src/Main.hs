@@ -199,7 +199,7 @@ makeCompositor dspRef backend keyBinds = do
     xdgShell <- xdgShellCreate display addFun removeView
     xway <- xwayShellCreate display comp addFun removeView
 
-    shell <- pure undefined
+--    shell <- pure undefined
     pure $ Compositor
         { compDisplay = display
         , compRenderer = renderer
