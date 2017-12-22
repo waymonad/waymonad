@@ -27,8 +27,8 @@ import Control.Applicative ((<|>))
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef, modifyIORef)
-import Data.List (lookup)
-import Data.Maybe (fromJust, fromMaybe)
+import Data.List (lookup, find)
+import Data.Maybe (fromJust, fromMaybe, listToMaybe)
 import Data.Tuple (swap)
 import Foreign.Ptr (Ptr)
 
@@ -39,10 +39,11 @@ import Graphics.Wayland.Signal
     , WlSignal
     )
 import Graphics.Wayland.WlRoots.Output (WlrOutput, getOutputName)
+import Graphics.Wayland.WlRoots.Box (Point)
 
-import Input.Seat (Seat (seatName))
+import Input.Seat (Seat (seatName), getPointerFocus)
 import Utility (whenJust, intToPtr, doJust, These(..), getThis, getThat)
-import View (closeView)
+import View (View, closeView)
 import ViewSet
     ( WSTag
     , SomeMessage (..)
@@ -50,6 +51,7 @@ import ViewSet
     , messageWS
     , rmView
     , addView
+    , viewsBelow
     )
 import Waymonad
     ( WayBindingState(..)
@@ -79,6 +81,7 @@ import WayUtil.Log (logPutText)
 import WayUtil.ViewSet
 
 import qualified Data.Text as T
+import qualified Data.IntMap as IM
 
 sendTo
     :: (WSTag a)
@@ -227,3 +230,24 @@ getOutputs = (fmap . fmap) intToPtr . liftIO . readIORef . wayBindingOutputs =<<
 
 getSeats :: Way a [Seat]
 getSeats = liftIO . readIORef . wayBindingSeats =<< getState
+
+
+viewBelow
+    :: Point
+    -> Way a (Maybe (View, Int, Int))
+viewBelow point = do
+    ws <- getCurrentOutput
+    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
+    case flip IM.lookup fullCache =<< ws of
+        Nothing -> pure Nothing
+        Just views -> do
+            candidates <- liftIO $ viewsBelow point views
+            seat <- getSeat
+            case seat of
+                Nothing ->  pure $ listToMaybe candidates
+                Just s -> do
+                    f <- getPointerFocus s
+                    case f of
+                        Nothing -> pure $ listToMaybe candidates
+                        Just focused -> 
+                            pure $ find (\(v, _, _) -> v == focused) candidates <|> listToMaybe candidates

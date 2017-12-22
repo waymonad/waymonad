@@ -29,16 +29,17 @@ Reach us at https://github.com/ongy/waymonad
 module ViewSet
 where
 
+import Control.Monad (filterM)
 import Data.Foldable (toList)
 import Data.List (find, delete)
 import Data.Map (Map)
-import Data.Maybe (listToMaybe, maybeToList)
+import Data.Maybe (listToMaybe, maybeToList, isJust)
 import Data.Text (Text)
 import Data.Typeable
 import Graphics.Wayland.WlRoots.Box (boxContainsPoint, Point (..), WlrBox (..))
 
 import Input.Seat (Seat)
-import View (View)
+import View (View, getViewEventSurface)
 
 import qualified Data.Text as T
 
@@ -110,17 +111,19 @@ addView seat v (Workspace l z) = Workspace l $ addElem seat v z
 rmView :: View -> Workspace -> Workspace
 rmView v (Workspace l z) = Workspace l $ rmElem v z
 
-viewBelow
+
+viewsBelow
     :: Traversable t
     => Point
     -> t (View, WlrBox)
-    -> IO (Maybe (View, Int, Int))
-viewBelow point views = do
-    let candidates = filter (boxContainsPoint point . snd) $ toList views
-    pure . fmap (uncurry makeLocal) . listToMaybe $ candidates
+    -> IO [(View, Int, Int)]
+viewsBelow (Point x y) views = do
+    (map $ uncurry makeLocal) <$> filterM hasSurface (toList views)
     where   makeLocal :: View -> WlrBox -> (View, Int, Int)
-            makeLocal view (WlrBox x y _ _) =
-                (view, pointX point - x, pointY point - y)
+            makeLocal view (WlrBox bx by _ _) =
+                (view, x - bx, y - by)
+            hasSurface :: (View, WlrBox) -> IO Bool
+            hasSurface (view, WlrBox bx by _ _) = isJust <$> getViewEventSurface view (fromIntegral (x - bx)) (fromIntegral (y - by))
 
 -- TODO: Refactor :(
 setFocused' :: (Eq a, Eq b) => a -> b -> Zipper a b -> Zipper a b

@@ -63,13 +63,13 @@ import ViewSet (WSTag)
 import Waymonad
     ( Way
     , getSeat
-    , viewBelow
     , floatBelow
     , WayLoggers (..)
     )
 import WayUtil
     ( setSignalHandler
     , setSeatOutput
+    , viewBelow
     )
 import WayUtil.Log (logPutStr)
 import WayUtil.Focus (focusView)
@@ -122,7 +122,7 @@ getCursorView layout cursor = do
                     let x = floor baseX - offX
                     let y = floor baseY - offY
                     let index = ptrToInt out
-                    viewBelow (Point x y) index
+                    viewBelow (Point x y)
 
 updatePosition
     :: WSTag a

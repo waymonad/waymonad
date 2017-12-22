@@ -38,7 +38,6 @@ module Waymonad
     , runLayoutCache
     , runLayoutCache'
 
-    , viewBelow
     , floatBelow
 
     , KeyBinding
@@ -77,7 +76,9 @@ import Control.Monad.Reader (ReaderT(..), MonadReader(..), local)
 import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
 import Data.IntMap (IntMap)
+import Data.List (find)
 import Data.Map (Map)
+import Data.Maybe (maybeToList, listToMaybe)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf, cast)
@@ -85,7 +86,7 @@ import Data.Word (Word32)
 
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox)
 
-import Input.Seat (Seat)
+import Input.Seat (Seat, getPointerFocus)
 import View (View, getViewEventSurface)
 import Waymonad.Extensible
 import Waymonad.Types
@@ -117,26 +118,33 @@ runLayoutCache (LayoutCache m) ref = liftIO $ runReaderT m ref
 runLayoutCache' :: MonadIO m => LayoutCacheRef -> LayoutCache a -> m a
 runLayoutCache' ref act = runLayoutCache act ref
 
-floatBelow
+floatsBelow
     :: Point
-    -> Way a (Maybe View)
-floatBelow (Point x y) = do
+    -> Way a [View]
+floatsBelow (Point x y) = do
     views <- liftIO . fmap S.toList . readIORef . wayFloating =<< getState
     candidates <- liftIO $ forM views $
         \view -> unsafeInterleaveIO $ (fmap . fmap) (const view) $
             getViewEventSurface view (fromIntegral x) (fromIntegral y)
 
-    pure $ foldl (<|>) Nothing candidates
+    pure $ foldMap maybeToList candidates
 
-viewBelow
+floatBelow
     :: Point
-    -> Int
-    -> Way a (Maybe (View, Int, Int))
-viewBelow point ws = do
-    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
-    case IM.lookup ws fullCache of
-        Nothing -> pure Nothing
-        Just x -> liftIO $ VS.viewBelow point x
+    -> Way a (Maybe View)
+floatBelow p = do
+    floats <- floatsBelow p
+    seat <- getSeat
+
+    -- TODO: Prettify this =.=
+    case seat of
+        Nothing -> pure $ listToMaybe floats
+        Just s -> do
+            focused <- getPointerFocus s
+            case focused of
+                Nothing -> pure $ listToMaybe floats
+                Just f ->
+                    pure $ find ((==) f) floats <|> listToMaybe floats
 
 
 getEvent :: EventClass e => SomeEvent -> Maybe (e)
