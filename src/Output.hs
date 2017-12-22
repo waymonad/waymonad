@@ -166,14 +166,14 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
 
-outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> View -> WlrBox -> IO ()
+outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> View -> WlrBox -> IO (IO ())
 outputHandleView comp secs output view box = do
     surface <- getViewSurface view
     scale <- viewGetScale view
     local <- viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
     outputHandleSurface comp secs output surface scale lBox
-    renderViewAdditional (\v b ->
+    pure $ renderViewAdditional (\v b ->
         void $ outputHandleSurface
             comp
             secs
@@ -204,8 +204,9 @@ frameHandler compRef cacheRef fRef secs output = runLayoutCache' cacheRef $ do
     liftIO $ renderOn output (compRenderer comp) $ do
         case viewsM of
             Nothing -> pure ()
-            Just wsViews ->
-                mapM_ (uncurry $ outputHandleView comp secs output) wsViews
+            Just wsViews -> do
+                overs <- mapM (uncurry $ outputHandleView comp secs output) wsViews
+                sequence_ overs
         forM_ floats $ \view -> do
             (WlrBox x y w h) <- getViewBox view
             let box = WlrBox (x - ox) (y - oy) w h
