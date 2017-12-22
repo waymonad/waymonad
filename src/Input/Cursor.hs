@@ -134,7 +134,6 @@ updatePosition
 updatePosition layout cursor outref time = do
     curX <- liftIO  $ getCursorX cursor
     curY <- liftIO  $ getCursorY cursor
-    viewM <- getCursorView layout cursor
 
     (Just seat) <- getSeat
 
@@ -144,6 +143,7 @@ updatePosition layout cursor outref time = do
             liftIO $ writeIORef outref $ ptrToInt out
             setSeatOutput seat $ These (ptrToInt out) (ptrToInt out)
 
+    viewM <- getCursorView layout cursor
     case viewM of
         Nothing -> pointerClear seat
         Just (view, baseX, baseY) -> do

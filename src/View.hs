@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module View
     ( ShellSurface (..)
     , View (..)
@@ -37,9 +38,15 @@ module View
     , getViewClient
     , getViewInner
     , getViewTitle
+    , setViewLocal
+    , viewGetScale
+    , viewGetLocal
     )
 where
 
+import Debug.Trace (traceShowId, traceShow)
+
+import System.IO (hPutStrLn, stderr)
 import Data.IORef (IORef, readIORef, writeIORef, newIORef)
 import Control.Monad.IO.Class
 import Data.Text (Text)
@@ -51,7 +58,7 @@ import Graphics.Wayland.Resource (resourceGetClient)
 import Graphics.Wayland.Server (Client)
 
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource)
-import Graphics.Wayland.WlRoots.Box (WlrBox(..))
+import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
 
 class Typeable a => ShellSurface a where
     getSurface :: MonadIO m => a -> m (Ptr WlrSurface)
@@ -69,8 +76,10 @@ class Typeable a => ShellSurface a where
     getAppId :: MonadIO m => a -> m Text
 
 data View = forall a. ShellSurface a => View
-    { viewSurface :: a
-    , viewBox :: IORef WlrBox
+    { viewSurface  :: a
+    , viewBox      :: IORef WlrBox
+    , viewPosition :: IORef WlrBox
+    , viewScaling  :: IORef Float
     }
 
 instance Show View where
@@ -99,17 +108,21 @@ createView :: (ShellSurface a, MonadIO m) => a -> m View
 createView surf = do
     (width, height) <- getSize surf
     let box = WlrBox 0 0 (floor width) (floor height)
-    ref <- liftIO $ newIORef box
+    global <- liftIO $ newIORef box
+    local <- liftIO $ newIORef box
+    scale <- liftIO $ newIORef 1.0
     pure View
         { viewSurface = surf
-        , viewBox = ref
+        , viewBox = global
+        , viewPosition = local
+        , viewScaling = scale
         }
 
 closeView :: MonadIO m => View -> m ()
 closeView (View {viewSurface=surf}) = close surf
 
 moveView :: MonadIO m => View -> Double -> Double -> m ()
-moveView (View surf ref) x y = do
+moveView (View {viewSurface = surf, viewBox = ref}) x y = do
     old <- liftIO $ readIORef ref
     let new = old { boxX = floor x, boxY = floor y}
     liftIO $ writeIORef ref new
@@ -117,12 +130,14 @@ moveView (View surf ref) x y = do
 
 
 resizeView :: MonadIO m => View -> Double -> Double -> m ()
-resizeView (View surf ref) width height = do
+resizeView v@(View {viewSurface = surf, viewBox = ref}) width height = do
     old <- liftIO $ readIORef ref
     let new = old { boxWidth = floor width, boxHeight = floor height}
     liftIO $ writeIORef ref new
+    (oldWidth, oldHeight) <- getSize surf
     resize surf (floor width) (floor height)
 
+    setViewLocal v $ WlrBox 0 0 (floor oldWidth) (floor oldHeight)
 
 getViewSurface :: MonadIO m => View -> m (Ptr WlrSurface)
 getViewSurface (View {viewSurface = surf}) = getSurface surf
@@ -138,8 +153,12 @@ renderViewAdditional fun (View {viewSurface = surf}) = do
 
 
 getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
-getViewEventSurface (View {viewSurface = surf}) x y = do
-    getEventSurface surf (x) (y)
+getViewEventSurface (View {viewSurface = surf, viewPosition = local, viewScaling = scale}) x y = do
+    scaleFactor <- liftIO $ readIORef scale
+    posBox <- liftIO $ readIORef local
+    getEventSurface surf
+        ((x - fromIntegral (boxX posBox)) / realToFrac scaleFactor)
+        ((y - fromIntegral (boxY posBox)) / realToFrac scaleFactor)
 
 getViewClient :: MonadIO m => View -> m (Maybe Client)
 getViewClient (View {viewSurface = surf}) = do
@@ -151,3 +170,35 @@ getViewInner (View {viewSurface = surf}) = cast surf
 
 getViewTitle :: MonadIO m => View -> m Text
 getViewTitle (View {viewSurface = surf}) = getTitle surf
+
+getLocalBox :: WlrBox -> WlrBox -> (WlrBox, Float)
+getLocalBox inner outer =
+    if boxWidth inner <= boxWidth outer && boxHeight inner <= boxHeight outer
+        then (inner, 1.0)
+        else
+            let scale:: Float = min (fromIntegral (boxWidth  outer) / fromIntegral (boxWidth  inner))
+                                    (fromIntegral (boxHeight outer) / fromIntegral (boxHeight inner))
+
+             in (WlrBox 0 0 (floor $ scale * fromIntegral (boxWidth inner)) (floor $ scale * fromIntegral (boxHeight inner)), traceShow inner $ traceShow outer $ traceShowId scale)
+
+-- | This should be called whenever the contained surface is resized. It will
+-- determine whether we should try and downscale it to fit the area, or
+-- position it somewhere inside the configured box, because it is *smaller*
+-- than the intended area
+setViewLocal :: MonadIO m => View -> WlrBox -> m ()
+setViewLocal (View {viewBox = global, viewPosition = local, viewScaling = scaleRef}) box = liftIO $ do
+    outerBox <- readIORef global
+    if toOrigin outerBox == box
+        then do
+            writeIORef local box
+            writeIORef scaleRef 1
+        else do
+            let (inner, scale) = getLocalBox box outerBox
+            writeIORef local (centerBox inner $ toOrigin outerBox)
+            writeIORef scaleRef scale
+
+viewGetScale :: MonadIO m => View -> m Float
+viewGetScale (View {viewScaling = scale}) = liftIO $ readIORef scale
+
+viewGetLocal :: MonadIO m => View -> m WlrBox
+viewGetLocal (View {viewPosition = local}) = liftIO $ readIORef local

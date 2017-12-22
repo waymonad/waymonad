@@ -42,7 +42,7 @@ import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Foreign.Storable (Storable(..))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import qualified Graphics.Wayland.WlRoots.XdgShell as R
-import Data.IORef (newIORef, IORef, modifyIORef, readIORef)
+import Data.IORef (newIORef, IORef, modifyIORef, readIORef, writeIORef)
 import Graphics.Wayland.Server (DisplayServer)
 import Foreign.StablePtr
     ( newStablePtr
@@ -99,6 +99,13 @@ handleXdgDestroy ref delFun surf = do
         sptr :: Ptr () <- peek (R.getXdgSurfaceDataPtr surf)
         freeStablePtr $ castPtrToStablePtr sptr
 
+handleCommit :: View -> IORef (Int, Int) -> Ptr R.WlrXdgSurface -> IO ()
+handleCommit view ref surf = do
+    WlrBox _ _ width height <- R.getGeometry surf
+    (oldWidth, oldHeight) <- readIORef ref
+    when (oldWidth /= width || oldHeight /= height) $ do
+        setViewLocal view $ WlrBox 0 0 width height
+        writeIORef ref (width, height)
 
 handleXdgSurface
     :: MapRef
@@ -120,9 +127,11 @@ handleXdgSurface ref addFun delFun surf = do
             R.setMaximized surf True
 
         let signals = R.getXdgSurfaceEvents surf
-        handler <- setSignalHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref delFun)
+        destroyHandler <- setSignalHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref delFun)
+        sizeRef <- liftIO $ newIORef (0, 0)
+        commitHandler <- setSignalHandler (R.xdgSurfaceEvtCommit signals) (liftIO . handleCommit view sizeRef)
         liftIO $ do
-            sptr <- newStablePtr handler
+            sptr <- newStablePtr (destroyHandler, commitHandler)
             poke (R.getXdgSurfaceDataPtr surf) (castStablePtrToPtr sptr)
 
 
@@ -180,4 +189,3 @@ instance ShellSurface XdgSurface where
     getID = ptrToInt . unXdg
     getTitle = liftIO . R.getTitle . unXdg
     getAppId = liftIO . R.getAppId . unXdg
-

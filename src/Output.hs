@@ -30,7 +30,7 @@ where
 import Control.Exception (bracket_)
 import Data.List ((\\), sortOn)
 import Data.Ratio (Ratio, (%))
-import Control.Monad (forM_, forM, filterM, void)
+import Control.Monad (forM_, forM, filterM, void, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, readIORef, modifyIORef)
 import Data.Map (Map)
@@ -99,7 +99,7 @@ import Config.Output (OutputConfig (..), Mode (..))
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (whenJust)
-import View (View, getViewSurface, renderViewAdditional, getViewBox)
+import View (View, getViewSurface, renderViewAdditional, getViewBox, viewGetScale, viewGetLocal)
 import ViewSet (WSTag (..))
 import Waymonad
     ( Way
@@ -126,22 +126,19 @@ renderOn output rend act = bracket_
     (swapOutputBuffers output)
     (doRender rend output act)
 
-outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -> WlrBox -> IO (Float, Float)
-outputHandleSurface comp secs output surface box = do
+outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
+outputHandleSurface comp secs output surface scaleFactor box = do
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
-    if isValid
-        then withMatrix $ \trans -> withMatrix $ \scale -> withMatrix $ \final -> do
+    when isValid $ withMatrix $ \trans -> withMatrix $ \scale -> withMatrix $ \final -> do
             (twidth, theight) <- getTextureSize texture
             let x = boxX box
                 y = boxY box
                 bwidth = boxWidth box
                 bheight = boxHeight box
-                wscale :: Float = fromIntegral bwidth / fromIntegral twidth
-                hscale :: Float = fromIntegral bheight / fromIntegral theight
 
             matrixTranslate trans (realToFrac x) (realToFrac y) 0
-            matrixScale scale wscale hscale 1
+            matrixScale scale scaleFactor scaleFactor 1
             matrixMul trans scale final
             withSurfaceMatrix surface (getTransMatrix output) final $ \mat -> do
                 renderWithMatrix (compRenderer comp) texture mat
@@ -162,29 +159,31 @@ outputHandleSurface comp secs output surface box = do
                     secs
                     output
                     subsurf
+                    scaleFactor
                     sbox{ boxX = boxX sbox + boxX box
                         , boxY = boxY sbox + boxY box
-                        , boxWidth = floor $ fromIntegral (boxWidth sbox) * wscale
-                        , boxHeight = floor $ fromIntegral (boxHeight sbox) * hscale
+                        , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
+                        , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
-            pure (wscale, hscale)
-        else
-            pure (1, 1)
 
 outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> View -> WlrBox -> IO ()
 outputHandleView comp secs output view box = do
     surface <- getViewSurface view
-    (wscale, hscale) <- outputHandleSurface comp secs output surface box
+    scale <- viewGetScale view
+    local <- viewGetLocal view
+    let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
+    outputHandleSurface comp secs output surface scale lBox
     renderViewAdditional (\v b ->
         void $ outputHandleSurface
             comp
             secs
             output
             v
-            b   { boxX = floor (fromIntegral (boxX b) * wscale) + boxX box
-                , boxY = floor (fromIntegral (boxY b) * hscale) + boxY box
-                , boxWidth = floor $ fromIntegral (boxWidth b) * wscale
-                , boxHeight = floor $ fromIntegral (boxHeight b) * hscale
+            scale
+            b   { boxX = floor (fromIntegral (boxX b) * scale) + boxX lBox
+                , boxY = floor (fromIntegral (boxY b) * scale) + boxY lBox
+                , boxWidth = floor $ fromIntegral (boxWidth b) * scale
+                , boxHeight = floor $ fromIntegral (boxHeight b) * scale
                 }
         )
         view
