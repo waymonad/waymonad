@@ -58,6 +58,9 @@ import Data.Typeable (Typeable, cast)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
+import System.IO
+import System.IO.Unsafe (unsafePerformIO)
+
 import Graphics.Wayland.Resource (resourceGetClient)
 import Graphics.Wayland.Server (Client)
 
@@ -87,17 +90,17 @@ data View = forall a. ShellSurface a => View
     , viewPosition :: IORef WlrBox
     , viewScaling  :: IORef Float
     , viewDestroy  :: IORef (IntMap (View -> IO ()))
+    , viewID       :: Int
     }
 
 instance Show View where
-    show (View {viewSurface=v}) = show $ getID v
+    show v = show $ getViewID v
 
 instance Ord View where
-    compare (View {viewSurface=left}) (View {viewSurface=right}) = compare (getID left) (getID right)
+    compare left right = compare (getViewID left) (getViewID right)
 
 instance Eq View where
-    (View {viewSurface=left}) == (View {viewSurface=right}) =
-        getID left == getID right
+    left == right = getViewID left == getViewID right
 
 getViewSize :: MonadIO m => View -> m (Double, Double)
 getViewSize (View {viewSurface=surf}) = getSize surf
@@ -111,20 +114,27 @@ setViewBox v box = do
     resizeView v (fromIntegral $ boxWidth box) (fromIntegral $ boxHeight box)
     liftIO $ writeIORef (viewBox v) box
 
+viewCounter :: IORef Int
+{-# NOINLINE viewCounter #-}
+viewCounter = unsafePerformIO (newIORef 0)
+
 createView :: (ShellSurface a, MonadIO m) => a -> m View
-createView surf = do
+createView surf = liftIO $ do
     (width, height) <- getSize surf
     let box = WlrBox 0 0 (floor width) (floor height)
-    global <- liftIO $ newIORef box
-    local <- liftIO $ newIORef box
-    scale <- liftIO $ newIORef 1.0
-    cbs <- liftIO $ newIORef mempty
+    global <- newIORef box
+    local <- newIORef box
+    scale <- newIORef 1.0
+    cbs <- newIORef mempty
+    idVal <- readIORef viewCounter
+    modifyIORef viewCounter (+1)
     pure View
         { viewSurface = surf
         , viewBox = global
         , viewPosition = local
         , viewScaling = scale
         , viewDestroy = cbs
+        , viewID = idVal
         }
 
 closeView :: MonadIO m => View -> m ()
@@ -218,7 +228,8 @@ viewGetLocal :: MonadIO m => View -> m WlrBox
 viewGetLocal (View {viewPosition = local}) = liftIO $ readIORef local
 
 getViewID :: View -> Int
-getViewID (View {viewSurface = surf}) = getID surf
+--getViewID (View {viewSurface = surf}) = getID surf
+getViewID = viewID
 
 addViewDestroyListener :: MonadIO m => Int -> (View -> IO ()) -> View -> m ()
 addViewDestroyListener key cb (View {viewDestroy = ref}) = liftIO $ modifyIORef ref (IM.insert key cb)
