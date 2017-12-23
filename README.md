@@ -42,3 +42,12 @@ That looked weird, so I implemented a logic that will give the layout a box cent
 
 Now it's a feature!
 ![Workspace on two outputs](https://i.imgur.com/FD53fWa.jpg)
+
+### Things I actually did as features
+* Windows will be centered into the layout box if they are too small
+    ![gnome-calculator centered](https://i.imgur.com/zHCA1aV.png)
+* Windows that don't want to get small enough, get forcefully scaled into position
+  
+  Also, `ProxyView` to display a window a second time, interactive but will not set sizes 
+    ![wayland terminal forcefully scaled](https://i.imgur.com/ak86ZVx.png)
+
