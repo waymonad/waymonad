@@ -160,8 +160,8 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                     output
                     subsurf
                     scaleFactor
-                    sbox{ boxX = boxX sbox + boxX box
-                        , boxY = boxY sbox + boxY box
+                    sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + boxX box
+                        , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + boxY box
                         , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
