@@ -94,6 +94,7 @@ data WayLoggers = WayLoggers
     , loggerWS :: Logger
     , loggerFocus :: Logger
     , loggerXdg :: Logger
+    , loggerX11 :: Logger
     , loggerKeybinds :: Logger
     , loggerSpawner :: Logger
     , loggerLayout :: Logger

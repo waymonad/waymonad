@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 module XWayland
     ( xwayShellCreate
     , XWayShell
@@ -43,6 +44,7 @@ import Control.Monad.IO.Class
 import Managehook
 import Waymonad
 import View
+import WayUtil.Log (logPutText)
 import Foreign.StablePtr
     ( newStablePtr
     , castStablePtrToPtr
@@ -110,6 +112,7 @@ handleXwaySurface
     -> Way a ()
 handleXwaySurface xway ref addFun delFun surf = do
     let xwaySurf = XWaySurface xway surf
+    logPutText loggerX11 "New XWayland surface"
     view <- createView xwaySurf
     addFun view
 

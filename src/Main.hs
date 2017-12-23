@@ -281,6 +281,7 @@ main =  do
                     , loggerWS = Logger True "Workspaces"
                     , loggerFocus = Logger True "Focus"
                     , loggerXdg = Logger True "Xdg_Shell"
+                    , loggerX11 = Logger True "XWayland"
                     , loggerKeybinds = Logger True "Keybindings"
                     , loggerSpawner = Logger True "Spawner"
                     , loggerLayout = Logger True "Layout"
