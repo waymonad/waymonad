@@ -31,6 +31,7 @@ module Utility
 where
 
 import Foreign.Ptr (Ptr, ptrToIntPtr, intPtrToPtr)
+import Data.Default (Default (..))
 
 
 intToPtr :: Integral a => a -> Ptr b
@@ -39,11 +40,11 @@ intToPtr = intPtrToPtr . fromIntegral
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
 
-whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
-whenJust Nothing _ = pure ()
+whenJust :: (Applicative m, Default r) => Maybe a -> (a -> m r) -> m r
+whenJust Nothing _ = pure def
 whenJust (Just x) f = f x
 
-doJust :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
+doJust :: (Monad m, Default r) => m (Maybe a) -> (a -> m r) -> m r
 doJust val act = flip whenJust act =<< val
 
 data These a = This a | That a | These a a

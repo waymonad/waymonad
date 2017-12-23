@@ -37,6 +37,11 @@ import Graphics.Wayland.WlRoots.Input.Pointer
     , WlrEventPointerAbsMotion (..)
     )
 import Input.Seat
+    ( pointerMotion
+    , pointerClear
+    , getPointerFocus
+    , pointerButton
+    )
 import Graphics.Wayland.WlRoots.Cursor
     ( WlrCursor
     , createCursor
@@ -57,7 +62,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     )
 import Graphics.Wayland.Signal (ListenerToken)
 
-import Utility (ptrToInt, doJust, These(..))
+import Utility (ptrToInt, doJust, These(..), whenJust)
 import View (View)
 import ViewSet (WSTag)
 import Waymonad
@@ -121,7 +126,6 @@ getCursorView layout cursor = do
                     (Point offX offY) <- liftIO $ layoutOuputGetPosition lout
                     let x = floor baseX - offX
                     let y = floor baseY - offY
-                    let index = ptrToInt out
                     viewBelow (Point x y)
 
 updatePosition
@@ -147,9 +151,8 @@ updatePosition layout cursor outref time = do
     case viewM of
         Nothing -> pointerClear seat
         Just (view, baseX, baseY) -> do
-            pre <- getPointerFocus seat
-            pointerMotion seat view time (fromIntegral baseX) (fromIntegral baseY)
-            when (Just view /= pre) (focusView view)
+            tmp <- pointerMotion seat view time (fromIntegral baseX) (fromIntegral baseY)
+            whenJust tmp focusView
 
 
 handleCursorMotion
@@ -200,6 +203,5 @@ handleCursorButton layout cursor event_ptr = do
     case viewM of
         Nothing -> pointerClear seat
         Just (view, x, y) -> do
-            pre <- getPointerFocus seat
-            pointerButton seat view (fromIntegral x) (fromIntegral y) event
-            when (Just view /= pre) (focusView view)
+            ret <- pointerButton seat view (fromIntegral x) (fromIntegral y) event
+            when ret (focusView view)

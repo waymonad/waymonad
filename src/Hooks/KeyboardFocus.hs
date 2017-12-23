@@ -22,16 +22,18 @@ Reach us at https://github.com/ongy/waymonad
 module Hooks.KeyboardFocus
 where
 
-import Input.Seat (Seat, keyboardClear, keyboardEnter)
+import Control.Monad (void)
+
 import Hooks.SeatMapping
+import Input.Seat (Seat, keyboardClear, keyboardEnter)
 import Utility (whenJust)
 import ViewSet (WSTag, getFocused, getMaster)
-import qualified ViewSet as VS
-import Waymonad
 import WayUtil
-import WayUtil.Log
 import WayUtil.Focus
+import WayUtil.Log
 import WayUtil.ViewSet (unsetFocus, setFocused, withWS, modifyWS)
+import Waymonad
+import qualified ViewSet as VS
 
 -- TODO: SANITIZE!!!!
 {- So the general idea here:
@@ -49,12 +51,12 @@ handleKeyboardSwitch e = case getEvent e of
     Just (KeyboardWSChangeEvent s pre cur) -> do
         whenJust pre $ unsetFocus s
         case cur of
-            Nothing -> keyboardClear s
+            Nothing -> void $ keyboardClear s
             Just ws -> (withWS ws $ getFocused s) >>= \case
-                Just v -> keyboardEnter s v
+                Just v -> void $ keyboardEnter s v
                 Nothing -> (withWS ws getMaster) >>= \case
                     Nothing -> keyboardClear s
                     Just v -> do
                         modifyWS (VS.setFocused v s) ws
-                        keyboardEnter s v
+                        void $ keyboardEnter s v
     _ -> pure ()

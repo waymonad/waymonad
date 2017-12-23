@@ -25,6 +25,8 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+--import Fuse.Main
+
 import qualified Hooks.OutputAdd as H
 import WayUtil.View
 import WayUtil.Timing
@@ -226,6 +228,7 @@ realMain compRef = do
     compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
+    --runFuse
     liftIO $ launchCompositor ignoreHooks
         { displayHook = writeIORef dspRef
         , backendPreHook = compFun

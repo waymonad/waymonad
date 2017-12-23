@@ -32,6 +32,7 @@ module Managehook
     )
 where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
@@ -91,7 +92,7 @@ enactInsert act = do
         InsertFloating box -> do
             setFloating view box
             seat <- getSeat
-            liftIO $ whenJust seat $ flip keyboardEnter view
+            liftIO $ whenJust seat $ void . flip keyboardEnter view
         InsertCustom ins -> ins
 
 

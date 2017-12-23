@@ -36,28 +36,19 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Maybe (isJust)
 import Data.Word (Word32)
-import Foreign.Ptr (Ptr)
+import Foreign.Ptr (Ptr, nullPtr)
 
 import Graphics.Wayland.WlRoots.Input.Pointer (WlrEventPointerButton (..))
-import Graphics.Wayland.WlRoots.Seat
-    ( WlrSeat
-    , createSeat
-    , keyboardNotifyEnter
-    , pointerClearFocus
-    , pointerNotifyEnter
-    , pointerNotifyMotion
-    , pointerNotifyButton
-    , setSeatCapabilities
-    , keyboardClearFocus
-    )
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.Server (DisplayServer, seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer)
 
 import Utility (doJust)
 import View (View, getViewSurface, getViewEventSurface)
 
+import qualified Graphics.Wayland.WlRoots.Seat as R
+
 data Seat = Seat
-    { seatRoots          :: Ptr WlrSeat
+    { seatRoots          :: Ptr R.WlrSeat
     , seatPointer        :: IORef (Maybe View)
     , seatKeyboard       :: IORef (Maybe View)
     , seatFocusView      :: Seat -> View -> IO ()
@@ -84,11 +75,11 @@ seatCreate
     -> (Float -> IO ())
     -> m Seat
 seatCreate dsp name focus reqDefault loadScale = liftIO $ do
-    roots    <- createSeat dsp name
+    roots    <- R.createSeat dsp name
     pointer  <- newIORef Nothing
     keyboard <- newIORef Nothing
 
-    setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
+    R.setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
 
     pure $ Seat
         { seatRoots          = roots
@@ -102,46 +93,68 @@ seatCreate dsp name focus reqDefault loadScale = liftIO $ do
 
 keyboardEnter' :: MonadIO m => Seat -> Ptr WlrSurface -> View -> m Bool
 keyboardEnter' seat surf view = liftIO $ do
-    -- TODO: I should probably check what wlroots actually does here in case of
-    -- grabs
-    liftIO $ keyboardNotifyEnter (seatRoots seat) surf
-    prev <- readIORef (seatKeyboard seat)
-    let changed = prev /= Just view
-    when changed $ do
-        writeIORef (seatKeyboard seat) (Just view)
-    pure changed
+    prev <- R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
+    R.keyboardNotifyEnter (seatRoots seat) surf
+    post <- R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
 
-keyboardEnter :: MonadIO m => Seat -> View -> m ()
+    if prev /= post
+       then do
+            oldView <- readIORef (seatKeyboard seat)
+            let changed = oldView /= Just view
+            when changed $ writeIORef (seatKeyboard seat) (Just view)
+            pure changed
+    else pure False
+
+keyboardEnter :: MonadIO m => Seat -> View -> m Bool
 keyboardEnter seat view = liftIO $ do
     surf <- getViewSurface view
-    void $ keyboardEnter' seat surf view
+    keyboardEnter' seat surf view
 
-pointerButton :: MonadIO m => Seat -> View -> Double -> Double -> WlrEventPointerButton -> m ()
+pointerButton :: MonadIO m => Seat -> View -> Double -> Double -> WlrEventPointerButton -> m Bool
 pointerButton seat view baseX baseY event = liftIO $ do
     let time = (fromIntegral $ eventPointerButtonTime event)
-    pointerNotifyButton (seatRoots seat) time (eventPointerButtonButton event) (eventPointerButtonState event)
+    R.pointerNotifyButton (seatRoots seat) time (eventPointerButtonButton event) (eventPointerButtonState event)
 
-    doJust (getViewEventSurface view baseX baseY) $ \(surf, _, _) -> do
-        changed <- keyboardEnter' seat surf view
-        when changed (seatFocusView seat seat view)
+    evtSurf <- getViewEventSurface view baseX baseY
+    case evtSurf of
+        Just (surf, _, _) -> do
+            changed <- keyboardEnter' seat surf view
+            when changed (seatFocusView seat seat view)
+            pure changed
+        Nothing -> pure False
 
-pointerEnter :: MonadIO m => Seat -> Ptr WlrSurface -> View -> Double -> Double -> m ()
+pointerEnter :: MonadIO m => Seat -> Ptr WlrSurface -> View -> Double -> Double -> m Bool
 pointerEnter seat surf view x y = liftIO $ do
-    pointerNotifyEnter (seatRoots seat) surf x y
-    writeIORef (seatPointer seat) (Just view)
+    prev <- R.getPointerFocus . R.getPointerState $ seatRoots seat
+    R.pointerNotifyEnter (seatRoots seat) surf x y
+    post <- R.getPointerFocus . R.getPointerState $ seatRoots seat
 
-pointerMotion :: MonadIO m => Seat -> View -> Word32 -> Double -> Double -> m ()
+    if prev /= post
+        then do
+            oldView <- readIORef (seatPointer seat)
+            let changed = oldView /= Just view
+            when changed $ writeIORef (seatPointer seat) (Just view)
+            pure changed
+        else pure False
+
+pointerMotion :: MonadIO m => Seat -> View -> Word32 -> Double -> Double -> m (Maybe View)
 pointerMotion seat view time baseX baseY = liftIO $ do
     doJust (getViewEventSurface view baseX baseY) $ \(surf, x, y) -> do
-        pointerEnter seat surf view x y
-        pointerNotifyMotion (seatRoots seat) time x y
+        changed <- pointerEnter seat surf view x y
+        R.pointerNotifyMotion (seatRoots seat) time x y
+        pure $ if changed
+            then Just view
+            else Nothing
 
 pointerClear :: MonadIO m => Seat -> m ()
 pointerClear seat = liftIO $ do
-    getDefault <- (isJust <$> readIORef (seatPointer seat))
-    when getDefault (seatRequestDefault seat)
-    pointerClearFocus (seatRoots seat)
-    writeIORef (seatPointer seat) Nothing
+    R.pointerClearFocus (seatRoots seat)
+    post <- R.getPointerFocus . R.getPointerState $ seatRoots seat
+
+    when (nullPtr == post) $ do
+        getDefault <- (isJust <$> readIORef (seatPointer seat))
+        when getDefault (seatRequestDefault seat)
+        writeIORef (seatPointer seat) Nothing
 
 getPointerFocus :: MonadIO m => Seat -> m (Maybe View)
 getPointerFocus = liftIO . readIORef . seatPointer
@@ -151,5 +164,7 @@ getKeyboardFocus = liftIO . readIORef . seatKeyboard
 
 keyboardClear :: MonadIO m => Seat -> m ()
 keyboardClear seat = liftIO $ do
-    keyboardClearFocus (seatRoots seat)
-    writeIORef (seatKeyboard seat) Nothing
+    R.keyboardClearFocus (seatRoots seat)
+    post <- R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
+
+    when (post == nullPtr) $ writeIORef (seatKeyboard seat) Nothing
