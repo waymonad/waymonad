@@ -59,7 +59,7 @@ executable waymonad
   other-modules:        Config.Box
   other-modules:        Config.Output
 
-  other-modules:        Fuse.Main
+  --other-modules:        Fuse.Main
 
   other-modules:        Input
   other-modules:        Input.Cursor
