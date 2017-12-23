@@ -10,6 +10,17 @@ This project is intended to provide a wayland based desktop which shares the ide
 ## [WIP]: This is work in Progress.
 Currently more a place for me to write down thoughts and provide a platform to discuss them.
 
+-----
+
+To test this, you need `wlroots` installed.
+This currently only builds with the `new-build` feature of cabal-install. `stack` is (not yet) supported.
+
+ * git clone --recursive https://github.com/ongy/waymonad
+ * cd waymonad
+ * cabal new-build
+
+-----
+
 ### What this is NOT
 
 * A straight upgrade path
