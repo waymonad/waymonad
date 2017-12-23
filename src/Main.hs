@@ -72,8 +72,10 @@ import Layout.Tall (Tall (..))
 import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
+import Utility (doJust)
 import Utility.Spawn (spawn, spawnManaged, manageNamed, manageSpawnOn, namedSpawner, onSpawner)
-import View (View)
+import View (View, createView)
+import View.Proxy
 import ViewSet
     ( Workspace(..)
     , Layout (..)
@@ -106,6 +108,7 @@ import WayUtil
     , killCurrent
     , seatOutputEventHandler
     )
+import WayUtil.Current (getCurrentView)
 import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyCurrentWS)
 import WayUtil.Floating (centerFloat, modifyFloating)
 import XWayland (xwayShellCreate, overrideXRedirect)
@@ -159,8 +162,8 @@ wsSyms =
 workspaces :: [Text]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
-bindings :: DisplayServer -> [(([WlrModifier], Keysym), KeyBinding Text)]
-bindings dsp =
+bindings :: DisplayServer -> (View -> IO ()) -> [(([WlrModifier], Keysym), KeyBinding Text)]
+bindings dsp fun =
     [ (([modi], keysym_k), modifyCurrentWS moveLeft)
     , (([modi], keysym_j), modifyCurrentWS moveRight)
     , (([modi, Shift], keysym_k), modifyCurrentWS moveViewLeft)
@@ -173,6 +176,7 @@ bindings dsp =
     , (([modi], keysym_n), focusNextOut)
     , (([modi], keysym_q), killCurrent)
     , (([modi], keysym_o), centerFloat)
+    , (([modi], keysym_c), doJust getCurrentView $ \v -> insertView mempty =<< makeProxy v fun)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
     where modi = Alt
 
@@ -184,7 +188,7 @@ makeCompositor
     :: WSTag a
     => IORef DisplayServer
     -> Ptr Backend
-    -> (DisplayServer -> [(([WlrModifier], Keysym), KeyBinding a)])
+    -> (DisplayServer -> (View -> IO ()) -> [(([WlrModifier], Keysym), KeyBinding a)])
     -> Way a Compositor
 makeCompositor dspRef backend keyBinds = do
     display <- liftIO $ readIORef dspRef
@@ -195,7 +199,9 @@ makeCompositor dspRef backend keyBinds = do
     layout <- liftIO $ createOutputLayout
     shooter <- liftIO $ screenshooterCreate display renderer
 
-    input <- inputCreate display layout backend (makeBindingMap $ keyBinds display)
+    cb <- makeCallback removeView
+
+    input <- inputCreate display layout backend (makeBindingMap $ keyBinds display cb)
 
     let addFun = insertView (overrideXRedirect <> manageSpawnOn <> manageNamed)
     xdgShell <- xdgShellCreate display addFun removeView

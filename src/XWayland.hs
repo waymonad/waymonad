@@ -96,6 +96,7 @@ handleXwayDestroy
     -> Way a ()
 handleXwayDestroy ref delFun surf = do
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
+    triggerViewDestroy view
     delFun view
 
     liftIO $ do

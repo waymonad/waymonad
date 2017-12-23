@@ -93,6 +93,7 @@ handleXdgDestroy ref delFun surf = do
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     liftIO $ modifyIORef ref $ M.delete (ptrToInt surf)
 
+    triggerViewDestroy view
     delFun view
 
     liftIO $ do

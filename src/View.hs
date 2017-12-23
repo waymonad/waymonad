@@ -41,12 +41,18 @@ module View
     , setViewLocal
     , viewGetScale
     , viewGetLocal
+    , getViewID
+
+    , addViewDestroyListener
+    , rmViewDestroyListener
+    , triggerViewDestroy
     )
 where
 
 import Control.Applicative ((<|>))
 import Control.Monad.IO.Class
-import Data.IORef (IORef, readIORef, writeIORef, newIORef)
+import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
+import Data.IntMap (IntMap)
 import Data.Text (Text)
 import Data.Typeable (Typeable, cast)
 import Data.Word (Word32)
@@ -57,6 +63,8 @@ import Graphics.Wayland.Server (Client)
 
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, subSurfaceAt)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
+
+import qualified Data.IntMap as IM
 
 class Typeable a => ShellSurface a where
     getSurface :: MonadIO m => a -> m (Ptr WlrSurface)
@@ -78,6 +86,7 @@ data View = forall a. ShellSurface a => View
     , viewBox      :: IORef WlrBox
     , viewPosition :: IORef WlrBox
     , viewScaling  :: IORef Float
+    , viewDestroy  :: IORef (IntMap (View -> IO ()))
     }
 
 instance Show View where
@@ -109,11 +118,13 @@ createView surf = do
     global <- liftIO $ newIORef box
     local <- liftIO $ newIORef box
     scale <- liftIO $ newIORef 1.0
+    cbs <- liftIO $ newIORef mempty
     pure View
         { viewSurface = surf
         , viewBox = global
         , viewPosition = local
         , viewScaling = scale
+        , viewDestroy = cbs
         }
 
 closeView :: MonadIO m => View -> m ()
@@ -205,3 +216,17 @@ viewGetScale (View {viewScaling = scale}) = liftIO $ readIORef scale
 
 viewGetLocal :: MonadIO m => View -> m WlrBox
 viewGetLocal (View {viewPosition = local}) = liftIO $ readIORef local
+
+getViewID :: View -> Int
+getViewID (View {viewSurface = surf}) = getID surf
+
+addViewDestroyListener :: MonadIO m => Int -> (View -> IO ()) -> View -> m ()
+addViewDestroyListener key cb (View {viewDestroy = ref}) = liftIO $ modifyIORef ref (IM.insert key cb)
+
+rmViewDestroyListener :: MonadIO m => Int -> View -> m ()
+rmViewDestroyListener key (View {viewDestroy = ref}) = liftIO $ modifyIORef ref (IM.delete key)
+
+triggerViewDestroy :: MonadIO m => View -> m ()
+triggerViewDestroy v@(View {viewDestroy = ref}) = liftIO $ do
+    cbs <- readIORef ref
+    mapM_ ($ v) cbs
