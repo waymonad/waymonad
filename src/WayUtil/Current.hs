@@ -38,6 +38,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
 import Input.Seat (Seat, getKeyboardFocus)
+import {-# SOURCE #-} Output (Output (..), getOutputId)
 import Utility (intToPtr)
 import View (View)
 import ViewSet (WSTag, Workspace)
@@ -50,8 +51,9 @@ import Waymonad
     )
 
 import qualified Data.Map as M
+import qualified Data.IntMap as IM
 
-getPointerOutput :: Way a Int
+getPointerOutput :: Way a Output
 getPointerOutput = do
     state <- getState
     (Just seat) <- getSeat
@@ -59,7 +61,7 @@ getPointerOutput = do
     let (Just current) = M.lookup seat $ M.fromList currents
     pure . fst $ current
 
-getCurrentOutput :: Way a (Maybe Int)
+getCurrentOutput :: Way a (Maybe Output)
 getCurrentOutput = do
     state <- getState
     (Just seat) <- getSeat
@@ -74,7 +76,7 @@ getCurrentWS :: (WSTag a) => Way a a
 getCurrentWS = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     output <- getCurrentOutput
-    let ws = (\out -> M.lookup out . M.fromList $ map swap mapping) =<< output
+    let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) =<< output
     case ws of
         Just x -> pure x
 -- TODO: Make this a better error message!
@@ -101,5 +103,5 @@ getCurrentView =
 getCurrentBox
     :: Way a (WlrBox)
 getCurrentBox = do
-    liftIO . getOutputBox . intToPtr =<< getPointerOutput
+    liftIO . getOutputBox . outputRoots =<< getPointerOutput
 

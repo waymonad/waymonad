@@ -63,6 +63,7 @@ import Input.Cursor
 import Input.Keyboard
 import Input.Pointer
 import Input.Seat
+import Output (Output(..))
 import View (getViewClient)
 import ViewSet (WSTag)
 import Utility (doJust)
@@ -116,7 +117,7 @@ loadCurrentScales :: Ptr WlrXCursorManager -> Way a ()
 loadCurrentScales manager = do
     outputs <- getOutputs
     forM_ outputs $ \output -> liftIO $ do
-        scale <- getOutputScale output
+        scale <- getOutputScale $ outputRoots output
         xCursorLoad manager scale
 
 inputCreate

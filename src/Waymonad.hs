@@ -64,6 +64,8 @@ module Waymonad
     , SomeEvent
     , getEvent
     , sendEvent
+
+    , getSeats
     )
 where
 
@@ -208,3 +210,7 @@ setCallback act fun = do
 
 withSeat :: Maybe Seat -> Way a b -> Way a b
 withSeat seat (Way m) = Way $ local (const seat) m
+
+getSeats :: Way a [Seat]
+getSeats = liftIO . readIORef . wayBindingSeats =<< getState
+

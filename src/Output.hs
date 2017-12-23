@@ -24,6 +24,9 @@ module Output
     ( handleOutputAdd
     , handleOutputRemove
     , OutputAddEvent (..)
+    , Output (..)
+    , getOutputId
+    , outputFromWlr
     )
 where
 
@@ -111,11 +114,26 @@ import Waymonad
     , EventClass
     , sendEvent
     )
-import WayUtil (getSeats)
+import Waymonad (getSeats)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
+import qualified Data.Text as T
 import qualified Data.Text.IO as T
+
+data Output = Output
+    { outputRoots :: Ptr WlrOutput
+    , outputName  :: Text
+    }
+
+instance Show Output where
+    show (Output {outputName = name}) = T.unpack name
+
+instance Eq Output where
+    (Output {outputRoots = left}) == (Output {outputRoots = right}) = left == right
+
+instance Ord Output where
+    (Output {outputRoots = left}) `compare` (Output {outputRoots = right}) = left `compare` right
 
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
@@ -269,7 +287,7 @@ configureOutput layout configs name output = do
 
     liftIO $ whenJust mode (flip setOutputMode output)
 
-newtype OutputAddEvent = OutputAdd Int
+newtype OutputAddEvent = OutputAdd Output
     deriving (Eq, Show)
 
 instance EventClass OutputAddEvent
@@ -288,7 +306,8 @@ handleOutputAdd ref _ output = do
     configureOutput (compLayout comp) (configOutputs $ wayConfig state) name output
 
     current <- wayBindingOutputs <$> getState
-    liftIO $ modifyIORef current ((ptrToInt output) :)
+    let out = Output output name
+    liftIO $ modifyIORef current (out :)
 
     cacheRef <- wayBindingCache <$> getState
     floats <- wayFloating <$> getState
@@ -297,7 +316,7 @@ handleOutputAdd ref _ output = do
     seats <- getSeats
     liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
 
-    sendEvent $ OutputAdd $ ptrToInt output
+    sendEvent $ OutputAdd out
 
     pure $ \secs out -> frameHandler ref cacheRef floats secs out
 
@@ -306,12 +325,20 @@ handleOutputRemove
     -> Way a ()
 handleOutputRemove output = do
     state <- getState
-    let val = ptrToInt output
+    name <- liftIO $ getOutputName output
+    let val = Output output name
     liftIO $ do
         modifyIORef (wayBindingMapping state) $  filter ((/=) val . snd)
         modifyIORef (wayBindingOutputs state) $  \xs -> xs \\ [val]
 
-        name <- getOutputName output
         T.hPutStr stderr "Detached output: "
         T.hPutStr stderr name
         T.hPutStrLn stderr "."
+
+getOutputId :: Output -> Int
+getOutputId = ptrToInt . outputRoots
+
+outputFromWlr :: MonadIO m => Ptr WlrOutput -> m Output
+outputFromWlr ptr = liftIO $ do
+    name <- getOutputName ptr
+    pure $ Output ptr name

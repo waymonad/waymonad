@@ -29,7 +29,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 import Data.List ((\\))
 
-import Output (OutputAddEvent(OutputAdd))
+import Output (Output, OutputAddEvent(OutputAdd))
 import Utility (whenJust)
 import ViewSet (WSTag)
 import WayUtil.Focus (setOutputWorkspace)
@@ -38,7 +38,7 @@ import Waymonad (Way, getEvent, SomeEvent, WayBindingState (..), getState)
 
 attachFreeWS
     :: WSTag a
-    => Int
+    => Output
     -> Way a ()
 attachFreeWS out = do
     taken <- fmap (map fst) <$> liftIO . readIORef . wayBindingMapping =<< getState

@@ -62,6 +62,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     )
 import Graphics.Wayland.Signal (ListenerToken)
 
+import Output (Output (..), outputFromWlr)
 import Utility (ptrToInt, doJust, These(..), whenJust)
 import View (View)
 import ViewSet (WSTag)
@@ -145,7 +146,8 @@ updatePosition layout cursor outref time = do
         old <- liftIO $ readIORef outref
         when (old /= ptrToInt out) $ do
             liftIO $ writeIORef outref $ ptrToInt out
-            setSeatOutput seat $ These (ptrToInt out) (ptrToInt out)
+            arg <- outputFromWlr out
+            setSeatOutput seat $ These arg arg
 
     viewM <- getCursorView layout cursor
     case viewM of

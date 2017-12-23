@@ -50,6 +50,7 @@ import Graphics.Wayland.WlRoots.Shell (WlrShell)
 import Config (WayConfig)
 import {-# SOURCE #-} Input (Input)
 import Input.Seat (Seat)
+import {-# SOURCE #-} Output (Output)
 import View (View)
 import ViewSet (ViewSet)
 import Waymonad.Extensible (StateMap)
@@ -117,9 +118,9 @@ data WayBindingState a = WayBindingState
     { wayBindingCache    :: LayoutCacheRef
     , wayBindingState    :: WayStateRef a
     -- Left Pointer, Right Keyboard
-    , wayBindingCurrent  :: IORef [(Seat, (Int, Int))]
-    , wayBindingMapping  :: IORef [(a, Int)]
-    , wayBindingOutputs  :: IORef [Int]
+    , wayBindingCurrent  :: IORef [(Seat, (Output, Output))]
+    , wayBindingMapping  :: IORef [(a, Output)]
+    , wayBindingOutputs  :: IORef [Output]
     , wayBindingSeats    :: IORef [Seat]
     , wayFloating        :: IORef (Set View)
     , wayExtensibleState :: IORef StateMap

@@ -38,6 +38,7 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Layout (reLayout)
+import Output (Output (..), getOutputId)
 import Utility (whenJust, doJust, intToPtr)
 import View (View)
 import ViewSet (WSTag, setFocused, getMaster)
@@ -57,14 +58,14 @@ import WayUtil.Log (logPutStr)
 import qualified Data.Map as M
 
 data OutputMappingEvent a = OutputMappingEvent
-    { outputMappingEvtOutput :: Ptr WlrOutput
+    { outputMappingEvtOutput :: Output
     , outputMappingEvtPre    :: Maybe a
     , outputMappingEvtCur    :: Maybe a
     }
 
 instance Typeable a => EventClass (OutputMappingEvent a)
 
-setOutputWorkspace :: WSTag a => a -> Int -> Way a ()
+setOutputWorkspace :: WSTag a => a -> Output -> Way a ()
 setOutputWorkspace ws current = do
     state <- getState
     -- Do this manually here, since we don't want the defaulting to first
@@ -76,7 +77,7 @@ setOutputWorkspace ws current = do
         (wayBindingMapping state)
         ((:) (ws, current) . filter ((/=) current . snd))
 
-    sendEvent $ OutputMappingEvent (intToPtr current) pre (Just ws)
+    sendEvent $ OutputMappingEvent current pre (Just ws)
 
     runLog
     reLayout ws

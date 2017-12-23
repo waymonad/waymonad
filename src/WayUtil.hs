@@ -42,6 +42,7 @@ import Graphics.Wayland.WlRoots.Output (WlrOutput, getOutputName)
 import Graphics.Wayland.WlRoots.Box (Point)
 
 import Input.Seat (Seat (seatName), getPointerFocus)
+import Output (Output (..), getOutputId)
 import Utility (whenJust, intToPtr, doJust, These(..), getThis, getThat)
 import View (View, closeView)
 import ViewSet
@@ -121,20 +122,20 @@ focusNextOut = doJust getSeat $ \seat -> do
 data SeatOutputChangeEvent
     = PointerOutputChangeEvent
         { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe (Ptr WlrOutput)
-        , seatOutChangeEvtNew :: Maybe (Ptr WlrOutput)
+        , seatOutChangeEvtPre :: Maybe (Output)
+        , seatOutChangeEvtNew :: Maybe (Output)
         }
     | KeyboardOutputChangeEvent
         { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe (Ptr WlrOutput)
-        , seatOutChangeEvtNew :: Maybe (Ptr WlrOutput)
+        , seatOutChangeEvtPre :: Maybe (Output)
+        , seatOutChangeEvtNew :: Maybe (Output)
         }
 
 instance EventClass SeatOutputChangeEvent
 
 -- This: Pointer Focus
 -- That: Keyboard Focus
-setSeatOutput :: WSTag a => Seat -> These Int -> Way a ()
+setSeatOutput :: WSTag a => Seat -> These Output -> Way a ()
 setSeatOutput seat foci = do
     state <- getState
     current <- lookup seat <$> liftIO (readIORef (wayBindingCurrent state))
@@ -153,10 +154,10 @@ setSeatOutput seat foci = do
         ((:) (seat, new) . filter ((/=) seat . fst))
 
     when (newp /= curp) $ sendEvent $
-        PointerOutputChangeEvent seat (intToPtr <$> curp) (intToPtr <$> newp)
+        PointerOutputChangeEvent seat (curp) (newp)
 
     when (newk /= curk) $ sendEvent $
-        KeyboardOutputChangeEvent seat (intToPtr <$> curk) (intToPtr <$> newk)
+        KeyboardOutputChangeEvent seat (curk) (newk)
     runLog
 
 seatOutputEventHandler
@@ -166,8 +167,8 @@ seatOutputEventHandler
 seatOutputEventHandler e = case getEvent e of
     Nothing -> pure ()
     (Just (PointerOutputChangeEvent seat pre new)) -> do
-        pName <- liftIO $ traverse getOutputName pre
-        nName <- liftIO $ traverse getOutputName new
+        let pName = outputName <$> pre
+        let nName = outputName <$> new
         let sName = seatName seat
         logPutText loggerOutput $
             "Seat " `T.append`
@@ -177,8 +178,8 @@ seatOutputEventHandler e = case getEvent e of
             " to " `T.append`
             fromMaybe "None" nName
     (Just (KeyboardOutputChangeEvent seat pre new)) -> do
-        pName <- liftIO $ traverse getOutputName pre
-        nName <- liftIO $ traverse getOutputName new
+        let pName = outputName <$> pre
+        let nName = outputName <$> new
         let sName = seatName seat
         logPutText loggerOutput $
             "Seat " `T.append`
@@ -210,26 +211,23 @@ killCurrent = do
     view <- getCurrentView
     whenJust view closeView
 
-getOutputWS :: WSTag a => Int -> Way a (Maybe a)
+getOutputWS :: WSTag a => Output -> Way a (Maybe a)
 getOutputWS output =  do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     pure $ lookup output $ map swap mapping
 
-getOutputPointers :: Int -> Way a [Seat]
+getOutputPointers :: Output -> Way a [Seat]
 getOutputPointers out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . fst . snd) $ currents
 
-getOutputKeyboards :: Int -> Way a [Seat]
+getOutputKeyboards :: Output -> Way a [Seat]
 getOutputKeyboards out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . snd . snd) $ currents
 
-getOutputs :: Way a [Ptr WlrOutput]
-getOutputs = (fmap . fmap) intToPtr . liftIO . readIORef . wayBindingOutputs =<< getState
-
-getSeats :: Way a [Seat]
-getSeats = liftIO . readIORef . wayBindingSeats =<< getState
+getOutputs :: Way a [Output]
+getOutputs = liftIO . readIORef . wayBindingOutputs =<< getState
 
 
 viewBelow
@@ -238,7 +236,7 @@ viewBelow
 viewBelow point = do
     ws <- getCurrentOutput
     fullCache <- liftIO . readIORef . wayBindingCache =<< getState
-    case flip IM.lookup fullCache =<< ws of
+    case flip IM.lookup fullCache . getOutputId =<< ws of
         Nothing -> pure Nothing
         Just views -> do
             candidates <- liftIO $ viewsBelow point views

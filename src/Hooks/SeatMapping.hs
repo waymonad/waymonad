@@ -34,6 +34,7 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Input.Seat (Seat)
+import Output (Output)
 import Utility (ptrToInt, whenJust)
 import ViewSet (WSTag)
 import Waymonad
@@ -58,13 +59,13 @@ instance Typeable a => EventClass (SeatWSChangeEvent a)
 
 checkOutput
     :: WSTag a
-    => Maybe (Ptr WlrOutput)
-    -> Maybe (Ptr WlrOutput)
+    => Maybe Output
+    -> Maybe Output
     -> (Maybe a -> Maybe a -> SeatWSChangeEvent a)
     -> Way a ()
 checkOutput pre cur con = do
-    preWS <- fmap join $ traverse getOutputWS (fmap ptrToInt pre)
-    curWS <- fmap join $ traverse getOutputWS (fmap ptrToInt cur)
+    preWS <- fmap join $ traverse getOutputWS pre
+    curWS <- fmap join $ traverse getOutputWS cur
     when (preWS /= curWS) $ sendEvent $ con preWS curWS
 
 outputChangeEvt :: WSTag a => Maybe SeatOutputChangeEvent -> Way a ()
@@ -75,8 +76,8 @@ outputChangeEvt (Just (KeyboardOutputChangeEvent seat pre cur)) = checkOutput pr
 mappingChangeEvt :: WSTag a => Maybe (OutputMappingEvent a) -> Way a ()
 mappingChangeEvt Nothing = pure ()
 mappingChangeEvt (Just (OutputMappingEvent out pre cur)) = do
-    keys   <- getOutputKeyboards (ptrToInt out)
-    points <- getOutputPointers  (ptrToInt out)
+    keys   <- getOutputKeyboards out
+    points <- getOutputPointers  out
 
     forM_ points $ \point -> sendEvent $ PointerWSChangeEvent point pre cur
     forM_ keys $ \key -> sendEvent $ KeyboardWSChangeEvent key pre cur

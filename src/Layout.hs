@@ -34,6 +34,7 @@ import Data.IORef (modifyIORef, readIORef)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getOutputBox, getOutputName)
 
+import {-# SOURCE #-} Output (Output (..), getOutputId)
 import Utility (whenJust, intToPtr)
 import View (setViewBox)
 import ViewSet (WSTag (..), Workspace (..), Layout (..), pureLayout)
@@ -48,17 +49,17 @@ import qualified Data.Text as T
 getBoxes
     :: WSTag a
     => a
-    -> Way a [(Int, WlrBox)]
+    -> Way a [(Output, WlrBox)]
 getBoxes ws = do
     xs <- liftIO . readIORef . wayBindingMapping =<< getState
     let outputs = map snd . filter ((==) ws . fst) $ xs
-    liftIO $ mapM (\out -> fmap (out,) . getOutputBox $ intToPtr out) outputs
+    liftIO $ mapM (\out -> fmap (out,) . getOutputBox $ outputRoots out) outputs
 
 
 getLayoutBoxes
     :: WSTag a
     => a
-    -> Way a [(Int, WlrBox)]
+    -> Way a [(Output, WlrBox)]
 getLayoutBoxes ws = do
     outs <- getBoxes ws
 
@@ -82,17 +83,16 @@ reLayout ws = do
     boxes <- getLayoutBoxes ws
 
     forM_ boxes $ \(out, box) -> whenJust wstate $ \case
-        (Workspace _ Nothing) -> liftIO $ modifyIORef cacheRef $ IM.delete out
+        (Workspace _ Nothing) -> liftIO $ modifyIORef cacheRef $ IM.delete (getOutputId out)
         (Workspace (Layout l) (Just vs)) -> do
             let layout = pureLayout l box vs
-            liftIO $ modifyIORef cacheRef $ IM.insert out layout
+            liftIO $ modifyIORef cacheRef $ IM.insert (getOutputId out) layout
 
             mapM_ (uncurry setViewBox) layout
-            name <- liftIO $ getOutputName $ intToPtr out
             logPutText loggerLayout $
                 "Set the layout for "
                 `T.append` (getName ws)
                 `T.append` "  on "
-                `T.append` name
+                `T.append` outputName out
                 `T.append` " to: "
                 `T.append` (T.pack $ show $ map snd layout)
