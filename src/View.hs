@@ -44,11 +44,9 @@ module View
     )
 where
 
-import Debug.Trace (traceShowId, traceShow)
-
-import System.IO (hPutStrLn, stderr)
-import Data.IORef (IORef, readIORef, writeIORef, newIORef)
+import Control.Applicative ((<|>))
 import Control.Monad.IO.Class
+import Data.IORef (IORef, readIORef, writeIORef, newIORef)
 import Data.Text (Text)
 import Data.Typeable (Typeable, cast)
 import Data.Word (Word32)
@@ -57,7 +55,7 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Resource (resourceGetClient)
 import Graphics.Wayland.Server (Client)
 
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, subSurfaceAt)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
 
 class Typeable a => ShellSurface a where
@@ -153,12 +151,17 @@ renderViewAdditional fun (View {viewSurface = surf}) = do
 
 
 getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
-getViewEventSurface (View {viewSurface = surf, viewPosition = local, viewScaling = scale}) x y = do
-    scaleFactor <- liftIO $ readIORef scale
-    posBox <- liftIO $ readIORef local
-    getEventSurface surf
+getViewEventSurface (View {viewSurface = surf, viewPosition = local, viewScaling = scale}) x y = liftIO $ do
+    scaleFactor <- readIORef scale
+    posBox <- readIORef local
+    evtSurf <- getEventSurface surf
         ((x - fromIntegral (boxX posBox)) / realToFrac scaleFactor)
         ((y - fromIntegral (boxY posBox)) / realToFrac scaleFactor)
+    case evtSurf of
+        Nothing -> pure Nothing
+        Just tmp@(topSurf, eX, eY) -> do
+            ret <- subSurfaceAt topSurf eX eY
+            pure (ret <|> Just tmp)
 
 getViewClient :: MonadIO m => View -> m (Maybe Client)
 getViewClient (View {viewSurface = surf}) = do
@@ -179,7 +182,7 @@ getLocalBox inner outer =
             let scale:: Float = min (fromIntegral (boxWidth  outer) / fromIntegral (boxWidth  inner))
                                     (fromIntegral (boxHeight outer) / fromIntegral (boxHeight inner))
 
-             in (WlrBox 0 0 (floor $ scale * fromIntegral (boxWidth inner)) (floor $ scale * fromIntegral (boxHeight inner)), traceShow inner $ traceShow outer $ traceShowId scale)
+             in (WlrBox 0 0 (floor $ scale * fromIntegral (boxWidth inner)) (floor $ scale * fromIntegral (boxHeight inner)), scale)
 
 -- | This should be called whenever the contained surface is resized. It will
 -- determine whether we should try and downscale it to fit the area, or
