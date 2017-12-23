@@ -31,8 +31,9 @@ where
 
 import Control.Monad (when, join)
 import Control.Monad.IO.Class (liftIO, MonadIO)
-import Data.Maybe (fromJust)
 import Data.IORef (modifyIORef)
+import Data.Maybe (fromJust)
+import Data.Set (Set)
 
 import Input.Seat (Seat, keyboardEnter, keyboardClear)
 import Layout (reLayout)
@@ -51,6 +52,7 @@ import WayUtil.Log (logPutStr)
 import WayUtil.Current
 
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 -- TODO: Place this better
 runLog :: (WSTag a) => Way a ()
@@ -58,10 +60,10 @@ runLog = do
     state <- getState
     wayLogFunction state
 
-setFocus :: MonadIO m => Seat -> ([Seat], View) -> m ()
-setFocus s (s', v) = when (s `elem` s') $ liftIO $ do
-    activateView v True
-    keyboardEnter s v
+setFocus :: MonadIO m => Seat -> (Set Seat, View) -> m ()
+setFocus s (s', v) = when (s `S.member` s') $ liftIO $ do
+    success <- keyboardEnter s v
+    when success $ activateView v True
 
 setFoci :: Seat -> Workspace -> Way a ()
 setFoci s (Workspace _ Nothing) = keyboardClear s
@@ -85,15 +87,14 @@ modifyWS fun ws = do
     modifyViewSet (M.adjust fun ws)
     reLayout ws
 
-
 setFocused :: WSTag a => Seat -> a -> Way a ()
 setFocused seat ws = join . withWS ws $ setFoci seat
 
 forceFocused :: WSTag a => Way a ()
 forceFocused = doJust (withCurrentWS $ setFoci) id
 
-unsetFocus' :: MonadIO m => Seat -> ([Seat], View) -> m ()
-unsetFocus' s (s', v) = when ([s] == s') $ do
+unsetFocus' :: MonadIO m => Seat -> (Set Seat, View) -> m ()
+unsetFocus' s (s', v) = when (S.singleton s == s') $ do
     activateView v False
 
 unsetFoci :: Seat -> Workspace -> Way a ()
