@@ -158,7 +158,7 @@ rmElem' y zipper@(Zipper xs) =
     where doRemove _ [] = zipper
           doRemove left ((t,_):zs)
                 | S.null t = Zipper $ left ++ zs
-                | let ((ot, n):ns) = zs = Zipper $ left ++ (t <> ot, n):ns
+                | ((ot, n):ns) <- zs = Zipper $ left ++ (t <> ot, n):ns
                 | otherwise = Zipper $ (t <> (fst $ head left), snd $ head left) : tail left
 
 addElem :: Ord a => Maybe a -> b -> Maybe (Zipper a b) -> Maybe (Zipper a b)
