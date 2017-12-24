@@ -52,6 +52,8 @@ instance LayoutClass l => LayoutClass (Mirror l) where
         case getMessage m of
             (Just MMessage) -> Just $ Mirror (not state) l
             Nothing -> Mirror state <$> handleMessage l m
+    broadcastMessage :: Mirror l -> SomeMessage -> Maybe (Mirror l)
+    broadcastMessage (Mirror state l) m = Mirror state <$> broadcastMessage l m
     description :: Mirror l -> Text
     description (Mirror _ l) =
         "Mirror(" `T.append` description l `T.append` ")"

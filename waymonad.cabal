@@ -74,6 +74,8 @@ executable waymonad
   other-modules:        Layout
   other-modules:        Layout.Full
   other-modules:        Layout.Mirror
+  other-modules:        Layout.Spiral
+  other-modules:        Layout.Choose
   other-modules:        Layout.Tall
   other-modules:        Layout.ToggleFull
 

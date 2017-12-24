@@ -66,6 +66,7 @@ instance WSTag Text where
 class LayoutClass a where
     pureLayout :: a -> WlrBox -> Zipper b c -> [(c, WlrBox)]
     handleMessage :: a -> SomeMessage -> Maybe a
+    broadcastMessage :: a -> SomeMessage -> Maybe a
     description :: a -> Text
 
 data Layout = forall l. LayoutClass l => Layout l

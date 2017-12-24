@@ -26,6 +26,8 @@ module Main
 where
 
 --import Fuse.Main
+import Layout.Spiral
+import Layout.Choose
 
 import qualified Hooks.OutputAdd as H
 import WayUtil.View
@@ -74,7 +76,7 @@ import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor)
 import Utility (doJust)
 import Utility.Spawn (spawn, spawnManaged, manageNamed, manageSpawnOn, namedSpawner, onSpawner)
-import View (View, createView)
+import View (View)
 import View.Proxy
 import ViewSet
     ( Workspace(..)
@@ -176,6 +178,7 @@ bindings dsp fun =
     , (([modi], keysym_n), focusNextOut)
     , (([modi], keysym_q), killCurrent)
     , (([modi], keysym_o), centerFloat)
+    , (([modi], keysym_Right), sendMessage NextLayout)
     , (([modi], keysym_c), doJust getCurrentView $ \v -> insertView mempty =<< makeProxy v fun)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
     where modi = Alt
@@ -225,7 +228,7 @@ makeCompositor dspRef backend keyBinds = do
 
 defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
-    map (, Workspace (Layout (Mirror False (ToggleFull False Tall))) Nothing) xs
+    map (, Workspace (Layout (Mirror False (ToggleFull False (Tall ||| Spiral)))) Nothing) xs
 
 realMain :: IORef Compositor -> Way Text ()
 realMain compRef = do

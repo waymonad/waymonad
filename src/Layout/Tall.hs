@@ -33,6 +33,7 @@ data Tall = Tall
 instance LayoutClass Tall where
     description _ = "Tall"
     handleMessage _ _ = Nothing
+    broadcastMessage _ _ = Nothing
     pureLayout _ box zipper = case toList zipper of
         [x] -> [(x, box)]
         (x:xs)->

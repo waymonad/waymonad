@@ -128,7 +128,7 @@ manageNamed = do
     mempty
 
 spawnOn
-    :: forall a. WSTag a
+    :: WSTag a
     => DisplayServer
     -> a
     -> String
