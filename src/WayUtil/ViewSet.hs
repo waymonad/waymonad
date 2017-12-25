@@ -48,7 +48,7 @@ import Waymonad
     , getSeat
     , WayBindingState (..)
     )
-import WayUtil.Log (logPutStr)
+import WayUtil.Log (logPutStr, LogPriority(..))
 import WayUtil.Current
 
 import qualified Data.Map as M
@@ -74,7 +74,7 @@ modifyViewSet fun = do
     ref <- wayBindingState <$> getState
     liftIO $ modifyIORef ref fun
     vs <- getViewSet
-    logPutStr loggerWS $ "Changed viewset, now is: " ++ show vs
+    logPutStr loggerWS Debug $ "Changed viewset, now is: " ++ show vs
 
 modifyWS
     :: (WSTag a)
@@ -82,7 +82,7 @@ modifyWS
     -> a
     -> Way a ()
 modifyWS fun ws = do
-    logPutStr loggerWS $ "Changing contents of workspace: " ++ show ws
+    logPutStr loggerWS Debug $ "Changing contents of workspace: " ++ show ws
 
     modifyViewSet (M.adjust fun ws)
     reLayout ws

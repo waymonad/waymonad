@@ -73,7 +73,7 @@ import Waymonad
     )
 import Waymonad.Types (Compositor(compBackend, compDisplay), WayBindingState (wayCompositor))
 import WayUtil (setSignalHandler)
-import WayUtil.Log (logPutText)
+import WayUtil.Log (logPutText, LogPriority (..))
 
 import Text.XkbCommon.Context
 import Text.XkbCommon.KeyboardState
@@ -129,7 +129,7 @@ handleKeyPress bindings modifiers sym@(Keysym key) = do
         _ -> case M.lookup (modifiers, key) bindings of
                 Nothing -> pure False
                 Just fun -> do
-                    logPutText loggerKeybinds "Found a keybind"
+                    logPutText loggerKeybinds Info "Found a keybind"
                     fun
                     pure True
 

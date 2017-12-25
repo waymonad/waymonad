@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE TupleSections #-}
 module Input.Cursor
@@ -77,7 +78,7 @@ import WayUtil
     , setSeatOutput
     , viewBelow
     )
-import WayUtil.Log (logPutStr)
+import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Focus (focusView)
 
 data Cursor = Cursor
@@ -120,7 +121,7 @@ getCursorView layout cursor = do
             outputM <- liftIO $ layoutAtPos layout baseX baseY
             case outputM of
                 Nothing -> do
-                    logPutStr loggerFocus "Couldn't determine a current output"
+                    logPutText loggerFocus Warn "Couldn't determine a current output"
                     pure Nothing
                 Just out -> do
                     lout <- liftIO $ layoutGetOutput layout out

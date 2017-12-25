@@ -31,7 +31,8 @@ where
 import System.IO
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 
-import Control.Monad.Reader (ask)
+import Control.Monad.Reader (ask, when)
+import Data.IORef (newIORef, IORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import WayUtil (setSignalHandler)
 import Foreign.Storable (Storable(..))
@@ -45,7 +46,7 @@ import Control.Monad.IO.Class
 import Managehook
 import Waymonad
 import View
-import WayUtil.Log (logPutText)
+import WayUtil.Log (logPutText, LogPriority (..))
 import Foreign.StablePtr
     ( newStablePtr
     , castStablePtrToPtr
@@ -96,7 +97,7 @@ handleXwayDestroy
     -> Ptr X.X11Surface
     -> Way a ()
 handleXwayDestroy ref delFun surf = do
-    logPutText loggerX11 "Destroying XWayland surface"
+    logPutText loggerX11 Debug "Destroying XWayland surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     triggerViewDestroy view
     delFun view
@@ -105,6 +106,18 @@ handleXwayDestroy ref delFun surf = do
         modifyIORef ref $ M.delete (ptrToInt surf)
         sptr :: Ptr () <- peek (X.getX11SurfaceDataPtr surf)
         freeStablePtr $ castPtrToStablePtr sptr
+
+handleX11Configure :: View -> IORef (Int, Int) -> Ptr X.ConfigureEvent -> Way a ()
+handleX11Configure view ref evt = do
+    logPutText loggerX11 Debug "Got configure request"
+    liftIO $ do
+        event <- peek evt
+        (oldWidth, oldHeight) <- readIORef ref
+        let width = fromIntegral $ X.configureEvtWidth event
+        let height = fromIntegral $ X.configureEvtHeight event
+        when (oldWidth /= width || oldHeight /= height) $ do
+            setViewLocal view $ WlrBox 0 0 width height
+            writeIORef ref (width, height)
 
 handleXwaySurface
     :: Ptr X.XWayland
@@ -115,7 +128,7 @@ handleXwaySurface
     -> Way a ()
 handleXwaySurface xway ref addFun delFun surf = do
     let xwaySurf = XWaySurface xway surf
-    logPutText loggerX11 "New XWayland surface"
+    logPutText loggerX11 Debug "New XWayland surface"
     view <- createView xwaySurf
     addFun view
 
@@ -125,11 +138,13 @@ handleXwaySurface xway ref addFun delFun surf = do
 
     let signals = X.getX11SurfaceEvents surf
 
+    sizeRef <- liftIO $ newIORef (0, 0)
     handler <- setSignalHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref delFun
     handler2 <- setSignalHandler (X.x11SurfaceEvtType signals) $ (const $ liftIO $ hPutStrLn stderr "Some surface set type")
+    handler3 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view sizeRef
 
     liftIO $ do
-        sptr <- newStablePtr (handler, handler2)
+        sptr <- newStablePtr (handler, handler2, handler3)
         poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr sptr)
 
 
@@ -171,7 +186,7 @@ overrideXRedirect = do
             override <- liftIO $ X.x11SurfaceOverrideRedirect surf
             if override
                 then do
-                    liftWay $ logPutText loggerX11 "Overriding a redirect"
+                    liftWay $ logPutText loggerX11 Info "Overriding a redirect"
                     (Point x y) <- liftIO $ X.getX11SurfacePosition surf
                     (width, height) <- getViewSize view
                     pure . InsertFloating $ WlrBox x y (floor width) (floor height)

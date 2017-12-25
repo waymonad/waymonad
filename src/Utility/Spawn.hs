@@ -70,7 +70,7 @@ import WayUtil
     ( getEState
     , modifyEState
     )
-import WayUtil.Log (logPutText)
+import WayUtil.Log (logPutText, LogPriority (..))
 
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Text as T
@@ -124,7 +124,7 @@ manageNamed = do
     liftWay $ do
         nameM <- getClientName c
         whenJust nameM $ \name ->
-            logPutText loggerSpawner $ "Client \"" `T.append` name `T.append` "\" just spawned"
+            logPutText loggerSpawner Info $ "Client \"" `T.append` name `T.append` "\" just spawned"
     mempty
 
 spawnOn

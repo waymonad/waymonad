@@ -35,6 +35,8 @@ where
 import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
+import Data.Default (Default(..))
+import Data.Semigroup (Semigroup (..))
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
@@ -70,10 +72,16 @@ data InsertAction a
     | InsertCustom (Way a ())
     deriving (Show)
 
+instance Semigroup (InsertAction a) where
+    InsertNone <> x = x
+    i <> _ = i
+
+instance Default (InsertAction a) where
+    def = InsertNone
+
 instance Monoid (InsertAction a) where
-    mempty = InsertNone
-    InsertNone `mappend` x = x
-    i `mappend` _ = i
+    mempty = def
+    l `mappend` r = l <> r
 
 type Managehook a = Query a (InsertAction a)
 

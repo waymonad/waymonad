@@ -23,6 +23,10 @@ module WayUtil.Log
     ( logPutText
     , logPutStr
     , logPrint
+    , LogPriority (..)
+    , Logger (..)
+
+    , logPutText'
     )
 where
 
@@ -42,6 +46,9 @@ import Waymonad
     , WayLoggers (..)
     , Logger (..)
     )
+import Waymonad.Types (
+    LogPriority (..)
+    )
 
 logPutTime :: IO ()
 logPutTime = do
@@ -50,18 +57,21 @@ logPutTime = do
 
     hPutStr stderr formatted
 
-logPutText :: (WayLoggers -> Logger) -> Text -> Way a ()
-logPutText select arg = do
-    (Logger active name) <- select <$> getLoggers
-    when active $ liftIO $ do
-        logPutTime
-        T.hPutStr stderr name
-        T.hPutStr stderr ": "
-        T.hPutStrLn stderr arg
+logPutText' :: Text -> Text -> Way a ()
+logPutText' name arg = liftIO $ do
+    logPutTime
+    T.hPutStr stderr name
+    T.hPutStr stderr ": "
+    T.hPutStrLn stderr arg
 
-logPutStr :: (WayLoggers -> Logger) -> String -> Way a ()
-logPutStr select arg = logPutText select (T.pack arg)
+logPutText :: (WayLoggers -> Logger) -> LogPriority -> Text -> Way a ()
+logPutText fun prio arg = do
+    (Logger lvl name) <- fun <$> getLoggers
+    when (prio <= lvl) $ logPutText' name arg
 
-logPrint :: (Show a) => (WayLoggers -> Logger) -> a -> Way b ()
-logPrint fun = logPutStr fun . show
+logPutStr :: (WayLoggers -> Logger) -> LogPriority -> String -> Way a ()
+logPutStr select prio arg = logPutText select prio (T.pack arg)
+
+logPrint :: (Show a) => (WayLoggers -> Logger) -> LogPriority -> a -> Way b ()
+logPrint fun prio = logPutStr fun prio . show
 

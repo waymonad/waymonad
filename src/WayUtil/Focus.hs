@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE OverloadedStrings #-}
 module WayUtil.Focus
     ( setWorkspace
     , setOutputWorkspace
@@ -53,7 +54,7 @@ import Waymonad
 import WayUtil (runLog)
 import WayUtil.Current (getCurrentOutput, withCurrentWS)
 import WayUtil.ViewSet (modifyCurrentWS, forceFocused)
-import WayUtil.Log (logPutStr)
+import WayUtil.Log (logPutText, LogPriority(..))
 
 import qualified Data.Map as M
 
@@ -88,7 +89,7 @@ setWorkspace ws =
 
 focusView :: WSTag a => View -> Way a ()
 focusView view = do
-    logPutStr loggerFocus "Calling focusView"
+    logPutText loggerFocus Trace "Calling focusView"
     modifyCurrentWS $ setFocused view
 
 -- TODO: This should clearly be more simple

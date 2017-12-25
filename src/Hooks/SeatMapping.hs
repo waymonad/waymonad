@@ -89,4 +89,4 @@ wsChangeEvtHook e =
 
 wsChangeLogHook :: forall a. WSTag a => SomeEvent -> Way a ()
 wsChangeLogHook e = whenJust (getEvent e) $ \(evt :: SeatWSChangeEvent a) ->
-    logPrint loggerWS evt
+    logPrint loggerWS Debug evt

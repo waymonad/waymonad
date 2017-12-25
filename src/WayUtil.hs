@@ -74,6 +74,7 @@ import Waymonad.Extensible
     , setValue
     , modifyValue
     )
+import Waymonad.Types (LogPriority(..))
 import WayUtil.Current
     ( getCurrentOutput
     , getCurrentView
@@ -170,7 +171,7 @@ seatOutputEventHandler e = case getEvent e of
         let pName = outputName <$> pre
         let nName = outputName <$> new
         let sName = seatName seat
-        logPutText loggerOutput $
+        logPutText loggerOutput Debug $
             "Seat " `T.append`
             T.pack sName `T.append`
             " changed pointer focus from " `T.append`
@@ -181,7 +182,7 @@ seatOutputEventHandler e = case getEvent e of
         let pName = outputName <$> pre
         let nName = outputName <$> new
         let sName = seatName seat
-        logPutText loggerOutput $
+        logPutText loggerOutput Debug $
             "Seat " `T.append`
             T.pack sName `T.append`
             " changed keyboard focus from " `T.append`

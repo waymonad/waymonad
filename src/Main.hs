@@ -102,7 +102,7 @@ import Waymonad
     , Logger (..)
     , getViewSet
     )
-import Waymonad.Types (Compositor (..))
+import Waymonad.Types (Compositor (..), LogPriority (..))
 import WayUtil
     ( sendMessage
     , focusNextOut
@@ -286,15 +286,15 @@ main =  do
                     }
 
             let loggers = WayLoggers
-                    { loggerOutput = Logger True "Output"
-                    , loggerWS = Logger False "Workspaces"
-                    , loggerFocus = Logger False "Focus"
-                    , loggerXdg = Logger True "Xdg_Shell"
-                    , loggerX11 = Logger True "XWayland"
-                    , loggerKeybinds = Logger True "Keybindings"
-                    , loggerSpawner = Logger True "Spawner"
-                    , loggerLayout = Logger False "Layout"
-                    , loggerRender = Logger True "Frame"
+                    { loggerOutput = Logger Info "Output"
+                    , loggerWS = Logger Warn "Workspaces"
+                    , loggerFocus = Logger Warn "Focus"
+                    , loggerXdg = Logger Info "Xdg_Shell"
+                    , loggerX11 = Logger Info "XWayland"
+                    , loggerKeybinds = Logger Info "Keybindings"
+                    , loggerSpawner = Logger Info "Spawner"
+                    , loggerLayout = Logger Warn "Layout"
+                    , loggerRender = Logger Trace "Frame"
                     }
 
             runWay Nothing state loggers (realMain compRef)

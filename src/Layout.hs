@@ -39,6 +39,7 @@ import Utility (whenJust, intToPtr)
 import View (setViewBox)
 import ViewSet (WSTag (..), Workspace (..), Layout (..), pureLayout)
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
+import Waymonad.Types (LogPriority(Debug))
 import WayUtil.Log (logPutText)
 
 import qualified Data.IntMap.Strict as IM
@@ -89,7 +90,7 @@ reLayout ws = do
             liftIO $ modifyIORef cacheRef $ IM.insert (getOutputId out) layout
 
             mapM_ (uncurry setViewBox) layout
-            logPutText loggerLayout $
+            logPutText loggerLayout Debug $
                 "Set the layout for "
                 `T.append` (getName ws)
                 `T.append` "  on "

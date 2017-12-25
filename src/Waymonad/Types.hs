@@ -80,8 +80,16 @@ class Typeable e => EventClass e
 
 data SomeEvent = forall e. EventClass e => SomeEvent e
 
+data LogPriority
+    = Error
+    | Warn
+    | Info
+    | Debug
+    | Trace
+    deriving (Eq, Show, Ord)
+
 data Logger = Logger
-    { loggerActive :: Bool
+    { loggerLevel :: LogPriority
     , loggerName :: Text
     }
 

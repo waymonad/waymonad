@@ -68,7 +68,7 @@ import View (getViewClient)
 import ViewSet (WSTag)
 import Utility (doJust)
 import WayUtil
-import WayUtil.Log (logPutStr)
+import WayUtil.Log (logPutStr, LogPriority (..))
 import Waymonad
 import WayUtil.Focus (focusView)
 
@@ -128,7 +128,7 @@ inputCreate
     -> BindingMap a
     -> Way a Input
 inputCreate display layout backend bindings = do
-    logPutStr loggerKeybinds $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
+    logPutStr loggerKeybinds Debug $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
     xcursor <- liftIO $ xCursorManagerCreate "default" 16
     loadCurrentScales xcursor
 
