@@ -67,10 +67,12 @@ import Graphics.Wayland.Server (Client)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, subSurfaceAt)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
 
+import Utility (doJust)
+
 import qualified Data.IntMap as IM
 
 class Typeable a => ShellSurface a where
-    getSurface :: MonadIO m => a -> m (Ptr WlrSurface)
+    getSurface :: MonadIO m => a -> m (Maybe (Ptr WlrSurface))
     getSize :: MonadIO m => a -> m (Double, Double)
     resize :: MonadIO m => a -> Word32 -> Word32 -> m ()
     activate :: MonadIO m => a -> Bool -> m ()
@@ -158,7 +160,7 @@ resizeView v@(View {viewSurface = surf, viewBox = ref}) width height = do
 
     setViewLocal v $ WlrBox 0 0 (floor oldWidth) (floor oldHeight)
 
-getViewSurface :: MonadIO m => View -> m (Ptr WlrSurface)
+getViewSurface :: MonadIO m => View -> m (Maybe (Ptr WlrSurface))
 getViewSurface (View {viewSurface = surf}) = getSurface surf
 
 
@@ -185,9 +187,10 @@ getViewEventSurface (View {viewSurface = surf, viewPosition = local, viewScaling
             pure (ret <|> Just tmp)
 
 getViewClient :: MonadIO m => View -> m (Maybe Client)
-getViewClient (View {viewSurface = surf}) = do
-    res <- liftIO . getSurfaceResource =<< getSurface surf
-    Just <$> liftIO (resourceGetClient res)
+getViewClient (View {viewSurface = surf}) =
+    doJust (getSurface surf) $ \wlrSurf -> liftIO $ do
+        res <- getSurfaceResource wlrSurf
+        Just <$> resourceGetClient res
 
 getViewInner :: Typeable a => View -> Maybe a
 getViewInner (View {viewSurface = surf}) = cast surf

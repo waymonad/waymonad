@@ -108,7 +108,9 @@ keyboardEnter' seat surf view = liftIO $ do
 keyboardEnter :: MonadIO m => Seat -> View -> m Bool
 keyboardEnter seat view = liftIO $ do
     surf <- getViewSurface view
-    keyboardEnter' seat surf view
+    case surf of
+        Just s -> keyboardEnter' seat s view
+        Nothing -> pure False
 
 pointerButton :: MonadIO m => Seat -> View -> Double -> Double -> WlrEventPointerButton -> m Bool
 pointerButton seat view baseX baseY event = liftIO $ do

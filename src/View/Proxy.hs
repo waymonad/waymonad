@@ -48,7 +48,7 @@ makeProxy v fun = liftIO $ do
     pure new
 
 instance ShellSurface ProxiedView where
-    getSurface :: MonadIO m => ProxiedView -> m (Ptr WlrSurface)
+    getSurface :: MonadIO m => ProxiedView -> m (Maybe (Ptr WlrSurface))
     getSurface = getViewSurface . unProxy
     getSize :: MonadIO m => ProxiedView -> m (Double, Double)
     getSize = getViewSize . unProxy

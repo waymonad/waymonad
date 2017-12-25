@@ -93,7 +93,7 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceGetTexture
     )
 
-import Waymonad.Types (Compositor (..))
+import Waymonad.Types (Compositor (..), Logger(..))
 import Config (configOutputs)
 import qualified Config.Box as C (Point (..))
 import Config.Output (OutputConfig (..), Mode (..))
@@ -101,7 +101,7 @@ import Config.Output (OutputConfig (..), Mode (..))
 --import Input.Cursor (cursorRoots)
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
-import Utility (whenJust)
+import Utility (whenJust, doJust)
 import View (View, getViewSurface, renderViewAdditional, getViewBox, viewGetScale, viewGetLocal)
 import ViewSet (WSTag (..))
 import Waymonad
@@ -115,6 +115,7 @@ import Waymonad
     , sendEvent
     )
 import Waymonad (getSeats)
+import WayUtil.Log (logPutText)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
@@ -185,8 +186,7 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                         }
 
 outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> View -> WlrBox -> IO (IO ())
-outputHandleView comp secs output view box = do
-    surface <- getViewSurface view
+outputHandleView comp secs output view box = doJust (getViewSurface view) $ \surface -> do
     scale <- viewGetScale view
     local <- viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
@@ -214,7 +214,9 @@ frameHandler
     -> Double
     -> Ptr WlrOutput
     -> IO ()
-frameHandler compRef cacheRef fRef secs output = runLayoutCache' cacheRef $ do
+frameHandler compRef cacheRef fRef secs output = do
+  --hPutStrLn stderr "Handling frame"
+  runLayoutCache' cacheRef $ do
     comp <- liftIO $ readIORef compRef
     (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
     viewsM <- IM.lookup (ptrToInt output) <$> get

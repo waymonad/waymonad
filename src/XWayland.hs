@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 module XWayland
@@ -95,6 +96,7 @@ handleXwayDestroy
     -> Ptr X.X11Surface
     -> Way a ()
 handleXwayDestroy ref delFun surf = do
+    logPutText loggerX11 "Destroying XWayland surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     triggerViewDestroy view
     delFun view
@@ -150,7 +152,7 @@ instance ShellSurface XWaySurface where
         if boxContainsPoint (Point (floor x) (floor y)) (WlrBox 0 0 w h)
            then do
                 ret <- X.xwaySurfaceGetSurface surf
-                pure $ Just (ret, x, y)
+                pure $ fmap (,x, y) ret
             else pure Nothing
     setPosition (XWaySurface _ surf) x y =
         let point = Point (floor x) (floor y)
@@ -168,9 +170,9 @@ overrideXRedirect = do
         Just (XWaySurface _ surf) -> do
             override <- liftIO $ X.x11SurfaceOverrideRedirect surf
             if override
-                then liftIO $ do
-                    hPutStrLn stderr "Overriding a redirect"
-                    (Point x y) <- X.getX11SurfacePosition surf
+                then do
+                    liftWay $ logPutText loggerX11 "Overriding a redirect"
+                    (Point x y) <- liftIO $ X.getX11SurfacePosition surf
                     (width, height) <- getViewSize view
                     pure . InsertFloating $ WlrBox x y (floor width) (floor height)
                 else mempty

@@ -99,6 +99,7 @@ data WayLoggers = WayLoggers
     , loggerKeybinds :: Logger
     , loggerSpawner :: Logger
     , loggerLayout :: Logger
+    , loggerRender :: Logger
     }
 
 data Compositor = Compositor

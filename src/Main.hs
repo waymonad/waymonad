@@ -287,13 +287,14 @@ main =  do
 
             let loggers = WayLoggers
                     { loggerOutput = Logger True "Output"
-                    , loggerWS = Logger True "Workspaces"
-                    , loggerFocus = Logger True "Focus"
+                    , loggerWS = Logger False "Workspaces"
+                    , loggerFocus = Logger False "Focus"
                     , loggerXdg = Logger True "Xdg_Shell"
                     , loggerX11 = Logger True "XWayland"
                     , loggerKeybinds = Logger True "Keybindings"
                     , loggerSpawner = Logger True "Spawner"
-                    , loggerLayout = Logger True "Layout"
+                    , loggerLayout = Logger False "Layout"
+                    , loggerRender = Logger True "Frame"
                     }
 
             runWay Nothing state loggers (realMain compRef)

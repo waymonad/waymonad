@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -27,6 +28,7 @@ module XdgShell
     )
 where
 
+import Utility (doJust)
 import View
 import Waymonad
 import WayUtil (setSignalHandler)
@@ -156,12 +158,11 @@ renderPopups fun surf = do
 
         let box = WlrBox x y (boxWidth popBox) (boxHeight popBox)
 
-        wlrsurf <- liftIO $ R.xdgSurfaceGetSurface popup
-
-        fun wlrsurf box
-        renderPopups
-            (\v b -> fun v b {boxX = boxX b + x, boxY = boxY b + y})
-            popup
+        doJust (liftIO $ R.xdgSurfaceGetSurface popup) $ \wlrSurf -> do
+            fun wlrSurf box
+            renderPopups
+                (\v b -> fun v b {boxX = boxX b + x, boxY = boxY b + y})
+                popup
 
 
 instance ShellSurface XdgSurface where
@@ -182,11 +183,11 @@ instance ShellSurface XdgSurface where
                 if boxContainsPoint (Point (floor x) (floor y)) box
                     then do
                         realS <- R.xdgSurfaceGetSurface surf
-                        pure $ Just (realS, x, y)
+                        pure $ fmap (, x, y) realS
                     else pure Nothing
             Just (popup, newx, newy) -> do
                 realS <- R.xdgSurfaceGetSurface popup
-                pure $ Just (realS, x - newx, y - newy)
+                pure $ fmap (,x - newx, y - newy) realS
     getID = ptrToInt . unXdg
     getTitle = liftIO . R.getTitle . unXdg
     getAppId = liftIO . R.getAppId . unXdg
