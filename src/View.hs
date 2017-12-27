@@ -50,6 +50,7 @@ module View
 where
 
 import Control.Applicative ((<|>))
+import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
 import Data.IntMap (IntMap)
@@ -61,10 +62,12 @@ import Foreign.Ptr (Ptr)
 import System.IO
 import System.IO.Unsafe (unsafePerformIO)
 
+import Graphics.Wayland.Signal
+
 import Graphics.Wayland.Resource (resourceGetClient)
 import Graphics.Wayland.Server (Client)
 
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, subSurfaceAt)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, subSurfaceAt, getWlrSurfaceEvents, WlrSurfaceEvents (..))
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
 
 import Utility (doJust)
@@ -93,6 +96,7 @@ data View = forall a. ShellSurface a => View
     , viewScaling  :: IORef Float
     , viewDestroy  :: IORef (IntMap (View -> IO ()))
     , viewID       :: Int
+    , viewTokens   :: [ListenerToken]
     }
 
 instance Show View where
@@ -120,6 +124,18 @@ viewCounter :: IORef Int
 {-# NOINLINE viewCounter #-}
 viewCounter = unsafePerformIO (newIORef 0)
 
+removeListeners :: MonadIO m => View -> m ()
+removeListeners (View {viewTokens = toks}) =
+    liftIO $ mapM_ removeListener toks
+
+handleCommit :: MonadIO m => View -> IORef (Double, Double) -> m ()
+handleCommit view ref = liftIO $ do
+    (width, height) <- getViewSize view
+    (oldWidth, oldHeight) <- readIORef ref
+    when (oldWidth /= width || oldHeight /= height) $ do
+        setViewLocal view $ WlrBox 0 0 (floor width) (floor height)
+        writeIORef ref (width, height)
+
 createView :: (ShellSurface a, MonadIO m) => a -> m View
 createView surf = liftIO $ do
     (width, height) <- getSize surf
@@ -130,14 +146,36 @@ createView surf = liftIO $ do
     cbs <- newIORef mempty
     idVal <- readIORef viewCounter
     modifyIORef viewCounter (+1)
-    pure View
-        { viewSurface = surf
-        , viewBox = global
-        , viewPosition = local
-        , viewScaling = scale
-        , viewDestroy = cbs
-        , viewID = idVal
-        }
+    viewRef <- newIORef undefined
+
+
+    mainSurf <- getSurface surf
+    tokens <- case mainSurf of
+        Nothing -> do
+            pure []
+        Just wlrSurf -> do
+            let events = getWlrSurfaceEvents wlrSurf
+            destroyHandler <- addListener
+                (WlListener $ const $ removeListeners $ unsafePerformIO $ readIORef viewRef)
+                (wlrSurfaceEvtDestroy events)
+            sizeRef <- newIORef (0, 0)
+            commitHandler <- addListener
+                (WlListener $ const $ handleCommit (unsafePerformIO $ readIORef viewRef) sizeRef)
+                (wlrSurfaceEvtCommit events)
+
+            pure [destroyHandler, commitHandler]
+
+    let ret = View
+            { viewSurface = surf
+            , viewBox = global
+            , viewPosition = local
+            , viewScaling = scale
+            , viewDestroy = cbs
+            , viewID = idVal
+            , viewTokens = tokens
+            }
+    writeIORef viewRef ret
+    pure ret
 
 closeView :: MonadIO m => View -> m ()
 closeView (View {viewSurface=surf}) = close surf

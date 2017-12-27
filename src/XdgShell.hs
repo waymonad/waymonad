@@ -132,9 +132,9 @@ handleXdgSurface ref addFun delFun surf = do
         let signals = R.getXdgSurfaceEvents surf
         destroyHandler <- setSignalHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref delFun)
         sizeRef <- liftIO $ newIORef (0, 0)
-        commitHandler <- setSignalHandler (R.xdgSurfaceEvtCommit signals) (liftIO . handleCommit view sizeRef)
+        --commitHandler <- setSignalHandler (R.xdgSurfaceEvtCommit signals) (liftIO . handleCommit view sizeRef)
         liftIO $ do
-            sptr <- newStablePtr (destroyHandler, commitHandler)
+            sptr <- newStablePtr (destroyHandler{-, commitHandler-})
             poke (R.getXdgSurfaceDataPtr surf) (castStablePtrToPtr sptr)
 
 
