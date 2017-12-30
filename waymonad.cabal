@@ -88,6 +88,7 @@ executable waymonad
   other-modules:        Utility.Spawn
   other-modules:        View
   other-modules:        View.Proxy
+  other-modules:        View.Multi
   other-modules:        ViewSet
 
   other-modules:        WayUtil

@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE OverloadedStrings #-}
 module WayUtil.ViewSet
     ( modifyViewSet
     , modifyWS
@@ -48,7 +49,7 @@ import Waymonad
     , getSeat
     , WayBindingState (..)
     )
-import WayUtil.Log (logPutStr, LogPriority(..))
+import WayUtil.Log (logPutStr, logPutText, LogPriority(..))
 import WayUtil.Current
 
 import qualified Data.Map as M
@@ -60,14 +61,20 @@ runLog = do
     state <- getState
     wayLogFunction state
 
-setFocus :: MonadIO m => Seat -> (Set Seat, View) -> m ()
-setFocus s (s', v) = when (s `S.member` s') $ liftIO $ do
-    success <- keyboardEnter s v
-    when success $ activateView v True
+setFocus :: Seat -> (Set Seat, View) -> Way a ()
+setFocus s (s', v) = when (s `S.member` s') $ do
+    logPutText loggerFocus Trace "Actually setting a focus"
+    liftIO $ do
+        success <- keyboardEnter s v
+        when success $ activateView v True
 
 setFoci :: Seat -> Workspace -> Way a ()
-setFoci s (Workspace _ Nothing) = keyboardClear s
-setFoci s (Workspace _ (Just (Zipper xs))) = mapM_ (setFocus s) xs
+setFoci s (Workspace _ Nothing) = do
+    logPutText loggerFocus Trace "Clearing focus for seat"
+    keyboardClear s
+setFoci s (Workspace _ (Just (Zipper xs))) = do
+    logPutText loggerFocus Trace "Setting foci for seat"
+    mapM_ (setFocus s) xs
 
 modifyViewSet :: Show a => (ViewSet a -> ViewSet a) -> Way a ()
 modifyViewSet fun = do

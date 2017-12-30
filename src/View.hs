@@ -46,6 +46,10 @@ module View
     , addViewDestroyListener
     , rmViewDestroyListener
     , triggerViewDestroy
+
+    , addViewResizeListener
+    , rmViewResizeListener
+    , triggerViewResize
     )
 where
 
@@ -89,12 +93,18 @@ class Typeable a => ShellSurface a where
     getTitle :: MonadIO m => a -> m Text
     getAppId :: MonadIO m => a -> m Text
 
+    setViewHidden :: MonadIO m => a -> m ()
+    setViewHidden _ = pure ()
+    setViewVisible :: MonadIO m => a -> m ()
+    setViewVisible _ = pure ()
+
 data View = forall a. ShellSurface a => View
     { viewSurface  :: a
     , viewBox      :: IORef WlrBox
     , viewPosition :: IORef WlrBox
     , viewScaling  :: IORef Float
     , viewDestroy  :: IORef (IntMap (View -> IO ()))
+    , viewResize   :: IORef (IntMap (View -> IO ()))
     , viewID       :: Int
     , viewTokens   :: [ListenerToken]
     }
@@ -135,6 +145,7 @@ handleCommit view ref = liftIO $ do
     when (oldWidth /= width || oldHeight /= height) $ do
         setViewLocal view $ WlrBox 0 0 (floor width) (floor height)
         writeIORef ref (width, height)
+        triggerViewResize view
 
 createView :: (ShellSurface a, MonadIO m) => a -> m View
 createView surf = liftIO $ do
@@ -143,7 +154,8 @@ createView surf = liftIO $ do
     global <- newIORef box
     local <- newIORef box
     scale <- newIORef 1.0
-    cbs <- newIORef mempty
+    destroyCBs <- newIORef mempty
+    resizeCBs <- newIORef mempty
     idVal <- readIORef viewCounter
     modifyIORef viewCounter (+1)
     viewRef <- newIORef undefined
@@ -170,7 +182,8 @@ createView surf = liftIO $ do
             , viewBox = global
             , viewPosition = local
             , viewScaling = scale
-            , viewDestroy = cbs
+            , viewDestroy = destroyCBs
+            , viewResize = resizeCBs
             , viewID = idVal
             , viewTokens = tokens
             }
@@ -251,7 +264,7 @@ getLocalBox inner outer =
 -- position it somewhere inside the configured box, because it is *smaller*
 -- than the intended area
 setViewLocal :: MonadIO m => View -> WlrBox -> m ()
-setViewLocal (View {viewBox = global, viewPosition = local, viewScaling = scaleRef}) box = liftIO $ do
+setViewLocal v@(View {viewBox = global, viewPosition = local, viewScaling = scaleRef}) box = liftIO $ do
     outerBox <- readIORef global
     if toOrigin outerBox == box
         then do
@@ -280,5 +293,17 @@ rmViewDestroyListener key (View {viewDestroy = ref}) = liftIO $ modifyIORef ref 
 
 triggerViewDestroy :: MonadIO m => View -> m ()
 triggerViewDestroy v@(View {viewDestroy = ref}) = liftIO $ do
+    cbs <- readIORef ref
+    mapM_ ($ v) cbs
+
+
+addViewResizeListener :: MonadIO m => Int -> (View -> IO ()) -> View -> m ()
+addViewResizeListener key cb (View {viewResize = ref}) = liftIO $ modifyIORef ref (IM.insert key cb)
+
+rmViewResizeListener :: MonadIO m => Int -> View -> m ()
+rmViewResizeListener key (View {viewResize = ref}) = liftIO $ modifyIORef ref (IM.delete key)
+
+triggerViewResize :: MonadIO m => View -> m ()
+triggerViewResize v@(View {viewResize = ref}) = liftIO $ do
     cbs <- readIORef ref
     mapM_ ($ v) cbs

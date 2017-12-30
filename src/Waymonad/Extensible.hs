@@ -24,7 +24,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Waymonad.Extensible
     ( StateMap
-      , ExtensionClass (..)
+    , ExtensionClass (..)
 
     , getValue
     , setValue

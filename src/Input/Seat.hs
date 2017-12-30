@@ -31,6 +31,8 @@ module Input.Seat
     )
 where
 
+import System.IO
+
 import Control.Monad (when, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
@@ -40,7 +42,12 @@ import Foreign.Ptr (Ptr, nullPtr)
 
 import Graphics.Wayland.WlRoots.Input.Pointer (WlrEventPointerButton (..))
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
-import Graphics.Wayland.Server (DisplayServer, seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer)
+import Graphics.Wayland.Server
+    ( DisplayServer
+    , seatCapabilityTouch
+    , seatCapabilityKeyboard
+    , seatCapabilityPointer
+    )
 
 import Utility (doJust)
 import View (View, getViewSurface, getViewEventSurface)
@@ -97,7 +104,7 @@ keyboardEnter' seat surf view = liftIO $ do
     R.keyboardNotifyEnter (seatRoots seat) surf
     post <- R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
 
-    if prev /= post
+    if (prev /= post || prev == surf)
        then do
             oldView <- readIORef (seatKeyboard seat)
             let changed = oldView /= Just view
@@ -131,7 +138,7 @@ pointerEnter seat surf view x y = liftIO $ do
     R.pointerNotifyEnter (seatRoots seat) surf x y
     post <- R.getPointerFocus . R.getPointerState $ seatRoots seat
 
-    if prev /= post
+    if (prev /= post || prev == surf)
         then do
             oldView <- readIORef (seatPointer seat)
             let changed = oldView /= Just view

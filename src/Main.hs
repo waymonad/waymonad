@@ -28,6 +28,7 @@ where
 --import Fuse.Main
 import Layout.Spiral
 import Layout.Choose
+import qualified View.Multi as Multi
 
 import qualified Hooks.OutputAdd as H
 import WayUtil.View
@@ -180,6 +181,7 @@ bindings dsp fun =
     , (([modi], keysym_o), centerFloat)
     , (([modi], keysym_Right), sendMessage NextLayout)
     , (([modi], keysym_c), doJust getCurrentView $ \v -> insertView mempty =<< makeProxy v fun)
+    , (([modi], keysym_a), doJust getCurrentView $ \v -> Multi.copyView v (insertView mempty) fun)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
     where modi = Alt
 
@@ -287,8 +289,8 @@ main =  do
 
             let loggers = WayLoggers
                     { loggerOutput = Logger Info "Output"
-                    , loggerWS = Logger Warn "Workspaces"
-                    , loggerFocus = Logger Warn "Focus"
+                    , loggerWS = Logger Info "Workspaces"
+                    , loggerFocus = Logger Info "Focus"
                     , loggerXdg = Logger Info "Xdg_Shell"
                     , loggerX11 = Logger Info "XWayland"
                     , loggerKeybinds = Logger Info "Keybindings"
