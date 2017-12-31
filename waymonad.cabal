@@ -58,6 +58,7 @@ executable waymonad
   other-modules:        Config
   other-modules:        Config.Box
   other-modules:        Config.Output
+  other-modules:        Config.Logger
 
   --other-modules:        Fuse.Main
 
@@ -115,7 +116,7 @@ executable waymonad
   build-depends:       xkbcommon, containers, composition, time, directory
   build-depends:       unix, mtl, text, hsroots, process, transformers
   build-depends:       config-schema, config-value, xdg-basedir, network
-  build-depends:       bytestring, data-default
+  build-depends:       bytestring, data-default, semigroupoids
   
   -- Directories containing source files.
   hs-source-dirs:      src

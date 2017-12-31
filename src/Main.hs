@@ -299,4 +299,4 @@ main =  do
                     , loggerRender = Logger Trace "Frame"
                     }
 
-            runWay Nothing state loggers (realMain compRef)
+            runWay Nothing state (fromMaybe loggers $ configLoggers conf) (realMain compRef)

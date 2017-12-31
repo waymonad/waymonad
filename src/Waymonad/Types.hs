@@ -24,6 +24,26 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module Waymonad.Types
+    ( WayStateRef
+    , LayoutCacheRef
+    , WayState
+    , SomeEvent
+    , WayLoggers (..)
+    , Compositor (..)
+    , WayBindingState (..)
+    , Way (..)
+    , WayBinding (..)
+    , WayLogging (..)
+    , SomeEvent (..)
+    , EventClass
+    , LayoutCache (..)
+    , WayState (..)
+    , Logger (..)
+    , LogFun
+    , BindingMap
+    , KeyBinding
+    , LogPriority (..)
+    )
 where
 
 import Control.Monad.IO.Class (MonadIO)
@@ -57,6 +77,7 @@ import Waymonad.Extensible (StateMap)
 import {-# SOURCE #-} XWayland (XWayShell)
 import {-# SOURCE #-} XdgShell (XdgShell)
 
+import Waymonad.Types.Logger
 
 -- All of this makes for a fake `Monad State` in IO
 -- We need this because we run into callbacks *a lot*.
@@ -80,34 +101,9 @@ class Typeable e => EventClass e
 
 data SomeEvent = forall e. EventClass e => SomeEvent e
 
-data LogPriority
-    = Error
-    | Warn
-    | Info
-    | Debug
-    | Trace
-    deriving (Eq, Show, Ord)
-
-data Logger = Logger
-    { loggerLevel :: LogPriority
-    , loggerName :: Text
-    }
-
 data WayHooks = WayHooks
     {
 
-    }
-
-data WayLoggers = WayLoggers
-    { loggerOutput :: Logger
-    , loggerWS :: Logger
-    , loggerFocus :: Logger
-    , loggerXdg :: Logger
-    , loggerX11 :: Logger
-    , loggerKeybinds :: Logger
-    , loggerSpawner :: Logger
-    , loggerLayout :: Logger
-    , loggerRender :: Logger
     }
 
 data Compositor = Compositor

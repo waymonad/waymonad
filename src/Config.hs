@@ -40,22 +40,28 @@ import System.Environment.XDG.BaseDir (getUserConfigFile)
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isDoesNotExistError)
 
+import Waymonad.Types.Logger (WayLoggers)
+
 import Config.Output
+import Config.Logger
 
 import qualified Data.Map as M
 
 data WayConfig = WayConfig
     { configOutputs :: Map Text OutputConfig
-
+    , configLoggers :: Maybe WayLoggers
     } deriving (Eq, Show)
 
 
 waySpec :: ValueSpecs WayConfig
 waySpec = sectionsSpec "waymonad" $ do
     outputs <- optSection "outputs" "List of output configs to be applied when an output is loaded"
+    loggers <- optSection "loggers" "Priority settings for all the loggers"
+
 
     pure $ WayConfig
         { configOutputs = M.fromList $ map (\x -> (outName x, x)) $ fromMaybe [] outputs
+        , configLoggers = loggers
         }
 
 instance Spec WayConfig where
