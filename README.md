@@ -18,6 +18,10 @@ This currently only builds with the `new-build` feature of cabal-install. `stack
  * git clone --recursive https://github.com/ongy/waymonad
  * cd waymonad
  * cabal new-build
+ 
+ If the `xkbcommon` module fails with cryptic errors, try to create the `build` directory in `hsroots/haskell-xkbcommon/dist` and prevent your user from writing in there. My setup does it and that seems to work fine.
+ 
+ Or if you are on recent (I think 8.2.2) ghc, use the master, it uses TemplateHaskell and doesn't try to write in-tree during compilation.
 
 -----
 
