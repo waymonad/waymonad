@@ -32,6 +32,7 @@ data OutputConfig = OutputConfig
     -- This should be a point? or even Box?
     , outPosition :: Maybe (Point Int)
     , outMode :: Maybe Mode
+    , outScale :: Maybe Float
     } deriving (Eq, Show)
 
 data Mode = Mode
@@ -55,10 +56,12 @@ instance Spec OutputConfig where
         name <- reqSection "name" "Output name (actually connector)"
         pos <- optSection "position" "The position of the output"
         mode <- optSection "mode" "The mode that should be set for this output"
+        scale <- optSection "scale" "The output scale"
 
         pure $ OutputConfig
             { outName = name
             , outPosition = pos
             , outMode = mode
+            , outScale = fmap fromRational scale
             }
 

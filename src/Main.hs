@@ -26,6 +26,7 @@ module Main
 where
 
 --import Fuse.Main
+import Hooks.EnterLeave (enterLeaveHook)
 import Layout.Spiral
 import Layout.Choose
 import qualified View.Multi as Multi
@@ -283,6 +284,7 @@ main =  do
                             <> wsChangeLogHook
                             <> handleKeyboardSwitch
                             <> H.outputAddHook
+                            <> enterLeaveHook
                     , wayUserWorkspaces = workspaces
                     , wayCompositor = unsafePerformIO (readIORef compRef)
                     }

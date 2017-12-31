@@ -32,7 +32,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), centerBox)
-import Graphics.Wayland.WlRoots.Output (getOutputBox, getOutputName)
+import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputName)
 
 import {-# SOURCE #-} Output (Output (..), getOutputId)
 import Utility (whenJust, intToPtr)
@@ -54,7 +54,7 @@ getBoxes
 getBoxes ws = do
     xs <- liftIO . readIORef . wayBindingMapping =<< getState
     let outputs = map snd . filter ((==) ws . fst) $ xs
-    liftIO $ mapM (\out -> fmap (out,) . getOutputBox $ outputRoots out) outputs
+    liftIO $ mapM (\out -> fmap (out,) . getEffectiveBox $ outputRoots out) outputs
 
 
 getLayoutBoxes

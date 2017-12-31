@@ -57,6 +57,7 @@ import Graphics.Wayland.WlRoots.Output
     , makeOutputCurrent
     , getOutputName
     , getOutputScale
+    , setOutputScale
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( WlrOutputLayout
@@ -91,6 +92,7 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceGetCallbacks
     , withSurfaceMatrix
     , surfaceGetTexture
+    , surfaceGetScale
     )
 
 import Waymonad.Types (Compositor (..), Logger(..))
@@ -147,6 +149,12 @@ renderOn output rend act = bracket_
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output surface scaleFactor box = do
+    outputScale <- getOutputScale output
+    surfScale <- fromIntegral <$> surfaceGetScale surface
+    hPutStrLn stderr $ "Output: " ++ show (outputScale)
+    hPutStrLn stderr $ "Surface: " ++ show (surfScale)
+    hPutStrLn stderr $ "Local: " ++ show (outputScale / surfScale)
+    let localScale = (outputScale / surfScale) * scaleFactor
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
     when isValid $ withMatrix $ \trans -> withMatrix $ \scale -> withMatrix $ \final -> do
@@ -157,7 +165,7 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                 bheight = boxHeight box
 
             matrixTranslate trans (realToFrac x) (realToFrac y) 0
-            matrixScale scale scaleFactor scaleFactor 1
+            matrixScale scale localScale localScale 1
             matrixMul trans scale final
             withSurfaceMatrix surface (getTransMatrix output) final $ \mat -> do
                 renderWithMatrix (compRenderer comp) texture mat
@@ -179,8 +187,8 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                     output
                     subsurf
                     scaleFactor
-                    sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + boxX box
-                        , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + boxY box
+                    sbox{ boxX = floor (fromIntegral (boxX sbox) * localScale) + boxX box
+                        , boxY = floor (fromIntegral (boxY sbox) * localScale) + boxY box
                         , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
@@ -278,16 +286,18 @@ configureOutput
     -> Text
     -> Ptr WlrOutput
     -> Way a ()
-configureOutput layout configs name output = do
+configureOutput layout configs name output = liftIO $ do
     let conf = M.lookup name configs
         position = outPosition =<< conf
         confMode = outMode =<< conf
-    liftIO $ case position of
+    case position of
         Nothing -> addOutputAuto layout output
         Just (C.Point x y) -> addOutput layout output x y
     mode <- pickMode output confMode
 
-    liftIO $ whenJust mode (flip setOutputMode output)
+    whenJust mode (flip setOutputMode output)
+
+    whenJust (outScale =<< conf) (setOutputScale output)
 
 newtype OutputAddEvent = OutputAdd Output
     deriving (Eq, Show)

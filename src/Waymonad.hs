@@ -55,6 +55,7 @@ module Waymonad
     , setCallback
     , withSeat
     , getViewSet
+    , getWorkspace
 
     , WayLoggers (..)
     , Logger (..)
@@ -80,7 +81,7 @@ import Data.IORef (IORef, modifyIORef, readIORef)
 import Data.IntMap (IntMap)
 import Data.List (find)
 import Data.Map (Map)
-import Data.Maybe (maybeToList, listToMaybe)
+import Data.Maybe (maybeToList, listToMaybe, fromJust)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf, cast)
@@ -96,6 +97,7 @@ import Waymonad.Types
 
 import qualified ViewSet as VS
 import qualified Data.IntMap as IM
+import qualified Data.Map as M
 import qualified Data.Set as S
 
 
@@ -176,6 +178,9 @@ getSeat = do
 
 getViewSet :: Way a (VS.ViewSet a)
 getViewSet = liftIO . readIORef . wayBindingState =<< getState
+
+getWorkspace :: VS.WSTag a => a -> Way a VS.Workspace
+getWorkspace ws = fromJust . M.lookup ws <$> getViewSet
 
 runWayLogging :: MonadIO m => WayLoggers -> WayLogging a -> m a
 runWayLogging val (WayLogging act) = liftIO $ runReaderT act val

@@ -68,6 +68,7 @@ executable waymonad
   other-modules:        Input.Pointer
   other-modules:        Input.Seat
 
+  other-modules:        Hooks.EnterLeave
   other-modules:        Hooks.KeyboardFocus
   other-modules:        Hooks.OutputAdd
   other-modules:        Hooks.SeatMapping
