@@ -159,8 +159,8 @@ outputHandleSurface comp secs output surface scaleFactor box = do
     isValid <- isTextureValid texture
     when isValid $ withMatrix $ \trans -> withMatrix $ \scale -> withMatrix $ \final -> do
             (twidth, theight) <- getTextureSize texture
-            let x = boxX box
-                y = boxY box
+            let x = floor $ fromIntegral (boxX box) * outputScale
+                y = floor $ fromIntegral (boxY box) * outputScale
                 bwidth = boxWidth box
                 bheight = boxHeight box
 
@@ -187,8 +187,8 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                     output
                     subsurf
                     scaleFactor
-                    sbox{ boxX = floor (fromIntegral (boxX sbox) * localScale) + boxX box
-                        , boxY = floor (fromIntegral (boxY sbox) * localScale) + boxY box
+                    sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor * outputScale) + boxX box
+                        , boxY = floor (fromIntegral (boxY sbox) * scaleFactor * outputScale) + boxY box
                         , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
