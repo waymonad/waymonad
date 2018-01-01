@@ -27,6 +27,7 @@ module WayUtil.ViewSet
     , forceFocused
     , withWS
     , unsetFocus
+    , getWorkspaces
     )
 where
 
@@ -134,3 +135,6 @@ withWS ws fun = do
     vs <- getViewSet
 
     pure . fun . fromJust $  M.lookup ws vs
+
+getWorkspaces :: Way a [a]
+getWorkspaces = wayUserWorkspaces <$> getState

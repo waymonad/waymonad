@@ -67,7 +67,15 @@ class LayoutClass a where
     pureLayout :: a -> WlrBox -> Zipper b c -> [(c, WlrBox)]
     handleMessage :: a -> SomeMessage -> Maybe a
     broadcastMessage :: a -> SomeMessage -> Maybe a
+    -- | Static description of the Layout. Should not need to introspect the
+    -- argument
     description :: a -> Text
+    -- | Dynamic up to date description of the Layout. This should introspect
+    -- the argument and give an overview of what's currently used
+    --
+    -- Defaults to 'description'
+    currentDesc :: a -> Text
+    currentDesc = description
 
 data Layout = forall l. LayoutClass l => Layout l
 

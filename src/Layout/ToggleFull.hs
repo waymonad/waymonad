@@ -62,6 +62,9 @@ instance LayoutClass l => LayoutClass (ToggleFull l) where
     description :: ToggleFull l -> Text
     description (ToggleFull _ l) =
         "ToggleFull(" `T.append` description l `T.append` ")"
+    currentDesc :: ToggleFull l -> Text
+    currentDesc (ToggleFull False l) = currentDesc l
+    currentDesc (ToggleFull True _) = "ToggledFull"
     pureLayout :: ToggleFull l -> WlrBox -> Zipper b c -> [(c, WlrBox)]
     pureLayout (ToggleFull False l) box z = pureLayout l box z
     pureLayout (ToggleFull True _) box z =

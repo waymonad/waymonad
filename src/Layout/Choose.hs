@@ -75,7 +75,10 @@ instance (LayoutClass l, LayoutClass r) =>  LayoutClass (Choose l r) where
     broadcastMessage :: Choose l r -> SomeMessage -> Maybe (Choose l r)
     broadcastMessage = handleMessage
     description :: Choose l r -> Text
-    description (Choose _ l r) = description l `T.append` "|||" `T.append` description r
+    description (Choose _ l r) = description l `T.append` " ||| " `T.append` description r
+    currentDesc :: Choose l r -> Text
+    currentDesc (Choose L l _) = currentDesc l
+    currentDesc (Choose R _ r) = currentDesc r
     pureLayout :: Choose l r -> WlrBox -> Zipper b c -> [(c, WlrBox)]
     pureLayout (Choose L l _) z b = pureLayout l z b
     pureLayout (Choose R _ r) z b = pureLayout r z b

@@ -57,6 +57,10 @@ instance LayoutClass l => LayoutClass (Mirror l) where
     description :: Mirror l -> Text
     description (Mirror _ l) =
         "Mirror(" `T.append` description l `T.append` ")"
+    currentDesc :: Mirror l -> Text
+    currentDesc (Mirror True l) =
+        "Mirror(" `T.append` currentDesc l `T.append` ")"
+    currentDesc (Mirror False l) = currentDesc l
     pureLayout :: Mirror l -> WlrBox -> Zipper b c -> [(c, WlrBox)]
     pureLayout (Mirror False l) box z = pureLayout l box z
     pureLayout (Mirror True l) box z =

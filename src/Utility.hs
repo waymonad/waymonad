@@ -27,6 +27,8 @@ module Utility
     , These (..)
     , getThis
     , getThat
+
+    , firstDir
     )
 where
 
@@ -64,3 +66,7 @@ getThat :: These a -> Maybe a
 getThat (That x) = Just x
 getThat (These _ x) = Just x
 getThat _ = Nothing
+
+firstDir :: String -> (String, String)
+firstDir [] = ([], [])
+firstDir str = (takeWhile (/= '/') str, dropWhile (/= '/') str)

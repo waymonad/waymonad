@@ -25,7 +25,8 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
---import Fuse.Main
+import System.Posix.Signals
+import Fuse.Main
 import Hooks.EnterLeave (enterLeaveHook)
 import Layout.Spiral
 import Layout.Choose
@@ -240,7 +241,7 @@ realMain compRef = do
     compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
-    --runFuse
+    runFuse
     liftIO $ launchCompositor ignoreHooks
         { displayHook = writeIORef dspRef
         , backendPreHook = compFun
@@ -248,8 +249,13 @@ realMain compRef = do
         , outputRemoveHook = outputRm
         }
 
+
+ignoreUSR1 :: IO ()
+ignoreUSR1 = void $ installHandler sigUSR1 Ignore Nothing
+
 main :: IO ()
 main =  do
+    ignoreUSR1
     config <- loadConfig
     case config of
         Left str -> do
