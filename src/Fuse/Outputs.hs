@@ -28,8 +28,11 @@ where
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import Data.Text (Text)
+import Foreign.C.Error (eINVAL)
 import Foreign.Storable (Storable (peek))
-import Formatting
+import Formatting (sformat, (%), int)
+
+import Graphics.Wayland.Server (OutputTransform, outputTransformNormal, outputTransform180)
 
 import Graphics.Wayland.WlRoots.Output
     ( getMode
@@ -38,6 +41,9 @@ import Graphics.Wayland.WlRoots.Output
     , getHeight
     , hasModes
     , OutputMode (..)
+    , getOutputTransform
+    -- TODO: This should probably be done in the main loop
+    , transformOutput
     )
 
 import Output (Output(..))
@@ -65,6 +71,11 @@ makeModesText out = do
     modes <- liftIO (mapM peek =<< getModes (outputRoots out))
     pure $ T.intercalate "\n" $ fmap formatMode modes
 
+readTransform :: Text -> Maybe (OutputTransform)
+readTransform "Normal" = Just outputTransformNormal
+readTransform "180" = Just outputTransform180
+readTransform _ = Nothing
+
 makeOutputDir :: WSTag a => Output -> Way a (Entry a)
 makeOutputDir out = do
     let guaranteed =
@@ -84,7 +95,15 @@ makeOutputDir out = do
             Nothing -> []
             Just xs -> [("ws", SymlinkEntry (pure $ "../../workspaces/" ++ T.unpack (getName xs)))]
 
-    pure $ DirEntry $ simpleDir $ M.fromList $ guaranteed ++ modes ++ wsLink
+    let transform = ("transform", FileEntry $ textRWFile
+            (liftIO $ (T.pack . show <$> getOutputTransform (outputRoots out)))
+            (\txt -> case readTransform txt of
+                        Nothing -> pure $ Left $ eINVAL
+                        Just trans -> liftIO $ Right <$> transformOutput (outputRoots out) trans
+            )
+                    )
+
+    pure $ DirEntry $ simpleDir $ M.fromList $ transform: guaranteed ++ modes ++ wsLink
 
 enumerateOuts :: WSTag a => Way a (Map String (Entry a))
 enumerateOuts = do

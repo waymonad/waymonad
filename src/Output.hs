@@ -151,9 +151,6 @@ outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -
 outputHandleSurface comp secs output surface scaleFactor box = do
     outputScale <- getOutputScale output
     surfScale <- fromIntegral <$> surfaceGetScale surface
-    hPutStrLn stderr $ "Output: " ++ show (outputScale)
-    hPutStrLn stderr $ "Surface: " ++ show (surfScale)
-    hPutStrLn stderr $ "Local: " ++ show (outputScale / surfScale)
     let localScale = (outputScale / surfScale) * scaleFactor
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
@@ -223,7 +220,6 @@ frameHandler
     -> Ptr WlrOutput
     -> IO ()
 frameHandler compRef cacheRef fRef secs output = do
-  --hPutStrLn stderr "Handling frame"
   runLayoutCache' cacheRef $ do
     comp <- liftIO $ readIORef compRef
     (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)

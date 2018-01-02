@@ -25,7 +25,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Data.Map (Map)
 import Data.Text (Text)
-import Foreign.C.Error (Errno, eNOENT, eNOTSUP, ePERM)
+import Foreign.C.Error (Errno, eNOENT, eNOTSUP, ePERM, eINVAL)
 import System.Posix.Types (ByteCount, FileOffset)
 
 import System.Fuse
@@ -174,14 +174,35 @@ bytestringFile bsGen = (ReadOnly,
         }
     )
 
-textFile :: Way a Text -> (OpenMode, FileHandle a)
-textFile txtGen = (ReadOnly,
+bytestringRWFile
+    :: Way a ByteString
+    -> (ByteString -> Way a (Either Errno ()))
+    -> (OpenMode, FileHandle a)
+bytestringRWFile bsGen bsTake = (ReadWrite,
     FileHandle
         { fileRead = \_ count offset -> do
-            bs <- E.encodeUtf8 <$> txtGen
+            bs <- bsGen
             pure $ Right $ BS.take (fromIntegral count) $ BS.drop (fromIntegral offset) bs
-        , fileWrite = \_ _ _ -> pure $ Left eNOTSUP
+        , fileWrite = \_ bs _ -> do
+            ret <- bsTake bs
+            pure $ fmap (const $ fromIntegral $ BS.length bs) ret
         , fileFlush = \_ -> pure eOK
         , fileRelease = \_ -> pure ()
         }
     )
+
+
+textFile :: Way a Text -> (OpenMode, FileHandle a)
+textFile txtGen = bytestringFile (E.encodeUtf8 <$> txtGen)
+
+textRWFile
+    :: Way a Text
+    -> (Text -> Way a (Either Errno ()))
+    -> (OpenMode, FileHandle a)
+textRWFile txtGen txtTake =
+    bytestringRWFile
+        (E.encodeUtf8 <$> txtGen)
+        (\bs -> case E.decodeUtf8' bs of
+            Left _ -> pure $ Left eINVAL
+            Right x -> txtTake x
+        )
