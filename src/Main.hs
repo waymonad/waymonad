@@ -25,6 +25,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import InjectRunner
 import System.Posix.Signals
 import Fuse.Main
 import Hooks.EnterLeave (enterLeaveHook)
@@ -213,7 +214,6 @@ makeCompositor dspRef backend keyBinds = do
     let addFun = insertView (overrideXRedirect <> manageSpawnOn <> manageNamed)
     xdgShell <- xdgShellCreate display addFun removeView
     xway <- xwayShellCreate display comp addFun removeView
-
 --    shell <- pure undefined
     pure $ Compositor
         { compDisplay = display
@@ -237,14 +237,16 @@ defaultMap xs = newIORef $ M.fromList $
 realMain :: IORef Compositor -> Way Text ()
 realMain compRef = do
     setBaseTime
-    dspRef <- liftIO $ newIORef undefined
+    dspRef <- liftIO $ newIORef $ error "Tried to access display too early"
     compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
+    postCB <- makeCallback $ const registerInjectHandler
     runFuse
     liftIO $ launchCompositor ignoreHooks
         { displayHook = writeIORef dspRef
         , backendPreHook = compFun
+        , backendPostHook = postCB
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
         }
@@ -271,8 +273,9 @@ main =  do
             seats <- newIORef []
             extensible <- newIORef mempty
             floats <- newIORef mempty
-            compRef <- newIORef undefined
+            compRef <- newIORef $ error "Tried to access compositor to early"
             logF <- logFun
+            inject <- makeInject
 
             let state = WayBindingState
                     { wayBindingCache = layoutRef
@@ -292,6 +295,7 @@ main =  do
                             <> H.outputAddHook
                             <> enterLeaveHook
                     , wayUserWorkspaces = workspaces
+                    , wayInjectChan = inject
                     , wayCompositor = unsafePerformIO (readIORef compRef)
                     }
 

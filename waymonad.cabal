@@ -65,6 +65,8 @@ executable waymonad
   other-modules:        Fuse.Outputs
   other-modules:        Fuse.Workspaces
 
+  other-modules:        InjectRunner
+
   other-modules:        Input
   other-modules:        Input.Cursor
   other-modules:        Input.Keyboard
@@ -121,7 +123,7 @@ executable waymonad
   build-depends:       unix, mtl, text, hsroots, process, transformers
   build-depends:       config-schema, config-value, xdg-basedir, network
   build-depends:       bytestring, data-default, semigroupoids, HFuse
-  build-depends:       formatting
+  build-depends:       formatting, stm
   
   -- Directories containing source files.
   hs-source-dirs:      src

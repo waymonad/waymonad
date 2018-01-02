@@ -46,6 +46,7 @@ module Waymonad.Types
     )
 where
 
+import Control.Concurrent.Chan (Chan)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT, MonadReader)
 import Data.IORef (IORef)
@@ -62,6 +63,7 @@ import Graphics.Wayland.WlRoots.Backend (Backend)
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 import Graphics.Wayland.WlRoots.DeviceManager (WlrDeviceManager)
+import Graphics.Wayland.WlRoots.Output (OutputMode)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Render (Renderer)
 import Graphics.Wayland.WlRoots.Screenshooter (WlrScreenshooter)
@@ -76,6 +78,7 @@ import ViewSet (ViewSet)
 import Waymonad.Extensible (StateMap)
 import {-# SOURCE #-} XWayland (XWayShell)
 import {-# SOURCE #-} XdgShell (XdgShell)
+import {-# SOURCE #-} InjectRunner (InjectChan)
 
 import Waymonad.Types.Logger
 
@@ -135,6 +138,7 @@ data WayBindingState a = WayBindingState
     , wayEventHook       :: SomeEvent -> Way a ()
     , wayUserWorkspaces  :: [a]
     , wayCompositor      :: Compositor
+    , wayInjectChan      :: InjectChan
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)

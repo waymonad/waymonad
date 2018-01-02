@@ -22,11 +22,13 @@ module Fuse.Common
 where
 
 import Control.Monad.IO.Class (liftIO)
+import Data.Bits ((.|.))
 import Data.ByteString (ByteString)
 import Data.Map (Map)
 import Data.Text (Text)
 import Foreign.C.Error (Errno, eNOENT, eNOTSUP, ePERM, eINVAL)
 import System.Posix.Types (ByteCount, FileOffset)
+import System.Posix.Files
 
 import System.Fuse
 
@@ -40,7 +42,7 @@ import qualified Data.Text.Encoding as E
 defaultDirStats :: FuseContext -> FileStat
 defaultDirStats ctx = FileStat
     { statEntryType = Directory
-    , statFileMode = 0400
+    , statFileMode = ownerReadMode .|. ownerWriteMode .|. ownerExecuteMode
     , statLinkCount = 1
     , statFileOwner = fuseCtxUserID ctx
     , statFileGroup = fuseCtxGroupID ctx
@@ -53,7 +55,7 @@ defaultDirStats ctx = FileStat
     }
 
 defaultFileStats :: FuseContext -> FileStat
-defaultFileStats ctx = (defaultDirStats ctx) { statEntryType = RegularFile }
+defaultFileStats ctx = (defaultDirStats ctx) { statEntryType = RegularFile, statFileMode = ownerReadMode .|. ownerWriteMode }
 
 defaultSymStats :: FuseContext -> FileStat
 defaultSymStats ctx = (defaultDirStats ctx) { statEntryType = SymbolicLink }

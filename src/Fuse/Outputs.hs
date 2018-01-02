@@ -46,10 +46,9 @@ import Graphics.Wayland.WlRoots.Output
     , getOutputTransform
     -- TODO: This should probably be done in the main loop
     , transformOutput
-
-    , setOutputMode
     )
 
+import InjectRunner (Inject (..), injectEvt)
 import Output (Output(..), findMode)
 import ViewSet (WSTag (..))
 import Waymonad.Types (Way)
@@ -125,7 +124,7 @@ makeOutputDir out = do
                     (\txt -> do
                         mode <- readMode out txt
                         case mode of
-                            Just x -> liftIO $ Right <$> setOutputMode x (outputRoots out)
+                            Just x -> Right <$> injectEvt (ChangeMode out x)
                             Nothing -> pure $ Left eINVAL
                     )
                   )

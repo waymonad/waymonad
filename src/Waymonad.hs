@@ -52,6 +52,7 @@ module Waymonad
     , getSeat
     , runWay
     , makeCallback
+    , makeCallback2
     , setCallback
     , withSeat
     , getViewSet
@@ -206,6 +207,9 @@ makeCallback act = do
     state <- getState
     loggers <- getLoggers
     pure (\arg -> runWay seat state loggers (act arg))
+
+makeCallback2 :: (c -> d -> Way a b) -> Way a (c -> d -> IO b)
+makeCallback2 act = curry <$> makeCallback (uncurry act)
 
 setCallback :: (c -> Way a b) -> ((c -> IO b) -> IO d) -> Way a d
 setCallback act fun = do
