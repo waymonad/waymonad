@@ -1,0 +1,40 @@
+image: debian/buster
+packages:
+  - build-essential
+  - git
+  - python3-pip
+  - pkg-config
+  - libwayland-dev
+  - libegl1-mesa-dev
+  - wayland-protocols
+  - libgles2-mesa-dev
+  - libgbm-dev
+  - libinput-dev
+  - libxkbcommon-dev
+  - libpixman-1-dev
+  - libxcb-composite0-dev
+  - libxcb-image0-dev
+  - cabal-install
+  - ghc
+  - happy
+  - alex
+  - c2hs
+  - libfuse-dev
+
+sources:
+  - https://github.com/ongy/waymonad
+tasks:
+  - setup: |
+      pip3 install meson ninja
+      git clone https://github.com/swaywm/wlroots
+      (
+          cd wlroots
+          meson build --prefix=/usr/
+          ninja -C build install
+      )
+  - build: |
+      cd waymonad
+      git submodule update --recursive --init
+      touch hsroots/haskell-xkbcommon/dist
+      cabal update
+      cabal new-build

@@ -1,0 +1,5 @@
+{
+	"note": "waymonad test build",
+	"tags": ["waymonad", "master"],
+	"manifest": "image: debian/buster\npackages:\n  - build-essential\n  - git\n  - python3-pip\n  - pkg-config\n  - libwayland-dev\n  - libegl1-mesa-dev\n  - wayland-protocols\n  - libgles2-mesa-dev\n  - libgbm-dev\n  - libinput-dev\n  - libxkbcommon-dev\n  - libpixman-1-dev\n  - libxcb-composite0-dev\n  - libxcb-image0-dev\n  - cabal-install\n  - ghc\n  - happy\n  - alex\n  - c2hs\n  - libfuse-dev\n\nsources:\n  - https://github.com/ongy/waymonad\ntasks:\n  - setup: |\n      pip3 install meson ninja\n      git clone https://github.com/swaywm/wlroots\n      (\n          cd wlroots\n          meson build --prefix=/usr/\n          ninja -C build install\n      )\n  - build: |\n      cd waymonad\n      git submodule update --recursive --init\n      touch hsroots/haskell-xkbcommon/dist\n      cabal update\n      cabal new-build\n"
+}
