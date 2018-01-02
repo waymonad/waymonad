@@ -27,10 +27,13 @@ module Output
     , Output (..)
     , getOutputId
     , outputFromWlr
+    , findMode
     )
 where
 
 import Control.Exception (bracket_)
+import Data.Foldable (maximumBy, minimumBy)
+import Data.Function (on)
 import Data.List ((\\), sortOn)
 import Data.Ratio (Ratio, (%))
 import Control.Monad (forM_, forM, filterM, void, when)
@@ -40,10 +43,11 @@ import Data.Map (Map)
 import Data.Maybe (listToMaybe)
 import Data.Set (Set)
 import Data.Text (Text)
+import Data.Word (Word32)
 import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Graphics.Wayland.Server (callbackDone)
-import System.IO (hPutStrLn, stderr)
+import System.IO (stderr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
@@ -73,7 +77,6 @@ import Graphics.Wayland.WlRoots.Render
     , renderWithMatrix
     , isTextureValid
     , doRender
-    , getTextureSize
     )
 import Graphics.Wayland.WlRoots.Render.Matrix
     ( withMatrix
@@ -95,7 +98,7 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceGetScale
     )
 
-import Waymonad.Types (Compositor (..), Logger(..))
+import Waymonad.Types (Compositor (..))
 import Config (configOutputs)
 import qualified Config.Box as C (Point (..))
 import Config.Output (OutputConfig (..), Mode (..))
@@ -117,7 +120,6 @@ import Waymonad
     , sendEvent
     )
 import Waymonad (getSeats)
-import WayUtil.Log (logPutText)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
@@ -155,13 +157,10 @@ outputHandleSurface comp secs output surface scaleFactor box = do
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
     when isValid $ withMatrix $ \trans -> withMatrix $ \scale -> withMatrix $ \final -> do
-            (twidth, theight) <- getTextureSize texture
-            let x = floor $ fromIntegral (boxX box) * outputScale
-                y = floor $ fromIntegral (boxY box) * outputScale
-                bwidth = boxWidth box
-                bheight = boxHeight box
+            let x = fromIntegral (boxX box) * outputScale
+                y = fromIntegral (boxY box) * outputScale
 
-            matrixTranslate trans (realToFrac x) (realToFrac y) 0
+            matrixTranslate trans x y 0
             matrixScale scale localScale localScale 1
             matrixMul trans scale final
             withSurfaceMatrix surface (getTransMatrix output) final $ \mat -> do
@@ -275,6 +274,27 @@ pickMode output (Just cfg) = liftIO $ do
             resDist :: OutputMode -> Int -- We know it's the same ration, so be lazy here
             resDist mode = abs $ fromIntegral (modeWidth mode) - fromIntegral (modeCWidth cfg)
 
+findMode
+    :: MonadIO m
+    => Ptr WlrOutput
+    -> Word32
+    -> Word32
+    -> Maybe Word32
+    -> m (Maybe (Ptr OutputMode))
+findMode output width height refresh = liftIO $ do
+    modes <- getModes output
+    paired <- forM modes $ \x -> do
+        marshalled <- peek x
+        pure (marshalled, x)
+    let candidates = filter (\(mode, _) -> modeWidth mode == width && modeHeight mode == height) paired
+
+    let fun = case refresh of
+            Nothing -> maximumBy (compare  `on` (modeRefresh . fst))
+            Just val -> minimumBy (compare `on` (abs . (-) (fromIntegral val :: Int) . fromIntegral . modeRefresh . fst))
+
+    pure $ case candidates of
+        [] -> Nothing
+        xs -> Just . snd . fun $ xs
 
 configureOutput
     :: Ptr WlrOutputLayout
@@ -326,7 +346,7 @@ handleOutputAdd ref _ output = do
 
     sendEvent $ OutputAdd out
 
-    pure $ \secs out -> frameHandler ref cacheRef floats secs out
+    pure $ \secs fout -> frameHandler ref cacheRef floats secs fout
 
 handleOutputRemove
     :: Ptr WlrOutput

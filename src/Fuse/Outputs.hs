@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Fuse.Outputs
     ( outputsDir
     )
@@ -29,6 +30,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import Data.Text (Text)
 import Foreign.C.Error (eINVAL)
+import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable (peek))
 import Formatting (sformat, (%), int)
 
@@ -44,9 +46,11 @@ import Graphics.Wayland.WlRoots.Output
     , getOutputTransform
     -- TODO: This should probably be done in the main loop
     , transformOutput
+
+    , setOutputMode
     )
 
-import Output (Output(..))
+import Output (Output(..), findMode)
 import ViewSet (WSTag (..))
 import Waymonad.Types (Way)
 import WayUtil (getOutputs)
@@ -54,10 +58,39 @@ import WayUtil.Focus (getOutputWorkspace)
 
 import Fuse.Common
 
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as E
 
-
+readMode :: Output -> Text -> Way a (Maybe (Ptr OutputMode))
+readMode out txt = do
+    let bs = E.encodeUtf8 txt
+    let parsed :: Maybe (Int, Int, Maybe Int) = do
+            (width, nxt1) <- BS.readInt bs
+            (x, nxt2) <- BS.uncons nxt1
+            if x == 'x'
+                then Just ()
+                else Nothing
+            (height, nxt3) <- BS.readInt nxt2
+            refresh <- case BS.uncons nxt3 of
+                            Nothing -> Just Nothing
+                            Just (at, ref) -> do
+                                if at == '@'
+                                    then Just ()
+                                    else Nothing
+                                Just $ fst <$> BS.readInt ref
+            -- wlroots expects milli hertz, so if someone just inputs @60,
+            -- multiply by 1000, to get a fitting value
+            let adjust = (\val -> if val < 1000 then val * 1000 else val)
+            pure (width, height, adjust <$> refresh)
+    case parsed of
+        Nothing -> pure Nothing
+        Just (width, height, ref) -> findMode
+                (outputRoots out)
+                (fromIntegral width)
+                (fromIntegral height)
+                (fromIntegral <$> ref)
 
 formatMode :: OutputMode -> Text
 formatMode mode = sformat
@@ -87,7 +120,15 @@ makeOutputDir out = do
     let modes = if hm
             then
                 [ ("modes", FileEntry $ textFile $ makeModesText out)
-                , ("mode", FileEntry $ textFile $ liftIO $ maybe (pure "None") (fmap formatMode . peek) =<< getMode (outputRoots out))
+                , ("mode", FileEntry $ textRWFile 
+                    (liftIO $ maybe (pure "None") (fmap formatMode . peek) =<< getMode (outputRoots out))
+                    (\txt -> do
+                        mode <- readMode out txt
+                        case mode of
+                            Just x -> liftIO $ Right <$> setOutputMode x (outputRoots out)
+                            Nothing -> pure $ Left eINVAL
+                    )
+                  )
                 ]
             else []
     ws <- getOutputWorkspace out
