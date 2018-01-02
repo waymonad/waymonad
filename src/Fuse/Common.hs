@@ -24,6 +24,7 @@ where
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Data.Map (Map)
+import Data.Text (Text)
 import Foreign.C.Error (Errno, eNOENT, eNOTSUP, ePERM)
 import System.Posix.Types (ByteCount, FileOffset)
 
@@ -33,6 +34,8 @@ import Utility (firstDir)
 import Waymonad.Types (Way)
 
 import qualified Data.Map as M
+import qualified Data.ByteString as BS
+import qualified Data.Text.Encoding as E
 
 defaultDirStats :: FuseContext -> FileStat
 defaultDirStats ctx = FileStat
@@ -55,6 +58,7 @@ defaultFileStats ctx = (defaultDirStats ctx) { statEntryType = RegularFile }
 defaultSymStats :: FuseContext -> FileStat
 defaultSymStats ctx = (defaultDirStats ctx) { statEntryType = SymbolicLink }
 
+
 data FileHandle a = FileHandle
     { fileRead :: FilePath -> ByteCount -> FileOffset -> Way a (Either Errno ByteString)
     , fileWrite :: FilePath -> ByteString -> FileOffset -> Way a (Either Errno ByteCount)
@@ -74,10 +78,12 @@ data Entry a
     | DirEntry (DirHandle a)
     | SymlinkEntry (Way a FilePath)
 
+
 getDefaultStats :: Entry a -> FuseContext -> FileStat
 getDefaultStats (FileEntry _) = defaultFileStats
 getDefaultStats (DirEntry _) = defaultDirStats
 getDefaultStats (SymlinkEntry _) = defaultSymStats
+
 
 compatible :: OpenMode -> OpenMode -> Bool
 compatible ReadOnly ReadOnly = True
@@ -87,6 +93,7 @@ compatible WriteOnly ReadWrite = True
 compatible ReadWrite ReadWrite = True
 compatible _ _ = False
 
+
 simpleRead :: Map String (Entry a) -> FilePath -> Way a (Either Errno [(FilePath, FileStat)])
 simpleRead m "/" = do
     ctx <- liftIO $ getFuseContext
@@ -95,8 +102,11 @@ simpleRead m path =
     let (top, sub) = firstDir $ tail path
      in case M.lookup top m of
             Nothing -> pure $ Left eNOENT
-            Just (DirEntry handle) -> dirRead handle sub
+            Just (DirEntry handle) -> case sub of
+                [] -> dirRead handle "/"
+                _ -> dirRead handle sub
             _ -> pure $ Left eNOTDIR
+
 
 simpleOpenFile :: Map String (Entry a) -> FilePath -> OpenMode -> OpenFileFlags -> Way a (Either Errno (FileHandle a))
 simpleOpenFile m path mode flags =
@@ -109,6 +119,7 @@ simpleOpenFile m path mode flags =
                 then pure $ Right handle
                 else pure $ Left ePERM
 
+
 simpleReadSym :: Map String (Entry a) -> FilePath -> Way a (Either Errno FilePath)
 simpleReadSym m path =
     let (top, sub) = firstDir $ tail path
@@ -117,6 +128,7 @@ simpleReadSym m path =
             Just (DirEntry handle) -> dirReadSym handle sub
             Just (SymlinkEntry act) -> Right <$> act
             _ -> pure $ Left eNOTSUP
+
 
 simpleGetStat :: Map String (Entry a) -> FilePath -> Way a (Either Errno FileStat)
 simpleGetStat _ "/" = do
@@ -132,6 +144,7 @@ simpleGetStat m path = do
                 _ -> dirGetStat handle sub
             Just x -> pure $ Right $ getDefaultStats x ctx
 
+
 simpleDir :: Map FilePath (Entry a) -> DirHandle a
 simpleDir m = DirHandle
     { dirRead = simpleRead m
@@ -139,3 +152,36 @@ simpleDir m = DirHandle
     , dirReadSym = simpleReadSym m
     , dirGetStat = simpleGetStat m
     }
+
+
+enumeratingDir :: Way a (Map String (Entry a)) -> DirHandle a
+enumeratingDir act = DirHandle
+    { dirRead = \path -> flip simpleRead path =<< act
+    , dirOpenFile = \path mode flags -> (\m -> simpleOpenFile m path mode flags) =<< act
+    , dirReadSym = \path -> flip simpleReadSym path =<< act
+    , dirGetStat = \path -> flip simpleGetStat path =<< act
+    }
+
+bytestringFile :: Way a ByteString -> (OpenMode, FileHandle a)
+bytestringFile bsGen = (ReadOnly,
+    FileHandle
+        { fileRead = \_ count offset -> do
+            bs <- bsGen
+            pure $ Right $ BS.take (fromIntegral count) $ BS.drop (fromIntegral offset) bs
+        , fileWrite = \_ _ _ -> pure $ Left eNOTSUP
+        , fileFlush = \_ -> pure eOK
+        , fileRelease = \_ -> pure ()
+        }
+    )
+
+textFile :: Way a Text -> (OpenMode, FileHandle a)
+textFile txtGen = (ReadOnly,
+    FileHandle
+        { fileRead = \_ count offset -> do
+            bs <- E.encodeUtf8 <$> txtGen
+            pure $ Right $ BS.take (fromIntegral count) $ BS.drop (fromIntegral offset) bs
+        , fileWrite = \_ _ _ -> pure $ Left eNOTSUP
+        , fileFlush = \_ -> pure eOK
+        , fileRelease = \_ -> pure ()
+        }
+    )

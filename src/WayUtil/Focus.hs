@@ -25,13 +25,14 @@ module WayUtil.Focus
     , focusView
     , focusMaster
     , OutputMappingEvent (..)
+    , getOutputWorkspace
     )
 where
 
 import Control.Monad (join)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef, modifyIORef)
-import Data.List (lookup)
+import Data.List (lookup, find)
 import Data.Tuple (swap)
 import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
@@ -82,6 +83,11 @@ setOutputWorkspace ws current = do
 
     runLog
     reLayout ws
+
+getOutputWorkspace :: Output -> Way a (Maybe a)
+getOutputWorkspace out = do
+    xs <- liftIO . readIORef . wayBindingMapping =<< getState
+    pure . fmap fst . find ((==) out . snd) $ xs
 
 setWorkspace :: WSTag a => a -> Way a ()
 setWorkspace ws =

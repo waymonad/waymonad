@@ -18,69 +18,78 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Fuse.Outputs
-    ( readOutputs
+    ( outputsDir
     )
 where
 
 import Control.Monad.IO.Class (liftIO)
-import Data.List (find)
-import Foreign.C.Error (Errno, eOK, eNOENT)
-import System.Fuse
+import Data.Map (Map)
+import Data.Text (Text)
+import Foreign.Storable (Storable (peek))
+import Formatting
 
-import Output (Output(outputName))
-import Utility (firstDir)
+import Graphics.Wayland.WlRoots.Output
+    ( getMode
+    , getModes
+    , getWidth
+    , getHeight
+    , hasModes
+    , OutputMode (..)
+    )
+
+import Output (Output(..))
+import ViewSet (WSTag (..))
 import Waymonad.Types (Way)
 import WayUtil (getOutputs)
+import WayUtil.Focus (getOutputWorkspace)
 
+import Fuse.Common
+
+import qualified Data.Map as M
 import qualified Data.Text as T
 
-defaultFileStats :: FuseContext -> FileStat
-defaultFileStats ctx = FileStat
-    { statEntryType = RegularFile
-    , statFileMode = 0444
-    , statLinkCount = 1
-    , statFileOwner = fuseCtxUserID ctx
-    , statFileGroup = fuseCtxGroupID ctx
-    , statSpecialDeviceID = 0
-    , statFileSize = 4096
-    , statBlocks = 1
-    , statAccessTime = 0
-    , statModificationTime = 0
-    , statStatusChangeTime = 0
-    }
-
-defaultDirStats :: FuseContext -> FileStat
-defaultDirStats ctx = FileStat
-    { statEntryType = Directory
-    , statFileMode = 0444
-    , statLinkCount = 1
-    , statFileOwner = fuseCtxUserID ctx
-    , statFileGroup = fuseCtxGroupID ctx
-    , statSpecialDeviceID = 0
-    , statFileSize = 4096
-    , statBlocks = 1
-    , statAccessTime = 0
-    , statModificationTime = 0
-    , statStatusChangeTime = 0
-    }
 
 
-readOutput :: FilePath -> Output -> Way a (Either Errno [(FilePath, FileStat)])
-readOutput "" output = do
-    ctx <- liftIO $ getFuseContext
-    pure $ Right [("modes", defaultFileStats ctx), ("mode", defaultFileStats ctx)]
-readOutput _ _ = pure $ Left eNOENT
+formatMode :: OutputMode -> Text
+formatMode mode = sformat
+    (int % "x" % int % "@" % int)
+    (modeWidth mode)
+    (modeHeight mode)
+    (modeRefresh mode)
 
-readOutputs :: FilePath -> Way a (Either Errno [(FilePath, FileStat)])
-readOutputs "" = do
-    ctx <- liftIO $ getFuseContext
+makeModesText :: Output -> Way a Text
+makeModesText out = do
+    modes <- liftIO (mapM peek =<< getModes (outputRoots out))
+    pure $ T.intercalate "\n" $ fmap formatMode modes
+
+makeOutputDir :: WSTag a => Output -> Way a (Entry a)
+makeOutputDir out = do
+    let guaranteed =
+            [ ("width",  FileEntry $ textFile $ liftIO $ (T.pack . show <$> getWidth  (outputRoots out)))
+            , ("height", FileEntry $ textFile $ liftIO $ (T.pack . show <$> getHeight (outputRoots out)))
+            ]
+
+    hm <- liftIO $ hasModes $ outputRoots out
+    let modes = if hm
+            then
+                [ ("modes", FileEntry $ textFile $ makeModesText out)
+                , ("mode", FileEntry $ textFile $ liftIO $ maybe (pure "None") (fmap formatMode . peek) =<< getMode (outputRoots out))
+                ]
+            else []
+    ws <- getOutputWorkspace out
+    let wsLink = case ws of
+            Nothing -> []
+            Just xs -> [("ws", SymlinkEntry (pure $ "../../workspaces/" ++ T.unpack (getName xs)))]
+
+    pure $ DirEntry $ simpleDir $ M.fromList $ guaranteed ++ modes ++ wsLink
+
+enumerateOuts :: WSTag a => Way a (Map String (Entry a))
+enumerateOuts = do
     outputs <- getOutputs
-    pure $ Right $ fmap (\out -> (T.unpack $ outputName out, defaultDirStats ctx)) outputs
-readOutputs path = do
-    let (top, sub) = firstDir $ tail path
-        name = T.pack top
-    outputs <- getOutputs
-    case find ((==) name . outputName) outputs of
-        Nothing -> pure $ Left $ eNOENT
-        Just out -> readOutput sub out
+    M.fromList <$> mapM (\out -> (T.unpack $ outputName out, ) <$> makeOutputDir out) outputs
+
+outputsDir :: WSTag a => Entry a
+outputsDir = DirEntry $ enumeratingDir enumerateOuts

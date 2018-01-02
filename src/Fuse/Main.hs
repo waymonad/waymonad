@@ -77,9 +77,12 @@ fuseOps = do
             runWay seat state loggers $ dirOpenFile mainDir path mode flags
     statCB <- makeCallback (dirGetStat mainDir)
 
+    readLinkCB <- makeCallback (dirReadSym mainDir)
+
     pure $ defaultFuseOps
         { fuseOpenDirectory = openDir
         , fuseReadDirectory = dirReadCB
+        , fuseReadSymbolicLink = readLinkCB
 
         , fuseGetFileStat = statCB
 
@@ -89,7 +92,10 @@ fuseOps = do
         }
 
 mainDir :: WSTag a => DirHandle a
-mainDir = simpleDir $ M.fromList [("workspaces", workspaceDir)]
+mainDir = simpleDir $ M.fromList
+    [ ("workspaces", workspaceDir)
+    , ("outputs", outputsDir)
+    ]
 
 runFuse :: WSTag a => Way a ()
 runFuse = do
