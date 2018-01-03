@@ -21,8 +21,7 @@ Reach us at https://github.com/ongy/waymonad
 module Fuse.Main
 where
 
-import Control.Concurrent (forkIO)
-import Control.Monad (void)
+import Control.Concurrent (forkIO, ThreadId)
 import Control.Monad.IO.Class (liftIO)
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (getEnv)
@@ -86,10 +85,10 @@ mainDir = simpleDir $ M.fromList
     , ("outputs", outputsDir)
     ]
 
-runFuse :: WSTag a => Way a ()
+runFuse :: WSTag a => Way a ThreadId
 runFuse = do
     ops <- fuseOps
     runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
     let fuseDir = runtimeDir ++ "/waymonad"
     liftIO $ createDirectoryIfMissing False fuseDir
-    liftIO $ void  $ forkIO $ fuseRunInline "waymonad" [fuseDir, "-o", "default_permissions"] ops defaultExceptionHandler
+    liftIO $ forkIO $ fuseRunInline "waymonad" [fuseDir, "-o", "default_permissions"] ops defaultExceptionHandler

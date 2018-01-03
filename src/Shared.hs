@@ -180,11 +180,10 @@ bindSocket display = do
 
 displayMain :: CompHooks -> DisplayServer -> IO ()
 displayMain hooks display = do
-    bindSocket display
-
+    let binder = Bracketed (const $ bindSocket display) (const $ pure ())
     let outAdd = Bracketed (addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals) (removeListener)
     let outRem = Bracketed (addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals) (removeListener)
-    foldBrackets (outAdd: outRem: backendPreHook hooks) (backendMain hooks display) =<< backendAutocreate display
+    foldBrackets (binder: outAdd: outRem: backendPreHook hooks) (backendMain hooks display) =<< backendAutocreate display
 
 launchCompositor :: CompHooks -> IO ()
 launchCompositor hooks = foldBrackets (displayHook hooks) (displayMain hooks) =<< displayCreate

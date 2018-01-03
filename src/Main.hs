@@ -25,6 +25,8 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Debug.Trace
+
 import InjectRunner
 import System.Posix.Signals
 import Fuse.Main
@@ -42,6 +44,7 @@ import Log
 
 import Config
 
+import Control.Concurrent (killThread)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
@@ -199,6 +202,7 @@ makeCompositor
     -> (DisplayServer -> (View -> IO ()) -> [(([WlrModifier], Keysym), KeyBinding a)])
     -> Way a Compositor
 makeCompositor dspRef backend keyBinds = do
+    liftIO $ hPutStrLn stderr "Creating compositor"
     display <- liftIO $ readIORef dspRef
     renderer <- liftIO $ rendererCreate backend
     void $ liftIO $ displayInitShm display
@@ -241,12 +245,12 @@ realMain compRef = do
     compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
-    postCB <- makeCallback $ const registerInjectHandler
-    runFuse
+    postCB <- makeCallback $ \_ -> registerInjectHandler >> runFuse
+
     liftIO $ launchCompositor ignoreHooks
         { displayHook = [Bracketed (writeIORef dspRef) (const $ pure ())]
         , backendPreHook = [Bracketed compFun (const $ pure ())]
-        , backendPostHook = [Bracketed postCB (const $ pure ())]
+        , backendPostHook = [Bracketed postCB (killThread)]
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
         }
