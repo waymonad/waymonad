@@ -32,10 +32,11 @@ import Data.Text (Text)
 import Foreign.C.Error (eINVAL)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable (peek))
-import Formatting (sformat, (%), int)
+import Formatting (sformat, (%), int, float)
 
 import Graphics.Wayland.Server (OutputTransform, outputTransformNormal, outputTransform180)
 
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Output
     ( getMode
     , getModes
@@ -46,6 +47,8 @@ import Graphics.Wayland.WlRoots.Output
     , getOutputTransform
     -- TODO: This should probably be done in the main loop
     , transformOutput
+    , getOutputScale
+    , getOutputBox
     )
 
 import InjectRunner (Inject (..), injectEvt)
@@ -57,39 +60,42 @@ import WayUtil.Focus (getOutputWorkspace)
 
 import Fuse.Common
 
-import qualified Data.ByteString.Char8 as BS
 import qualified Data.Map as M
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as E
+import qualified Data.Text.Read as R (rational, decimal)
+
+parsePosition :: Text -> Either String (Point, Text)
+parsePosition txt = do
+    (x, nxt1) <- R.decimal txt
+    (c, nxt2) <- maybe (Left "Only got one coordinate") Right $ T.uncons nxt1
+    if c /= 'x'
+        then Left "Seperator has to be 'x'"
+        else Right ()
+    (y, ret) <- R.decimal nxt2
+    pure $ (Point x y, ret)
 
 readMode :: Output -> Text -> Way a (Maybe (Ptr OutputMode))
 readMode out txt = do
-    let bs = E.encodeUtf8 txt
-    let parsed :: Maybe (Int, Int, Maybe Int) = do
-            (width, nxt1) <- BS.readInt bs
-            (x, nxt2) <- BS.uncons nxt1
-            if x == 'x'
-                then Just ()
-                else Nothing
-            (height, nxt3) <- BS.readInt nxt2
-            refresh <- case BS.uncons nxt3 of
-                            Nothing -> Just Nothing
+    let parsed = do
+            (Point width height, nxt) <- parsePosition txt
+            refresh <- case T.uncons nxt of
+                            Nothing -> Right Nothing
                             Just (at, ref) -> do
                                 if at == '@'
-                                    then Just ()
-                                    else Nothing
-                                Just $ fst <$> BS.readInt ref
+                                    then Right ()
+                                    else Left "Rate seperator has to be '@'"
+                                pure $ fst <$> either (const Nothing) Just (R.decimal ref)
             -- wlroots expects milli hertz, so if someone just inputs @60,
             -- multiply by 1000, to get a fitting value
             let adjust = (\val -> if val < 1000 then val * 1000 else val)
             pure (width, height, adjust <$> refresh)
     case parsed of
-        Nothing -> pure Nothing
-        Just (width, height, ref) -> findMode
+        Left _ -> pure Nothing
+        Right (width, height, ref) -> findMode
                 (outputRoots out)
                 (fromIntegral width)
                 (fromIntegral height)
-                (fromIntegral <$> ref)
+                (ref)
 
 formatMode :: OutputMode -> Text
 formatMode mode = sformat
@@ -130,6 +136,7 @@ makeOutputDir out = do
                   )
                 ]
             else []
+
     ws <- getOutputWorkspace out
     let wsLink = case ws of
             Nothing -> []
@@ -143,7 +150,26 @@ makeOutputDir out = do
             )
                     )
 
-    pure $ DirEntry $ simpleDir $ M.fromList $ transform: guaranteed ++ modes ++ wsLink
+    let scale = ("scale", FileEntry $ textRWFile
+            (liftIO $ (sformat float <$> getOutputScale (outputRoots out)))
+            (\txt -> case R.rational txt of
+                        Left _ -> pure $ Left $ eINVAL
+                        Right (x, _) -> Right <$> injectEvt (ChangeScale out x)
+            )
+                )
+
+    let position = ("scale", FileEntry $ textRWFile
+            (liftIO $ do
+                box <- getOutputBox (outputRoots out)
+                pure $ sformat (int % "x" % int) (boxX box) (boxY box)
+            )
+            (\txt -> case parsePosition txt of
+                        Left _ -> pure $ Left $ eINVAL
+                        Right (p, _) -> Right <$> injectEvt (ChangePosition out p)
+            )
+                   )
+
+    pure $ DirEntry $ simpleDir $ M.fromList $ position: scale: transform: guaranteed ++ modes ++ wsLink
 
 enumerateOuts :: WSTag a => Way a (Map String (Entry a))
 enumerateOuts = do

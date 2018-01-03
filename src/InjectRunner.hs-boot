@@ -28,11 +28,15 @@ import Control.Concurrent.STM.TChan (TChan)
 import Foreign.Ptr (Ptr)
 import System.Posix.Types (Fd)
 
+import Graphics.Wayland.WlRoots.Box (Point)
 import Graphics.Wayland.WlRoots.Output (OutputMode)
 
 import {-# SOURCE #-} Output (Output)
 
-data Inject = ChangeMode Output (Ptr OutputMode)
+data Inject
+    = ChangeMode Output (Ptr OutputMode)
+    | ChangeScale Output Float
+    | ChangePosition Output Point
 
 
 data InjectChan = InjectChan

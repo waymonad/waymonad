@@ -38,13 +38,18 @@ import System.Posix.Types (Fd)
 import System.Posix.IO (createPipe, fdRead, fdWriteBuf)
 import Graphics.Wayland.Server (displayGetEventLoop, eventLoopAddFd, clientStateReadable)
 
-import Graphics.Wayland.WlRoots.Output (OutputMode, setOutputMode)
+import Graphics.Wayland.WlRoots.Box (Point (..))
+import Graphics.Wayland.WlRoots.Output (OutputMode, setOutputMode, setOutputScale)
+import Graphics.Wayland.WlRoots.OutputLayout (moveOutput)
 
 import Output (Output (outputRoots))
 import Waymonad (getState, makeCallback2)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 
-data Inject = ChangeMode Output (Ptr OutputMode)
+data Inject
+    = ChangeMode Output (Ptr OutputMode)
+    | ChangeScale Output Float
+    | ChangePosition Output Point
 
 data InjectChan = InjectChan
     { injectChan  :: TChan Inject
@@ -55,6 +60,11 @@ data InjectChan = InjectChan
 handleInjected :: Inject -> Way a ()
 handleInjected (ChangeMode out mode) =
     liftIO $ setOutputMode mode (outputRoots out)
+handleInjected (ChangeScale out scale) =
+    liftIO $ setOutputScale (outputRoots out) scale
+handleInjected (ChangePosition out (Point x y)) = do
+    layout <- compLayout . wayCompositor <$> getState
+    liftIO $ moveOutput layout (outputRoots out) x y
 
 readInjectEvt :: InjectChan -> Way a ()
 readInjectEvt chan = do

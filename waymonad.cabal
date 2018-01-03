@@ -109,6 +109,7 @@ executable waymonad
 
   other-modules:        Waymonad
   other-modules:        Waymonad.Types
+  other-modules:        Waymonad.Types.Logger
   other-modules:        Waymonad.Extensible
   other-modules:        XWayland
   other-modules:        XdgShell
