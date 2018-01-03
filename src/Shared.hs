@@ -20,14 +20,17 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ExistentialQuantification #-}
 module Shared
     ( launchCompositor
     , CompHooks (..)
     , ignoreHooks
     , FrameHandler
+    , Bracketed (..)
     )
 where
 
+import Control.Exception (bracket)
 import System.Clock
     ( toNanoSecs
     , getTime
@@ -75,18 +78,28 @@ import System.Environment (setEnv)
 import Graphics.Wayland.Signal
     ( addListener
     , WlListener (..)
-    , ListenerToken
     , removeListener
     )
 
-data Handlers = Handlers ListenerToken ListenerToken ListenerToken ListenerToken
+data Bracketed a = forall b. Bracketed
+    { bracketSetup    :: (a -> IO b)
+    , bracketTeardown :: (b -> IO ())
+    }
+
+runBracket :: Bracketed a -> a -> (a -> IO b) -> IO b
+runBracket (Bracketed {bracketSetup = setup, bracketTeardown = teardown}) val act =
+    bracket (setup val) teardown (const $ act val)
+
+foldBrackets :: [Bracketed a] -> (a -> IO b) -> a -> IO b
+foldBrackets [] act val = act val
+foldBrackets (b:bs) act val = runBracket b val (foldBrackets bs act)
 
 type FrameHandler = Double -> Ptr WlrOutput -> IO ()
 
 data CompHooks = CompHooks
-    { displayHook :: DisplayServer -> IO ()
-    , backendPreHook :: Ptr Backend -> IO ()
-    , backendPostHook :: Ptr Backend -> IO ()
+    { displayHook :: [Bracketed DisplayServer]
+    , backendPreHook :: [Bracketed (Ptr Backend)]
+    , backendPostHook :: [Bracketed (Ptr Backend)]
 
     , inputAddHook :: Ptr InputDevice -> IO ()
     , outputAddHook :: Ptr WlrOutput -> IO FrameHandler
@@ -97,9 +110,9 @@ data CompHooks = CompHooks
 
 ignoreHooks :: CompHooks
 ignoreHooks = CompHooks
-    { displayHook = \_ -> pure ()
-    , backendPreHook = \_ -> pure ()
-    , backendPostHook = \_ -> pure ()
+    { displayHook = [Bracketed (const $ pure ()) (const $ pure ())]
+    , backendPreHook = [Bracketed (const $ pure ()) (const $ pure ())]
+    , backendPostHook = [Bracketed (const $ pure ()) (const $ pure ())]
     , inputAddHook = \_ -> pure ()
     , outputAddHook = \_ -> pure $ \_ _ -> pure ()
     , keyPressHook = \_ _ -> pure ()
@@ -145,40 +158,33 @@ handleOutputRemove hooks output = do
     freeStablePtr $ castPtrToStablePtr sptr
     outputRemoveHook hooks output
 
-
-addSignalHandlers :: CompHooks -> DisplayServer -> Ptr Backend -> IO Handlers
-addSignalHandlers hooks _ ptr =
-    let signals = backendGetSignals ptr
-     in Handlers
-        <$> addListener (WlListener $ const $ pure ()) (inputAdd signals)
-        <*> addListener (WlListener $ const $ pure ()) (inputRemove signals)
-        <*> addListener (WlListener $ handleOutputAdd hooks) (outputAdd signals)
-        <*> addListener (WlListener $ handleOutputRemove hooks ) (outputRemove signals)
-
 foreign import ccall "wl_display_add_socket_auto" c_add_socket :: Ptr DisplayServer -> IO (Ptr CChar)
 
-launchCompositor :: CompHooks -> IO ()
-launchCompositor hooks = do
-    display <- displayCreate
-    displayHook hooks display
 
-    backend <- backendAutocreate display
-    handlers <- addSignalHandlers hooks display backend
+backendMain :: CompHooks -> DisplayServer -> Ptr Backend -> IO ()
+backendMain hooks display backend = do
+    -- This dispatches the first events, e.g. output/input add signals
+    backendStart backend
 
+    -- Start the hooks that want to run *after* the backend got initialised and
+    -- run the display
+    foldBrackets (backendPostHook hooks) (const $ displayRun display) backend
+
+bindSocket :: DisplayServer -> IO ()
+bindSocket display = do
     socket <- (\(DisplayServer ptr) -> c_add_socket ptr) display
     sName <- peekCString socket
     hPutStr stderr "Opened on socket: "
     hPutStrLn stderr sName
     setEnv "_WAYLAND_DISPLAY" sName
 
-    backendPreHook hooks backend
-    backendStart backend
-    backendPostHook hooks backend
+displayMain :: CompHooks -> DisplayServer -> IO ()
+displayMain hooks display = do
+    bindSocket display
 
-    displayRun display
+    let outAdd = Bracketed (addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals) (removeListener)
+    let outRem = Bracketed (addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals) (removeListener)
+    foldBrackets (outAdd: outRem: backendPreHook hooks) (backendMain hooks display) =<< backendAutocreate display
 
-    let Handlers h1 h2 h3 h4 = handlers
-    removeListener h1
-    removeListener h2
-    removeListener h3
-    removeListener h4
+launchCompositor :: CompHooks -> IO ()
+launchCompositor hooks = foldBrackets (displayHook hooks) (displayMain hooks) =<< displayCreate

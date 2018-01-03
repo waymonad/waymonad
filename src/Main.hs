@@ -77,7 +77,7 @@ import Layout.Mirror (Mirror (..), MMessage (..))
 import Layout.Tall (Tall (..))
 import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove)
-import Shared (CompHooks (..), ignoreHooks, launchCompositor)
+import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
 import Utility (doJust)
 import Utility.Spawn (spawn, spawnManaged, manageNamed, manageSpawnOn, namedSpawner, onSpawner)
 import View (View)
@@ -244,9 +244,9 @@ realMain compRef = do
     postCB <- makeCallback $ const registerInjectHandler
     runFuse
     liftIO $ launchCompositor ignoreHooks
-        { displayHook = writeIORef dspRef
-        , backendPreHook = compFun
-        , backendPostHook = postCB
+        { displayHook = [Bracketed (writeIORef dspRef) (const $ pure ())]
+        , backendPreHook = [Bracketed compFun (const $ pure ())]
+        , backendPostHook = [Bracketed postCB (const $ pure ())]
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
         }
