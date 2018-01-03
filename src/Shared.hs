@@ -21,6 +21,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE Rank2Types #-}
 module Shared
     ( launchCompositor
     , CompHooks (..)
@@ -81,14 +82,17 @@ import Graphics.Wayland.Signal
     , removeListener
     )
 
-data Bracketed a = forall b. Bracketed
-    { bracketSetup    :: (a -> IO b)
-    , bracketTeardown :: (b -> IO ())
-    }
+data Bracketed a
+    = forall b. Bracketed
+        { bracketSetup    :: (a -> IO b)
+        , bracketTeardown :: (b -> IO ())
+        }
+  | PreBracket (forall b. a -> IO b -> IO b)
 
 runBracket :: Bracketed a -> a -> (a -> IO b) -> IO b
 runBracket (Bracketed {bracketSetup = setup, bracketTeardown = teardown}) val act =
     bracket (setup val) teardown (const $ act val)
+runBracket (PreBracket fun) val act = fun val (act val)
 
 foldBrackets :: [Bracketed a] -> (a -> IO b) -> a -> IO b
 foldBrackets [] act val = act val

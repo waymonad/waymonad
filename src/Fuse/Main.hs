@@ -18,15 +18,24 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Fuse.Main
 where
 
-import Control.Concurrent (forkIO, ThreadId)
 import Control.Monad.IO.Class (liftIO)
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (getEnv)
 import System.Fuse
 
+import Graphics.Wayland.Server
+    ( DisplayServer
+    , displayGetEventLoop
+    , eventLoopAddFd
+    , clientStateReadable
+    , eventSourceRemove
+    )
+
+import Shared (Bracketed (..))
 import ViewSet (WSTag (..))
 import Waymonad (getSeat, getState, getLoggers, runWay, makeCallback)
 import Waymonad.Types (Way)
@@ -34,6 +43,7 @@ import Waymonad.Types (Way)
 import Fuse.Common
 import Fuse.Outputs
 import Fuse.Workspaces
+
 
 import qualified Data.Map as M
 
@@ -85,10 +95,25 @@ mainDir = simpleDir $ M.fromList
     , ("outputs", outputsDir)
     ]
 
-runFuse :: WSTag a => Way a ThreadId
+-- getFuseBracket :: 
+
+runFuse :: WSTag a => Way a (Bracketed DisplayServer)
 runFuse = do
     ops <- fuseOps
     runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
     let fuseDir = runtimeDir ++ "/waymonad"
     liftIO $ createDirectoryIfMissing False fuseDir
-    liftIO $ forkIO $ fuseRunInline "waymonad" [fuseDir, "-o", "default_permissions"] ops defaultExceptionHandler
+
+
+    pure $ PreBracket (\dsp act -> do
+        evtLoop <- displayGetEventLoop dsp
+        let register = \fd cb -> eventLoopAddFd evtLoop fd clientStateReadable (\ _ _ -> cb >> pure False)
+        fuseRunInline
+            register
+            eventSourceRemove
+            act
+            "waymonad"
+            [fuseDir, "-o", "default_permissions"]
+            ops
+            defaultExceptionHandler
+                )

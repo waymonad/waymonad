@@ -25,8 +25,6 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
-import Debug.Trace
-
 import InjectRunner
 import System.Posix.Signals
 import Fuse.Main
@@ -44,7 +42,7 @@ import Log
 
 import Config
 
-import Control.Concurrent (killThread)
+import Control.Concurrent (runInBoundThread)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
@@ -217,7 +215,8 @@ makeCompositor dspRef backend keyBinds = do
 
     let addFun = insertView (overrideXRedirect <> manageSpawnOn <> manageNamed)
     xdgShell <- xdgShellCreate display addFun removeView
-    xway <- xwayShellCreate display comp addFun removeView
+    --xway <- xwayShellCreate display comp addFun removeView
+    let xway = undefined
 --    shell <- pure undefined
     pure $ Compositor
         { compDisplay = display
@@ -245,12 +244,13 @@ realMain compRef = do
     compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
-    postCB <- makeCallback $ \_ -> registerInjectHandler >> runFuse
+    postCB <- makeCallback $ \_ -> registerInjectHandler
+    fuseBracket <-runFuse
 
     liftIO $ launchCompositor ignoreHooks
-        { displayHook = [Bracketed (writeIORef dspRef) (const $ pure ())]
+        { displayHook = [Bracketed (writeIORef dspRef) (const $ pure ()), fuseBracket]
         , backendPreHook = [Bracketed compFun (const $ pure ())]
-        , backendPostHook = [Bracketed postCB (killThread)]
+        , backendPostHook = [Bracketed postCB (const $ pure ())]
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
         }
@@ -315,4 +315,5 @@ main =  do
                     , loggerRender = Logger Trace "Frame"
                     }
 
-            runWay Nothing state (fromMaybe loggers $ configLoggers conf) (realMain compRef)
+            runInBoundThread  $ runWay Nothing state (fromMaybe loggers $ configLoggers conf) (realMain compRef)
+    hPutStrLn stderr "Got to after the main function"
