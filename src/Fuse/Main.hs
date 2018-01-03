@@ -24,6 +24,8 @@ where
 import Control.Concurrent (forkIO)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
+import System.Directory (createDirectoryIfMissing)
+import System.Environment (getEnv)
 import System.Fuse
 
 import ViewSet (WSTag (..))
@@ -87,4 +89,7 @@ mainDir = simpleDir $ M.fromList
 runFuse :: WSTag a => Way a ()
 runFuse = do
     ops <- fuseOps
-    liftIO $ void  $ forkIO $ fuseRunInline "waymonad" ["/var/run/waymonad", "-o", "default_permissions"] ops defaultExceptionHandler
+    runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
+    let fuseDir = runtimeDir ++ "/waymonad"
+    liftIO $ createDirectoryIfMissing False fuseDir
+    liftIO $ void  $ forkIO $ fuseRunInline "waymonad" [fuseDir, "-o", "default_permissions"] ops defaultExceptionHandler
