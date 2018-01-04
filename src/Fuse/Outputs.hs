@@ -28,6 +28,7 @@ where
 
 import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
+import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Foreign.C.Error (eINVAL)
 import Foreign.Ptr (Ptr)
@@ -51,6 +52,10 @@ import Graphics.Wayland.WlRoots.Output
     , getOutputBox
     , outputEnable
     , outputDisable
+
+    , getMake
+    , getModel
+    , getSerial
     )
 
 import InjectRunner (Inject (..), injectEvt)
@@ -123,6 +128,18 @@ makeOutputDir out = do
             , ("height", FileEntry $ textFile $ liftIO $ (T.pack . show <$> getHeight (outputRoots out)))
             ]
 
+    let handleMaybe :: Monad m => (m a -> b) -> m (Maybe a) -> m (Maybe b)
+        handleMaybe fun gen = do
+            val <- gen
+            case val of
+                Nothing -> pure Nothing
+                Just x -> pure $ Just $ fun $ pure x
+    info <- liftIO $ sequence
+            [ handleMaybe (("make", ) . FileEntry . textFile . liftIO) $ getMake (outputRoots out)
+            , handleMaybe (("model", ) . FileEntry . textFile . liftIO) $ getModel (outputRoots out)
+            , handleMaybe (("serial", ) . FileEntry . textFile . liftIO) $ getSerial (outputRoots out)
+            ]
+
     hm <- liftIO $ hasModes $ outputRoots out
     let modes = if hm
             then
@@ -181,7 +198,9 @@ makeOutputDir out = do
             )
                    )
 
-    pure $ DirEntry $ simpleDir $ M.fromList $ dpms: position: scale: transform: guaranteed ++ modes ++ wsLink
+    pure $ DirEntry $ simpleDir $ M.fromList $
+        dpms: position: scale: transform:
+        guaranteed ++ modes ++ wsLink ++ catMaybes info
 
 enumerateOuts :: WSTag a => Way a (Map String (Entry a))
 enumerateOuts = do

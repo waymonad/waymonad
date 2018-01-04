@@ -55,7 +55,6 @@ import Graphics.Wayland.WlRoots.Backend
 import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
-    , getName
     , getModes
     , setOutputMode
 
@@ -138,9 +137,6 @@ handleFrame hook ref output = do
 
 handleOutputAdd :: CompHooks -> Ptr WlrOutput -> IO ()
 handleOutputAdd hooks output = do
-    hPutStr stderr "Found output: "
-    hPutStrLn stderr =<< getName output
-
     modes <- getModes output
     readable <- mapM peek modes
     hPutStrLn stderr $ show readable
