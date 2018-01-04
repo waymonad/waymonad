@@ -49,6 +49,8 @@ import Graphics.Wayland.WlRoots.Output
     , transformOutput
     , getOutputScale
     , getOutputBox
+    , outputEnable
+    , outputDisable
     )
 
 import InjectRunner (Inject (..), injectEvt)
@@ -169,7 +171,17 @@ makeOutputDir out = do
             )
                    )
 
-    pure $ DirEntry $ simpleDir $ M.fromList $ position: scale: transform: guaranteed ++ modes ++ wsLink
+    let dpms = ("dpms", FileEntry $ textRWFile
+            (pure "Can't read enabled state yet"
+            )
+            (\txt -> liftIO $ case txt of
+                        "enable"  -> Right <$> outputEnable (outputRoots out)
+                        "disable" -> Right <$> outputDisable (outputRoots out)
+                        _ ->  pure $ Left $ eINVAL
+            )
+                   )
+
+    pure $ DirEntry $ simpleDir $ M.fromList $ dpms: position: scale: transform: guaranteed ++ modes ++ wsLink
 
 enumerateOuts :: WSTag a => Way a (Map String (Entry a))
 enumerateOuts = do
