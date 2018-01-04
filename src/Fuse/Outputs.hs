@@ -158,7 +158,7 @@ makeOutputDir out = do
             )
                 )
 
-    let position = ("scale", FileEntry $ textRWFile
+    let position = ("position", FileEntry $ textRWFile
             (liftIO $ do
                 box <- getOutputBox (outputRoots out)
                 pure $ sformat (int % "x" % int) (boxX box) (boxY box)
