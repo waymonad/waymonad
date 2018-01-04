@@ -42,6 +42,7 @@ import Waymonad (getSeat, getState, getLoggers, runWay, makeCallback)
 import Waymonad.Types (Way)
 
 import Fuse.Common
+import Fuse.Inputs
 import Fuse.Outputs
 import Fuse.Workspaces
 
@@ -100,6 +101,7 @@ mainDir = simpleDir $ M.fromList
     [ ("workspaces", workspaceDir)
     , ("outputs", outputsDir)
     , ("shutdown", closeFile)
+    , ("inputs", inputsDir)
     ]
 
 

@@ -60,8 +60,9 @@ executable waymonad
   other-modules:        Config.Output
   other-modules:        Config.Logger
 
-  other-modules:        Fuse.Main
   other-modules:        Fuse.Common
+  other-modules:        Fuse.Inputs
+  other-modules:        Fuse.Main
   other-modules:        Fuse.Outputs
   other-modules:        Fuse.Workspaces
 
