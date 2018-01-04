@@ -25,6 +25,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import IdleManager
 import InjectRunner
 --import System.Posix.Signals
 import Fuse.Main
@@ -196,13 +197,12 @@ makeBindingMap = M.fromList .
 
 makeCompositor
     :: WSTag a
-    => IORef DisplayServer
+    => DisplayServer
     -> Ptr Backend
     -> (DisplayServer -> (View -> IO ()) -> [(([WlrModifier], Keysym), KeyBinding a)])
     -> Way a Compositor
-makeCompositor dspRef backend keyBinds = do
+makeCompositor display backend keyBinds = do
     liftIO $ hPutStrLn stderr "Creating compositor"
-    display <- liftIO $ readIORef dspRef
     renderer <- liftIO $ rendererCreate backend
     void $ liftIO $ displayInitShm display
     comp <- liftIO $ compositorCreate display renderer
@@ -240,16 +240,15 @@ defaultMap xs = newIORef $ M.fromList $
 realMain :: IORef Compositor -> Way Text ()
 realMain compRef = do
     setBaseTime
-    dspRef <- liftIO $ newIORef $ error "Tried to access display too early"
-    compFun <- makeCallback $ \backend -> liftIO . writeIORef compRef =<<  makeCompositor dspRef backend bindings
+    compFun <- makeCallback $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend bindings
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
     postCB <- makeCallback $ \_ -> registerInjectHandler
-    fuseBracket <-getFuseBracket
-
+    fuseBracket <- getFuseBracket
+    idleBracket <- getIdleBracket 1000
     liftIO $ launchCompositor ignoreHooks
-        { displayHook = [Bracketed (writeIORef dspRef) (const $ pure ()), fuseBracket]
-        , backendPreHook = [Bracketed compFun (const $ pure ())]
+        { displayHook = [fuseBracket]
+        , backendPreHook = [Bracketed compFun (const $ pure ()), idleBracket]
         , backendPostHook = [Bracketed postCB (const $ pure ())]
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
@@ -299,6 +298,7 @@ main =  do
                             <> H.outputAddHook
                             <> enterLeaveHook
                             <> wsScaleHook
+                            <> idleLog
                     , wayUserWorkspaces = workspaces
                     , wayInjectChan = inject
                     , wayCompositor = unsafePerformIO (readIORef compRef)

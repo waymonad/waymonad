@@ -65,6 +65,7 @@ executable waymonad
   other-modules:        Fuse.Outputs
   other-modules:        Fuse.Workspaces
 
+  other-modules:        IdleManager
   other-modules:        InjectRunner
 
   other-modules:        Input

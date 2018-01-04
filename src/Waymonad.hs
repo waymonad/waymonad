@@ -51,6 +51,7 @@ module Waymonad
     , getState
     , getSeat
     , runWay
+    , unliftWay
     , makeCallback
     , makeCallback2
     , setCallback
@@ -200,6 +201,13 @@ runWay
     -> m b
 runWay seat state logger (Way m) =
     liftIO $ runWayBinding logger state $ runReaderT m seat
+
+unliftWay :: Way a b -> Way a (IO b)
+unliftWay act = do
+    seat <- getSeat
+    state <- getState
+    loggers <- getLoggers
+    pure $ runWay seat state loggers  act
 
 makeCallback :: (c -> Way a b) -> Way a (c -> IO b)
 makeCallback act = do

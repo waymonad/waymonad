@@ -21,6 +21,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE Rank2Types #-}
 module Shared
     ( launchCompositor
@@ -102,7 +103,7 @@ type FrameHandler = Double -> Ptr WlrOutput -> IO ()
 
 data CompHooks = CompHooks
     { displayHook :: [Bracketed DisplayServer]
-    , backendPreHook :: [Bracketed (Ptr Backend)]
+    , backendPreHook :: [Bracketed (DisplayServer, Ptr Backend)]
     , backendPostHook :: [Bracketed (Ptr Backend)]
 
     , inputAddHook :: Ptr InputDevice -> IO ()
@@ -185,9 +186,9 @@ bindSocket display = do
 displayMain :: CompHooks -> DisplayServer -> IO ()
 displayMain hooks display = do
     let binder = Bracketed (const $ bindSocket display) (const $ pure ())
-    let outAdd = Bracketed (addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals) (removeListener)
-    let outRem = Bracketed (addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals) (removeListener)
-    foldBrackets (binder: outAdd: outRem: backendPreHook hooks) (backendMain hooks display) =<< backendAutocreate display
+    let outAdd = Bracketed (addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals . snd) (removeListener)
+    let outRem = Bracketed (addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals . snd) (removeListener)
+    foldBrackets (binder: outAdd: outRem: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< backendAutocreate display
 
 launchCompositor :: CompHooks -> IO ()
 launchCompositor hooks = foldBrackets (displayHook hooks) (displayMain hooks) =<< displayCreate
