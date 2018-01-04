@@ -45,8 +45,10 @@ import Utility (whenJust)
 import View
 import ViewSet (WSTag, addView)
 import Waymonad
+import WayUtil
 import WayUtil.Floating
 import WayUtil.ViewSet (modifyCurrentWS, modifyWS)
+import WayUtil.Current (getCurrentWS)
 
 newtype Query a b = Query (ReaderT View (Way a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader View)
@@ -93,10 +95,13 @@ enactInsert act = do
     view <- ask
     liftWay $ case act of
         InsertNone -> pure ()
-        InsertFocused -> modifyCurrentWS (flip addView view . Just)
+        InsertFocused -> do
+            modifyCurrentWS (flip addView view . Just)
+            sendEvent . WSEnter view =<< getCurrentWS
         InsertInto ws -> do
             seat <- getSeat
             modifyWS (addView seat view) ws
+            sendEvent $ WSEnter view ws
         InsertFloating box -> do
             setFloating view box
             seat <- getSeat

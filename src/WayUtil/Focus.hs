@@ -23,9 +23,11 @@ module WayUtil.Focus
     ( setWorkspace
     , setOutputWorkspace
     , focusView
+    , focusWSView
     , focusMaster
     , OutputMappingEvent (..)
     , getOutputWorkspace
+    , getWorkspaceOutputs
     )
 where
 
@@ -51,10 +53,11 @@ import Waymonad
     , WayLoggers (..)
     , EventClass
     , sendEvent
+    , getSeat
     )
 import WayUtil (runLog)
 import WayUtil.Current (getCurrentOutput, withCurrentWS)
-import WayUtil.ViewSet (modifyCurrentWS, forceFocused)
+import WayUtil.ViewSet (modifyCurrentWS, forceFocused, modifyWS)
 import WayUtil.Log (logPutText, LogPriority(..))
 
 import qualified Data.Map as M
@@ -84,6 +87,11 @@ setOutputWorkspace ws current = do
     runLog
     reLayout ws
 
+getWorkspaceOutputs :: Eq a => a -> Way a [Output]
+getWorkspaceOutputs ws = do
+    xs <- liftIO . readIORef . wayBindingMapping =<< getState
+    pure . map snd . filter ((==) ws . fst) $ xs
+
 getOutputWorkspace :: Output -> Way a (Maybe a)
 getOutputWorkspace out = do
     xs <- liftIO . readIORef . wayBindingMapping =<< getState
@@ -93,12 +101,18 @@ setWorkspace :: WSTag a => a -> Way a ()
 setWorkspace ws =
     doJust getCurrentOutput $ setOutputWorkspace ws
 
+focusWSView :: WSTag a => View -> a -> Way a ()
+focusWSView view ws = do
+    logPutText loggerFocus Trace "Calling focusView"
+    (Just seat) <- getSeat
+    modifyWS (setFocused view seat) ws
+
 focusView :: WSTag a => View -> Way a ()
 focusView view = do
     logPutText loggerFocus Trace "Calling focusView"
     modifyCurrentWS $ setFocused view
 
--- TODO: This should clearly be more simple
+
 focusMaster :: WSTag a => Way a ()
 focusMaster = do
     view <- withCurrentWS $ const getMaster

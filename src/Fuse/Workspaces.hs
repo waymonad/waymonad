@@ -30,12 +30,23 @@ import Output (Output (outputName))
 import ViewSet (WSTag (..), Workspace (..), LayoutClass (..), Layout (..))
 import Waymonad (getWorkspace)
 import Waymonad.Types (Way)
+import WayUtil.Focus (getWorkspaceOutputs)
 import WayUtil.ViewSet (getWorkspaces)
 
 import Fuse.Common
 
 import qualified Data.Map as M
 import qualified Data.Text as T
+
+
+makeOutputDir :: WSTag a => a -> Way a (Maybe (Entry a))
+makeOutputDir ws = do
+    outs <- getWorkspaceOutputs ws
+    case outs of
+        [] -> pure Nothing
+        xs -> pure . Just . DirEntry . simpleDir . M.fromList . flip fmap xs $ \out ->
+                let name = T.unpack $ outputName out
+                 in (name, SymlinkEntry . pure $ "../../../outputs/" ++ name)
 
 makeWorkspaceDir :: WSTag a => a -> Way a (Entry a)
 makeWorkspaceDir ws = do
@@ -47,8 +58,10 @@ makeWorkspaceDir ws = do
                     Workspace (Layout l) _ <- getWorkspace ws
                     pure $ currentDesc l)
             ]
+    outs <- makeOutputDir ws
+    let outDir = maybe [] (pure . ("outputs",)) outs
 
-    pure $ DirEntry $ simpleDir $ M.fromList $ layout
+    pure $ DirEntry $ simpleDir $ M.fromList $ outDir ++ layout
 
 enumerateWSS :: WSTag a => Way a (Map String (Entry a))
 enumerateWSS = do

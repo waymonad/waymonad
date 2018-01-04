@@ -77,6 +77,7 @@ executable waymonad
   other-modules:        Hooks.KeyboardFocus
   other-modules:        Hooks.OutputAdd
   other-modules:        Hooks.SeatMapping
+  other-modules:        Hooks.ScaleHook
 
   other-modules:        Layout
   other-modules:        Layout.Full

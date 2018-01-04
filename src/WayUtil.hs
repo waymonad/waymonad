@@ -30,8 +30,10 @@ import Data.IORef (readIORef, modifyIORef)
 import Data.List (lookup, find)
 import Data.Maybe (fromJust, fromMaybe, listToMaybe)
 import Data.Tuple (swap)
+import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 
+import Graphics.Wayland.Server (displayTerminate)
 import Graphics.Wayland.Signal
     ( addListener
     , WlListener (..)
@@ -74,10 +76,11 @@ import Waymonad.Extensible
     , setValue
     , modifyValue
     )
-import Waymonad.Types (LogPriority(..))
+import Waymonad.Types (LogPriority(..), Compositor (..))
 import WayUtil.Current
     ( getCurrentOutput
     , getCurrentView
+    , getCurrentWS
     )
 import WayUtil.Log (logPutText)
 import WayUtil.ViewSet
@@ -85,16 +88,22 @@ import WayUtil.ViewSet
 import qualified Data.Text as T
 import qualified Data.IntMap as IM
 
-sendTo
-    :: (WSTag a)
-    => a
-    -> Way a ()
+data ViewWSChange a
+    = WSEnter View a
+    | WSExit View a
+
+instance Typeable a => EventClass (ViewWSChange a)
+
+sendTo :: (WSTag a) => a -> Way a ()
 sendTo ws = do
     viewM <- getCurrentView
     seat <- getSeat
     whenJust viewM $ \view -> do
         modifyCurrentWS (\_ -> rmView view)
+        cws <- getCurrentWS
+        sendEvent $ WSExit view cws
         modifyWS (addView seat view) ws
+        sendEvent $ WSEnter view ws
 
 
 sendMessage :: (WSTag a, Message t) => t -> Way a ()
@@ -250,3 +259,8 @@ viewBelow point = do
                         Nothing -> pure $ listToMaybe candidates
                         Just focused -> 
                             pure $ find (\(v, _, _) -> v == focused) candidates <|> listToMaybe candidates
+
+closeCompositor :: Way a ()
+closeCompositor = do
+    dsp <- compDisplay . wayCompositor <$> getState
+    liftIO (displayTerminate dsp)

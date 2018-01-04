@@ -37,6 +37,7 @@ import Graphics.Wayland.Server
 
 import Shared (Bracketed (..))
 import ViewSet (WSTag (..))
+import WayUtil (closeCompositor)
 import Waymonad (getSeat, getState, getLoggers, runWay, makeCallback)
 import Waymonad.Types (Way)
 
@@ -49,6 +50,11 @@ import qualified Data.Map as M
 
 openDir :: FilePath -> IO Errno
 openDir _ = pure eOK
+
+closeFile :: Entry a
+closeFile = FileEntry $ bytestringRWFile
+    (pure mempty)
+    (\_ -> Right <$> closeCompositor)
 
 fuseOps :: WSTag a => Way a (FuseOperations (FileHandle a))
 fuseOps = do
@@ -93,12 +99,12 @@ mainDir :: WSTag a => DirHandle a
 mainDir = simpleDir $ M.fromList
     [ ("workspaces", workspaceDir)
     , ("outputs", outputsDir)
+    , ("shutdown", closeFile)
     ]
 
--- getFuseBracket :: 
 
-runFuse :: WSTag a => Way a (Bracketed DisplayServer)
-runFuse = do
+getFuseBracket :: WSTag a => Way a (Bracketed DisplayServer)
+getFuseBracket = do
     ops <- fuseOps
     runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
     let fuseDir = runtimeDir ++ "/waymonad"

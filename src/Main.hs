@@ -38,6 +38,7 @@ import WayUtil.View
 import WayUtil.Timing
 import Hooks.SeatMapping
 import Hooks.KeyboardFocus
+import Hooks.ScaleHook
 import Log
 
 import Config
@@ -215,8 +216,7 @@ makeCompositor dspRef backend keyBinds = do
 
     let addFun = insertView (overrideXRedirect <> manageSpawnOn <> manageNamed)
     xdgShell <- xdgShellCreate display addFun removeView
-    --xway <- xwayShellCreate display comp addFun removeView
-    let xway = undefined
+    xway <- xwayShellCreate display comp addFun removeView
 --    shell <- pure undefined
     pure $ Compositor
         { compDisplay = display
@@ -245,7 +245,7 @@ realMain compRef = do
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
     postCB <- makeCallback $ \_ -> registerInjectHandler
-    fuseBracket <-runFuse
+    fuseBracket <-getFuseBracket
 
     liftIO $ launchCompositor ignoreHooks
         { displayHook = [Bracketed (writeIORef dspRef) (const $ pure ()), fuseBracket]
@@ -298,6 +298,7 @@ main =  do
                             <> handleKeyboardSwitch
                             <> H.outputAddHook
                             <> enterLeaveHook
+                            <> wsScaleHook
                     , wayUserWorkspaces = workspaces
                     , wayInjectChan = inject
                     , wayCompositor = unsafePerformIO (readIORef compRef)
@@ -315,5 +316,4 @@ main =  do
                     , loggerRender = Logger Trace "Frame"
                     }
 
-            runInBoundThread  $ runWay Nothing state (fromMaybe loggers $ configLoggers conf) (realMain compRef)
-    hPutStrLn stderr "Got to after the main function"
+            runInBoundThread $ runWay Nothing state (fromMaybe loggers $ configLoggers conf) (realMain compRef)

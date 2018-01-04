@@ -25,15 +25,12 @@ where
 import Control.Monad (void)
 
 import Hooks.SeatMapping
-import Input.Seat (Seat, keyboardClear, keyboardEnter)
+import Input.Seat (keyboardClear)
 import Utility (whenJust)
 import ViewSet (WSTag, getFocused, getMaster)
-import WayUtil
 import WayUtil.Focus
-import WayUtil.Log
-import WayUtil.ViewSet (unsetFocus, setFocused, withWS, modifyWS)
+import WayUtil.ViewSet (unsetFocus, setFocused, withWS)
 import Waymonad
-import qualified ViewSet as VS
 
 -- TODO: SANITIZE!!!!
 {- So the general idea here:
@@ -51,12 +48,20 @@ handleKeyboardSwitch e = case getEvent e of
     Just (KeyboardWSChangeEvent s pre cur) -> do
         whenJust pre $ unsetFocus s
         case cur of
+            -- We focused the void (in some way) clear focus
             Nothing -> void $ keyboardClear s
+            -- Focused something
             Just ws -> (withWS ws $ getFocused s) >>= \case
-                Just v -> void $ keyboardEnter s v
+                -- Ok, we have a focused view here. Just do the usual focus
+                -- setting procedure
+                Just _ -> setFocused s ws
+                -- Nothing focused yet. Try master
                 Nothing -> (withWS ws getMaster) >>= \case
+                    -- Master doesn't exist. So this WS is empty, let's clear
+                    -- focus
                     Nothing -> keyboardClear s
+                    -- Master exists, set as focused and start usual procedure
                     Just v -> do
-                        modifyWS (VS.setFocused v s) ws
-                        void $ keyboardEnter s v
+                        focusWSView v ws
+                        setFocused s ws
     _ -> pure ()
