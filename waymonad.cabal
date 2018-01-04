@@ -135,5 +135,6 @@ executable waymonad
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
-  ghc-options:         -Wall -with-rtsopts=-V0 -g -O0 -threaded
+  ghc-options:         -Wall -with-rtsopts=-V0 -g -O0 
+-- -threaded
   

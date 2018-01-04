@@ -26,7 +26,7 @@ module Main
 where
 
 import InjectRunner
-import System.Posix.Signals
+--import System.Posix.Signals
 import Fuse.Main
 import Hooks.EnterLeave (enterLeaveHook)
 import Layout.Spiral
@@ -43,7 +43,7 @@ import Log
 
 import Config
 
-import Control.Concurrent (runInBoundThread)
+-- import Control.Concurrent (runInBoundThread)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
@@ -256,12 +256,12 @@ realMain compRef = do
         }
 
 
-ignoreUSR1 :: IO ()
-ignoreUSR1 = void $ installHandler sigUSR1 Ignore Nothing
+--ignoreUSR1 :: IO ()
+--ignoreUSR1 = void $ installHandler sigUSR1 Ignore Nothing
 
 main :: IO ()
 main =  do
-    ignoreUSR1
+    --ignoreUSR1
     config <- loadConfig
     case config of
         Left str -> do
@@ -316,4 +316,5 @@ main =  do
                     , loggerRender = Logger Trace "Frame"
                     }
 
-            runInBoundThread $ runWay Nothing state (fromMaybe loggers $ configLoggers conf) (realMain compRef)
+            {-runInBoundThread $ -}
+            runWay Nothing state (fromMaybe loggers $ configLoggers conf) (realMain compRef)
