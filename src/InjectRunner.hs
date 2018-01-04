@@ -36,7 +36,7 @@ import Foreign.Marshal.Utils (with)
 import Foreign.Ptr (Ptr)
 import System.Posix.Types (Fd)
 import System.Posix.IO (createPipe, fdRead, fdWriteBuf)
-import Graphics.Wayland.Server (displayGetEventLoop, eventLoopAddFd, clientStateReadable)
+import Graphics.Wayland.Server (displayGetEventLoop, eventLoopAddFd, clientStateReadable, DisplayServer)
 
 import Graphics.Wayland.WlRoots.Box (Point (..))
 import Graphics.Wayland.WlRoots.Output (OutputMode, setOutputMode, setOutputScale)
@@ -82,9 +82,8 @@ injectEvt inj = do
     liftIO . atomically $ writeTChan (injectChan chan) inj
     void . liftIO $ with 1 $ \ptr -> fdWriteBuf (injectWrite chan) ptr 1
 
-registerInjectHandler :: Way a ()
-registerInjectHandler = do
-    display <- compDisplay . wayCompositor <$> getState
+registerInjectHandler :: DisplayServer -> Way a ()
+registerInjectHandler display = do
     chan <- wayInjectChan <$> getState
     evtLoop <- liftIO $ displayGetEventLoop display
     cb <- makeCallback2 $ \_ _ -> readInjectEvt chan >> pure False

@@ -86,6 +86,7 @@ setOutputWorkspace ws current = do
 
     runLog
     reLayout ws
+    whenJust pre reLayout
 
 getWorkspaceOutputs :: Eq a => a -> Way a [Output]
 getWorkspaceOutputs ws = do

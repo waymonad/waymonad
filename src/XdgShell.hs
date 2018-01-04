@@ -31,7 +31,7 @@ where
 import Utility (doJust)
 import View
 import Waymonad
-import WayUtil (setSignalHandler)
+import WayUtil.Signal (setSignalHandler)
 import WayUtil.Log (logPutText, LogPriority (..))
 import Control.Monad (when, filterM, forM_)
 import Control.Monad.IO.Class

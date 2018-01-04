@@ -105,6 +105,7 @@ executable waymonad
   other-modules:        WayUtil.Floating
   other-modules:        WayUtil.Focus
   other-modules:        WayUtil.Log
+  other-modules:        WayUtil.Signal
   other-modules:        WayUtil.Timing
   other-modules:        WayUtil.View
   other-modules:        WayUtil.ViewSet

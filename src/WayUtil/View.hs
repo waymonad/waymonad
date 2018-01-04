@@ -48,7 +48,6 @@ greedyView ws = doJust getCurrentOutput $ \out -> do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     ws' <- getCurrentWS
     setOutputWorkspace ws out
-    --doJust getCurrentWS $ \ws' -> 
     forM_ (filter ((==) ws . fst) mapping) $ \(_, o) -> 
         setOutputWorkspace ws' o
 

@@ -26,7 +26,6 @@ module IdleManager
     )
 where
 
-import Control.Concurrent.MVar (newEmptyMVar, takeMVar, putMVar)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Foreign.Ptr (Ptr)
@@ -52,7 +51,8 @@ import Utility (whenJust)
 import Waymonad (unliftWay, sendEvent, makeCallback, getEvent)
 import Waymonad.Extensible (ExtensionClass (..))
 import Waymonad.Types (Way, EventClass, SomeEvent)
-import WayUtil (getEState, setEState, setSignalHandler)
+import WayUtil (getEState, setEState)
+import WayUtil.Signal (setSignalHandler, setDestroyHandler)
 
 newtype Idle = Idle Bool deriving (Eq, Show)
 
@@ -95,16 +95,8 @@ handleInputAdd report ptr = do
         (DeviceKeyboard kptr) -> handleKeyboardAdd report kptr
         (DevicePointer pptr) -> handlePointerAdd report pptr
         _ -> pure []
-    ref <- liftIO $ newEmptyMVar
 
-    ret <- setSignalHandler
-            (getDestroySignal ptr) $
-            (\_ -> liftIO $ do
-                            mapM_ removeListener listeners
-                            removeListener =<< takeMVar ref
-            )
-
-    liftIO $ putMVar ref ret
+    setDestroyHandler (getDestroySignal ptr) (const . liftIO $ mapM_ removeListener listeners)
 
 idleSetup :: Int -> DisplayServer -> Ptr Backend -> Way a ListenerToken
 idleSetup msecs dsp backend = do

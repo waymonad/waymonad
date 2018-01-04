@@ -72,7 +72,7 @@ import Waymonad
     , getState
     )
 import Waymonad.Types (Compositor(compBackend, compDisplay), WayBindingState (wayCompositor))
-import WayUtil (setSignalHandler)
+import WayUtil.Signal (setSignalHandler)
 import WayUtil.Log (logPutText, LogPriority (..))
 
 import Text.XkbCommon.Context

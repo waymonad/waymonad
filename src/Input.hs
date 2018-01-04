@@ -25,16 +25,21 @@ module Input
     )
 where
 
-import System.IO.Unsafe (unsafePerformIO)
-import Foreign.Storable (Storable(peek))
 import Control.Monad (when, forM_)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
+import Data.IORef (IORef, modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
+import Data.Set (Set)
 import Foreign.Ptr (Ptr)
+import Foreign.Storable (Storable(peek))
+import System.IO (hPutStr, hPutStrLn, stderr)
+import System.IO.Unsafe (unsafePerformIO)
+
 import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
     , DeviceType(..)
+    , getDeviceName
+    , getDestroySignal
     )
 import Graphics.Wayland.WlRoots.XCursorManager
     ( WlrXCursorManager
@@ -71,33 +76,45 @@ import WayUtil
 import WayUtil.Log (logPutStr, LogPriority (..))
 import Waymonad
 import WayUtil.Focus (focusView)
+import WayUtil.Signal
 
 import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.Text.IO as IO
 
 data Input = Input
     { inputXCursorManager :: Ptr WlrXCursorManager
     , inputCursor :: Cursor
     , inputSeat :: Seat
+    , inputDevices :: IORef (Set (Ptr InputDevice))
     , inputAddToken :: ListenerToken
     , inputImageToken :: ListenerToken
     }
+
 
 handleInputAdd
     :: WSTag a
     => Ptr WlrCursor
     -> Seat
     -> BindingMap a
+    -> IORef (Set (Ptr InputDevice))
     -> Ptr InputDevice
     -> Way a ()
-handleInputAdd cursor seat bindings ptr = do 
+handleInputAdd cursor seat bindings devRef ptr = do 
+    liftIO $ modifyIORef devRef (S.insert ptr)
+    setDestroyHandler (getDestroySignal ptr) (liftIO . modifyIORef devRef . S.delete)
     iType <- liftIO $ inputDeviceType ptr
     liftIO $ do
-        putStr "Found a new input of type: "
-        print iType
+        hPutStr stderr "Found a new input of type: "
+        hPutStr stderr $ show iType
+        hPutStr stderr " \""
+        IO.hPutStr stderr =<< getDeviceName ptr
+        hPutStrLn stderr "\""
     case iType of
         (DeviceKeyboard kptr) -> handleKeyboardAdd seat bindings ptr kptr
         (DevicePointer pptr) -> liftIO $ handlePointer cursor ptr pptr
         _ -> pure ()
+
 
 setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way a ()
 setCursorSurf cursor evt = do
@@ -131,6 +148,7 @@ inputCreate display layout backend bindings = do
     logPutStr loggerKeybinds Debug $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
     xcursor <- liftIO $ xCursorManagerCreate "default" 16
     loadCurrentScales xcursor
+    devRef <- liftIO $ newIORef mempty
 
     focus <- makeCallback $ \(seat, view) -> withSeat (Just seat) $ focusView view
     cursorRef <- liftIO $ newIORef undefined
@@ -151,7 +169,7 @@ inputCreate display layout backend bindings = do
         liftIO $ xCursorSetImage xcursor "left_ptr" (cursorRoots cursor)
 
         let signals = backendGetSignals backend
-        aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd (cursorRoots cursor) seat bindings
+        aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd (cursorRoots cursor) seat bindings devRef
         let iSignals = seatGetSignals $ seatRoots seat
         iTok <- setSignalHandler (seatSignalSetCursor iSignals) $ setCursorSurf cursor
 
@@ -159,6 +177,7 @@ inputCreate display layout backend bindings = do
             { inputXCursorManager = xcursor
             , inputCursor = cursor
             , inputSeat = seat
+            , inputDevices = devRef
             , inputAddToken = aTok
             , inputImageToken = iTok
             }

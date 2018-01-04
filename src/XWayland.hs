@@ -34,7 +34,7 @@ import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
-import WayUtil (setSignalHandler)
+import WayUtil.Signal (setSignalHandler)
 import Foreign.Storable (Storable(..))
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)

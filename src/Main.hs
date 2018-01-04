@@ -243,13 +243,12 @@ realMain compRef = do
     compFun <- makeCallback $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend bindings
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
-    postCB <- makeCallback $ \_ -> registerInjectHandler
+    injectHandler <- makeCallback $ registerInjectHandler
     fuseBracket <- getFuseBracket
     idleBracket <- getIdleBracket 1000
     liftIO $ launchCompositor ignoreHooks
-        { displayHook = [fuseBracket]
+        { displayHook = [fuseBracket, Bracketed injectHandler (const $ pure ())]
         , backendPreHook = [Bracketed compFun (const $ pure ()), idleBracket]
-        , backendPostHook = [Bracketed postCB (const $ pure ())]
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
         }

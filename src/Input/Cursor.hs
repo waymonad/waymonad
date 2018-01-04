@@ -74,10 +74,10 @@ import Waymonad
     , WayLoggers (..)
     )
 import WayUtil
-    ( setSignalHandler
-    , setSeatOutput
+    ( setSeatOutput
     , viewBelow
     )
+import WayUtil.Signal (setSignalHandler)
 import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Focus (focusView)
 

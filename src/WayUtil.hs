@@ -34,12 +34,6 @@ import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (displayTerminate)
-import Graphics.Wayland.Signal
-    ( addListener
-    , WlListener (..)
-    , ListenerToken
-    , WlSignal
-    )
 import Graphics.Wayland.WlRoots.Output (WlrOutput, getOutputName)
 import Graphics.Wayland.WlRoots.Box (Point)
 
@@ -113,13 +107,6 @@ runLog :: (WSTag a) => Way a ()
 runLog = do
     state <- getState
     wayLogFunction state
-
-setSignalHandler
-    :: Ptr (WlSignal a)
-    -> (Ptr a -> Way b ())
-    -> Way b ListenerToken
-setSignalHandler signal act = 
-    setCallback act (\fun -> addListener (WlListener fun) signal)
 
 focusNextOut :: WSTag a => Way a ()
 focusNextOut = doJust getSeat $ \seat -> do
