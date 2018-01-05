@@ -26,6 +26,7 @@ where
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 import Data.Map (Map)
+import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import Fuse.Common
 
@@ -47,7 +48,7 @@ makeInputDir ptr = do
                 T.pack . show <$> (inputDeviceType ptr))
             ]
     name <- liftIO $ getDeviceName ptr
-    pure $ (T.unpack name, DirEntry $ simpleDir $ M.fromList $ deviceType)
+    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList $ deviceType)
 
 
 enumerateInputs :: Way a (Map String (Entry a))
@@ -56,5 +57,27 @@ enumerateInputs = do
     inputs <- liftIO $ readIORef inputRef
     M.fromList <$> mapM makeInputDir (S.toList inputs)
 
+
+makeFooDir :: (Text, SeatFoo) -> Way a (String, Entry a)
+makeFooDir (name, foo) = do
+
+    devPtrs <- liftIO $ readIORef $ fooDevices foo
+    let makeDevLink ptr = do
+            devName <- liftIO $ T.unpack <$> getDeviceName ptr
+            pure (devName, SymlinkEntry $ pure $ "../../../devices/" ++ devName)
+    let devDir = ("devices", DirEntry $ enumeratingDir $ fmap M.fromList $ mapM makeDevLink $ S.toList devPtrs)
+
+    pure (T.unpack $ name, DirEntry $ simpleDir $ M.fromList [devDir])
+
+enumerateSeats :: Way a (Map String (Entry a))
+enumerateSeats = do
+    fooRef <- inputFooMap . compInput . wayCompositor <$> getState
+    foos <- liftIO $ readIORef fooRef
+    M.fromList <$> mapM makeFooDir (M.toList foos)
+
 inputsDir :: Entry a
-inputsDir = DirEntry $ enumeratingDir enumerateInputs
+inputsDir =
+    DirEntry $ simpleDir $ M.fromList
+        [ ("devices", DirEntry $ enumeratingDir enumerateInputs)
+        , ("seats", DirEntry $ enumeratingDir enumerateSeats)
+        ]

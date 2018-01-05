@@ -21,6 +21,8 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 module Input
     ( Input (..)
+    -- This is only really exported for IPC
+    , SeatFoo (..)
     , inputCreate
     )
 where
@@ -33,7 +35,6 @@ import Data.Set (Set)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(peek))
-import System.IO (hPutStr, hPutStrLn, stderr)
 import System.IO.Unsafe (unsafePerformIO)
 
 import Graphics.Wayland.WlRoots.Input
@@ -82,13 +83,13 @@ import WayUtil.Signal
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
-import qualified Data.Text.IO as IO
 
 data SeatFoo = SeatFoo
     { fooXCursorManager :: Ptr WlrXCursorManager
     , fooCursor :: Cursor
     , fooSeat :: Seat
     , fooImageToken :: ListenerToken
+    , fooDevices :: IORef (Set (Ptr InputDevice))
     }
 
 data Input = Input
@@ -126,11 +127,13 @@ createSeat name = do
 
         let iSignals = seatGetSignals $ seatRoots seat
         iTok <- setSignalHandler (seatSignalSetCursor iSignals) $ setCursorSurf cursor
+        devs <- liftIO $ newIORef mempty
         pure SeatFoo
             { fooXCursorManager = xcursor
             , fooCursor = cursor
             , fooSeat = seat
             , fooImageToken = iTok
+            , fooDevices = devs
             }
 
 getOrCreateSeat
@@ -155,16 +158,16 @@ handleInputAdd
     -> Ptr InputDevice
     -> Way a ()
 handleInputAdd foos bindings devRef ptr = do 
-    liftIO $ modifyIORef devRef (S.insert ptr)
-    setDestroyHandler (getDestroySignal ptr) (liftIO . modifyIORef devRef . S.delete)
     iType <- liftIO $ inputDeviceType ptr
-    liftIO $ do
-        hPutStr stderr "Found a new input of type: "
-        hPutStr stderr $ show iType
-        hPutStr stderr " \""
-        IO.hPutStr stderr =<< getDeviceName ptr
-        hPutStrLn stderr "\""
     foo <- getOrCreateSeat foos "seat0"
+
+    liftIO $ modifyIORef devRef (S.insert ptr)
+    liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)
+    setDestroyHandler (getDestroySignal ptr) (\_ -> liftIO $ do
+        modifyIORef devRef $ S.delete ptr
+        modifyIORef (fooDevices foo) $ S.delete ptr
+                                             )
+
     withSeat (Just $ fooSeat foo) $ case iType of
         (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) bindings ptr kptr
         (DevicePointer pptr) -> liftIO $ handlePointer (cursorRoots $ fooCursor foo) ptr pptr
