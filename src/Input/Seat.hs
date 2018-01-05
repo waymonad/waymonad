@@ -28,6 +28,7 @@ module Input.Seat
     , getPointerFocus
     , getKeyboardFocus
     , keyboardClear
+    , pointerAxis
     )
 where
 
@@ -40,7 +41,8 @@ import Data.Maybe (isJust)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 
-import Graphics.Wayland.WlRoots.Input.Pointer (WlrEventPointerButton (..))
+import Graphics.Wayland.WlRoots.Input.Buttons (ButtonState)
+import Graphics.Wayland.WlRoots.Input.Pointer (WlrEventPointerButton (..), AxisOrientation)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.Server
     ( DisplayServer
@@ -119,10 +121,18 @@ keyboardEnter seat view = liftIO $ do
         Just s -> keyboardEnter' seat s view
         Nothing -> pure False
 
-pointerButton :: MonadIO m => Seat -> View -> Double -> Double -> WlrEventPointerButton -> m Bool
-pointerButton seat view baseX baseY event = liftIO $ do
-    let time = (fromIntegral $ eventPointerButtonTime event)
-    R.pointerNotifyButton (seatRoots seat) time (eventPointerButtonButton event) (eventPointerButtonState event)
+pointerButton
+    :: MonadIO m
+    => Seat
+    -> View
+    -> Double
+    -> Double
+    -> Word32
+    -> Word32
+    -> ButtonState
+    -> m Bool
+pointerButton seat view baseX baseY time button state = liftIO $ do
+    R.pointerNotifyButton (seatRoots seat) time button state
 
     evtSurf <- getViewEventSurface view baseX baseY
     case evtSurf of
@@ -165,6 +175,10 @@ pointerClear seat = liftIO $ do
         when getDefault (seatRequestDefault seat)
         writeIORef (seatPointer seat) Nothing
 
+pointerAxis :: MonadIO m => Seat -> Word32 -> AxisOrientation -> Double -> m ()
+pointerAxis seat time orientation value = liftIO $
+    R.pointerNotifyAxis (seatRoots seat) time orientation value
+
 getPointerFocus :: MonadIO m => Seat -> m (Maybe View)
 getPointerFocus = liftIO . readIORef . seatPointer
 
@@ -177,3 +191,5 @@ keyboardClear seat = liftIO $ do
     post <- R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
 
     when (post == nullPtr) $ writeIORef (seatKeyboard seat) Nothing
+
+

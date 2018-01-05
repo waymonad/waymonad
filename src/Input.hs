@@ -52,7 +52,7 @@ import Graphics.Wayland.WlRoots.XCursorManager
     , xCursorSetImage
     , xCursorLoad
     )
-import Graphics.Wayland.WlRoots.Cursor (setCursorSurface, detachInputDevice)
+import Graphics.Wayland.WlRoots.Cursor (setCursorSurface, detachInputDevice, attachInputDevice)
 import Graphics.Wayland.WlRoots.Output (getOutputScale)
 import Graphics.Wayland.WlRoots.Seat
     ( seatGetSignals
@@ -69,7 +69,6 @@ import Graphics.Wayland.Signal (ListenerToken)
 
 import Input.Cursor
 import Input.Keyboard
-import Input.Pointer
 import Input.Seat
 import Output (Output(..))
 import View (getViewClient)
@@ -105,6 +104,8 @@ doDetach dev foo = liftIO $ do
     case iType of
         (DeviceKeyboard kptr) -> detachKeyboard kptr
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
+        (DeviceTabletTool _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
+--        (DeviceTabletPad _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         _ -> pure ()
 
 
@@ -130,7 +131,9 @@ doAttach ptr foo = do
 
     withSeat (Just $ fooSeat foo) $ case iType of
         (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) ptr kptr
-        (DevicePointer pptr) -> liftIO $ handlePointer (cursorRoots $ fooCursor foo) ptr pptr
+        (DevicePointer _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
+        (DeviceTabletTool _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
+--        (DeviceTabletPad _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
         _ -> pure ()
 
     liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)

@@ -36,10 +36,18 @@ import Graphics.Wayland.WlRoots.Input.Pointer
     ( WlrEventPointerButton (..)
     , WlrEventPointerMotion (..)
     , WlrEventPointerAbsMotion (..)
+    , WlrEventPointerAxis (..)
+    )
+import Graphics.Wayland.WlRoots.Input.TabletTool
+    ( ToolAxis (..)
+    , ToolAxisEvent (..)
+    , ToolTipEvent (..)
+    , tipStateToButtonState
     )
 import Input.Seat
     ( pointerMotion
     , pointerClear
+    , pointerAxis
     , getPointerFocus
     , pointerButton
     )
@@ -97,12 +105,14 @@ cursorCreate layout = do
 
     tokm <- setSignalHandler (cursorMotion signal   ) (handleCursorMotion layout cursor outref)
     toka <- setSignalHandler (cursorMotionAbs signal) (handleCursorMotionAbs layout cursor outref)
-
     tokb <- setSignalHandler (cursorButton signal   ) (handleCursorButton layout cursor)
+    tokAxis <- setSignalHandler (cursorAxis signal)    handleCursorAxis
+    tokTAxis <- setSignalHandler (cursorToolAxis signal) (handleToolAxis layout cursor outref)
+    tokTTip <- setSignalHandler (cursorToolTip signal) (handleToolTip layout cursor)
 
     pure Cursor
         { cursorRoots = cursor
-        , cursorTokens = [tokb, tokm, toka]
+        , cursorTokens = [tokb, tokm, toka, tokAxis, tokTAxis, tokTTip]
         }
 
 getCursorView
@@ -188,8 +198,8 @@ handleCursorMotionAbs layout cursor outref event_ptr = do
     liftIO $ warpCursorAbs
         cursor
         (Just $ eventPointerAbsMotionDevice event)
-        (eventPointerAbsMotionX event / eventPointerAbsMotionWidth event)
-        (eventPointerAbsMotionY event / eventPointerAbsMotionHeight event)
+        (Just $ eventPointerAbsMotionX event / eventPointerAbsMotionWidth event)
+        (Just $ eventPointerAbsMotionY event / eventPointerAbsMotionHeight event)
     updatePosition layout cursor outref (fromIntegral $ eventPointerAbsMotionTime event)
 
 handleCursorButton
@@ -206,5 +216,65 @@ handleCursorButton layout cursor event_ptr = do
     case viewM of
         Nothing -> pointerClear seat
         Just (view, x, y) -> do
-            ret <- pointerButton seat view (fromIntegral x) (fromIntegral y) event
+            ret <- pointerButton seat view (fromIntegral x) (fromIntegral y)
+                (eventPointerButtonTime event) (eventPointerButtonButton event)
+                (eventPointerButtonState event)
             when ret (focusView view)
+
+handleCursorAxis
+    :: Ptr WlrEventPointerAxis
+    -> Way a ()
+handleCursorAxis evt = do
+    event <- liftIO $ peek evt
+    (Just seat) <- getSeat
+
+    pointerAxis
+        seat
+        (eventPointerAxisTime event)
+        (eventPointerAxisOrientation event)
+        (eventPointerAxisDelta event)
+
+handleToolAxis
+    :: WSTag a
+    => Ptr WlrOutputLayout
+    -> Ptr WlrCursor
+    -> IORef Int
+    -> Ptr ToolAxisEvent
+    -> Way a ()
+handleToolAxis layout cursor outref event_ptr = do
+    event <- liftIO $ peek event_ptr
+
+    liftIO $ warpCursorAbs
+        cursor
+        (Just $ toolAxisEvtDevice event)
+        (xValue $ toolAxisEvtAxes event)
+        (yValue $ toolAxisEvtAxes event)
+    updatePosition layout cursor outref (fromIntegral $ toolAxisEvtTime event)
+
+    where   xValue :: [ToolAxis] -> Maybe Double
+            xValue ((AxisX v w):_) = Just (v / w)
+            xValue (_:xs) = xValue xs
+            xValue [] = Nothing
+            yValue :: [ToolAxis] -> Maybe Double
+            yValue ((AxisY v h):_) = Just (v / h)
+            yValue (_:xs) = yValue xs
+            yValue [] = Nothing
+
+
+handleToolTip
+    :: WSTag a
+    => Ptr WlrOutputLayout
+    -> Ptr WlrCursor
+    -> Ptr ToolTipEvent
+    -> Way a ()
+handleToolTip layout cursor event_ptr = do
+     event <- liftIO $ peek event_ptr
+     viewM <- getCursorView layout cursor
+
+     (Just seat) <- getSeat
+     case viewM of
+         Nothing -> pointerClear seat
+         Just (view, x, y) -> do
+             ret <- pointerButton seat view (fromIntegral x) (fromIntegral y)
+                (toolTipEvtTime event) (0x110) (tipStateToButtonState $ toolTipEvtState event)
+             when ret (focusView view)
