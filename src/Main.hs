@@ -212,7 +212,7 @@ makeCompositor display backend keyBinds = do
 
     cb <- makeCallback removeView
 
-    input <- inputCreate display layout backend (makeBindingMap $ keyBinds display cb)
+    input <- inputCreate backend (makeBindingMap $ keyBinds display cb)
 
     let addFun = insertView (overrideXRedirect <> manageSpawnOn <> manageNamed)
     xdgShell <- xdgShellCreate display addFun removeView

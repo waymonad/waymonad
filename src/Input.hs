@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-{- SOURCE -}
+{-# LANGUAGE OverloadedStrings #-}
 module Input
     ( Input (..)
     , inputCreate
@@ -28,7 +28,9 @@ where
 import Control.Monad (when, forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
+import Data.Map (Map)
 import Data.Set (Set)
+import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(peek))
 import System.IO (hPutStr, hPutStrLn, stderr)
@@ -47,10 +49,8 @@ import Graphics.Wayland.WlRoots.XCursorManager
     , xCursorSetImage
     , xCursorLoad
     )
-import Graphics.Wayland.WlRoots.Cursor (WlrCursor, setCursorSurface)
-import Graphics.Wayland.Server (DisplayServer(..))
+import Graphics.Wayland.WlRoots.Cursor (setCursorSurface)
 import Graphics.Wayland.WlRoots.Output (getOutputScale)
-import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Seat
     ( seatGetSignals
     , SeatSignals (..)
@@ -75,32 +75,86 @@ import Utility (doJust)
 import WayUtil
 import WayUtil.Log (logPutStr, LogPriority (..))
 import Waymonad
+import Waymonad.Types (Compositor (..))
 import WayUtil.Focus (focusView)
 import WayUtil.Signal
 
 import qualified Data.Map as M
 import qualified Data.Set as S
+import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 
-data Input = Input
-    { inputXCursorManager :: Ptr WlrXCursorManager
-    , inputCursor :: Cursor
-    , inputSeat :: Seat
-    , inputDevices :: IORef (Set (Ptr InputDevice))
-    , inputAddToken :: ListenerToken
-    , inputImageToken :: ListenerToken
+data SeatFoo = SeatFoo
+    { fooXCursorManager :: Ptr WlrXCursorManager
+    , fooCursor :: Cursor
+    , fooSeat :: Seat
+    , fooImageToken :: ListenerToken
     }
 
+data Input = Input
+    { inputDevices :: IORef (Set (Ptr InputDevice))
+    , inputFooMap :: IORef (Map Text SeatFoo)
+    , inputAddToken :: ListenerToken
+    }
+
+createSeat
+    :: WSTag a
+    => Text
+    -> Way a SeatFoo
+createSeat name = do
+    Compositor {compDisplay = display, compLayout = layout} <- wayCompositor <$> getState
+    xcursor <- liftIO $ xCursorManagerCreate "default" 16
+    loadCurrentScales xcursor
+    focus <- makeCallback $ \(seat, view) -> withSeat (Just seat) $ focusView view
+
+    cursorRef <- liftIO $ newIORef undefined
+    seat  <- liftIO $
+        seatCreate
+            display
+            (T.unpack name)
+            (curry focus)
+            (xCursorSetImage xcursor "left_ptr" (cursorRoots $ unsafePerformIO $ readIORef cursorRef))
+            (xCursorLoad xcursor)
+
+    seatRef <- wayBindingSeats <$> getState
+    liftIO $ modifyIORef seatRef ((:) seat)
+
+    withSeat (Just seat) $ do
+        cursor  <- cursorCreate layout
+        liftIO $ writeIORef cursorRef cursor
+        liftIO $ xCursorSetImage xcursor "left_ptr" (cursorRoots cursor)
+
+        let iSignals = seatGetSignals $ seatRoots seat
+        iTok <- setSignalHandler (seatSignalSetCursor iSignals) $ setCursorSurf cursor
+        pure SeatFoo
+            { fooXCursorManager = xcursor
+            , fooCursor = cursor
+            , fooSeat = seat
+            , fooImageToken = iTok
+            }
+
+getOrCreateSeat
+    :: WSTag a
+    => IORef (Map Text SeatFoo)
+    -> Text
+    -> Way a SeatFoo
+getOrCreateSeat mapRef name = do
+    ret <- liftIO (M.lookup name <$> readIORef mapRef)
+    case ret of
+        Just foo -> pure $ foo
+        Nothing -> do
+            foo <- createSeat name
+            liftIO $ modifyIORef mapRef (M.insert name foo)
+            pure foo
 
 handleInputAdd
     :: WSTag a
-    => Ptr WlrCursor
-    -> Seat
+    => IORef (Map Text SeatFoo)
     -> BindingMap a
     -> IORef (Set (Ptr InputDevice))
     -> Ptr InputDevice
     -> Way a ()
-handleInputAdd cursor seat bindings devRef ptr = do 
+handleInputAdd foos bindings devRef ptr = do 
     liftIO $ modifyIORef devRef (S.insert ptr)
     setDestroyHandler (getDestroySignal ptr) (liftIO . modifyIORef devRef . S.delete)
     iType <- liftIO $ inputDeviceType ptr
@@ -110,9 +164,10 @@ handleInputAdd cursor seat bindings devRef ptr = do
         hPutStr stderr " \""
         IO.hPutStr stderr =<< getDeviceName ptr
         hPutStrLn stderr "\""
-    case iType of
-        (DeviceKeyboard kptr) -> handleKeyboardAdd seat bindings ptr kptr
-        (DevicePointer pptr) -> liftIO $ handlePointer cursor ptr pptr
+    foo <- getOrCreateSeat foos "seat0"
+    withSeat (Just $ fooSeat foo) $ case iType of
+        (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) bindings ptr kptr
+        (DevicePointer pptr) -> liftIO $ handlePointer (cursorRoots $ fooCursor foo) ptr pptr
         _ -> pure ()
 
 
@@ -139,45 +194,19 @@ loadCurrentScales manager = do
 
 inputCreate
     :: WSTag a
-    => DisplayServer
-    -> Ptr WlrOutputLayout
-    -> Ptr Backend
+    => Ptr Backend
     -> BindingMap a
     -> Way a Input
-inputCreate display layout backend bindings = do
+inputCreate backend bindings = do
     logPutStr loggerKeybinds Debug $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
-    xcursor <- liftIO $ xCursorManagerCreate "default" 16
-    loadCurrentScales xcursor
     devRef <- liftIO $ newIORef mempty
+    mapRef <- liftIO $ newIORef mempty
 
-    focus <- makeCallback $ \(seat, view) -> withSeat (Just seat) $ focusView view
-    cursorRef <- liftIO $ newIORef undefined
-    seat  <- liftIO $
-        seatCreate
-            display
-            "seat0"
-            (curry focus)
-            (xCursorSetImage xcursor "left_ptr" (cursorRoots $ unsafePerformIO $ readIORef cursorRef))
-            (xCursorLoad xcursor)
+    let signals = backendGetSignals backend
+    aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd mapRef bindings devRef
 
-    seatRef <- wayBindingSeats <$> getState
-    liftIO $ modifyIORef seatRef ((:) seat)
-
-    withSeat (Just seat) $ do
-        cursor  <- cursorCreate layout
-        liftIO $ writeIORef cursorRef cursor
-        liftIO $ xCursorSetImage xcursor "left_ptr" (cursorRoots cursor)
-
-        let signals = backendGetSignals backend
-        aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd (cursorRoots cursor) seat bindings devRef
-        let iSignals = seatGetSignals $ seatRoots seat
-        iTok <- setSignalHandler (seatSignalSetCursor iSignals) $ setCursorSurf cursor
-
-        pure Input
-            { inputXCursorManager = xcursor
-            , inputCursor = cursor
-            , inputSeat = seat
-            , inputDevices = devRef
-            , inputAddToken = aTok
-            , inputImageToken = iTok
-            }
+    pure Input
+        { inputDevices = devRef
+        , inputFooMap = mapRef
+        , inputAddToken = aTok
+        }

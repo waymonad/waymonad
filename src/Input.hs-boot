@@ -24,7 +24,9 @@ module Input
 where
 
 import Data.IORef (IORef)
+import Data.Map (Map)
 import Data.Set (Set)
+import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.WlRoots.XCursorManager (WlrXCursorManager)
@@ -34,12 +36,15 @@ import Graphics.Wayland.Signal (ListenerToken)
 import {-# SOURCE #-} Input.Cursor (Cursor)
 import Input.Seat (Seat)
 
-data Input = Input
-    { inputXCursorManager :: Ptr WlrXCursorManager
-    , inputCursor :: Cursor
-    , inputSeat :: Seat
-    , inputDevices :: IORef (Set (Ptr InputDevice))
-    , inputAddToken :: ListenerToken
-    , inputImageToken :: ListenerToken
+data SeatFoo = SeatFoo
+    { fooXCursorManager :: Ptr WlrXCursorManager
+    , fooCursor :: Cursor
+    , fooSeat :: Seat
+    , fooImageToken :: ListenerToken
     }
 
+data Input = Input
+    { inputDevices :: IORef (Set (Ptr InputDevice))
+    , inputFooMap :: IORef (Map Text SeatFoo)
+    , inputAddToken :: ListenerToken
+    }

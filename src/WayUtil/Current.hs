@@ -39,7 +39,7 @@ import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
 import Input.Seat (Seat, getKeyboardFocus)
 import {-# SOURCE #-} Output (Output (..), getOutputId)
-import Utility (intToPtr)
+import Utility (doJust)
 import View (View)
 import ViewSet (WSTag, Workspace)
 import Waymonad
@@ -97,8 +97,7 @@ withCurrentWS fun = do
         Nothing -> pure Nothing
 
 getCurrentView :: WSTag a => Way a (Maybe View)
-getCurrentView =
-    getKeyboardFocus . fromJust =<< getSeat
+getCurrentView = doJust getSeat getKeyboardFocus
 
 getCurrentBox
     :: Way a (WlrBox)
