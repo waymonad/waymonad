@@ -25,6 +25,7 @@ module Input
     , SeatFoo (..)
     , inputCreate
     , detachDevice
+    , attachDevice
     )
 where
 
@@ -43,7 +44,6 @@ import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
     , DeviceType(..)
-    , getDeviceName
     , getDestroySignal
     )
 import Graphics.Wayland.WlRoots.XCursorManager
@@ -76,7 +76,6 @@ import View (getViewClient)
 import ViewSet (WSTag)
 import Utility (doJust)
 import WayUtil
-import WayUtil.Log (logPutStr, LogPriority (..))
 import Waymonad
 import Waymonad.Types (Compositor (..))
 import WayUtil.Focus (focusView)
@@ -107,7 +106,6 @@ doDetach dev foo = liftIO $ do
         (DeviceKeyboard kptr) -> detachKeyboard kptr
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         _ -> pure ()
-    modifyIORef (fooDevices foo) (S.delete dev)
 
 
 detachDevice :: Ptr InputDevice -> Way a ()
@@ -126,8 +124,24 @@ detachDevice dev = do
         [owner] -> doDetach dev owner
 
 
-attachDevice :: Ptr InputDevice -> SeatFoo -> Way a ()
-attachDevice _ _ = undefined
+doAttach :: WSTag a => Ptr InputDevice -> SeatFoo -> Way a ()
+doAttach ptr foo = do
+    iType <- liftIO $ inputDeviceType ptr
+
+    withSeat (Just $ fooSeat foo) $ case iType of
+        (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) ptr kptr
+        (DevicePointer pptr) -> liftIO $ handlePointer (cursorRoots $ fooCursor foo) ptr pptr
+        _ -> pure ()
+
+    liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)
+    setDestroyHandler (getDestroySignal ptr) (const $ liftIO $ do modifyIORef (fooDevices foo) $ S.delete ptr)
+
+attachDevice :: WSTag a => Ptr InputDevice -> Text -> Way a ()
+attachDevice ptr name = do
+    (Compositor {compInput = input}) <- wayCompositor <$> getState
+    foo <- getOrCreateSeat (inputFooMap input) name
+    detachDevice ptr
+    doAttach ptr foo
 
 createSeat
     :: WSTag a
@@ -188,20 +202,10 @@ handleInputAdd
     -> Ptr InputDevice
     -> Way a ()
 handleInputAdd foos devRef ptr = do 
-    iType <- liftIO $ inputDeviceType ptr
-    foo <- getOrCreateSeat foos "seat0"
-
     liftIO $ modifyIORef devRef (S.insert ptr)
-    liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)
-    setDestroyHandler (getDestroySignal ptr) (\_ -> liftIO $ do
-        modifyIORef devRef $ S.delete ptr
-        modifyIORef (fooDevices foo) $ S.delete ptr
-                                             )
+    setDestroyHandler (getDestroySignal ptr) (const $ liftIO $ do modifyIORef devRef $ S.delete ptr)
 
-    withSeat (Just $ fooSeat foo) $ case iType of
-        (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) ptr kptr
-        (DevicePointer pptr) -> liftIO $ handlePointer (cursorRoots $ fooCursor foo) ptr pptr
-        _ -> pure ()
+    doAttach ptr =<< getOrCreateSeat foos "seat0"
 
 
 setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way a ()

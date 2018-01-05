@@ -22,6 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE NumDecimals #-}
 module Main
 where
 
@@ -72,9 +73,6 @@ import Graphics.Wayland.WlRoots.Screenshooter (screenshooterCreate)
 
 -- import Compositor
 import Input (inputCreate)
-import Managehook (Managehook, runQuery, enactInsert, InsertAction (InsertFocused))
-import Layout (reLayout)
---import Layout.Full (Full (..))
 import Layout.Mirror (Mirror (..), MMessage (..))
 import Layout.Tall (Tall (..))
 import Layout.ToggleFull (ToggleFull (..), TMessage (..))
@@ -82,15 +80,12 @@ import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
 import Utility (doJust)
 import Utility.Spawn (spawn, manageNamed, manageSpawnOn)
-import View (View)
 import qualified View.Multi as Multi
 import View.Proxy (makeProxy)
 import ViewSet
     ( Workspace(..)
     , Layout (..)
     , WSTag
-    , contains
-    , rmView
     , moveRight
     , moveLeft
     , moveViewLeft
@@ -107,7 +102,6 @@ import Waymonad
 
     , WayLoggers (..)
     , Logger (..)
-    , getViewSet
     )
 import Waymonad.Types (Compositor (..), LogPriority (..))
 import WayUtil
@@ -118,13 +112,13 @@ import WayUtil
     , seatOutputEventHandler
     )
 import WayUtil.Current (getCurrentView)
-import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyFocusedWS)
-import WayUtil.Floating (centerFloat, modifyFloating)
+import WayUtil.ViewSet (modifyFocusedWS)
+import WayUtil.Floating (centerFloat)
 import XWayland (xwayShellCreate, overrideXRedirect)
 import XdgShell (xdgShellCreate)
 
 import qualified Data.Map.Strict as M
-import qualified Data.Set as S
+
 
 wsSyms :: [Keysym]
 wsSyms =
@@ -139,7 +133,6 @@ wsSyms =
     , keysym_9
     , keysym_0
     ]
-
 
 workspaces :: [Text]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
@@ -201,7 +194,6 @@ makeCompositor display backend = do
         , compScreenshooter = shooter
         }
 
-
 defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
 defaultMap xs = newIORef $ M.fromList $
     map (, Workspace (Layout (Mirror False (ToggleFull False (Tall ||| Spiral)))) Nothing) xs
@@ -214,7 +206,7 @@ realMain compRef = do
     outputRm <- makeCallback $ handleOutputRemove
     injectHandler <- makeCallback $ registerInjectHandler
     fuseBracket <- getFuseBracket
-    idleBracket <- getIdleBracket 1000
+    idleBracket <- getIdleBracket 3e5
     liftIO $ launchCompositor ignoreHooks
         { displayHook = [fuseBracket, Bracketed injectHandler (const $ pure ())]
         , backendPreHook = [Bracketed compFun (const $ pure ()), idleBracket]

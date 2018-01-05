@@ -34,6 +34,7 @@ import Fuse.Common
 import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName, inputDeviceType)
 
 import Input
+import ViewSet (WSTag)
 import Waymonad
 import Waymonad.Types (Compositor (compInput))
 
@@ -42,17 +43,18 @@ import qualified Data.Set as S
 import qualified Data.Text as T
 
 
-makeInputDir :: Ptr InputDevice -> Way a (String, Entry a)
+makeInputDir :: WSTag a => Ptr InputDevice -> Way a (String, Entry a)
 makeInputDir ptr = do
     let deviceType =
             [ ("type", FileEntry $ textFile $ liftIO $ T.pack . show <$> (inputDeviceType ptr))
             , ("detach", FileEntry $ textRWFile (pure "") (\_ -> Right <$> detachDevice ptr))
+            , ("attach", FileEntry $ textRWFile (pure "") (fmap Right . attachDevice ptr))
             ]
     name <- liftIO $ getDeviceName ptr
     pure (T.unpack name, DirEntry $ simpleDir $ M.fromList $ deviceType)
 
 
-enumerateInputs :: Way a (Map String (Entry a))
+enumerateInputs :: WSTag a => Way a (Map String (Entry a))
 enumerateInputs = do
     inputRef <- inputDevices . compInput . wayCompositor <$> getState
     inputs <- liftIO $ readIORef inputRef
@@ -76,7 +78,7 @@ enumerateSeats = do
     foos <- liftIO $ readIORef fooRef
     M.fromList <$> mapM makeFooDir (M.toList foos)
 
-inputsDir :: Entry a
+inputsDir :: WSTag a => Entry a
 inputsDir =
     DirEntry $ simpleDir $ M.fromList
         [ ("devices", DirEntry $ enumeratingDir enumerateInputs)
