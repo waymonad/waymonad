@@ -27,7 +27,9 @@ import Data.Bits ((.&.), complement)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
+
 import Graphics.Wayland.Server (displayTerminate)
+import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
 import Graphics.Wayland.WlRoots.Backend (Backend)
@@ -56,6 +58,7 @@ import Foreign.StablePtr
     , castStablePtrToPtr
     , freeStablePtr
     , castPtrToStablePtr
+    , deRefStablePtr
     )
 import Control.Monad (forM, when)
 
@@ -240,5 +243,11 @@ detachKeyboard ptr = do
 
 handleKeyboardRemove :: Ptr WlrKeyboard -> IO ()
 handleKeyboardRemove ptr = do
-    sptr <- peek (getKeyDataPtr ptr)
-    when (sptr /= nullPtr) (freeStablePtr $ castPtrToStablePtr sptr)
+    dptr <- peek (getKeyDataPtr ptr)
+    when (dptr /= nullPtr) (do
+        let sptr = castPtrToStablePtr dptr
+        (kh, mh) <- deRefStablePtr sptr
+        removeListener kh
+        removeListener mh
+        freeStablePtr $ sptr
+                           )

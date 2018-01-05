@@ -24,13 +24,15 @@ module Input
     -- This is only really exported for IPC
     , SeatFoo (..)
     , inputCreate
+    , detachDevice
     )
 where
 
-import Control.Monad (when, forM_)
+import Control.Monad (when, forM_, forM)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
 import Data.Map (Map)
+import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
@@ -50,7 +52,7 @@ import Graphics.Wayland.WlRoots.XCursorManager
     , xCursorSetImage
     , xCursorLoad
     )
-import Graphics.Wayland.WlRoots.Cursor (setCursorSurface)
+import Graphics.Wayland.WlRoots.Cursor (setCursorSurface, detachInputDevice)
 import Graphics.Wayland.WlRoots.Output (getOutputScale)
 import Graphics.Wayland.WlRoots.Seat
     ( seatGetSignals
@@ -98,6 +100,31 @@ data Input = Input
     , inputAddToken :: ListenerToken
     }
 
+doDetach :: Ptr InputDevice -> SeatFoo -> Way a ()
+doDetach dev foo = liftIO $ do
+    iType <- inputDeviceType dev
+    case iType of
+        (DeviceKeyboard kptr) -> detachKeyboard kptr
+        (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
+        _ -> pure ()
+    modifyIORef (fooDevices foo) (S.delete dev)
+
+
+detachDevice :: Ptr InputDevice -> Way a ()
+detachDevice dev = do
+    Compositor {compInput = input} <- wayCompositor <$> getState
+    seats <- liftIO $ readIORef $ inputFooMap input
+    candidates <- forM (snd `fmap` M.toList seats) $ \seat -> liftIO $ do
+                devices <- readIORef (fooDevices seat)
+                pure $ if dev `S.member` devices
+                    then Just seat
+                    else Nothing
+    case catMaybes candidates of
+        [] -> pure ()
+-- TODO: Log an error
+        (_:_:_) -> pure ()
+        [owner] -> doDetach dev owner
+
 createSeat
     :: WSTag a
     => Text
@@ -108,7 +135,7 @@ createSeat name = do
     loadCurrentScales xcursor
     focus <- makeCallback $ \(seat, view) -> withSeat (Just seat) $ focusView view
 
-    cursorRef <- liftIO $ newIORef undefined
+    cursorRef <- liftIO $ newIORef $ error $ "Something tried to access the cursor for seat " ++ T.unpack name ++ " to early"
     seat  <- liftIO $
         seatCreate
             display

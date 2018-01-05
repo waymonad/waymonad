@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE OverloadedStrings #-}
 module Fuse.Inputs
     ( inputsDir
     )
@@ -44,8 +45,8 @@ import qualified Data.Text as T
 makeInputDir :: Ptr InputDevice -> Way a (String, Entry a)
 makeInputDir ptr = do
     let deviceType =
-            [ ("type", FileEntry $ textFile $ liftIO $
-                T.pack . show <$> (inputDeviceType ptr))
+            [ ("type", FileEntry $ textFile $ liftIO $ T.pack . show <$> (inputDeviceType ptr))
+            , ("detach", FileEntry $ textRWFile (pure "") (\_ -> Right <$> detachDevice ptr))
             ]
     name <- liftIO $ getDeviceName ptr
     pure (T.unpack name, DirEntry $ simpleDir $ M.fromList $ deviceType)
