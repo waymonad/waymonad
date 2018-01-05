@@ -28,6 +28,7 @@ module WayUtil.ViewSet
     , withWS
     , unsetFocus
     , getWorkspaces
+    , modifyFocusedWS
     )
 where
 
@@ -99,7 +100,11 @@ setFocused :: WSTag a => Seat -> a -> Way a ()
 setFocused seat ws = join . withWS ws $ setFoci seat
 
 forceFocused :: WSTag a => Way a ()
-forceFocused = doJust (withCurrentWS $ setFoci) id
+forceFocused = do
+    seatM <- getSeat
+    case seatM of
+        Nothing -> pure ()
+        Just seat -> join (withCurrentWS $ setFoci seat)
 
 unsetFocus' :: MonadIO m => Seat -> (Set Seat, View) -> m ()
 unsetFocus' s (s', v) = when (S.singleton s == s') $ do
@@ -114,17 +119,31 @@ unsetFocus seat ws = join . withWS ws $ unsetFoci seat
 
 modifyCurrentWS
     :: (WSTag a)
-    => (Seat -> Workspace -> Workspace) -> Way a ()
-modifyCurrentWS fun = doJust getSeat $ \seat -> do
+    => (Maybe Seat -> Workspace -> Workspace)
+    -> Way a ()
+modifyCurrentWS fun = do
+    seatM <- getSeat
     ws <- getCurrentWS
-    preWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
-    modifyWS (fun seat) ws
-    postWs <- getFocused seat . fromJust . M.lookup ws <$> getViewSet
+    let getView = whenJust seatM (\seat -> getFocused seat . fromJust . M.lookup ws <$> getViewSet)
+
+    preWs <- getView
+    modifyWS (fun seatM) ws
+    postWs <- getView
+
     -- This should really be on the 2 views we know about, not full
     whenJust preWs (flip activateView False)
     whenJust postWs (flip activateView True)
     forceFocused
     runLog
+
+modifyFocusedWS
+    :: (WSTag a)
+    => (Seat -> Workspace -> Workspace)
+    -> Way a ()
+-- Somwhat ugly hack to make sure getSeat returns a Just value, but I prefer it
+-- over code duplication
+modifyFocusedWS fun = doJust getSeat $ \_ ->
+    modifyCurrentWS (fun . fromJust)
 
 withWS
     :: (WSTag a)

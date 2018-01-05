@@ -118,7 +118,7 @@ import WayUtil
     , seatOutputEventHandler
     )
 import WayUtil.Current (getCurrentView)
-import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyCurrentWS)
+import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyCurrentWS, modifyFocusedWS)
 import WayUtil.Floating (centerFloat, modifyFloating)
 import XWayland (xwayShellCreate, overrideXRedirect)
 import XdgShell (xdgShellCreate)
@@ -173,10 +173,10 @@ workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 bindings :: DisplayServer -> (View -> IO ()) -> [(([WlrModifier], Keysym), KeyBinding Text)]
 bindings dsp fun =
-    [ (([modi], keysym_k), modifyCurrentWS moveLeft)
-    , (([modi], keysym_j), modifyCurrentWS moveRight)
-    , (([modi, Shift], keysym_k), modifyCurrentWS moveViewLeft)
-    , (([modi, Shift], keysym_j), modifyCurrentWS moveViewRight)
+    [ (([modi], keysym_k), modifyFocusedWS moveLeft)
+    , (([modi], keysym_j), modifyFocusedWS moveRight)
+    , (([modi, Shift], keysym_k), modifyFocusedWS moveViewLeft)
+    , (([modi, Shift], keysym_j), modifyFocusedWS moveViewRight)
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi, Shift], keysym_Return), spawnManaged dsp [onSpawner "2", namedSpawner "terminal"] "weston-terminal" [])
     , (([modi], keysym_d), spawn "dmenu_run")

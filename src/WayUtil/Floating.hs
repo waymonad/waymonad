@@ -71,7 +71,7 @@ unsetFloating view = do
     floats <- isFloating view
     when floats $ do
         modifyFloating $ S.delete view
-        modifyCurrentWS (flip addView view . Just)
+        modifyCurrentWS (flip addView view)
 
 toggleFloat
     :: WSTag a => WlrBox ->  Way a ()

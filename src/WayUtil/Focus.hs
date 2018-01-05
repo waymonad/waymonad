@@ -31,19 +31,15 @@ module WayUtil.Focus
     )
 where
 
-import Control.Monad (join)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef, modifyIORef)
 import Data.List (lookup, find)
 import Data.Tuple (swap)
 import Data.Typeable (Typeable)
-import Foreign.Ptr (Ptr)
-
-import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Layout (reLayout)
-import Output (Output (..), getOutputId)
-import Utility (whenJust, doJust, intToPtr)
+import Output (Output (..))
+import Utility (whenJust, doJust)
 import View (View)
 import ViewSet (WSTag, setFocused, getMaster)
 import Waymonad
@@ -57,10 +53,8 @@ import Waymonad
     )
 import WayUtil (runLog)
 import WayUtil.Current (getCurrentOutput, withCurrentWS)
-import WayUtil.ViewSet (modifyCurrentWS, forceFocused, modifyWS)
+import WayUtil.ViewSet (modifyCurrentWS, modifyWS)
 import WayUtil.Log (logPutText, LogPriority(..))
-
-import qualified Data.Map as M
 
 data OutputMappingEvent a = OutputMappingEvent
     { outputMappingEvtOutput :: Output
@@ -111,10 +105,10 @@ focusWSView view ws = do
 focusView :: WSTag a => View -> Way a ()
 focusView view = do
     logPutText loggerFocus Trace "Calling focusView"
-    modifyCurrentWS $ setFocused view
+    modifyCurrentWS $ \s w -> case s of
+        Just seat -> setFocused view seat w
+        Nothing -> w
 
 
 focusMaster :: WSTag a => Way a ()
-focusMaster = do
-    view <- withCurrentWS $ const getMaster
-    whenJust (join view) focusView
+focusMaster = doJust (withCurrentWS getMaster) focusView

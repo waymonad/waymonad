@@ -62,9 +62,8 @@ getPointerOutput = do
     pure . fst $ current
 
 getCurrentOutput :: Way a (Maybe Output)
-getCurrentOutput = do
+getCurrentOutput = doJust getSeat $ \seat -> do
     state <- getState
-    (Just seat) <- getSeat
     currents <- liftIO . readIORef $ wayBindingCurrent state
     case M.lookup seat $ M.fromList currents of
         Just current -> pure . Just . snd $ current
@@ -84,17 +83,13 @@ getCurrentWS = do
 
 withCurrentWS
     :: (WSTag a)
-    => (Seat -> Workspace -> b)
-    -> Way a (Maybe b)
+    => (Workspace -> b)
+    -> Way a b
 withCurrentWS fun = do
-    seatM <- getSeat
-    case seatM of
-        Just seat -> do
-            ws <- getCurrentWS
-            vs <- getViewSet
+    ws <- getCurrentWS
+    vs <- getViewSet
 
-            pure . Just . fun seat . fromJust $  M.lookup ws vs
-        Nothing -> pure Nothing
+    pure . fun . fromJust $  M.lookup ws vs
 
 getCurrentView :: WSTag a => Way a (Maybe View)
 getCurrentView = doJust getSeat getKeyboardFocus
