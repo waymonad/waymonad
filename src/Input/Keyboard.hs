@@ -71,7 +71,10 @@ import Waymonad
     , WayLoggers (..)
     , getState
     )
-import Waymonad.Types (Compositor(compBackend, compDisplay), WayBindingState (wayCompositor))
+import Waymonad.Types
+    ( Compositor (compBackend, compDisplay)
+    , WayBindingState (wayCompositor, wayKeybinds)
+    )
 import WayUtil.Signal (setSignalHandler)
 import WayUtil.Log (logPutText, LogPriority (..))
 
@@ -210,12 +213,12 @@ handleModifiers keyboard seat _ = do
 handleKeyboardAdd
     :: WSTag a
     => Seat
-    -> BindingMap a
     -> Ptr InputDevice
     -> Ptr WlrKeyboard
     -> Way a ()
-handleKeyboardAdd seat bindings dev ptr = do
+handleKeyboardAdd seat dev ptr = do
     let signals = getKeySignals ptr
+    bindings <- wayKeybinds <$> getState
 
     liftIO $ do
         (Just cxt) <- newContext defaultFlags

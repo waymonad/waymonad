@@ -43,15 +43,20 @@ module Waymonad.Types
     , BindingMap
     , KeyBinding
     , LogPriority (..)
+    , Query (..)
+    , InsertAction (..)
+    , Managehook
     )
 where
 
 import Control.Concurrent.Chan (Chan)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT, MonadReader)
+import Data.Default (Default(..))
 import Data.IORef (IORef)
 import Data.IntMap (IntMap)
 import Data.Map (Map)
+import Data.Semigroup (Semigroup (..))
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf)
@@ -134,11 +139,13 @@ data WayBindingState a = WayBindingState
     , wayExtensibleState :: IORef StateMap
 
     , wayLogFunction     :: LogFun a
+    , wayKeybinds        :: BindingMap a
     , wayConfig          :: WayConfig
     , wayEventHook       :: SomeEvent -> Way a ()
     , wayUserWorkspaces  :: [a]
     , wayCompositor      :: Compositor
     , wayInjectChan      :: InjectChan
+    , wayManagehook      :: Managehook a
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)
@@ -161,3 +168,32 @@ instance Monoid a => Monoid (Way b a) where
 
 instance forall a b. (Typeable a, Typeable b) => Show (Way a b) where
     show =  show . typeOf
+
+
+newtype Query a b = Query (ReaderT View (Way a) b)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader View)
+
+instance Monoid b => Monoid (Query a b) where
+    mempty = pure mempty
+    left `mappend` right = mappend <$> left <*> right
+
+data InsertAction a
+    = InsertNone
+    | InsertFocused
+    | InsertInto a
+    | InsertFloating WlrBox
+    | InsertCustom (Way a ())
+    deriving (Show)
+
+instance Semigroup (InsertAction a) where
+    InsertNone <> x = x
+    i <> _ = i
+
+instance Default (InsertAction a) where
+    def = InsertNone
+
+instance Monoid (InsertAction a) where
+    mempty = def
+    l `mappend` r = l <> r
+
+type Managehook a = Query a (InsertAction a)

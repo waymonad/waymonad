@@ -52,6 +52,9 @@ import Foreign.StablePtr
     , freeStablePtr
     , castPtrToStablePtr
     )
+import ViewSet (WSTag)
+import Managehook (insertView, removeView)
+
 import qualified Data.IntMap.Strict as M
 
 type MapRef =  IORef (IntMap View)
@@ -68,14 +71,13 @@ ptrToInt = fromIntegral . ptrToIntPtr
 newtype XdgSurface = XdgSurface { unXdg :: (Ptr R.WlrXdgSurface) }
 
 xdgShellCreate
-    :: DisplayServer
-    -> (View -> Way a ())
-    -> (View -> Way a ())
+    :: WSTag a
+    => DisplayServer
     -> Way a XdgShell
-xdgShellCreate display addFun delFun = do
+xdgShellCreate display = do
     surfaces <- liftIO $ newIORef mempty
     roots <- setCallback
-        (\surf -> handleXdgSurface surfaces addFun delFun surf)
+        (\surf -> handleXdgSurface surfaces surf)
         (\act -> R.xdgShellCreate act display)
 
     logPutText loggerXdg Trace "Created xdg_shell_v6 handler"
@@ -86,16 +88,16 @@ xdgShellCreate display addFun delFun = do
         }
 
 handleXdgDestroy
-    :: MapRef
-    -> (View -> Way a ())
+    :: WSTag a
+    => MapRef
     -> Ptr R.WlrXdgSurface
     -> Way a ()
-handleXdgDestroy ref delFun surf = do
+handleXdgDestroy ref surf = do
     logPutText loggerXdg Debug "Destroying xdg toplevel surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     liftIO $ modifyIORef ref $ M.delete (ptrToInt surf)
 
-    delFun view
+    removeView view
     triggerViewDestroy view
 
     liftIO $ do
@@ -111,18 +113,17 @@ handleCommit view ref surf = do
         writeIORef ref (width, height)
 
 handleXdgSurface
-    :: MapRef
-    -> (View -> Way a ())
-    -> (View -> Way a ())
+    :: WSTag a
+    => MapRef
     -> Ptr R.WlrXdgSurface
     -> Way a ()
-handleXdgSurface ref addFun delFun surf = do
+handleXdgSurface ref surf = do
     isPopup <- liftIO $ R.isXdgPopup surf
     when (not isPopup) $ do
         logPutText loggerXdg Debug "New xdg toplevel surface"
         let xdgSurf = XdgSurface surf
         view <- createView xdgSurf
-        addFun view
+        insertView view
 
         liftIO $ do
             modifyIORef ref $ M.insert (ptrToInt surf) view
@@ -130,7 +131,7 @@ handleXdgSurface ref addFun delFun surf = do
             R.setMaximized surf True
 
         let signals = R.getXdgSurfaceEvents surf
-        destroyHandler <- setSignalHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref delFun)
+        destroyHandler <- setSignalHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref)
         sizeRef <- liftIO $ newIORef (0, 0)
         --commitHandler <- setSignalHandler (R.xdgSurfaceEvtCommit signals) (liftIO . handleCommit view sizeRef)
         liftIO $ do

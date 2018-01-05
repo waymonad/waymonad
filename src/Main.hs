@@ -32,7 +32,6 @@ import Fuse.Main
 import Hooks.EnterLeave (enterLeaveHook)
 import Layout.Spiral
 import Layout.Choose
-import qualified View.Multi as Multi
 
 import qualified Hooks.OutputAdd as H
 import WayUtil.View
@@ -82,9 +81,10 @@ import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
 import Utility (doJust)
-import Utility.Spawn (spawn, spawnManaged, manageNamed, manageSpawnOn, namedSpawner, onSpawner)
+import Utility.Spawn (spawn, manageNamed, manageSpawnOn)
 import View (View)
-import View.Proxy
+import qualified View.Multi as Multi
+import View.Proxy (makeProxy)
 import ViewSet
     ( Workspace(..)
     , Layout (..)
@@ -118,40 +118,13 @@ import WayUtil
     , seatOutputEventHandler
     )
 import WayUtil.Current (getCurrentView)
-import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyCurrentWS, modifyFocusedWS)
+import WayUtil.ViewSet (modifyViewSet, forceFocused, modifyFocusedWS)
 import WayUtil.Floating (centerFloat, modifyFloating)
 import XWayland (xwayShellCreate, overrideXRedirect)
 import XdgShell (xdgShellCreate)
 
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
-
-insertView
-    :: WSTag a
-    => Managehook a
-    -> View
-    -> Way a ()
-insertView hook v = do
-    runQuery v $ enactInsert . flip mappend InsertFocused =<< hook
-
-removeView
-    :: (WSTag a)
-    => View
-    -> Way a ()
-removeView v = do
-    wsL <- filter (fromMaybe False . fmap (contains v) . wsViews . snd) . M.toList <$> getViewSet
-
-    case wsL of
-        [(ws, _)] -> do
-            modifyViewSet $ M.adjust (rmView v) ws
-            reLayout ws
-
-            forceFocused
-        [] -> pure ()
-        xs -> liftIO $ do
-            hPutStrLn stderr "Found a view in a number of workspaces that's not <2!"
-            hPutStrLn stderr $ show $ map fst xs
-    modifyFloating (S.delete v)
 
 wsSyms :: [Keysym]
 wsSyms =
@@ -171,14 +144,14 @@ wsSyms =
 workspaces :: [Text]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
-bindings :: DisplayServer -> (View -> IO ()) -> [(([WlrModifier], Keysym), KeyBinding Text)]
-bindings dsp fun =
+bindings :: [(([WlrModifier], Keysym), KeyBinding Text)]
+bindings =
     [ (([modi], keysym_k), modifyFocusedWS moveLeft)
     , (([modi], keysym_j), modifyFocusedWS moveRight)
     , (([modi, Shift], keysym_k), modifyFocusedWS moveViewLeft)
     , (([modi, Shift], keysym_j), modifyFocusedWS moveViewRight)
     , (([modi], keysym_Return), spawn "weston-terminal")
-    , (([modi, Shift], keysym_Return), spawnManaged dsp [onSpawner "2", namedSpawner "terminal"] "weston-terminal" [])
+    , (([modi, Shift], keysym_Return), spawn "weston-terminal")
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_f), sendMessage TMessage)
     , (([modi], keysym_m), sendMessage MMessage)
@@ -186,8 +159,8 @@ bindings dsp fun =
     , (([modi], keysym_q), killCurrent)
     , (([modi], keysym_o), centerFloat)
     , (([modi], keysym_Right), sendMessage NextLayout)
-    , (([modi], keysym_c), doJust getCurrentView $ \v -> insertView mempty =<< makeProxy v fun)
-    , (([modi], keysym_a), doJust getCurrentView $ \v -> Multi.copyView v (insertView mempty) fun)
+    , (([modi], keysym_c), doJust getCurrentView $ makeProxy)
+    , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
     where modi = Alt
 
@@ -199,9 +172,8 @@ makeCompositor
     :: WSTag a
     => DisplayServer
     -> Ptr Backend
-    -> (DisplayServer -> (View -> IO ()) -> [(([WlrModifier], Keysym), KeyBinding a)])
     -> Way a Compositor
-makeCompositor display backend keyBinds = do
+makeCompositor display backend = do
     liftIO $ hPutStrLn stderr "Creating compositor"
     renderer <- liftIO $ rendererCreate backend
     void $ liftIO $ displayInitShm display
@@ -210,13 +182,10 @@ makeCompositor display backend keyBinds = do
     layout <- liftIO $ createOutputLayout
     shooter <- liftIO $ screenshooterCreate display renderer
 
-    cb <- makeCallback removeView
+    input <- inputCreate backend
 
-    input <- inputCreate backend (makeBindingMap $ keyBinds display cb)
-
-    let addFun = insertView (overrideXRedirect <> manageSpawnOn <> manageNamed)
-    xdgShell <- xdgShellCreate display addFun removeView
-    xway <- xwayShellCreate display comp addFun removeView
+    xdgShell <- xdgShellCreate display
+    xway <- xwayShellCreate display comp
 --    shell <- pure undefined
     pure $ Compositor
         { compDisplay = display
@@ -240,7 +209,7 @@ defaultMap xs = newIORef $ M.fromList $
 realMain :: IORef Compositor -> Way Text ()
 realMain compRef = do
     setBaseTime
-    compFun <- makeCallback $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend bindings
+    compFun <- makeCallback $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
     outputRm <- makeCallback $ handleOutputRemove
     injectHandler <- makeCallback $ registerInjectHandler
@@ -301,6 +270,8 @@ main =  do
                     , wayUserWorkspaces = workspaces
                     , wayInjectChan = inject
                     , wayCompositor = unsafePerformIO (readIORef compRef)
+                    , wayKeybinds = (makeBindingMap $ bindings)
+                    , wayManagehook = overrideXRedirect <> manageSpawnOn <> manageNamed
                     }
 
             let loggers = WayLoggers

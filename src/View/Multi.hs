@@ -57,6 +57,8 @@ import View
     , closeView
     )
 import ViewSet (WSTag (..))
+import Managehook (insertView, removeView)
+import Waymonad (makeCallback)
 import Waymonad.Extensible (ExtensionClass (..))
 import WayUtil (modifyEState, getEState)
 
@@ -151,12 +153,12 @@ makeMulti' view delFun = MultiView
     <*> pure delFun
 
 makeMulti
-    :: Typeable a
+    :: WSTag a
     => View
-    -> (View -> IO ())
     -> Way a (MultiView a)
-makeMulti view delFun = do
-    liftIO $ delFun view
+makeMulti view = do
+    removeView view
+    delFun <- makeCallback removeView
     multi <- liftIO $ makeMulti' view delFun
     addViewDestroyListener 0 (const $ multiDestroy multi) view
     modifyEState (MVSet . S.insert multi .  unMV)
@@ -185,21 +187,19 @@ deriveSlave multi = do
 copyView
     :: WSTag a
     => View
-    -> (View -> Way a ())
-    -> (View -> IO ())
     -> Way a ()
-copyView view addFun delFun = do
+copyView view = do
     case getViewInner view of
         Nothing -> do
-            multi <- makeMulti view delFun
+            multi <- makeMulti view
             slave1 <- deriveSlave multi
             slave2 <- deriveSlave multi
 
-            addFun slave1
-            addFun slave2
+            insertView slave1
+            insertView slave2
 
             pure ()
-        Just slave -> addFun =<< deriveSlave (slaveMulti slave)
+        Just slave -> insertView =<< deriveSlave (slaveMulti slave)
 
 data SlaveView a = SlaveView
     { slaveMulti :: MultiView a

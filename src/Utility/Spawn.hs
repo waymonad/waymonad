@@ -69,6 +69,7 @@ import Waymonad.Extensible (ExtensionClass (..))
 import WayUtil
     ( getEState
     , modifyEState
+    , getDisplay
     )
 import WayUtil.Log (logPutText, LogPriority (..))
 
@@ -101,13 +102,12 @@ clientToInt :: Client -> Int
 clientToInt (Client c) = ptrToInt c
 
 spawnNamed
-    :: DisplayServer
-    -> Text
+    :: Text
     -> String
     -> [String]
     -> Way a ()
-spawnNamed dsp name cmd args = do
-    spawnManaged dsp [namedSpawner name] cmd args
+spawnNamed name cmd args = do
+    spawnManaged [namedSpawner name] cmd args
 
 namedSpawner :: Text -> Spawner a
 namedSpawner name = Spawner
@@ -129,13 +129,12 @@ manageNamed = do
 
 spawnOn
     :: WSTag a
-    => DisplayServer
-    -> a
+    => a
     -> String
     -> [String]
     -> Way a ()
-spawnOn dsp ws cmd args = do
-    spawnManaged dsp [onSpawner ws] cmd args
+spawnOn ws cmd args = do
+    spawnManaged [onSpawner ws] cmd args
 
 getClientWS :: Typeable a => Client -> Way a (Maybe a)
 getClientWS c = IM.lookup (clientToInt c) . unWM <$> getEState
@@ -162,17 +161,17 @@ data Spawner a = Spawner
 
 spawnManaged
     :: forall a.
-       DisplayServer
-    -> [Spawner a]
+       [Spawner a]
     -> String
     -> [String]
     -> Way a ()
-spawnManaged dsp spawners cmd args = do
+spawnManaged spawners cmd args = do
     (cSock, sSock) <- liftIO $ socketPair AF_UNIX Stream 0
     void . liftIO . forkProcess $ spawnClient sSock (Fd $ fdSocket cSock) cmd args
 
     liftIO $ close cSock
     let cFd = fdSocket sSock
+    dsp <- getDisplay
     clientM <- liftIO $ clientCreate dsp (Fd cFd)
     whenJust clientM $ \client -> do
         addFun client

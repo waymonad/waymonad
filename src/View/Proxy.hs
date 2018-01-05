@@ -36,16 +36,20 @@ import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 
 import View
+import ViewSet (WSTag)
+import Waymonad (Way, makeCallback)
+import Managehook (insertView, removeView)
 
 data ProxiedView = ProxiedView { removeProxy :: View -> IO (),  unProxy :: View, myView :: IORef View}
 
-makeProxy :: MonadIO m => View -> (View -> IO ()) -> m View
-makeProxy v fun = liftIO $ do
-    ref <- newIORef undefined
+makeProxy :: WSTag a => View -> Way a ()
+makeProxy v = do
+    ref <- liftIO $ newIORef undefined
+    fun <- makeCallback removeView
     new <- createView (ProxiedView fun v ref)
-    writeIORef ref new
+    liftIO $ writeIORef ref new
     addViewDestroyListener (getViewID new) (const $ closeView new) v
-    pure new
+    insertView new
 
 instance ShellSurface ProxiedView where
     getSurface :: MonadIO m => ProxiedView -> m (Maybe (Ptr WlrSurface))

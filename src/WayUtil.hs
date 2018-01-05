@@ -33,7 +33,7 @@ import Data.Tuple (swap)
 import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.Server (displayTerminate)
+import Graphics.Wayland.Server (DisplayServer, displayTerminate)
 import Graphics.Wayland.WlRoots.Output (WlrOutput, getOutputName)
 import Graphics.Wayland.WlRoots.Box (Point)
 
@@ -247,7 +247,10 @@ viewBelow point = do
                         Just focused -> 
                             pure $ find (\(v, _, _) -> v == focused) candidates <|> listToMaybe candidates
 
+getDisplay :: Way a DisplayServer
+getDisplay = compDisplay . wayCompositor <$> getState
+
 closeCompositor :: Way a ()
 closeCompositor = do
-    dsp <- compDisplay . wayCompositor <$> getState
+    dsp <- getDisplay
     liftIO (displayTerminate dsp)

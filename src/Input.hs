@@ -125,6 +125,10 @@ detachDevice dev = do
         (_:_:_) -> pure ()
         [owner] -> doDetach dev owner
 
+
+attachDevice :: Ptr InputDevice -> SeatFoo -> Way a ()
+attachDevice _ _ = undefined
+
 createSeat
     :: WSTag a
     => Text
@@ -180,11 +184,10 @@ getOrCreateSeat mapRef name = do
 handleInputAdd
     :: WSTag a
     => IORef (Map Text SeatFoo)
-    -> BindingMap a
     -> IORef (Set (Ptr InputDevice))
     -> Ptr InputDevice
     -> Way a ()
-handleInputAdd foos bindings devRef ptr = do 
+handleInputAdd foos devRef ptr = do 
     iType <- liftIO $ inputDeviceType ptr
     foo <- getOrCreateSeat foos "seat0"
 
@@ -196,7 +199,7 @@ handleInputAdd foos bindings devRef ptr = do
                                              )
 
     withSeat (Just $ fooSeat foo) $ case iType of
-        (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) bindings ptr kptr
+        (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) ptr kptr
         (DevicePointer pptr) -> liftIO $ handlePointer (cursorRoots $ fooCursor foo) ptr pptr
         _ -> pure ()
 
@@ -225,15 +228,13 @@ loadCurrentScales manager = do
 inputCreate
     :: WSTag a
     => Ptr Backend
-    -> BindingMap a
     -> Way a Input
-inputCreate backend bindings = do
-    logPutStr loggerKeybinds Debug $ "Loading keymap with binds for:" ++ (show $ M.keys bindings)
+inputCreate backend = do
     devRef <- liftIO $ newIORef mempty
     mapRef <- liftIO $ newIORef mempty
 
     let signals = backendGetSignals backend
-    aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd mapRef bindings devRef
+    aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd mapRef devRef
 
     pure Input
         { inputDevices = devRef

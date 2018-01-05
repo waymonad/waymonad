@@ -46,6 +46,7 @@ import Control.Monad.IO.Class
 import Managehook
 import Waymonad
 import View
+import ViewSet (WSTag)
 import WayUtil.Log (logPutText, LogPriority (..))
 import Foreign.StablePtr
     ( newStablePtr
@@ -75,16 +76,15 @@ ptrToInt = fromIntegral . ptrToIntPtr
 
 
 xwayShellCreate
-    :: DisplayServer
+    :: WSTag a
+    => DisplayServer
     -> Ptr WlrCompositor
-    -> (View -> Way a ())
-    -> (View -> Way a ())
     -> Way a XWayShell
-xwayShellCreate display comp addFun delFun = do
+xwayShellCreate display comp = do
     surfaces <- liftIO $ newIORef mempty
     roots <- liftIO $ X.xwaylandCreate display comp
 
-    setCallback (handleXwaySurface roots surfaces addFun delFun) (X.xwayBindNew roots)
+    setCallback (handleXwaySurface roots surfaces) (X.xwayBindNew roots)
 
     pure $ XWayShell
         { xwaySurfaceRef = surfaces
@@ -92,15 +92,15 @@ xwayShellCreate display comp addFun delFun = do
         }
 
 handleXwayDestroy
-    :: MapRef
-    -> (View -> Way a ())
+    :: WSTag a
+    => MapRef
     -> Ptr X.X11Surface
     -> Way a ()
-handleXwayDestroy ref delFun surf = do
+handleXwayDestroy ref surf = do
     logPutText loggerX11 Debug "Destroying XWayland surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     triggerViewDestroy view
-    delFun view
+    removeView view
 
     liftIO $ do
         modifyIORef ref $ M.delete (ptrToInt surf)
@@ -120,17 +120,16 @@ handleX11Configure view ref evt = do
             writeIORef ref (width, height)
 
 handleXwaySurface
-    :: Ptr X.XWayland
+    :: WSTag a
+    => Ptr X.XWayland
     -> MapRef
-    -> (View -> Way a ())
-    -> (View -> Way a ())
     -> Ptr X.X11Surface
     -> Way a ()
-handleXwaySurface xway ref addFun delFun surf = do
+handleXwaySurface xway ref surf = do
     let xwaySurf = XWaySurface xway surf
     logPutText loggerX11 Debug "New XWayland surface"
     view <- createView xwaySurf
-    addFun view
+    insertView view
 
     liftIO $ do
         modifyIORef ref $ M.insert (ptrToInt surf) view
@@ -139,7 +138,7 @@ handleXwaySurface xway ref addFun delFun surf = do
     let signals = X.getX11SurfaceEvents surf
 
     sizeRef <- liftIO $ newIORef (0, 0)
-    handler <- setSignalHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref delFun
+    handler <- setSignalHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref
     handler2 <- setSignalHandler (X.x11SurfaceEvtType signals) $ (const $ liftIO $ hPutStrLn stderr "Some surface set type")
     handler3 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view sizeRef
 
