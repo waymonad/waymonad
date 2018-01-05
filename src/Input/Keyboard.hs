@@ -25,12 +25,9 @@ where
 import Control.Monad.IO.Class (liftIO)
 import Data.Bits ((.&.), complement)
 import Data.Word (Word32)
-import Foreign.Ptr (Ptr)
+import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
-import Graphics.Wayland.Server
-    ( DisplayServer
-    , displayTerminate
-    )
+import Graphics.Wayland.Server (displayTerminate)
 import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
 import Graphics.Wayland.WlRoots.Backend (Backend)
@@ -236,7 +233,12 @@ handleKeyboardAdd seat bindings dev ptr = do
         poke (getKeyDataPtr ptr) (castStablePtrToPtr sptr)
 
 
+detachKeyboard :: Ptr WlrKeyboard -> IO ()
+detachKeyboard ptr = do
+    handleKeyboardRemove ptr
+    poke (getKeyDataPtr ptr) nullPtr
+
 handleKeyboardRemove :: Ptr WlrKeyboard -> IO ()
 handleKeyboardRemove ptr = do
     sptr <- peek (getKeyDataPtr ptr)
-    freeStablePtr $ castPtrToStablePtr sptr
+    when (sptr /= nullPtr) (freeStablePtr $ castPtrToStablePtr sptr)
