@@ -33,7 +33,7 @@ import View
 import Waymonad
 import WayUtil.Signal (setSignalHandler)
 import WayUtil.Log (logPutText, LogPriority (..))
-import Control.Monad (when, filterM, forM_)
+import Control.Monad (filterM, forM_, unless)
 import Control.Monad.IO.Class
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
@@ -68,7 +68,7 @@ data XdgShell = XdgShell
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
 
-newtype XdgSurface = XdgSurface { unXdg :: (Ptr R.WlrXdgSurface) }
+newtype XdgSurface = XdgSurface { unXdg :: Ptr R.WlrXdgSurface }
 
 xdgShellCreate
     :: WSTag a
@@ -77,12 +77,12 @@ xdgShellCreate
 xdgShellCreate display = do
     surfaces <- liftIO $ newIORef mempty
     roots <- setCallback
-        (\surf -> handleXdgSurface surfaces surf)
-        (\act -> R.xdgShellCreate act display)
+        (handleXdgSurface surfaces)
+        (`R.xdgShellCreate` display)
 
     logPutText loggerXdg Trace "Created xdg_shell_v6 handler"
 
-    pure $ XdgShell
+    pure XdgShell
         { xdgSurfaceRef = surfaces
         , xdgWlrootsShell = roots
         }
@@ -111,7 +111,7 @@ handleXdgSurface
     -> Way a ()
 handleXdgSurface ref surf = do
     isPopup <- liftIO $ R.isXdgPopup surf
-    when (not isPopup) $ do
+    unless isPopup $ do
         logPutText loggerXdg Debug "New xdg toplevel surface"
         let xdgSurf = XdgSurface surf
         view <- createView xdgSurf
@@ -125,7 +125,7 @@ handleXdgSurface ref surf = do
         let signals = R.getXdgSurfaceEvents surf
         destroyHandler <- setSignalHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref)
         liftIO $ do
-            sptr <- newStablePtr (destroyHandler{-, commitHandler-})
+            sptr <- newStablePtr destroyHandler
             poke (R.getXdgSurfaceDataPtr surf) (castStablePtrToPtr sptr)
 
 

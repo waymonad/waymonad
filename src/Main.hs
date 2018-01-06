@@ -20,7 +20,6 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE NumDecimals #-}
 module Main
@@ -153,7 +152,7 @@ bindings =
     , (([modi], keysym_q), killCurrent)
     , (([modi], keysym_o), centerFloat)
     , (([modi], keysym_Right), sendMessage NextLayout)
-    , (([modi], keysym_c), doJust getCurrentView $ makeProxy)
+    , (([modi], keysym_c), doJust getCurrentView makeProxy)
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
     , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
@@ -174,7 +173,7 @@ makeCompositor display backend = do
     void $ liftIO $ displayInitShm display
     comp <- liftIO $ compositorCreate display renderer
     devManager <- liftIO $ managerCreate display
-    layout <- liftIO $ createOutputLayout
+    layout <- liftIO createOutputLayout
     shooter <- liftIO $ screenshooterCreate display renderer
 
     input <- inputCreate backend
@@ -182,7 +181,7 @@ makeCompositor display backend = do
     xdgShell <- xdgShellCreate display
     xway <- xwayShellCreate display comp
 --    shell <- pure undefined
-    pure $ Compositor
+    pure Compositor
         { compDisplay = display
         , compRenderer = renderer
         , compCompositor = comp
@@ -205,8 +204,8 @@ realMain compRef = do
     setBaseTime
     compFun <- makeCallback $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
     outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
-    outputRm <- makeCallback $ handleOutputRemove
-    injectHandler <- makeCallback $ registerInjectHandler
+    outputRm <- makeCallback handleOutputRemove
+    injectHandler <- makeCallback registerInjectHandler
     fuseBracket <- getFuseBracket
     idleBracket <- getIdleBracket 3e5
     liftIO $ launchCompositor ignoreHooks
@@ -264,7 +263,7 @@ main =  do
                     , wayUserWorkspaces = workspaces
                     , wayInjectChan = inject
                     , wayCompositor = unsafePerformIO (readIORef compRef)
-                    , wayKeybinds = (makeBindingMap $ bindings)
+                    , wayKeybinds = makeBindingMap bindings
                     , wayManagehook = overrideXRedirect <> manageSpawnOn <> manageNamed
                     }
 

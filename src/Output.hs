@@ -118,8 +118,8 @@ import Waymonad
     , getState
     , EventClass
     , sendEvent
+    , getSeats
     )
-import Waymonad (getSeats)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
@@ -132,13 +132,13 @@ data Output = Output
     }
 
 instance Show Output where
-    show (Output {outputName = name}) = T.unpack name
+    show Output {outputName = name} = T.unpack name
 
 instance Eq Output where
-    (Output {outputRoots = left}) == (Output {outputRoots = right}) = left == right
+    Output {outputRoots = left} == Output {outputRoots = right} = left == right
 
 instance Ord Output where
-    (Output {outputRoots = left}) `compare` (Output {outputRoots = right}) = left `compare` right
+    Output {outputRoots = left} `compare` Output {outputRoots = right} = left `compare` right
 
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
@@ -163,7 +163,7 @@ outputHandleSurface comp secs output surface scaleFactor box = do
             matrixTranslate trans x y 0
             matrixScale scale localScale localScale 1
             matrixMul trans scale final
-            withSurfaceMatrix surface (getTransMatrix output) final $ \mat -> do
+            withSurfaceMatrix surface (getTransMatrix output) final $ \mat ->
                 renderWithMatrix (compRenderer comp) texture mat
 
             callbacks <- surfaceGetCallbacks =<< getCurrentState surface
@@ -218,8 +218,7 @@ frameHandler
     -> Double
     -> Ptr WlrOutput
     -> IO ()
-frameHandler compRef cacheRef fRef secs output = do
-  runLayoutCache' cacheRef $ do
+frameHandler compRef cacheRef fRef secs output = runLayoutCache' cacheRef $ do
     comp <- liftIO $ readIORef compRef
     (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
     viewsM <- IM.lookup (ptrToInt output) <$> get
@@ -235,7 +234,7 @@ frameHandler compRef cacheRef fRef secs output = do
             let box = WlrBox (x - ox) (y - oy) w h
             outputHandleView comp secs output view box
 
-    where  intersects layout view = liftIO $ (outputIntersects layout output =<< getViewBox view)
+    where  intersects layout view = liftIO (outputIntersects layout output =<< getViewBox view)
 
 pickMode
     :: MonadIO m
@@ -309,7 +308,7 @@ configureOutput layout configs name output = liftIO $ do
         Just (C.Point x y) -> addOutput layout output x y
     mode <- pickMode output confMode
 
-    whenJust mode (flip setOutputMode output)
+    whenJust mode (`setOutputMode` output)
 
     whenJust (outScale =<< conf) (setOutputScale output)
 

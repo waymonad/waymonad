@@ -36,16 +36,16 @@ data Spiral = Spiral
 doLayout :: Int -> WlrBox -> [c] -> [(c, WlrBox)]
 doLayout _ _ [] = []
 doLayout _ b [x] = [(x, b)]
-doLayout 0 b@(WlrBox{boxWidth = width, boxX = x}) (z:zs) =
+doLayout 0 b@WlrBox{boxWidth = width, boxX = x} (z:zs) =
     let used = floor $ fromIntegral width * (0.618 :: Double)
      in (z, b {boxWidth = used}) : doLayout 1 b {boxWidth = width - used, boxX = x + used} zs
-doLayout 1 b@(WlrBox{boxHeight = height, boxY = y}) (z:zs) =
+doLayout 1 b@WlrBox{boxHeight = height, boxY = y} (z:zs) =
     let used = floor $ fromIntegral height * (0.618 :: Double)
      in (z, b {boxHeight = used}) : doLayout 2 b {boxHeight = height - used, boxY = y + used} zs
-doLayout 2 b@(WlrBox{boxWidth = width, boxX = x}) (z:zs) =
+doLayout 2 b@WlrBox{boxWidth = width, boxX = x} (z:zs) =
     let used = floor $ fromIntegral width * (0.618 :: Double)
      in (z, b {boxWidth = used, boxX = x + width - used}) : doLayout 3 b {boxWidth = width - used} zs
-doLayout _ b@(WlrBox{boxHeight = height, boxY = y}) (z:zs) =
+doLayout _ b@WlrBox{boxHeight = height, boxY = y} (z:zs) =
     let used = floor $ fromIntegral height * (0.618 :: Double)
      in (z, b {boxHeight = used, boxY = y + height - used}) : doLayout 0 b {boxHeight = height - used} zs
 

@@ -58,7 +58,7 @@ instance Spec OutputConfig where
         mode <- optSection "mode" "The mode that should be set for this output"
         scale <- optSection "scale" "The output scale"
 
-        pure $ OutputConfig
+        pure OutputConfig
             { outName = name
             , outPosition = pos
             , outMode = mode

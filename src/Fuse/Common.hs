@@ -98,7 +98,7 @@ compatible _ _ = False
 
 simpleRead :: Map String (Entry a) -> FilePath -> Way a (Either Errno [(FilePath, FileStat)])
 simpleRead m "/" = do
-    ctx <- liftIO $ getFuseContext
+    ctx <- liftIO getFuseContext
     pure $ Right $ map (\(name, entry) -> (name, getDefaultStats entry ctx)) $ M.toList m
 simpleRead m path =
     let (top, sub) = firstDir $ tail path
@@ -117,7 +117,7 @@ simpleOpenFile m path mode flags =
             Nothing -> pure $ Left eNOENT
             Just (DirEntry entry) -> dirOpenFile entry sub mode flags
             Just (SymlinkEntry _) -> pure $ Left eNOTSUP
-            Just (FileEntry (fMode, handle)) -> if (mode `compatible` fMode)
+            Just (FileEntry (fMode, handle)) -> if mode `compatible` fMode
                 then pure $ Right handle
                 else pure $ Left ePERM
 
@@ -134,10 +134,10 @@ simpleReadSym m path =
 
 simpleGetStat :: Map String (Entry a) -> FilePath -> Way a (Either Errno FileStat)
 simpleGetStat _ "/" = do
-    ctx <- liftIO $ getFuseContext
+    ctx <- liftIO getFuseContext
     pure $ Right $ defaultDirStats ctx
 simpleGetStat m path = do
-    ctx <- liftIO $ getFuseContext
+    ctx <- liftIO getFuseContext
     let (top, sub) = firstDir $ tail path
      in case M.lookup top m of
             Nothing -> pure $ Left eNOENT

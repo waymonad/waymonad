@@ -67,15 +67,15 @@ hLogFun prnt = do
 
     let tagged = map (\ws -> (ws `elem` actives, ws)) allWS
 
-    let workspaces = T.concat $ flip map tagged (\(active, ws) ->
+    let workspaces = T.concat $ fmap (\(active, ws) ->
             "| "
             `T.append` (if active then "<" else "")
             `T.append` getName ws
             `T.append` (if active then "> " else " ")
-            )
+            ) tagged
     view <- getCurrentView
     out <- case view of
-        Nothing -> pure $ workspaces
+        Nothing -> pure workspaces
         Just v -> do
             title <- fromMaybe "<No Title>" <$> getViewTitle v
             pure $ workspaces `T.append` " : " `T.append` title

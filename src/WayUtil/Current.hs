@@ -53,6 +53,7 @@ import Waymonad
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
 
+-- TODO: This should be a Maybe, we aren't guaranteed outputs
 getPointerOutput :: Way a Output
 getPointerOutput = do
     state <- getState
@@ -94,8 +95,7 @@ withCurrentWS fun = do
 getCurrentView :: WSTag a => Way a (Maybe View)
 getCurrentView = doJust getSeat getKeyboardFocus
 
-getCurrentBox
-    :: Way a (WlrBox)
-getCurrentBox = do
+getCurrentBox :: Way a WlrBox
+getCurrentBox =
     liftIO . getOutputBox . outputRoots =<< getPointerOutput
 

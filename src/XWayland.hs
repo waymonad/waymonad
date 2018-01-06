@@ -85,7 +85,7 @@ xwayShellCreate display comp = do
 
     setCallback (handleXwaySurface roots surfaces) (X.xwayBindNew roots)
 
-    pure $ XWayShell
+    pure XWayShell
         { xwaySurfaceRef = surfaces
         , xwayWlrootsShell = roots
         }
@@ -138,7 +138,7 @@ handleXwaySurface xway ref surf = do
 
     sizeRef <- liftIO $ newIORef (0, 0)
     handler <- setSignalHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref
-    handler2 <- setSignalHandler (X.x11SurfaceEvtType signals) $ (const $ liftIO $ hPutStrLn stderr "Some surface set type")
+    handler2 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
     handler3 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view sizeRef
 
     liftIO $ do
@@ -154,7 +154,7 @@ instance ShellSurface XWaySurface where
         pure (fromIntegral $ boxWidth box, fromIntegral $ boxHeight box)
     resize (XWaySurface _ surf) width height = liftIO $ do
         p@(Point x y) <- X.getX11SurfacePosition surf
-        hPutStrLn stderr $ show p
+        hPrint stderr p
         X.configureX11Surface surf
             (fromIntegral x) (fromIntegral y)
             (fromIntegral width) (fromIntegral height)

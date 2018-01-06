@@ -46,12 +46,12 @@ import qualified Data.Text as T
 makeInputDir :: WSTag a => Ptr InputDevice -> Way a (String, Entry a)
 makeInputDir ptr = do
     let deviceType =
-            [ ("type", FileEntry $ textFile $ liftIO $ T.pack . show <$> (inputDeviceType ptr))
+            [ ("type", FileEntry $ textFile $ liftIO $ T.pack . show <$> inputDeviceType ptr)
             , ("detach", FileEntry $ textRWFile (pure "") (\_ -> Right <$> detachDevice ptr))
             , ("attach", FileEntry $ textRWFile (pure "") (fmap Right . attachDevice ptr))
             ]
     name <- liftIO $ getDeviceName ptr
-    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList $ deviceType)
+    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList deviceType)
 
 
 enumerateInputs :: WSTag a => Way a (Map String (Entry a))
@@ -70,7 +70,7 @@ makeFooDir (name, foo) = do
             pure (devName, SymlinkEntry $ pure $ "../../../devices/" ++ devName)
     let devDir = ("devices", DirEntry $ enumeratingDir $ fmap M.fromList $ mapM makeDevLink $ S.toList devPtrs)
 
-    pure (T.unpack $ name, DirEntry $ simpleDir $ M.fromList [devDir])
+    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList [devDir])
 
 enumerateSeats :: Way a (Map String (Entry a))
 enumerateSeats = do

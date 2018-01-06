@@ -88,7 +88,7 @@ seatCreate dsp name focus reqDefault loadScale = liftIO $ do
 
     R.setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
 
-    pure $ Seat
+    pure Seat
         { seatRoots          = roots
         , seatPointer        = pointer
         , seatKeyboard       = keyboard
@@ -104,7 +104,7 @@ keyboardEnter' seat surf view = liftIO $ do
     R.keyboardNotifyEnter (seatRoots seat) surf
     post <- R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
 
-    if (prev /= post || prev == surf)
+    if prev /= post || prev == surf
        then do
             oldView <- readIORef (seatKeyboard seat)
             let changed = oldView /= Just view
@@ -146,7 +146,7 @@ pointerEnter seat surf view x y = liftIO $ do
     R.pointerNotifyEnter (seatRoots seat) surf x y
     post <- R.getPointerFocus . R.getPointerState $ seatRoots seat
 
-    if (prev /= post || prev == surf)
+    if prev /= post || prev == surf
         then do
             oldView <- readIORef (seatPointer seat)
             let changed = oldView /= Just view
@@ -155,7 +155,7 @@ pointerEnter seat surf view x y = liftIO $ do
         else pure False
 
 pointerMotion :: MonadIO m => Seat -> View -> Word32 -> Double -> Double -> m (Maybe View)
-pointerMotion seat view time baseX baseY = liftIO $ do
+pointerMotion seat view time baseX baseY = liftIO $
     doJust (getViewEventSurface view baseX baseY) $ \(surf, x, y) -> do
         changed <- pointerEnter seat surf view x y
         R.pointerNotifyMotion (seatRoots seat) time x y
@@ -169,7 +169,7 @@ pointerClear seat = liftIO $ do
     post <- R.getPointerFocus . R.getPointerState $ seatRoots seat
 
     when (nullPtr == post) $ do
-        getDefault <- (isJust <$> readIORef (seatPointer seat))
+        getDefault <- isJust <$> readIORef (seatPointer seat)
         when getDefault (seatRequestDefault seat)
         writeIORef (seatPointer seat) Nothing
 

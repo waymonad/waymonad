@@ -138,11 +138,11 @@ doAttach ptr foo = do
         _ -> pure ()
 
     liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)
-    setDestroyHandler (getDestroySignal ptr) (const $ liftIO $ do modifyIORef (fooDevices foo) $ S.delete ptr)
+    setDestroyHandler (getDestroySignal ptr) (const $ liftIO $ modifyIORef (fooDevices foo) $ S.delete ptr)
 
 attachDevice :: WSTag a => Ptr InputDevice -> Text -> Way a ()
 attachDevice ptr name = do
-    (Compositor {compInput = input}) <- wayCompositor <$> getState
+    Compositor {compInput = input} <- wayCompositor <$> getState
     foo <- getOrCreateSeat (inputFooMap input) name
     detachDevice ptr
     doAttach ptr foo
@@ -193,7 +193,7 @@ getOrCreateSeat
 getOrCreateSeat mapRef name = do
     ret <- liftIO (M.lookup name <$> readIORef mapRef)
     case ret of
-        Just foo -> pure $ foo
+        Just foo -> pure foo
         Nothing -> do
             foo <- createSeat name
             liftIO $ modifyIORef mapRef (M.insert name foo)
@@ -222,8 +222,7 @@ setCursorSurf cursor evt = do
         doJust (getViewClient view) $ \client -> do
             event <- liftIO $ peek evt
             evtClient <- liftIO . seatClientGetClient $ seatCursorSurfaceClient event
-            when (evtClient == client) $ do
-                liftIO $ setCursorSurface
+            when (evtClient == client) $ liftIO $ setCursorSurface
                     (cursorRoots cursor)
                     (seatCursorSurfaceSurface event)
                     (seatCursorSurfaceHotspotX event)

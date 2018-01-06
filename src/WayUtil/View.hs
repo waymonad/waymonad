@@ -52,5 +52,4 @@ greedyView ws = doJust getCurrentOutput $ \out -> do
         setOutputWorkspace ws' o
 
 copyView :: WSTag a => a -> Way a ()
-copyView ws = doJust getCurrentOutput $ \out -> do
-    setOutputWorkspace ws out
+copyView ws = doJust getCurrentOutput $ setOutputWorkspace ws

@@ -68,7 +68,7 @@ import Graphics.Wayland.Server
     , displayRun
     )
 
-import System.IO (hPutStr, hPutStrLn, stderr)
+import System.IO (hPutStr, hPutStrLn, stderr, hPrint)
 import Text.XkbCommon.Types
 
 import Foreign.C.Types (CChar)
@@ -84,13 +84,13 @@ import Graphics.Wayland.Signal
 
 data Bracketed a
     = forall b. Bracketed
-        { bracketSetup    :: (a -> IO b)
-        , bracketTeardown :: (b -> IO ())
+        { bracketSetup    :: a -> IO b
+        , bracketTeardown :: b -> IO ()
         }
   | PreBracket (forall b. a -> IO b -> IO b)
 
 runBracket :: Bracketed a -> a -> (a -> IO b) -> IO b
-runBracket (Bracketed {bracketSetup = setup, bracketTeardown = teardown}) val act =
+runBracket Bracketed {bracketSetup = setup, bracketTeardown = teardown} val act =
     bracket (setup val) teardown (const $ act val)
 runBracket (PreBracket fun) val act = fun val (act val)
 
@@ -139,7 +139,7 @@ handleOutputAdd :: CompHooks -> Ptr WlrOutput -> IO ()
 handleOutputAdd hooks output = do
     modes <- getModes output
     readable <- mapM peek modes
-    hPutStrLn stderr $ show readable
+    hPrint stderr readable
 
     case listToMaybe $ reverse modes of
         Nothing -> pure ()
@@ -182,8 +182,8 @@ bindSocket display = do
 displayMain :: CompHooks -> DisplayServer -> IO ()
 displayMain hooks display = do
     let binder = Bracketed (const $ bindSocket display) (const $ pure ())
-    let outAdd = Bracketed (addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals . snd) (removeListener)
-    let outRem = Bracketed (addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals . snd) (removeListener)
+    let outAdd = Bracketed (addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals . snd) removeListener
+    let outRem = Bracketed (addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals . snd) removeListener
     foldBrackets (binder: outAdd: outRem: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< backendAutocreate display
 
 launchCompositor :: CompHooks -> IO ()

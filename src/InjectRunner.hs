@@ -96,6 +96,6 @@ registerInjectHandler display = do
 
 makeInject :: IO InjectChan
 makeInject = do
-    (readFd, writeFd) <- liftIO $ createPipe
+    (readFd, writeFd) <- liftIO createPipe
     chan <- newTChanIO
     pure $ InjectChan chan writeFd readFd

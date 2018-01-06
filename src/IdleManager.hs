@@ -110,7 +110,7 @@ idleSetup msecs dsp backend = do
 getIdleBracket :: Int -> Way a (Bracketed (DisplayServer, Ptr Backend))
 getIdleBracket msecs = do
     ret <- makeCallback $ uncurry (idleSetup msecs)
-    pure $ Bracketed (ret) (const $ pure ())
+    pure $ Bracketed ret (const $ pure ())
 
 idleLog :: SomeEvent -> Way a ()
 idleLog evt = whenJust (getEvent evt) $ \case

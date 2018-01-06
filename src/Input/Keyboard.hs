@@ -59,7 +59,7 @@ import Foreign.StablePtr
     , castPtrToStablePtr
     , deRefStablePtr
     )
-import Control.Monad (forM, when)
+import Control.Monad (forM, when, unless)
 
 import Input.Seat
 import ViewSet (WSTag)
@@ -156,7 +156,7 @@ handleKeySimple bindings keyboard keycode = do
     handled <- forM syms $
         handleKeyPress bindings modifiers
 
-    pure $ foldr (||) False handled
+    pure $ or handled
 
 handleKeyXkb
     :: WSTag a
@@ -176,7 +176,7 @@ handleKeyXkb bindings keyboard keycode = do
     handled <- forM syms $
         handleKeyPress bindings usedMods
 
-    pure $ foldr (||) False handled
+    pure $ or handled
 
 handleKeyEvent
     :: WSTag a
@@ -189,7 +189,7 @@ handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
 
-    handled <- case (state event) of
+    handled <- case state event of
         -- We currently don't do anything special for releases
         KeyReleased -> pure False
         KeyPressed -> do
@@ -198,13 +198,12 @@ handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
                 then pure handled
                 else handleKeySimple bindings keyboard keycode
 
-    liftIO . when (not handled) $ tellClient seat keyboard event
+    liftIO . unless handled $ tellClient seat keyboard event
 
 handleModifiers :: Keyboard -> Seat -> Ptr a -> Way b ()
-handleModifiers keyboard seat _ = do
-    liftIO $ do
-        seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
-        keyboardNotifyModifiers (seatRoots seat)
+handleModifiers keyboard seat _ = liftIO $ do
+    seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
+    keyboardNotifyModifiers (seatRoots seat)
 
 handleKeyboardAdd
     :: WSTag a
@@ -248,5 +247,5 @@ handleKeyboardRemove ptr = do
         (kh, mh) <- deRefStablePtr sptr
         removeListener kh
         removeListener mh
-        freeStablePtr $ sptr
+        freeStablePtr sptr
                            )

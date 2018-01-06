@@ -81,10 +81,8 @@ instance Ord (MultiView a) where
 
 calculateMasterSize :: MultiView a -> IO WlrBox
 calculateMasterSize multi = readIORef (multiActive multi) >>= \case
-    Just x -> do
-        fromJust . IM.lookup x <$> readIORef (multiSlaveBoxes multi)
-    Nothing ->
-        foldr1 enlarge <$> readIORef (multiSlaveBoxes multi)
+    Just x -> fromJust . IM.lookup x <$> readIORef (multiSlaveBoxes multi)
+    Nothing -> foldr1 enlarge <$> readIORef (multiSlaveBoxes multi)
 
 setMasterSize :: MultiView a -> IO ()
 setMasterSize multi =
@@ -165,18 +163,17 @@ copyView
     :: WSTag a
     => View
     -> Way a ()
-copyView view = do
-    case getViewInner view of
-        Nothing -> do
-            multi <- makeMulti view
-            slave1 <- deriveSlave multi
-            slave2 <- deriveSlave multi
+copyView view = case getViewInner view of
+    Nothing -> do
+        multi <- makeMulti view
+        slave1 <- deriveSlave multi
+        slave2 <- deriveSlave multi
 
-            insertView slave1
-            insertView slave2
+        insertView slave1
+        insertView slave2
 
-            pure ()
-        Just slave -> insertView =<< deriveSlave (slaveMulti slave)
+        pure ()
+    Just slave -> insertView =<< deriveSlave (slaveMulti slave)
 
 data SlaveView a = SlaveView
     { slaveMulti :: MultiView a
@@ -202,7 +199,7 @@ instance Typeable a => ShellSurface (SlaveView a) where
         wasLast <- IM.null <$> readIORef (multiSlaves multi)
         when wasLast $ closeView (multiMaster multi)
     renderAdditional fun self = renderViewAdditional fun (multiMaster . slaveMulti $ self)
-    getEventSurface self x y = getViewEventSurface (multiMaster . slaveMulti $ self) x y
+    getEventSurface self = getViewEventSurface (multiMaster . slaveMulti $ self)
     getTitle = getViewTitle . multiMaster . slaveMulti
     getAppId = getViewAppId . multiMaster . slaveMulti
     getID = slaveId

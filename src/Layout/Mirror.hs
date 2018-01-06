@@ -64,7 +64,7 @@ instance LayoutClass l => LayoutClass (Mirror l) where
     pureLayout :: Mirror l -> WlrBox -> Zipper b c -> [(c, WlrBox)]
     pureLayout (Mirror False l) box z = pureLayout l box z
     pureLayout (Mirror True l) box z =
-        fmap (fmap mirrorBox) $ pureLayout l (mirrorBox box) z
+        fmap mirrorBox <$> pureLayout l (mirrorBox box) z
 
 mirrorBox :: WlrBox -> WlrBox
 mirrorBox (WlrBox x y w h) = WlrBox y x h w

@@ -20,10 +20,8 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
 module Waymonad
     ( get
     , modify
@@ -123,7 +121,7 @@ floatsBelow
 floatsBelow (Point x y) = do
     views <- liftIO . fmap S.toList . readIORef . wayFloating =<< getState
     candidates <- liftIO $ forM views $
-        \view -> unsafeInterleaveIO $ (fmap . fmap) (const view) $
+        \view -> unsafeInterleaveIO $ fmap (const view) <$>
             getViewEventSurface view (fromIntegral x) (fromIntegral y)
 
     pure $ foldMap maybeToList candidates
@@ -143,10 +141,10 @@ floatBelow p = do
             case focused of
                 Nothing -> pure $ listToMaybe floats
                 Just f ->
-                    pure $ find ((==) f) floats <|> listToMaybe floats
+                    pure $ find (== f) floats <|> listToMaybe floats
 
 
-getEvent :: EventClass e => SomeEvent -> Maybe (e)
+getEvent :: EventClass e => SomeEvent -> Maybe e
 getEvent (SomeEvent e) = cast e
 
 sendEvent :: EventClass e => e -> Way a ()
@@ -207,7 +205,7 @@ makeCallback act = do
     seat <- getSeat
     state <- getState
     loggers <- getLoggers
-    pure (\arg -> runWay seat state loggers (act arg))
+    pure $ runWay seat state loggers . act
 
 makeCallback2 :: (c -> d -> Way a b) -> Way a (c -> d -> IO b)
 makeCallback2 act = curry <$> makeCallback (uncurry act)

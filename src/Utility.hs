@@ -69,4 +69,4 @@ getThat _ = Nothing
 
 firstDir :: String -> (String, String)
 firstDir [] = ([], [])
-firstDir str = (takeWhile (/= '/') str, dropWhile (/= '/') str)
+firstDir path = span (/= '/') path

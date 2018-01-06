@@ -24,8 +24,6 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
 module ViewSet
 where
 
@@ -112,8 +110,7 @@ setFocused v t (Workspace l z) =
     Workspace l $ fmap (setFocused' t v) z
 
 getFocused :: Seat -> Workspace -> Maybe View
-getFocused seat (Workspace _ (Just (Zipper z))) =
-    fmap snd $ find (elem seat . fst) z
+getFocused seat (Workspace _ (Just (Zipper z))) = snd <$> find (elem seat . fst) z
 getFocused _ _ = Nothing
 
 getFirstFocused :: Workspace -> Maybe View
@@ -121,9 +118,9 @@ getFirstFocused (Workspace _ z) = getFirstFocused' =<< z
 
 getFirstFocused' :: Zipper a b -> Maybe b
 getFirstFocused' (Zipper z) =
-    fmap snd $ find (not . null . fst) z
+    snd <$> find (not . null . fst) z
 
-addView :: Maybe (Seat) -> View -> Workspace -> Workspace
+addView :: Maybe Seat -> View -> Workspace -> Workspace
 addView seat v (Workspace l z) = Workspace l $ addElem seat v z
 
 rmView :: View -> Workspace -> Workspace
@@ -135,8 +132,8 @@ viewsBelow
     => Point
     -> t (View, WlrBox)
     -> IO [(View, Int, Int)]
-viewsBelow (Point x y) views = do
-    (map $ uncurry makeLocal) <$> filterM hasSurface (toList views)
+viewsBelow (Point x y) views =
+    map (uncurry makeLocal) <$> filterM hasSurface (toList views)
     where   makeLocal :: View -> WlrBox -> (View, Int, Int)
             makeLocal view (WlrBox bx by _ _) =
                 (view, x - bx, y - by)
@@ -174,7 +171,7 @@ rmElem' y zipper@(Zipper xs) =
           doRemove left ((t,_):zs)
                 | S.null t = Zipper $ left ++ zs
                 | ((ot, n):ns) <- zs = Zipper $ left ++ (t <> ot, n):ns
-                | otherwise = Zipper $ (t <> (fst $ head left), snd $ head left) : tail left
+                | otherwise = Zipper $ (t <> fst (head left), snd $ head left) : tail left
 
 addElem :: Ord a => Maybe a -> b -> Maybe (Zipper a b) -> Maybe (Zipper a b)
 addElem t v z = Just $ addElem' t z v
@@ -188,7 +185,7 @@ contains x (Zipper xs) = elem x $ map snd xs
 snoc :: a -> [a] -> [a]
 snoc x xs = xs ++ [x]
 
-moveRight :: (Seat) -> Workspace -> Workspace
+moveRight :: Seat -> Workspace -> Workspace
 moveRight t (Workspace l z) = Workspace l $ fmap (moveRight' t) z
 
 moveRight' :: Ord a => a -> Zipper a b -> Zipper a b
@@ -211,9 +208,9 @@ moveLeft' t (Zipper xs) =
         pos = dropWhile (not . S.member t . fst) xs
      in Zipper $ case pre of
 
-            [] -> (t `S.delete` (fst $ head xs), snd $ head xs) : init (tail xs) ++ [(t `S.insert` (fst $ last xs), snd $ last xs)]
-            [(zs, c)] -> (t `S.insert` zs, c) : (t `S.delete` (fst $ head pos), snd $ head pos) : tail pos
-            ys -> init ys ++ (t `S.insert` (fst $ last ys), snd $ last ys) : case pos of
+            [] -> (t `S.delete` fst (head xs), snd $ head xs) : init (tail xs) ++ [(t `S.insert` fst (last xs), snd $ last xs)]
+            [(zs, c)] -> (t `S.insert` zs, c) : (t `S.delete` fst (head pos), snd $ head pos) : tail pos
+            ys -> init ys ++ (t `S.insert` fst (last ys), snd $ last ys) : case pos of
                 ((ts, z):zs) -> (t `S.delete` ts, z) : zs
                 [] -> []
 
@@ -223,14 +220,14 @@ moveViewLeft t (Workspace l z) = Workspace l $ fmap (moveElemLeft' t) z
 moveElemLeft' :: Eq a => a -> Zipper a b -> Zipper a b
 moveElemLeft' _ z@(Zipper [_]) = z
 moveElemLeft' t (Zipper xs) =
-    let pre = takeWhile (not . elem t . fst) xs
-        pos = dropWhile (not . elem t . fst) xs
+    let pre = takeWhile (notElem t . fst) xs
+        pos = dropWhile (notElem t . fst) xs
      in Zipper $ case pre of
         [] -> snoc (head pos) (tail pos)
         ys -> case pos of
             [] -> ys
             (z:zs) ->  let left = last ys
-                        in (init ys) ++ z : left : zs
+                        in init ys ++ z : left : zs
 
 moveViewRight :: Seat -> Workspace -> Workspace
 moveViewRight t (Workspace l z) = Workspace l $ fmap (moveElemRight' t) z
@@ -238,8 +235,8 @@ moveViewRight t (Workspace l z) = Workspace l $ fmap (moveElemRight' t) z
 moveElemRight' :: Eq a => a -> Zipper a b -> Zipper a b
 moveElemRight' _ z@(Zipper [_]) = z
 moveElemRight' t (Zipper xs) =
-    let pre = takeWhile (not . elem t . fst) xs
-        pos = dropWhile (not . elem t . fst) xs
+    let pre = takeWhile (notElem t . fst) xs
+        pos = dropWhile (notElem t . fst) xs
      in Zipper $ case pos of
         [] -> xs -- We didn't find a focused view
         (y:ys) -> case ys of

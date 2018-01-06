@@ -61,8 +61,8 @@ checkOutput
     -> (Maybe a -> Maybe a -> SeatWSChangeEvent a)
     -> Way a ()
 checkOutput pre cur con = do
-    preWS <- fmap join $ traverse getOutputWS pre
-    curWS <- fmap join $ traverse getOutputWS cur
+    preWS <- join <$> traverse getOutputWS pre
+    curWS <- join <$> traverse getOutputWS cur
     when (preWS /= curWS) $ sendEvent $ con preWS curWS
 
 outputChangeEvt :: WSTag a => Maybe SeatOutputChangeEvent -> Way a ()

@@ -64,7 +64,7 @@ getLayoutBoxes
 getLayoutBoxes ws = do
     outs <- getBoxes ws
 
-    let smallest :: WlrBox = foldr shrink (WlrBox 0 0 maxBound maxBound) $ map snd outs
+    let smallest :: WlrBox = foldr (shrink . snd) (WlrBox 0 0 maxBound maxBound) outs
     pure $ map (fmap $ centerBox smallest . toOrigin) outs
     where   shrink :: WlrBox -> WlrBox -> WlrBox
             shrink (WlrBox _ _ lw lh) (WlrBox _ _ rw rh) = WlrBox 0 0 (min lw rw) (min lh rh)
@@ -92,8 +92,8 @@ reLayout ws = do
             mapM_ (uncurry setViewBox) layout
             logPutText loggerLayout Debug $
                 "Set the layout for "
-                `T.append` (getName ws)
+                `T.append` getName ws
                 `T.append` "  on "
                 `T.append` outputName out
                 `T.append` " to: "
-                `T.append` (T.pack $ show $ map snd layout)
+                `T.append` T.pack (show $ map snd layout)

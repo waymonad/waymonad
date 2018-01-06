@@ -51,12 +51,12 @@ handleKeyboardSwitch e = case getEvent e of
             -- We focused the void (in some way) clear focus
             Nothing -> void $ keyboardClear s
             -- Focused something
-            Just ws -> (withWS ws $ getFocused s) >>= \case
+            Just ws -> withWS ws (getFocused s) >>= \case
                 -- Ok, we have a focused view here. Just do the usual focus
                 -- setting procedure
                 Just _ -> setFocused s ws
                 -- Nothing focused yet. Try master
-                Nothing -> (withWS ws getMaster) >>= \case
+                Nothing -> withWS ws getMaster >>= \case
                     -- Master doesn't exist. So this WS is empty, let's clear
                     -- focus
                     Nothing -> keyboardClear s

@@ -19,8 +19,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE NumDecimals #-}
-{-# LANGUAGE TupleSections #-}
 module Input.Cursor
 where
 
@@ -95,7 +93,7 @@ data Cursor = Cursor
 
 cursorCreate :: WSTag a => Ptr WlrOutputLayout -> Way a Cursor
 cursorCreate layout = do
-    cursor <- liftIO $ createCursor
+    cursor <- liftIO createCursor
     liftIO $ attachOutputLayout cursor layout
     liftIO $ mapToRegion cursor Nothing
     outref <- liftIO $ newIORef 0
@@ -124,8 +122,7 @@ getCursorView layout cursor = do
     -- TODO: Pretty this up. probably with unsafeInterleaveIO
     floatM <- floatBelow (Point (floor baseX) (floor baseY))
     case floatM of
-        Just v ->  do
-            pure $ Just (v, floor baseX, floor baseY)
+        Just v -> pure $ Just (v, floor baseX, floor baseY)
         Nothing -> do
             outputM <- liftIO $ layoutAtPos layout baseX baseY
             case outputM of
@@ -251,11 +248,11 @@ handleToolAxis layout cursor outref event_ptr = do
     updatePosition layout cursor outref (fromIntegral $ toolAxisEvtTime event)
 
     where   xValue :: [ToolAxis] -> Maybe Double
-            xValue ((AxisX v w):_) = Just (v / w)
+            xValue (AxisX v w:_) = Just (v / w)
             xValue (_:xs) = xValue xs
             xValue [] = Nothing
             yValue :: [ToolAxis] -> Maybe Double
-            yValue ((AxisY v h):_) = Just (v / h)
+            yValue (AxisY v h:_) = Just (v / h)
             yValue (_:xs) = yValue xs
             yValue [] = Nothing
 
@@ -269,11 +266,11 @@ handleToolTip
 handleToolTip layout cursor event_ptr = do
      event <- liftIO $ peek event_ptr
      viewM <- getCursorView layout cursor
-
      (Just seat) <- getSeat
+
      case viewM of
          Nothing -> pointerClear seat
          Just (view, x, y) -> do
              ret <- pointerButton seat view (fromIntegral x) (fromIntegral y)
-                (toolTipEvtTime event) (0x110) (tipStateToButtonState $ toolTipEvtState event)
+                (toolTipEvtTime event) 0x110 (tipStateToButtonState $ toolTipEvtState event)
              when ret (focusView view)

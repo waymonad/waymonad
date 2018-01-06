@@ -79,7 +79,7 @@ parsePosition txt = do
         then Left "Seperator has to be 'x'"
         else Right ()
     (y, ret) <- R.decimal nxt2
-    pure $ (Point x y, ret)
+    pure (Point x y, ret)
 
 readMode :: Output -> Text -> Way a (Maybe (Ptr OutputMode))
 readMode out txt = do
@@ -94,7 +94,7 @@ readMode out txt = do
                                 pure $ fst <$> either (const Nothing) Just (R.decimal ref)
             -- wlroots expects milli hertz, so if someone just inputs @60,
             -- multiply by 1000, to get a fitting value
-            let adjust = (\val -> if val < 1000 then val * 1000 else val)
+            let adjust val = if val < 1000 then val * 1000 else val
             pure (width, height, adjust <$> refresh)
     case parsed of
         Left _ -> pure Nothing
@@ -102,7 +102,7 @@ readMode out txt = do
                 (outputRoots out)
                 (fromIntegral width)
                 (fromIntegral height)
-                (ref)
+                ref
 
 formatMode :: OutputMode -> Text
 formatMode mode = sformat
@@ -116,7 +116,7 @@ makeModesText out = do
     modes <- liftIO (mapM peek =<< getModes (outputRoots out))
     pure $ T.intercalate "\n" $ fmap formatMode modes
 
-readTransform :: Text -> Maybe (OutputTransform)
+readTransform :: Text -> Maybe OutputTransform
 readTransform "Normal" = Just outputTransformNormal
 readTransform "180" = Just outputTransform180
 readTransform _ = Nothing
@@ -124,8 +124,8 @@ readTransform _ = Nothing
 makeOutputDir :: WSTag a => Output -> Way a (Entry a)
 makeOutputDir out = do
     let guaranteed =
-            [ ("width",  FileEntry $ textFile $ liftIO $ (T.pack . show <$> getWidth  (outputRoots out)))
-            , ("height", FileEntry $ textFile $ liftIO $ (T.pack . show <$> getHeight (outputRoots out)))
+            [ ("width",  FileEntry $ textFile $ liftIO (T.pack . show <$> getWidth  (outputRoots out)))
+            , ("height", FileEntry $ textFile $ liftIO (T.pack . show <$> getHeight (outputRoots out)))
             ]
 
     let handleMaybe :: Monad m => (m a -> b) -> m (Maybe a) -> m (Maybe b)
@@ -162,17 +162,17 @@ makeOutputDir out = do
             Just xs -> [("ws", SymlinkEntry (pure $ "../../workspaces/" ++ T.unpack (getName xs)))]
 
     let transform = ("transform", FileEntry $ textRWFile
-            (liftIO $ (T.pack . show <$> getOutputTransform (outputRoots out)))
+            (liftIO (T.pack . show <$> getOutputTransform (outputRoots out)))
             (\txt -> case readTransform txt of
-                        Nothing -> pure $ Left $ eINVAL
+                        Nothing -> pure $ Left eINVAL
                         Just trans -> liftIO $ Right <$> transformOutput (outputRoots out) trans
             )
                     )
 
     let scale = ("scale", FileEntry $ textRWFile
-            (liftIO $ (sformat float <$> getOutputScale (outputRoots out)))
+            (liftIO (sformat float <$> getOutputScale (outputRoots out)))
             (\txt -> case R.rational txt of
-                        Left _ -> pure $ Left $ eINVAL
+                        Left _ -> pure $ Left eINVAL
                         Right (x, _) -> Right <$> injectEvt (ChangeScale out x)
             )
                 )
@@ -183,7 +183,7 @@ makeOutputDir out = do
                 pure $ sformat (int % "x" % int) (boxX box) (boxY box)
             )
             (\txt -> case parsePosition txt of
-                        Left _ -> pure $ Left $ eINVAL
+                        Left _ -> pure $ Left eINVAL
                         Right (p, _) -> Right <$> injectEvt (ChangePosition out p)
             )
                    )
@@ -194,7 +194,7 @@ makeOutputDir out = do
             (\txt -> liftIO $ case txt of
                         "enable"  -> Right <$> outputEnable (outputRoots out)
                         "disable" -> Right <$> outputDisable (outputRoots out)
-                        _ ->  pure $ Left $ eINVAL
+                        _ ->  pure $ Left eINVAL
             )
                    )
 

@@ -59,7 +59,7 @@ waySpec = sectionsSpec "waymonad" $ do
     loggers <- optSection "loggers" "Priority settings for all the loggers"
 
 
-    pure $ WayConfig
+    pure WayConfig
         { configOutputs = M.fromList $ map (\x -> (outName x, x)) $ fromMaybe [] outputs
         , configLoggers = loggers
         }

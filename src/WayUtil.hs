@@ -115,8 +115,7 @@ runLog = do
     wayLogFunction state
 
 focusNextOut :: WSTag a => Way a ()
-focusNextOut = doJust getSeat $ \seat -> do
-    doJust getCurrentOutput $ \current -> do
+focusNextOut = doJust getSeat $ \seat -> doJust getCurrentOutput $ \current -> do
         possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
         let new = head . tail . dropWhile (/= current) $ cycle possibles
         setSeatOutput seat (That new)
@@ -125,13 +124,13 @@ focusNextOut = doJust getSeat $ \seat -> do
 data SeatOutputChangeEvent
     = PointerOutputChangeEvent
         { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe (Output)
-        , seatOutChangeEvtNew :: Maybe (Output)
+        , seatOutChangeEvtPre :: Maybe Output
+        , seatOutChangeEvtNew :: Maybe Output
         }
     | KeyboardOutputChangeEvent
         { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe (Output)
-        , seatOutChangeEvtNew :: Maybe (Output)
+        , seatOutChangeEvtPre :: Maybe Output
+        , seatOutChangeEvtNew :: Maybe Output
         }
 
 instance EventClass SeatOutputChangeEvent
@@ -157,10 +156,10 @@ setSeatOutput seat foci = do
         ((:) (seat, new) . filter ((/=) seat . fst))
 
     when (newp /= curp) $ sendEvent $
-        PointerOutputChangeEvent seat (curp) (newp)
+        PointerOutputChangeEvent seat curp newp
 
     when (newk /= curk) $ sendEvent $
-        KeyboardOutputChangeEvent seat (curk) (newk)
+        KeyboardOutputChangeEvent seat curk newk
     runLog
 
 seatOutputEventHandler

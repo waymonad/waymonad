@@ -74,7 +74,7 @@ handlePadAdd seat _ pad = do
     stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip seat
 
     liftIO $ do
-        sptr <- newStablePtr (stripToken)
+        sptr <- newStablePtr stripToken
         pokePadData pad (castStablePtrToPtr sptr)
 
 handlePadRemove :: MonadIO m => Ptr WlrTabletPad -> m ()
@@ -82,8 +82,8 @@ handlePadRemove ptr = liftIO $ do
     dptr <- peekPadData ptr
     when (dptr /= nullPtr) (do
         let sptr = castPtrToStablePtr dptr
-        (tok) <- deRefStablePtr sptr
+        tok <- deRefStablePtr sptr
         removeListener tok
-        freeStablePtr $ sptr
+        freeStablePtr sptr
                            )
     pokePadData ptr nullPtr

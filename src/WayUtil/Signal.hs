@@ -48,7 +48,7 @@ setDestroyHandler
     -> (Ptr a -> Way b ())
     -> Way b ()
 setDestroyHandler signal handler = do
-    var <- liftIO $ newEmptyMVar
+    var <- liftIO newEmptyMVar
     listener <- setSignalHandler signal $ \ptr -> do
         handler ptr
         liftIO (removeListener =<< takeMVar var)

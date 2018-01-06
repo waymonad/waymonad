@@ -107,8 +107,7 @@ forceFocused = do
         Just seat -> join (withCurrentWS $ setFoci seat)
 
 unsetFocus' :: MonadIO m => Seat -> (Set Seat, View) -> m ()
-unsetFocus' s (s', v) = when (S.singleton s == s') $ do
-    activateView v False
+unsetFocus' s (s', v) = when (S.singleton s == s') $ activateView v False
 
 unsetFoci :: Seat -> Workspace -> Way a ()
 unsetFoci _ (Workspace _ Nothing) = pure ()
@@ -131,8 +130,8 @@ modifyCurrentWS fun = do
     postWs <- getView
 
     -- This should really be on the 2 views we know about, not full
-    whenJust preWs (flip activateView False)
-    whenJust postWs (flip activateView True)
+    whenJust preWs (`activateView` False)
+    whenJust postWs (`activateView` True)
     forceFocused
     runLog
 

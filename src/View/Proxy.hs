@@ -62,17 +62,17 @@ instance ShellSurface ProxiedView where
     activate = activateView . unProxy
 
     close :: MonadIO m => ProxiedView -> m ()
-    close (ProxiedView {removeProxy = fun, myView = ref, unProxy = view}) = liftIO $ do
+    close ProxiedView {removeProxy = fun, myView = ref, unProxy = view} = liftIO $ do
         self <- readIORef ref
         fun self
         rmViewDestroyListener (getViewID self) view
         triggerViewDestroy self
 
     renderAdditional :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> ProxiedView -> m ()
-    renderAdditional f (ProxiedView {unProxy = v}) = renderViewAdditional f v
+    renderAdditional f ProxiedView {unProxy = v} = renderViewAdditional f v
 
     getEventSurface :: MonadIO m => ProxiedView -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
-    getEventSurface (ProxiedView {unProxy = v}) = getViewEventSurface v
+    getEventSurface ProxiedView {unProxy = v} = getViewEventSurface v
     setPosition :: MonadIO m => ProxiedView -> Double -> Double -> m ()
     setPosition _ _ _ = pure ()
 

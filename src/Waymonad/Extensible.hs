@@ -20,7 +20,6 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Waymonad.Extensible
     ( StateMap

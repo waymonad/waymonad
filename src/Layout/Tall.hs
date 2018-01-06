@@ -48,5 +48,5 @@ instance LayoutClass Tall where
                     , boxHeight = height
                     , boxY = boxY box + i * height
                     }
-             in master : map (\(v, i) -> (v, ibox i)) slaves
+             in master : map (fmap ibox) slaves
         [] -> []

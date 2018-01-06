@@ -19,7 +19,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module View
     ( ShellSurface (..)
@@ -119,7 +118,7 @@ instance Eq View where
     left == right = getViewID left == getViewID right
 
 getViewSize :: MonadIO m => View -> m (Double, Double)
-getViewSize (View {viewSurface=surf}) = getSize surf
+getViewSize View {viewSurface=surf} = getSize surf
 
 getViewBox :: MonadIO m => View -> m WlrBox
 getViewBox = liftIO . readIORef . viewBox
@@ -135,7 +134,7 @@ viewCounter :: IORef Int
 viewCounter = unsafePerformIO (newIORef 0)
 
 removeListeners :: MonadIO m => View -> m ()
-removeListeners (View {viewTokens = toks}) =
+removeListeners View {viewTokens = toks} =
     liftIO $ mapM_ removeListener toks
 
 handleCommit :: MonadIO m => View -> IORef (Double, Double) -> m ()
@@ -163,8 +162,7 @@ createView surf = liftIO $ do
 
     mainSurf <- getSurface surf
     tokens <- case mainSurf of
-        Nothing -> do
-            pure []
+        Nothing -> pure []
         Just wlrSurf -> do
             let events = getWlrSurfaceEvents wlrSurf
             destroyHandler <- addListener
@@ -191,10 +189,10 @@ createView surf = liftIO $ do
     pure ret
 
 closeView :: MonadIO m => View -> m ()
-closeView (View {viewSurface=surf}) = close surf
+closeView View {viewSurface=surf} = close surf
 
 moveView :: MonadIO m => View -> Double -> Double -> m ()
-moveView (View {viewSurface = surf, viewBox = ref}) x y = do
+moveView View {viewSurface = surf, viewBox = ref} x y = do
     old <- liftIO $ readIORef ref
     let new = old { boxX = floor x, boxY = floor y}
     liftIO $ writeIORef ref new
@@ -202,7 +200,7 @@ moveView (View {viewSurface = surf, viewBox = ref}) x y = do
 
 
 resizeView :: MonadIO m => View -> Double -> Double -> m ()
-resizeView v@(View {viewSurface = surf, viewBox = ref}) width height = do
+resizeView v@View {viewSurface = surf, viewBox = ref} width height = do
     old <- liftIO $ readIORef ref
     let new = old { boxWidth = floor width, boxHeight = floor height}
     liftIO $ writeIORef ref new
@@ -212,20 +210,20 @@ resizeView v@(View {viewSurface = surf, viewBox = ref}) width height = do
     setViewLocal v $ WlrBox 0 0 (floor oldWidth) (floor oldHeight)
 
 getViewSurface :: MonadIO m => View -> m (Maybe (Ptr WlrSurface))
-getViewSurface (View {viewSurface = surf}) = getSurface surf
+getViewSurface View {viewSurface = surf} = getSurface surf
 
 
 activateView :: MonadIO m => View -> Bool -> m ()
-activateView (View {viewSurface = surf}) active = activate surf active
+activateView View {viewSurface = surf} = activate surf
 
 
 renderViewAdditional :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> View -> m ()
-renderViewAdditional fun (View {viewSurface = surf}) = do
+renderViewAdditional fun View {viewSurface = surf} =
     renderAdditional fun surf
 
 
 getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
-getViewEventSurface (View {viewSurface = surf, viewPosition = local, viewScaling = scale}) x y = liftIO $ do
+getViewEventSurface View {viewSurface = surf, viewPosition = local, viewScaling = scale} x y = liftIO $ do
     scaleFactor <- readIORef scale
     posBox <- readIORef local
     evtSurf <- getEventSurface surf
@@ -238,19 +236,19 @@ getViewEventSurface (View {viewSurface = surf, viewPosition = local, viewScaling
             pure (ret <|> Just tmp)
 
 getViewClient :: MonadIO m => View -> m (Maybe Client)
-getViewClient (View {viewSurface = surf}) =
+getViewClient View {viewSurface = surf} =
     doJust (getSurface surf) $ \wlrSurf -> liftIO $ do
         res <- getSurfaceResource wlrSurf
         Just <$> resourceGetClient res
 
 getViewInner :: Typeable a => View -> Maybe a
-getViewInner (View {viewSurface = surf}) = cast surf
+getViewInner View {viewSurface = surf} = cast surf
 
 getViewTitle :: MonadIO m => View -> m (Maybe Text)
-getViewTitle (View {viewSurface = surf}) = getTitle surf
+getViewTitle View {viewSurface = surf} = getTitle surf
 
 getViewAppId :: MonadIO m => View -> m (Maybe Text)
-getViewAppId (View {viewSurface = surf}) = getAppId surf
+getViewAppId View {viewSurface = surf} = getAppId surf
 
 getLocalBox :: WlrBox -> WlrBox -> (WlrBox, Float)
 getLocalBox inner outer =
@@ -267,7 +265,7 @@ getLocalBox inner outer =
 -- position it somewhere inside the configured box, because it is *smaller*
 -- than the intended area
 setViewLocal :: MonadIO m => View -> WlrBox -> m ()
-setViewLocal (View {viewBox = global, viewPosition = local, viewScaling = scaleRef}) box = liftIO $ do
+setViewLocal View {viewBox = global, viewPosition = local, viewScaling = scaleRef} box = liftIO $ do
     outerBox <- readIORef global
     if toOrigin outerBox == box
         then do
@@ -279,34 +277,34 @@ setViewLocal (View {viewBox = global, viewPosition = local, viewScaling = scaleR
             writeIORef scaleRef scale
 
 viewGetScale :: MonadIO m => View -> m Float
-viewGetScale (View {viewScaling = scale}) = liftIO $ readIORef scale
+viewGetScale View {viewScaling = scale} = liftIO $ readIORef scale
 
 viewGetLocal :: MonadIO m => View -> m WlrBox
-viewGetLocal (View {viewPosition = local}) = liftIO $ readIORef local
+viewGetLocal View {viewPosition = local} = liftIO $ readIORef local
 
 getViewID :: View -> Int
 --getViewID (View {viewSurface = surf}) = getID surf
 getViewID = viewID
 
 addViewDestroyListener :: MonadIO m => Int -> (View -> IO ()) -> View -> m ()
-addViewDestroyListener key cb (View {viewDestroy = ref}) = liftIO $ modifyIORef ref (IM.insert key cb)
+addViewDestroyListener key cb View {viewDestroy = ref} = liftIO $ modifyIORef ref (IM.insert key cb)
 
 rmViewDestroyListener :: MonadIO m => Int -> View -> m ()
-rmViewDestroyListener key (View {viewDestroy = ref}) = liftIO $ modifyIORef ref (IM.delete key)
+rmViewDestroyListener key View {viewDestroy = ref} = liftIO $ modifyIORef ref (IM.delete key)
 
 triggerViewDestroy :: MonadIO m => View -> m ()
-triggerViewDestroy v@(View {viewDestroy = ref}) = liftIO $ do
+triggerViewDestroy v@View {viewDestroy = ref} = liftIO $ do
     cbs <- readIORef ref
     mapM_ ($ v) cbs
 
 
 addViewResizeListener :: MonadIO m => Int -> (View -> IO ()) -> View -> m ()
-addViewResizeListener key cb (View {viewResize = ref}) = liftIO $ modifyIORef ref (IM.insert key cb)
+addViewResizeListener key cb View {viewResize = ref} = liftIO $ modifyIORef ref (IM.insert key cb)
 
 rmViewResizeListener :: MonadIO m => Int -> View -> m ()
-rmViewResizeListener key (View {viewResize = ref}) = liftIO $ modifyIORef ref (IM.delete key)
+rmViewResizeListener key View {viewResize = ref} = liftIO $ modifyIORef ref (IM.delete key)
 
 triggerViewResize :: MonadIO m => View -> m ()
-triggerViewResize v@(View {viewResize = ref}) = liftIO $ do
+triggerViewResize v@View {viewResize = ref} = liftIO $ do
     cbs <- readIORef ref
     mapM_ ($ v) cbs

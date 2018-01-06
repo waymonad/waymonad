@@ -49,7 +49,7 @@ loggerSection :: Text -> Text -> SectionSpecs Logger
 loggerSection name desc = flip Logger name <$> reqSection name desc
 
 loggerSpec :: ValueSpecs WayLoggers
-loggerSpec = sectionsSpec "loggers" $ (WayLoggers
+loggerSpec = sectionsSpec "loggers" (WayLoggers
     <$> loggerSection "Output"  "Output Logger"
     <*> loggerSection "WS"      "WS Logger"
     <*> loggerSection "Focus"   "Focus Logger"

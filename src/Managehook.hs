@@ -18,7 +18,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Managehook
     ( Query
     , runQuery
@@ -37,7 +36,6 @@ where
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
-import Data.Maybe (fromMaybe)
 
 import Input.Seat
 import Utility (whenJust)
@@ -74,7 +72,7 @@ enactInsert act = do
     liftWay $ case act of
         InsertNone -> pure ()
         InsertFocused -> do
-            modifyCurrentWS (flip addView view)
+            modifyCurrentWS (`addView` view)
             sendEvent . WSEnter view =<< getCurrentWS
         InsertInto ws -> do
             seat <- getSeat
@@ -103,7 +101,7 @@ removeView
     => View
     -> Way a ()
 removeView v = do
-    wsL <- filter (fromMaybe False . fmap (contains v) . wsViews . snd) . M.toList <$> getViewSet
+    wsL <- filter (maybe False (contains v) . wsViews . snd) . M.toList <$> getViewSet
 
     case wsL of
         [(ws, _)] -> do

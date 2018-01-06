@@ -80,13 +80,13 @@ import qualified Data.Text as T
 spawn :: (MonadIO m) => String -> m ()
 spawn = void . liftIO . spawnCommand
 
-newtype WSMap a = WSMap { unWM :: (IntMap a) }
+newtype WSMap a = WSMap { unWM :: IntMap a }
     deriving (Show, Eq, Monoid)
 
 instance Typeable a => ExtensionClass (WSMap a) where
     initialValue = mempty
 
-newtype NameMap = NameMap { unNM :: (IntMap Text) }
+newtype NameMap = NameMap { unNM :: IntMap Text }
     deriving (Show, Eq, Monoid)
 
 instance ExtensionClass NameMap where
@@ -101,13 +101,8 @@ spawnClient socket fd cmd args = do
 clientToInt :: Client -> Int
 clientToInt (Client c) = ptrToInt c
 
-spawnNamed
-    :: Text
-    -> String
-    -> [String]
-    -> Way a ()
-spawnNamed name cmd args = do
-    spawnManaged [namedSpawner name] cmd args
+spawnNamed :: Text -> String -> [String] -> Way a ()
+spawnNamed = spawnManaged . pure . namedSpawner
 
 namedSpawner :: Text -> Spawner a
 namedSpawner name = Spawner
@@ -127,14 +122,8 @@ manageNamed = do
             logPutText loggerSpawner Info $ "Client \"" `T.append` name `T.append` "\" just spawned"
     mempty
 
-spawnOn
-    :: WSTag a
-    => a
-    -> String
-    -> [String]
-    -> Way a ()
-spawnOn ws cmd args = do
-    spawnManaged [onSpawner ws] cmd args
+spawnOn :: WSTag a => a -> String -> [String] -> Way a ()
+spawnOn = spawnManaged . pure . onSpawner
 
 getClientWS :: Typeable a => Client -> Way a (Maybe a)
 getClientWS c = IM.lookup (clientToInt c) . unWM <$> getEState

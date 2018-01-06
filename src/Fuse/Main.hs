@@ -63,20 +63,16 @@ fuseOps = do
     state <- getState
     loggers <- getLoggers
 
-    let fileReadCB = \path (FileHandle {fileRead = fun}) bc off ->
+    let fileReadCB path FileHandle {fileRead = fun} bc off =
             runWay seat state loggers $ fun path bc off
-    let fileWriteCB = \path (FileHandle {fileWrite = fun}) bs off ->
+    let fileWriteCB path FileHandle {fileWrite = fun} bs off =
             runWay seat state loggers $ fun path bs off
-    let fileFlushCB = \path file ->
-            runWay seat state loggers $ fileFlush file path
-    let fileReleaseCB = \path file ->
-            runWay seat state loggers $ fileRelease file path
-    let fileSetSizeCB = \_ _ ->
-            runWay seat state loggers $ pure eOK
+    let fileFlushCB path file = runWay seat state loggers $ fileFlush file path
+    let fileReleaseCB path file = runWay seat state loggers $ fileRelease file path
+    let fileSetSizeCB _ _ = runWay seat state loggers $ pure eOK
 
     dirReadCB <- makeCallback (dirRead mainDir)
-    let openFileCB = \path mode flags ->
-            runWay seat state loggers $ dirOpenFile mainDir path mode flags
+    let openFileCB path mode flags = runWay seat state loggers $ dirOpenFile mainDir path mode flags
     statCB <- makeCallback (dirGetStat mainDir)
 
     readLinkCB <- makeCallback (dirReadSym mainDir)
@@ -115,7 +111,7 @@ getFuseBracket = do
 
     pure $ PreBracket (\dsp act -> do
         evtLoop <- displayGetEventLoop dsp
-        let register = \fd cb -> eventLoopAddFd evtLoop fd clientStateReadable (\ _ _ -> cb >> pure False)
+        let register fd cb = eventLoopAddFd evtLoop fd clientStateReadable (\ _ _ -> cb >> pure False)
         fuseRunInline
             register
             eventSourceRemove
