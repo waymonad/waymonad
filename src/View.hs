@@ -38,6 +38,7 @@ module View
     , getViewClient
     , getViewInner
     , getViewTitle
+    , getViewAppId
     , setViewLocal
     , viewGetScale
     , viewGetLocal
@@ -90,8 +91,8 @@ class Typeable a => ShellSurface a where
     setPosition :: MonadIO m => a -> Double -> Double -> m ()
     setPosition _ _ _ = pure ()
     getID :: a -> Int
-    getTitle :: MonadIO m => a -> m Text
-    getAppId :: MonadIO m => a -> m Text
+    getTitle :: MonadIO m => a -> m (Maybe Text)
+    getAppId :: MonadIO m => a -> m (Maybe Text)
 
     setViewHidden :: MonadIO m => a -> m ()
     setViewHidden _ = pure ()
@@ -246,8 +247,11 @@ getViewClient (View {viewSurface = surf}) =
 getViewInner :: Typeable a => View -> Maybe a
 getViewInner (View {viewSurface = surf}) = cast surf
 
-getViewTitle :: MonadIO m => View -> m Text
+getViewTitle :: MonadIO m => View -> m (Maybe Text)
 getViewTitle (View {viewSurface = surf}) = getTitle surf
+
+getViewAppId :: MonadIO m => View -> m (Maybe Text)
+getViewAppId (View {viewSurface = surf}) = getAppId surf
 
 getLocalBox :: WlrBox -> WlrBox -> (WlrBox, Float)
 getLocalBox inner outer =

@@ -79,7 +79,7 @@ import Layout.ToggleFull (ToggleFull (..), TMessage (..))
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
 import Utility (doJust)
-import Utility.Spawn (spawn, manageNamed, manageSpawnOn)
+import Utility.Spawn (spawn, manageNamed, manageSpawnOn, spawnOn)
 import qualified View.Multi as Multi
 import View.Proxy (makeProxy)
 import ViewSet
@@ -145,7 +145,7 @@ bindings =
     , (([modi, Shift], keysym_k), modifyFocusedWS moveViewLeft)
     , (([modi, Shift], keysym_j), modifyFocusedWS moveViewRight)
     , (([modi], keysym_Return), spawn "weston-terminal")
-    , (([modi, Shift], keysym_Return), spawn "weston-terminal")
+    , (([modi, Shift], keysym_Return), spawnOn "2" "weston-terminal" [])
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_f), sendMessage TMessage)
     , (([modi], keysym_m), sendMessage MMessage)

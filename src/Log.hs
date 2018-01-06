@@ -32,6 +32,7 @@ import Control.Monad (forever, foldM)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Data.IORef (readIORef)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.Environment (lookupEnv)
@@ -76,7 +77,7 @@ hLogFun prnt = do
     out <- case view of
         Nothing -> pure $ workspaces
         Just v -> do
-            title <- getViewTitle v
+            title <- fromMaybe "<No Title>" <$> getViewTitle v
             pure $ workspaces `T.append` " : " `T.append` title
     liftIO $ prnt $ out `T.append` "\n"
 

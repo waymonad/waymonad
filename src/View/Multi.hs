@@ -50,6 +50,7 @@ import View
     , renderViewAdditional
     , getViewEventSurface
     , getViewTitle
+    , getViewAppId
     , createView
     , setViewBox
     , getViewInner
@@ -227,7 +228,7 @@ instance Typeable a => ShellSurface (SlaveView a) where
     renderAdditional fun self = renderViewAdditional fun (multiMaster . slaveMulti $ self)
     getEventSurface self x y = getViewEventSurface (multiMaster . slaveMulti $ self) x y
     getTitle = getViewTitle . multiMaster . slaveMulti
-    getAppId = undefined
+    getAppId = getViewAppId . multiMaster . slaveMulti
     getID = slaveId
     setViewVisible self = 
         let multi = slaveMulti self

@@ -78,8 +78,8 @@ instance ShellSurface ProxiedView where
 
     getID :: ProxiedView -> Int
     getID = complement . getViewID . unProxy
-    getTitle :: MonadIO m => ProxiedView -> m Text
+    getTitle :: MonadIO m => ProxiedView -> m (Maybe Text)
     getTitle = getViewTitle . unProxy
-    getAppId :: MonadIO m => ProxiedView -> m Text
-    getAppId = undefined
+    getAppId :: MonadIO m => ProxiedView -> m (Maybe Text)
+    getAppId = getViewAppId . unProxy
 
