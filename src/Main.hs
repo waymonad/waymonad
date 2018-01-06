@@ -110,6 +110,7 @@ import WayUtil
     , sendTo
     , killCurrent
     , seatOutputEventHandler
+    , closeCompositor
     )
 import WayUtil.Current (getCurrentView)
 import WayUtil.ViewSet (modifyFocusedWS)
@@ -154,6 +155,7 @@ bindings =
     , (([modi], keysym_Right), sendMessage NextLayout)
     , (([modi], keysym_c), doJust getCurrentView $ makeProxy)
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
+    , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
     where modi = Alt
 

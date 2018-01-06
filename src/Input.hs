@@ -69,6 +69,7 @@ import Graphics.Wayland.Signal (ListenerToken)
 
 import Input.Cursor
 import Input.Keyboard
+import Input.TabletPad
 import Input.Seat
 import Output (Output(..))
 import View (getViewClient)
@@ -105,7 +106,7 @@ doDetach dev foo = liftIO $ do
         (DeviceKeyboard kptr) -> detachKeyboard kptr
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceTabletTool _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
---        (DeviceTabletPad _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
+        (DeviceTabletPad pptr) -> handlePadRemove pptr
         _ -> pure ()
 
 
@@ -133,7 +134,7 @@ doAttach ptr foo = do
         (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) ptr kptr
         (DevicePointer _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
         (DeviceTabletTool _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
---        (DeviceTabletPad _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
+        (DeviceTabletPad pptr) -> handlePadAdd (fooSeat foo) ptr pptr
         _ -> pure ()
 
     liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)
@@ -206,7 +207,10 @@ handleInputAdd
     -> Way a ()
 handleInputAdd foos devRef ptr = do 
     liftIO $ modifyIORef devRef (S.insert ptr)
-    setDestroyHandler (getDestroySignal ptr) (const $ liftIO $ do modifyIORef devRef $ S.delete ptr)
+    setDestroyHandler (getDestroySignal ptr) (\dev -> do
+        liftIO $ modifyIORef devRef $ S.delete ptr
+        detachDevice dev
+                                             )
 
     doAttach ptr =<< getOrCreateSeat foos "seat0"
 

@@ -73,6 +73,7 @@ executable waymonad
   other-modules:        Input.Cursor
   other-modules:        Input.Keyboard
   other-modules:        Input.Seat
+  other-modules:        Input.TabletPad
 
   other-modules:        Hooks.EnterLeave
   other-modules:        Hooks.KeyboardFocus
