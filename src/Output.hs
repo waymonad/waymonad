@@ -235,9 +235,7 @@ frameHandler compRef cacheRef fRef secs output = do
             let box = WlrBox (x - ox) (y - oy) w h
             outputHandleView comp secs output view box
 
-    where  intersects layout view = liftIO $ do
-                (WlrBox x y w h) <- getViewBox view
-                outputIntersects layout output x y (x + w) (y + h)
+    where  intersects layout view = liftIO $ (outputIntersects layout output =<< getViewBox view)
 
 pickMode
     :: MonadIO m
