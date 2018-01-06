@@ -19,8 +19,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module Protocols.GammaControl
-    ( getGammaBracket
+module Protocols.Screenshooter
+    ( getScreenshooterBracket
     )
 where
 
@@ -28,20 +28,22 @@ import Control.Monad.IO.Class (liftIO)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer)
-import Graphics.Wayland.WlRoots.GammaControl
+import Graphics.Wayland.WlRoots.Screenshooter
 
-import GlobalFilter (registerGlobal)
 import Shared (Bracketed (..))
-import Waymonad (makeCallback)
-import Waymonad.Types (Way)
+import GlobalFilter
+import Waymonad (makeCallback, getState)
+import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 
-makeManager :: DisplayServer -> Way a (Ptr WlrGammaManager)
-makeManager dsp = do
-    ptr <- liftIO $ createGammaManager dsp
-    registerGlobal "GammaControl" =<< liftIO (getGammaGlobal ptr)
+makeManager :: () -> Way a (Ptr WlrScreenshooter)
+makeManager _ = do
+    Compositor {compDisplay = display, compRenderer = renderer} <- wayCompositor <$> getState
+    ptr <- liftIO $ screenshooterCreate display renderer
+    registerGlobal "Screenshooter" =<< liftIO (getScreenshooterGlobal ptr)
     pure ptr
 
-getGammaBracket :: Way a (Bracketed (DisplayServer))
-getGammaBracket = do
+getScreenshooterBracket :: Way a (Bracketed ())
+getScreenshooterBracket = do
     cb <- makeCallback makeManager
-    pure $ Bracketed cb destroyGammaManager
+    pure $ Bracketed cb screenshooterDestroy
+

@@ -25,6 +25,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Protocols.Screenshooter
 import Protocols.GammaControl
 import GlobalFilter
 import IdleManager
@@ -66,7 +67,6 @@ import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
-import Graphics.Wayland.WlRoots.Screenshooter (screenshooterCreate)
 --import Graphics.Wayland.WlRoots.Shell
 --    ( WlrShell
 --    , --shellCreate
@@ -176,7 +176,6 @@ makeCompositor display backend = do
     comp <- liftIO $ compositorCreate display renderer
     devManager <- liftIO $ managerCreate display
     layout <- liftIO createOutputLayout
-    shooter <- liftIO $ screenshooterCreate display renderer
 
     input <- inputCreate backend
 
@@ -194,7 +193,6 @@ makeCompositor display backend = do
         , compBackend = backend
         , compLayout = layout
         , compInput = input
-        , compScreenshooter = shooter
         }
 
 defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
@@ -211,10 +209,13 @@ realMain compRef = do
     fuseBracket <- getFuseBracket
     idleBracket <- getIdleBracket 3e5
     gammaBracket <- getGammaBracket
-    filterBracket <- getFilterBracket filterKnown
+    filterBracket <- getFilterBracket $ \_ _ -> pure True -- filterKnown
+    shooterBracket <- getScreenshooterBracket
+
     liftIO $ launchCompositor ignoreHooks
         { displayHook = [fuseBracket, Bracketed injectHandler (const $ pure ()), gammaBracket, filterBracket]
         , backendPreHook = [Bracketed compFun (const $ pure ()), idleBracket]
+        , backendPostHook = [shooterBracket]
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
         }

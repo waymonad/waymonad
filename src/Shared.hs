@@ -103,7 +103,7 @@ type FrameHandler = Double -> Ptr WlrOutput -> IO ()
 data CompHooks = CompHooks
     { displayHook :: [Bracketed DisplayServer]
     , backendPreHook :: [Bracketed (DisplayServer, Ptr Backend)]
-    , backendPostHook :: [Bracketed (Ptr Backend)]
+    , backendPostHook :: [Bracketed ()]
 
     , inputAddHook :: Ptr InputDevice -> IO ()
     , outputAddHook :: Ptr WlrOutput -> IO FrameHandler
@@ -114,9 +114,9 @@ data CompHooks = CompHooks
 
 ignoreHooks :: CompHooks
 ignoreHooks = CompHooks
-    { displayHook = [Bracketed (const $ pure ()) (const $ pure ())]
-    , backendPreHook = [Bracketed (const $ pure ()) (const $ pure ())]
-    , backendPostHook = [Bracketed (const $ pure ()) (const $ pure ())]
+    { displayHook = []
+    , backendPreHook = []
+    , backendPostHook = []
     , inputAddHook = \_ -> pure ()
     , outputAddHook = \_ -> pure $ \_ _ -> pure ()
     , keyPressHook = \_ _ -> pure ()
@@ -169,7 +169,7 @@ backendMain hooks display backend = do
 
     -- Start the hooks that want to run *after* the backend got initialised and
     -- run the display
-    foldBrackets (backendPostHook hooks) (const $ displayRun display) backend
+    foldBrackets (backendPostHook hooks) (const $ displayRun display) ()
 
 bindSocket :: DisplayServer -> IO ()
 bindSocket display = do

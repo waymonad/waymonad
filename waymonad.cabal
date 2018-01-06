@@ -97,6 +97,7 @@ executable waymonad
   other-modules:        Output
 
   other-modules:        Protocols.GammaControl
+  other-modules:        Protocols.Screenshooter
 
   other-modules:        Shared
   other-modules:        Utility

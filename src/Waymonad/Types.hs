@@ -66,7 +66,6 @@ import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 import Graphics.Wayland.WlRoots.DeviceManager (WlrDeviceManager)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Render (Renderer)
-import Graphics.Wayland.WlRoots.Screenshooter (WlrScreenshooter)
 
 import Config (WayConfig)
 import {-# SOURCE #-} Input (Input)
@@ -118,7 +117,6 @@ data Compositor = Compositor
     , compBackend :: Ptr Backend
     , compLayout :: Ptr WlrOutputLayout
     , compInput :: Input
-    , compScreenshooter :: Ptr WlrScreenshooter
     }
 
 data WayBindingState a = WayBindingState
