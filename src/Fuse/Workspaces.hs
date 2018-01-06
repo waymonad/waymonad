@@ -19,14 +19,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Fuse.Workspaces
     ( workspaceDir
     )
 where
 
+import Control.Monad (forM)
+import Control.Monad.IO.Class (liftIO)
+import Data.Foldable (toList)
 import Data.Map (Map)
+import Data.Maybe (fromMaybe)
 
 import Output (Output (outputName))
+import View (getViewTitle, getViewAppId)
 import ViewSet (WSTag (..), Workspace (..), LayoutClass (..), Layout (..))
 import Waymonad (getWorkspace)
 import Waymonad.Types (Way)
@@ -38,6 +44,19 @@ import Fuse.Common
 import qualified Data.Map as M
 import qualified Data.Text as T
 
+makeViewDir :: WSTag a => a -> Way a (Maybe (Entry a))
+makeViewDir ws = do
+    state <- getWorkspace ws
+    case toList <$> wsViews state of
+        Nothing -> pure Nothing
+        (Just views) -> Just <$> do
+                tmp <- forM views $ \view -> liftIO $ do
+                    title <-fromMaybe "<None>" <$> getViewTitle view
+                    appId <- fromMaybe "<None>" <$> getViewAppId view
+                    pure $ title `T.append` " : " `T.append` appId
+
+                let content = T.intercalate "\n" tmp
+                pure $ FileEntry . textFile $ pure content
 
 makeOutputDir :: WSTag a => a -> Way a (Maybe (Entry a))
 makeOutputDir ws = do
@@ -58,10 +77,14 @@ makeWorkspaceDir ws = do
                     Workspace (Layout l) _ <- getWorkspace ws
                     pure $ currentDesc l)
             ]
-    outs <- makeOutputDir ws
-    let outDir = maybe [] (pure . ("outputs",)) outs
 
-    pure $ DirEntry $ simpleDir $ M.fromList $ outDir ++ layout
+    outs <- makeOutputDir ws
+    let outDir = maybe id ((:) . ("outputs",)) outs
+
+    views <- makeViewDir ws
+    let viewDir = maybe id ((:) . ("views", )) views
+
+    pure $ DirEntry $ simpleDir $ M.fromList $ viewDir . outDir $ layout
 
 enumerateWSS :: WSTag a => Way a (Map String (Entry a))
 enumerateWSS = do
