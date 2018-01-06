@@ -64,7 +64,6 @@ import Data.Typeable (Typeable, cast)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
-import System.IO
 import System.IO.Unsafe (unsafePerformIO)
 
 import Graphics.Wayland.Signal
@@ -268,7 +267,7 @@ getLocalBox inner outer =
 -- position it somewhere inside the configured box, because it is *smaller*
 -- than the intended area
 setViewLocal :: MonadIO m => View -> WlrBox -> m ()
-setViewLocal v@(View {viewBox = global, viewPosition = local, viewScaling = scaleRef}) box = liftIO $ do
+setViewLocal (View {viewBox = global, viewPosition = local, viewScaling = scaleRef}) box = liftIO $ do
     outerBox <- readIORef global
     if toOrigin outerBox == box
         then do

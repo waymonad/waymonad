@@ -36,7 +36,7 @@ import Foreign.StablePtr
     )
 
 import Graphics.Wayland.Signal (removeListener)
-import Graphics.Wayland.WlRoots.Input (InputDevice, getDestroySignal)
+import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Input.Pointer (AxisOrientation (..))
 import Graphics.Wayland.WlRoots.Input.TabletPad
     ( WlrTabletPad
@@ -68,7 +68,7 @@ handlePadStrip seat evt_ptr = do
     pointerAxis seat (padStripEvtTime event) AxisVertical (padStripEvtPosition event)
 
 handlePadAdd :: WSTag a => Seat -> Ptr InputDevice -> Ptr WlrTabletPad -> Way a ()
-handlePadAdd seat dev pad = do
+handlePadAdd seat _ pad = do
     let events = getPadEvents pad
 
     stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip seat

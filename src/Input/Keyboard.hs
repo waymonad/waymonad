@@ -28,7 +28,6 @@ import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
 
-import Graphics.Wayland.Server (displayTerminate)
 import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
@@ -72,7 +71,7 @@ import Waymonad
     , getState
     )
 import Waymonad.Types
-    ( Compositor (compBackend, compDisplay)
+    ( Compositor (compBackend)
     , WayBindingState (wayCompositor, wayKeybinds)
     )
 import WayUtil.Signal (setSignalHandler)

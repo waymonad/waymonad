@@ -31,21 +31,20 @@ import Data.List (lookup, find)
 import Data.Maybe (fromJust, fromMaybe, listToMaybe)
 import Data.Tuple (swap)
 import Data.Typeable (Typeable)
-import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer, displayTerminate)
-import Graphics.Wayland.WlRoots.Output (WlrOutput, getOutputName)
 import Graphics.Wayland.WlRoots.Box (Point)
 
 import Input.Seat (Seat (seatName), getPointerFocus)
 import Output (Output (..), getOutputId)
-import Utility (whenJust, intToPtr, doJust, These(..), getThis, getThat)
+import Utility (whenJust, doJust, These(..), getThis, getThat)
 import View (View, closeView)
 import ViewSet
     ( WSTag
     , SomeMessage (..)
     , Message
     , messageWS
+    , broadcastWS
     , rmView
     , addView
     , viewsBelow
@@ -55,7 +54,6 @@ import Waymonad
     , Way
     , getState
     , getSeat
-    , setCallback
     , EventClass
     , SomeEvent
     , sendEvent
@@ -102,6 +100,14 @@ sendTo ws = do
 
 sendMessage :: (WSTag a, Message t) => t -> Way a ()
 sendMessage m = modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
+
+broadcastMessageOn :: (WSTag a, Message t) => t -> a -> Way a ()
+broadcastMessageOn m = modifyWS (broadcastWS (SomeMessage m))
+
+broadcastMessage :: (WSTag a, Message t) => t -> Way a ()
+broadcastMessage m = do
+    wss <- wayUserWorkspaces <$> getState
+    mapM_ (broadcastMessageOn m) wss
 
 runLog :: (WSTag a) => Way a ()
 runLog = do

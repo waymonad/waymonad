@@ -32,10 +32,10 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), centerBox)
-import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputName)
+import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
 
 import {-# SOURCE #-} Output (Output (..), getOutputId)
-import Utility (whenJust, intToPtr)
+import Utility (whenJust)
 import View (setViewBox)
 import ViewSet (WSTag (..), Workspace (..), Layout (..), pureLayout)
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))

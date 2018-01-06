@@ -26,8 +26,6 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Types
     ( WayStateRef
     , LayoutCacheRef
-    , WayState
-    , SomeEvent
     , WayLoggers (..)
     , Compositor (..)
     , WayBindingState (..)
@@ -49,7 +47,6 @@ module Waymonad.Types
     )
 where
 
-import Control.Concurrent.Chan (Chan)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT, MonadReader)
 import Data.Default (Default(..))
@@ -58,7 +55,6 @@ import Data.IntMap (IntMap)
 import Data.Map (Map)
 import Data.Semigroup (Semigroup (..))
 import Data.Set (Set)
-import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
@@ -68,11 +64,9 @@ import Graphics.Wayland.WlRoots.Backend (Backend)
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 import Graphics.Wayland.WlRoots.DeviceManager (WlrDeviceManager)
-import Graphics.Wayland.WlRoots.Output (OutputMode)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Render (Renderer)
 import Graphics.Wayland.WlRoots.Screenshooter (WlrScreenshooter)
-import Graphics.Wayland.WlRoots.Shell (WlrShell)
 
 import Config (WayConfig)
 import {-# SOURCE #-} Input (Input)
@@ -109,10 +103,10 @@ class Typeable e => EventClass e
 
 data SomeEvent = forall e. EventClass e => SomeEvent e
 
-data WayHooks = WayHooks
-    {
-
-    }
+-- data WayHooks = WayHooks
+--     {
+-- 
+--     }
 
 data Compositor = Compositor
     { compDisplay :: DisplayServer

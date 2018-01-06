@@ -32,9 +32,7 @@ module Input.Seat
     )
 where
 
-import System.IO
-
-import Control.Monad (when, void)
+import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Maybe (isJust)
@@ -42,7 +40,7 @@ import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 
 import Graphics.Wayland.WlRoots.Input.Buttons (ButtonState)
-import Graphics.Wayland.WlRoots.Input.Pointer (WlrEventPointerButton (..), AxisOrientation)
+import Graphics.Wayland.WlRoots.Input.Pointer (AxisOrientation)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.Server
     ( DisplayServer

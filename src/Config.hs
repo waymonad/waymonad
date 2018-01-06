@@ -43,7 +43,7 @@ import System.IO.Error (isDoesNotExistError)
 import Waymonad.Types.Logger (WayLoggers)
 
 import Config.Output
-import Config.Logger
+import Config.Logger ()
 
 import qualified Data.Map as M
 
@@ -73,8 +73,8 @@ printConfigInfo = print (generateDocs waySpec)
 emptyConfig :: WayConfig
 emptyConfig = WayConfig
     { configOutputs = mempty
+    , configLoggers = Nothing
     }
-
 
 
 loadConfig :: MonadIO m => m (Either String WayConfig)

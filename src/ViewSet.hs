@@ -31,14 +31,14 @@ where
 
 import Control.Monad (filterM)
 import Data.Foldable (toList)
-import Data.List (find, delete)
+import Data.List (find)
 import Data.Map (Map)
-import Data.Maybe (listToMaybe, maybeToList, isJust)
+import Data.Maybe (listToMaybe, isJust)
 import Data.Monoid ((<>))
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable
-import Graphics.Wayland.WlRoots.Box (boxContainsPoint, Point (..), WlrBox (..))
+import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 
 import Input.Seat (Seat)
 import View (View, getViewEventSurface)
@@ -92,6 +92,12 @@ getMessage (SomeMessage m) = cast m
 messageWS :: SomeMessage -> Workspace -> Workspace
 messageWS m w@(Workspace (Layout l) z) =
     case handleMessage l  m of
+        Nothing -> w
+        Just nl -> Workspace (Layout nl) z
+
+broadcastWS :: SomeMessage -> Workspace -> Workspace
+broadcastWS m w@(Workspace (Layout l) z) =
+    case broadcastMessage l  m of
         Nothing -> w
         Just nl -> Workspace (Layout nl) z
 

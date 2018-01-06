@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ApplicativeDo #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Config.Logger
     ( prioritySpec
     , loggerSpec
@@ -27,7 +28,6 @@ module Config.Logger
 where
 
 import Config.Schema
-import Data.Semigroup ((<>))
 import Data.Functor.Alt ((<!>))
 import Data.Text (Text)
 

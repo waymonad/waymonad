@@ -57,7 +57,7 @@ import System.Posix.Types (Fd (..))
 import System.Posix.Process (forkProcess, executeFile)
 import System.Process (spawnCommand)
 
-import Graphics.Wayland.Server (Client (..), clientCreate, DisplayServer)
+import Graphics.Wayland.Server (Client (..), clientCreate)
 import Graphics.Wayland.Server.Client (addDestroyListener)
 
 import Managehook (Managehook, query, liftWay, InsertAction (InsertInto))

@@ -35,13 +35,9 @@ module Managehook
 where
 
 import Control.Monad (void)
-import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
-import Data.Default (Default(..))
 import Data.Maybe (fromMaybe)
-import Data.Semigroup (Semigroup (..))
-
-import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Input.Seat
 import Utility (whenJust)
@@ -117,5 +113,5 @@ removeView v = do
             forceFocused
         [] -> pure ()
 -- TODO: log an error
-        xs -> pure ()
+        _ -> pure ()
     modifyFloating (S.delete v)

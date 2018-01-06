@@ -29,13 +29,10 @@ where
 import Control.Monad (when, join, forM_)
 import Data.Monoid ((<>))
 import Data.Typeable (Typeable)
-import Foreign.Ptr (Ptr)
-
-import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Input.Seat (Seat)
 import Output (Output)
-import Utility (ptrToInt, whenJust)
+import Utility (whenJust)
 import ViewSet (WSTag)
 import Waymonad
 import WayUtil

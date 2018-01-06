@@ -31,17 +31,15 @@ where
 import System.IO
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 
-import Control.Monad.Reader (ask, when)
-import Data.IORef (newIORef, IORef, readIORef, writeIORef)
-import Data.Maybe (fromJust)
-import WayUtil.Signal (setSignalHandler)
-import Foreign.Storable (Storable(..))
-import qualified Graphics.Wayland.WlRoots.XWayland as X
-import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
-import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
-import Data.IORef (newIORef, IORef, modifyIORef, readIORef)
-import Graphics.Wayland.Server (DisplayServer)
 import Control.Monad.IO.Class
+import Control.Monad.Reader (ask, when)
+import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
+import Data.Maybe (fromJust)
+import Foreign.Storable (Storable(..))
+import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
+import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
+import WayUtil.Signal (setSignalHandler)
 
 import Managehook
 import Waymonad
@@ -55,6 +53,7 @@ import Foreign.StablePtr
     , castPtrToStablePtr
     )
 
+import qualified Graphics.Wayland.WlRoots.XWayland as X
 import qualified Data.IntMap.Strict as M
 import Data.IntMap (IntMap)
 

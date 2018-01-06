@@ -24,9 +24,7 @@ module View.Multi
     )
 where
 
-import System.IO
-
-import Control.Monad (void, when)
+import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (IORef, modifyIORef, writeIORef, readIORef, newIORef)
 import Data.IntMap (IntMap)
@@ -35,7 +33,6 @@ import Data.Set (Set)
 import Data.Typeable (Typeable)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), enlarge)
-import Graphics.Wayland.Signal (ListenerToken)
 
 import Waymonad.Types (Way)
 
@@ -60,24 +57,6 @@ import View
 import ViewSet (WSTag (..))
 import Managehook (insertView, removeView)
 import Waymonad (makeCallback)
-import Waymonad.Extensible (ExtensionClass (..))
-import WayUtil (modifyEState, getEState)
-
-newtype MVSet a = MVSet { unMV :: Set (MultiView a) }
-
-instance Typeable a => ExtensionClass (MVSet a) where
-    initialValue = MVSet mempty
-
-newtype SVSet = SVSet { unSV :: Set View }
-
-instance ExtensionClass SVSet where
-    initialValue = SVSet mempty
-
-newtype SMMap = SMMap { unSM :: IntMap View }
-
-instance ExtensionClass SMMap where
-    initialValue = SMMap mempty
-
 
 data MultiView a = MultiView
     { multiMaster :: View
@@ -115,7 +94,6 @@ setMasterSize multi =
 setSlaveSize :: MonadIO m => SlaveView a -> WlrBox -> m ()
 setSlaveSize slave box =
     let multi = slaveMulti slave
-        master = multiMaster multi
         ref = multiSlaveBoxes multi
         key = slaveId slave
      in liftIO $ do
@@ -162,7 +140,6 @@ makeMulti view = do
     delFun <- makeCallback removeView
     multi <- liftIO $ makeMulti' view delFun
     addViewDestroyListener 0 (const $ multiDestroy multi) view
-    modifyEState (MVSet . S.insert multi .  unMV)
     pure multi
 
 deriveSlave
@@ -181,7 +158,6 @@ deriveSlave multi = do
         ret <- createView slave
         modifyIORef (multiSlaves multi) (IM.insert sId ret)
         pure ret
-    modifyEState (SVSet . S.insert view .  unSV)
 
     pure view
 

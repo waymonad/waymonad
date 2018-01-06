@@ -48,7 +48,6 @@ import Input.Seat
     ( pointerMotion
     , pointerClear
     , pointerAxis
-    , getPointerFocus
     , pointerButton
     )
 import Graphics.Wayland.WlRoots.Cursor
@@ -71,7 +70,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     )
 import Graphics.Wayland.Signal (ListenerToken)
 
-import Output (Output (..), outputFromWlr)
+import Output (outputFromWlr)
 import Utility (ptrToInt, doJust, These(..), whenJust)
 import View (View)
 import ViewSet (WSTag)

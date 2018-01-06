@@ -80,25 +80,18 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), local)
 import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
-import Data.IntMap (IntMap)
 import Data.List (find)
-import Data.Map (Map)
 import Data.Maybe (maybeToList, listToMaybe, fromJust)
-import Data.Set (Set)
-import Data.Text (Text)
-import Data.Typeable (Typeable, typeOf, cast)
-import Data.Word (Word32)
+import Data.Typeable (cast)
 
-import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox)
+import Graphics.Wayland.WlRoots.Box (Point (..))
 
 import Input.Seat (Seat, getPointerFocus)
 import View (View, getViewEventSurface)
-import Waymonad.Extensible
 import Waymonad.Types
 
 
 import qualified ViewSet as VS
-import qualified Data.IntMap as IM
 import qualified Data.Map as M
 import qualified Data.Set as S
 
