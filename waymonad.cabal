@@ -93,6 +93,9 @@ executable waymonad
 
   other-modules:        Managehook
   other-modules:        Output
+
+  other-modules:        Protocols.GammaControl
+
   other-modules:        Shared
   other-modules:        Utility
   other-modules:        Utility.Spawn

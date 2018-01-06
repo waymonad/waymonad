@@ -25,6 +25,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Protocols.GammaControl
 import IdleManager
 import InjectRunner
 --import System.Posix.Signals
@@ -208,8 +209,9 @@ realMain compRef = do
     injectHandler <- makeCallback registerInjectHandler
     fuseBracket <- getFuseBracket
     idleBracket <- getIdleBracket 3e5
+    gammaBracket <- getGammaBracket
     liftIO $ launchCompositor ignoreHooks
-        { displayHook = [fuseBracket, Bracketed injectHandler (const $ pure ())]
+        { displayHook = [fuseBracket, Bracketed injectHandler (const $ pure ()), gammaBracket]
         , backendPreHook = [Bracketed compFun (const $ pure ()), idleBracket]
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
