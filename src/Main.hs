@@ -26,6 +26,7 @@ module Main
 where
 
 import Protocols.GammaControl
+import GlobalFilter
 import IdleManager
 import InjectRunner
 --import System.Posix.Signals
@@ -210,8 +211,9 @@ realMain compRef = do
     fuseBracket <- getFuseBracket
     idleBracket <- getIdleBracket 3e5
     gammaBracket <- getGammaBracket
+    filterBracket <- getFilterBracket filterKnown
     liftIO $ launchCompositor ignoreHooks
-        { displayHook = [fuseBracket, Bracketed injectHandler (const $ pure ()), gammaBracket]
+        { displayHook = [fuseBracket, Bracketed injectHandler (const $ pure ()), gammaBracket, filterBracket]
         , backendPreHook = [Bracketed compFun (const $ pure ()), idleBracket]
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
