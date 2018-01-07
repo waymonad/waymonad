@@ -67,12 +67,7 @@ import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
---import Graphics.Wayland.WlRoots.Shell
---    ( WlrShell
---    , --shellCreate
---    )
 
--- import Compositor
 import Input (inputCreate)
 import Layout.Mirror (Mirror (..), MMessage (..))
 import Layout.Tall (Tall (..))
@@ -87,6 +82,7 @@ import ViewSet
     ( Workspace(..)
     , Layout (..)
     , WSTag
+    , LayoutClass
     , moveRight
     , moveLeft
     , moveViewLeft
@@ -94,7 +90,6 @@ import ViewSet
     )
 import Waymonad
     ( Way
-    , WayStateRef
     , runWay
     , BindingMap
     , KeyBinding
@@ -104,7 +99,7 @@ import Waymonad
     , WayLoggers (..)
     , Logger (..)
     )
-import Waymonad.Types (Compositor (..), LogPriority (..))
+import Waymonad.Types (Compositor (..), LogPriority (..), Managehook, SomeEvent)
 import WayUtil
     ( sendMessage
     , focusNextOut
@@ -181,12 +176,10 @@ makeCompositor display backend = do
 
     xdgShell <- xdgShellCreate display
     xway <- xwayShellCreate display comp
---    shell <- pure undefined
     pure Compositor
         { compDisplay = display
         , compRenderer = renderer
         , compCompositor = comp
-        --, compShell = shell
         , compXdg = xdgShell
         , compManager = devManager
         , compXWayland = xway
@@ -195,46 +188,51 @@ makeCompositor display backend = do
         , compInput = input
         }
 
-defaultMap :: WSTag a => [a] -> IO (WayStateRef a)
-defaultMap xs = newIORef $ M.fromList $
-    map (, Workspace (Layout (Mirror False (ToggleFull False (Tall ||| Spiral)))) Nothing) xs
+sameLayout :: (WSTag a, LayoutClass l) => l -> [a] -> M.Map a Workspace
+sameLayout l = M.fromList . map (, Workspace (Layout (l)) Nothing)
 
-realMain :: IORef Compositor -> Way Text ()
-realMain compRef = do
+data WayUserConf a = WayUserConf
+    { wayUserConfWorkspaces  :: [a]
+    , wayUserConfLayouts     :: [a] -> M.Map a Workspace
+    , wayUserConfManagehook  :: Managehook a
+    , wayUserConfEventHook   :: SomeEvent -> Way a ()
+    , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding a)]
+
+    , wayUserConfDisplayHook :: [Way a (Bracketed DisplayServer)]
+    , wayUserConfBackendHook :: [Way a (Bracketed (DisplayServer, Ptr Backend))]
+    , wayUserConfPostHook    :: [Way a (Bracketed ())]
+    }
+
+wayUserRealMain :: WSTag a => WayUserConf a -> IORef Compositor -> Way a ()
+wayUserRealMain conf compRef = do
     setBaseTime
-    compFun <- makeCallback $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
-    outputAdd <- makeCallback $ handleOutputAdd compRef workspaces
+    displayBrackets <- sequence $ wayUserConfDisplayHook conf
+    backendBrackets <- sequence $ wayUserConfBackendHook conf
+    postBrackets <- sequence $ wayUserConfPostHook conf
+
+    outputAdd <- makeCallback $ handleOutputAdd compRef $ wayUserConfWorkspaces conf
     outputRm <- makeCallback handleOutputRemove
-    injectHandler <- makeCallback registerInjectHandler
-    fuseBracket <- getFuseBracket
-    idleBracket <- getIdleBracket 3e5
-    gammaBracket <- getGammaBracket
-    filterBracket <- getFilterBracket $ \_ _ -> pure True -- filterKnown
-    shooterBracket <- getScreenshooterBracket
+
+    compFun <- makeCallback $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
 
     liftIO $ launchCompositor ignoreHooks
-        { displayHook = [fuseBracket, Bracketed injectHandler (const $ pure ()), gammaBracket, filterBracket]
-        , backendPreHook = [Bracketed compFun (const $ pure ()), idleBracket]
-        , backendPostHook = [shooterBracket]
+        { displayHook = displayBrackets
+        , backendPreHook = Bracketed compFun (const $ pure ()): backendBrackets
+        , backendPostHook = postBrackets
         , outputAddHook = outputAdd
         , outputRemoveHook = outputRm
         }
 
-
---ignoreUSR1 :: IO ()
---ignoreUSR1 = void $ installHandler sigUSR1 Ignore Nothing
-
-main :: IO ()
-main =  do
-    --ignoreUSR1
-    config <- loadConfig
-    case config of
+wayUserMain :: WSTag a => WayUserConf a -> IO ()
+wayUserMain conf = do
+    configE <- loadConfig
+    case configE of
         Left str -> do
             -- TODO: This should probably be visual later on when possible
             hPutStrLn stderr "Error while loading config:"
             hPutStrLn stderr str
-        Right conf -> do
-            stateRef  <- defaultMap workspaces
+        Right config -> do
+            stateRef  <- newIORef $ wayUserConfLayouts conf $ wayUserConfWorkspaces conf
             layoutRef <- newIORef mempty
             mapRef <- newIORef []
             currentRef <- newIORef []
@@ -255,34 +253,53 @@ main =  do
                     , wayBindingSeats = seats
                     , wayLogFunction = logF
                     , wayExtensibleState = extensible
-                    , wayConfig = conf
+                    , wayConfig = config
                     , wayFloating = floats
-                    , wayEventHook = seatOutputEventHandler
-                            <> wsChangeEvtHook
-                            <> wsChangeLogHook
-                            <> handleKeyboardSwitch
-                            <> H.outputAddHook
-                            <> enterLeaveHook
-                            <> wsScaleHook
-                            <> idleLog
-                    , wayUserWorkspaces = workspaces
+                    , wayEventHook = wayUserConfEventHook conf
+                    , wayUserWorkspaces = wayUserConfWorkspaces conf
                     , wayInjectChan = inject
                     , wayCompositor = unsafePerformIO (readIORef compRef)
-                    , wayKeybinds = makeBindingMap bindings
-                    , wayManagehook = overrideXRedirect <> manageSpawnOn <> manageNamed
+                    , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
+                    , wayManagehook = wayUserConfManagehook conf
                     }
+
 
             let loggers = WayLoggers
-                    { loggerOutput = Logger Info "Output"
-                    , loggerWS = Logger Info "Workspaces"
-                    , loggerFocus = Logger Info "Focus"
-                    , loggerXdg = Logger Info "Xdg_Shell"
-                    , loggerX11 = Logger Info "XWayland"
-                    , loggerKeybinds = Logger Info "Keybindings"
-                    , loggerSpawner = Logger Info "Spawner"
+                    { loggerOutput = Logger Warn "Output"
+                    , loggerWS = Logger Warn "Workspaces"
+                    , loggerFocus = Logger Warn "Focus"
+                    , loggerXdg = Logger Warn "Xdg_Shell"
+                    , loggerX11 = Logger Warn "XWayland"
+                    , loggerKeybinds = Logger Warn "Keybindings"
+                    , loggerSpawner = Logger Warn "Spawner"
                     , loggerLayout = Logger Warn "Layout"
-                    , loggerRender = Logger Trace "Frame"
+                    , loggerRender = Logger Warn "Frame"
                     }
 
-            {-runInBoundThread $ -}
-            runWay Nothing state (fromMaybe loggers $ configLoggers conf) (realMain compRef)
+            runWay Nothing state (fromMaybe loggers $ configLoggers config) (wayUserRealMain conf compRef)
+
+myEventHook :: WSTag a => SomeEvent -> Way a ()
+myEventHook = seatOutputEventHandler
+    <> wsChangeEvtHook
+    <> wsChangeLogHook
+    <> handleKeyboardSwitch
+    <> H.outputAddHook
+    <> enterLeaveHook
+    <> wsScaleHook
+    <> idleLog
+
+myConf :: WayUserConf Text
+myConf = WayUserConf
+    { wayUserConfWorkspaces  = workspaces
+    , wayUserConfLayouts     = sameLayout (Mirror False (ToggleFull False (Tall ||| Spiral)))
+    , wayUserConfManagehook  = overrideXRedirect <> manageSpawnOn <> manageNamed
+    , wayUserConfEventHook   = myEventHook
+    , wayUserConfKeybinds    = bindings
+
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket]
+    , wayUserConfBackendHook = [getIdleBracket 3e5]
+    , wayUserConfPostHook    = [getScreenshooterBracket]
+    }
+
+main :: IO ()
+main = wayUserMain myConf
