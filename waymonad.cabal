@@ -95,6 +95,7 @@ executable waymonad
 
   other-modules:        Managehook
   other-modules:        Output
+  other-modules:        Pixman
 
   other-modules:        Protocols.GammaControl
   other-modules:        Protocols.Screenshooter
