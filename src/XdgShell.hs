@@ -28,6 +28,8 @@ module XdgShell
     )
 where
 
+import Control.Monad (forM)
+
 import Utility (doJust)
 import View
 import Waymonad
@@ -40,7 +42,7 @@ import Data.Maybe (fromJust)
 import Data.Composition ((.:))
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxContainsPoint)
-import Graphics.Wayland.WlRoots.Surface (WlrSurface)
+import Graphics.Wayland.WlRoots.Surface -- (WlrSurface)
 import Foreign.Storable (Storable(..))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import qualified Graphics.Wayland.WlRoots.XdgShell as R
@@ -155,13 +157,30 @@ renderPopups fun surf = do
                 (\v b -> fun v b {boxX = boxX b + x, boxY = boxY b + y})
                 popup
 
+getBoundingBox :: Ptr R.WlrXdgSurface -> IO (Double, Double)
+getBoundingBox surf = doJust (R.xdgSurfaceGetSurface surf) $ \wlrsurf -> do
+    WlrBox _ _ bw bh <- R.getGeometry surf
+    subs <- surfaceGetSubs wlrsurf
+    points <- forM subs $ \sub -> do
+        WlrBox x y w h <- subSurfaceGetBox sub
+        pure $ ((Point x y), (Point (x + w) (x + h)))
+    let topleft = map fst points
+        botright = map snd points
+        Point lx ly = foldr (\(Point x1 y1) (Point x2 y2) -> Point (min x1 x2) (min y1 y2)) (Point 0 0) topleft
+        Point hx hy = foldr (\(Point x1 y1) (Point x2 y2) -> Point (max x1 x2) (max y1 y2)) (Point bw bh) botright
+    pure $ (fromIntegral (hx - lx), fromIntegral (hy - ly))
+
 
 instance ShellSurface XdgSurface where
     close = liftIO . R.sendClose . unXdg
     getSurface = liftIO . R.xdgSurfaceGetSurface . unXdg
     getSize (XdgSurface surf) = liftIO $ do
-        box <- R.getGeometry surf
-        pure (fromIntegral $ boxWidth box, fromIntegral $ boxHeight box)
+        title <- R.getTitle surf
+        case title of
+            Just "alacritty" -> getBoundingBox surf
+            _ -> do
+                box <- R.getGeometry surf
+                pure (fromIntegral $ boxWidth box, fromIntegral $ boxHeight box)
     resize (XdgSurface surf) width height =
         liftIO $ R.setSize surf width height
     activate = liftIO .: R.setActivated . unXdg

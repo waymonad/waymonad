@@ -278,6 +278,8 @@ wayUserMain conf = do
 
             runWay Nothing state (fromMaybe loggers $ configLoggers config) (wayUserRealMain conf compRef)
 
+-- This part is the intended user config (Haskell side)
+
 myEventHook :: WSTag a => SomeEvent -> Way a ()
 myEventHook = seatOutputEventHandler
     <> wsChangeEvtHook
