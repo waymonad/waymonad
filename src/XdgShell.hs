@@ -174,13 +174,7 @@ getBoundingBox surf = doJust (R.xdgSurfaceGetSurface surf) $ \wlrsurf -> do
 instance ShellSurface XdgSurface where
     close = liftIO . R.sendClose . unXdg
     getSurface = liftIO . R.xdgSurfaceGetSurface . unXdg
-    getSize (XdgSurface surf) = liftIO $ do
-        title <- R.getTitle surf
-        case title of
-            Just "alacritty" -> getBoundingBox surf
-            _ -> do
-                box <- R.getGeometry surf
-                pure (fromIntegral $ boxWidth box, fromIntegral $ boxHeight box)
+    getSize (XdgSurface surf) = liftIO $ getBoundingBox surf
     resize (XdgSurface surf) width height =
         liftIO $ R.setSize surf width height
     activate = liftIO .: R.setActivated . unXdg
