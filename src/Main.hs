@@ -281,7 +281,8 @@ wayUserMain conf = do
 -- This part is the intended user config (Haskell side)
 
 myEventHook :: WSTag a => SomeEvent -> Way a ()
-myEventHook = seatOutputEventHandler
+myEventHook =
+       seatOutputEventHandler
     <> wsChangeEvtHook
     <> wsChangeLogHook
     <> handleKeyboardSwitch

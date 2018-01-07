@@ -68,12 +68,13 @@ import Graphics.Wayland.Server
     , displayRun
     )
 
+import Foreign.C.String (withCString)
 import System.IO (hPutStr, hPutStrLn, stderr, hPrint)
+import System.Environment (lookupEnv, getEnv, setEnv)
 import Text.XkbCommon.Types
 
 import Foreign.C.Types (CChar)
 import Foreign.C.String
-import System.Environment (setEnv)
 
 
 import Graphics.Wayland.Signal
@@ -159,22 +160,26 @@ handleOutputRemove hooks output = do
     freeStablePtr $ castPtrToStablePtr sptr
     outputRemoveHook hooks output
 
-foreign import ccall "wl_display_add_socket_auto" c_add_socket :: Ptr DisplayServer -> IO (Ptr CChar)
+foreign import ccall "wl_display_add_socket_auto" c_add_socket_auto :: Ptr DisplayServer -> IO (Ptr CChar)
 
+foreign import ccall "wl_display_add_socket" c_add_socket :: Ptr DisplayServer -> Ptr CChar -> IO (Ptr CChar)
 
 backendMain :: CompHooks -> DisplayServer -> Ptr Backend -> IO ()
 backendMain hooks display backend = do
     -- This dispatches the first events, e.g. output/input add signals
     backendStart backend
-
+    setEnv "WAYLAND_DISPLAY" =<< getEnv "_WAYLAND_DISPLAY"
     -- Start the hooks that want to run *after* the backend got initialised and
     -- run the display
     foldBrackets (backendPostHook hooks) (const $ displayRun display) ()
 
 bindSocket :: DisplayServer -> IO ()
 bindSocket display = do
-    socket <- (\(DisplayServer ptr) -> c_add_socket ptr) display
-    sName <- peekCString socket
+    waySocket <- lookupEnv "WAYMONAD_DISPLAY"
+    let addFun dsp = case waySocket of
+            Nothing -> peekCString =<< c_add_socket_auto dsp
+            Just name -> (withCString name $ c_add_socket dsp) >> pure name
+    sName <- (\(DisplayServer ptr) -> addFun ptr) display
     hPutStr stderr "Opened on socket: "
     hPutStrLn stderr sName
     setEnv "_WAYLAND_DISPLAY" sName
