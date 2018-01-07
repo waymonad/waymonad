@@ -163,7 +163,7 @@ getBoundingBox surf = doJust (R.xdgSurfaceGetSurface surf) $ \wlrsurf -> do
     subs <- surfaceGetSubs wlrsurf
     points <- forM subs $ \sub -> do
         WlrBox x y w h <- subSurfaceGetBox sub
-        pure $ ((Point x y), (Point (x + w) (x + h)))
+        pure $ ((Point x y), (Point (x + w) (y + h)))
     let topleft = map fst points
         botright = map snd points
         Point lx ly = foldr (\(Point x1 y1) (Point x2 y2) -> Point (min x1 x2) (min y1 y2)) (Point 0 0) topleft
