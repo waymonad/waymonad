@@ -27,6 +27,7 @@ module GlobalFilter
     )
 where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import Data.Maybe (isNothing)
 import Data.Text (Text)
@@ -61,10 +62,11 @@ getGlobalName :: Ptr WlGlobal -> Way a (Maybe Text)
 getGlobalName name = M.lookup name . unGM <$> getEState
 
 -- | No unregister for now, it's not worth it either way :/
-getFilterBracket :: (Ptr Client -> Ptr WlGlobal -> Way a Bool) -> Way a (Bracketed (DisplayServer))
-getFilterBracket fun = do
+getFilterBracket :: (Ptr Client -> Ptr WlGlobal -> Way a Bool) -> Bracketed DisplayServer a
+getFilterBracket fun = Bracketed (\dsp -> do
     cb <- makeCallback2 fun
-    pure $ Bracketed (`setGlobalFilter` Just cb) (const $ pure ())
+    liftIO (setGlobalFilter dsp $ Just cb)
+                                 ) (const $ pure ())
 
 -- This is pretty useless, just to show off
 filterKnown :: Ptr Client -> Ptr WlGlobal -> Way a Bool

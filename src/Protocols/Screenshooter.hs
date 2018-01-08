@@ -42,8 +42,6 @@ makeManager _ = do
     registerGlobal "Screenshooter" =<< liftIO (getScreenshooterGlobal ptr)
     pure ptr
 
-getScreenshooterBracket :: Way a (Bracketed ())
-getScreenshooterBracket = do
-    cb <- makeCallback makeManager
-    pure $ Bracketed cb screenshooterDestroy
+getScreenshooterBracket :: Bracketed () a
+getScreenshooterBracket = Bracketed makeManager (liftIO . screenshooterDestroy)
 

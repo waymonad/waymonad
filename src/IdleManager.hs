@@ -107,10 +107,9 @@ idleSetup msecs dsp backend = do
     let signals = backendGetSignals backend
     setSignalHandler (inputAdd signals) $ handleInputAdd (gotInput src msecs)
 
-getIdleBracket :: Int -> Way a (Bracketed (DisplayServer, Ptr Backend))
-getIdleBracket msecs = do
-    ret <- makeCallback $ uncurry (idleSetup msecs)
-    pure $ Bracketed ret (const $ pure ())
+getIdleBracket :: Int -> Bracketed (DisplayServer, Ptr Backend) a
+getIdleBracket msecs =
+    Bracketed (uncurry (idleSetup msecs)) (const $ pure ())
 
 idleLog :: SomeEvent -> Way a ()
 idleLog evt = whenJust (getEvent evt) $ \case

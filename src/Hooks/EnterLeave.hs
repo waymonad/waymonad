@@ -61,7 +61,7 @@ outputChangeEvt
 outputChangeEvt Nothing = pure ()
 outputChangeEvt (Just evt) = do
     whenJust (outputMappingEvtPre evt) (sendLeaves $ outputMappingEvtOutput evt)
-    whenJust (outputMappingEvtPre evt) (sendEnters $ outputMappingEvtOutput evt)
+    whenJust (outputMappingEvtCur evt) (sendEnters $ outputMappingEvtOutput evt)
 
 
 enterLeaveHook :: WSTag a => SomeEvent -> Way a ()

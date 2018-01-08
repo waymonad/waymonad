@@ -134,7 +134,7 @@ executable waymonad
   build-depends:       unix, mtl, text, hsroots, process, transformers
   build-depends:       config-schema, config-value, xdg-basedir, network
   build-depends:       bytestring, data-default, semigroupoids, HFuse
-  build-depends:       formatting, stm
+  build-depends:       formatting, stm, unliftio-core, unliftio
   
   -- Directories containing source files.
   hs-source-dirs:      src

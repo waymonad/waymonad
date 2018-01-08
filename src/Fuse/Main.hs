@@ -38,7 +38,7 @@ import Graphics.Wayland.Server
 import Shared (Bracketed (..))
 import ViewSet (WSTag (..))
 import WayUtil (closeCompositor)
-import Waymonad (getSeat, getState, getLoggers, runWay, makeCallback)
+import Waymonad (getSeat, getState, getLoggers, runWay, makeCallback, unliftWay)
 import Waymonad.Types (Way)
 
 import Fuse.Common
@@ -101,21 +101,22 @@ mainDir = simpleDir $ M.fromList
     ]
 
 
-getFuseBracket :: WSTag a => Way a (Bracketed DisplayServer)
+getFuseBracket :: WSTag a => Bracketed DisplayServer a
 getFuseBracket = do
-    ops <- fuseOps
-    runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
-    let fuseDir = runtimeDir ++ "/waymonad"
-    liftIO $ createDirectoryIfMissing False fuseDir
 
 
-    pure $ PreBracket (\dsp act -> do
-        evtLoop <- displayGetEventLoop dsp
+    PreBracket (\dsp act -> do
+        ops <- fuseOps
+        runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
+        let fuseDir = runtimeDir ++ "/waymonad"
+        liftIO $ createDirectoryIfMissing False fuseDir
+        evtLoop <- liftIO $ displayGetEventLoop dsp
         let register fd cb = eventLoopAddFd evtLoop fd clientStateReadable (\ _ _ -> cb >> pure False)
-        fuseRunInline
+        pass <- unliftWay act
+        liftIO $ fuseRunInline
             register
             eventSourceRemove
-            act
+            pass
             "waymonad"
             [fuseDir, "-o", "default_permissions"]
             ops

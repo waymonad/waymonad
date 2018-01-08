@@ -198,28 +198,26 @@ data WayUserConf a = WayUserConf
     , wayUserConfEventHook   :: SomeEvent -> Way a ()
     , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding a)]
 
-    , wayUserConfDisplayHook :: [Way a (Bracketed DisplayServer)]
-    , wayUserConfBackendHook :: [Way a (Bracketed (DisplayServer, Ptr Backend))]
-    , wayUserConfPostHook    :: [Way a (Bracketed ())]
+    , wayUserConfDisplayHook :: [Bracketed DisplayServer a]
+    , wayUserConfBackendHook :: [Bracketed (DisplayServer, Ptr Backend) a]
+    , wayUserConfPostHook    :: [Bracketed () a]
     }
 
 wayUserRealMain :: WSTag a => WayUserConf a -> IORef Compositor -> Way a ()
 wayUserRealMain conf compRef = do
     setBaseTime
-    displayBrackets <- sequence $ wayUserConfDisplayHook conf
-    backendBrackets <- sequence $ wayUserConfBackendHook conf
-    postBrackets <- sequence $ wayUserConfPostHook conf
 
     outputAdd <- makeCallback $ handleOutputAdd compRef $ wayUserConfWorkspaces conf
-    outputRm <- makeCallback handleOutputRemove
+    outputRm  <- makeCallback handleOutputRemove
 
-    compFun <- makeCallback $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
+    compFun <- pure $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
 
-    liftIO $ launchCompositor ignoreHooks
-        { displayHook = displayBrackets
-        , backendPreHook = Bracketed compFun (const $ pure ()): backendBrackets
-        , backendPostHook = postBrackets
-        , outputAddHook = outputAdd
+    launchCompositor ignoreHooks
+        { displayHook =  wayUserConfDisplayHook conf
+        , backendPreHook = Bracketed compFun (const $ pure ()): wayUserConfBackendHook conf
+        , backendPostHook  = wayUserConfPostHook conf
+
+        , outputAddHook    = outputAdd
         , outputRemoveHook = outputRm
         }
 

@@ -43,7 +43,6 @@ module Waymonad
     , LogFun
 
     , WayBindingState (..)
-    , runWayBinding
 
     , Way
     , getState
@@ -174,24 +173,6 @@ getViewSet = liftIO . readIORef . wayBindingState =<< getState
 
 getWorkspace :: VS.WSTag a => a -> Way a VS.Workspace
 getWorkspace ws = fromJust . M.lookup ws <$> getViewSet
-
-runWayLogging :: MonadIO m => WayLoggers -> WayLogging a -> m a
-runWayLogging val (WayLogging act) = liftIO $ runReaderT act val
-
-runWayBinding :: MonadIO m => WayLoggers -> WayBindingState a -> WayBinding a b -> m b
-runWayBinding logger val (WayBinding act) =
-    liftIO $ runWayLogging logger $ runReaderT act val
-
-
-runWay
-    :: MonadIO m
-    => Maybe Seat
-    -> WayBindingState a
-    -> WayLoggers
-    -> Way a b
-    -> m b
-runWay seat state logger (Way m) =
-    liftIO $ runWayBinding logger state $ runReaderT m seat
 
 unliftWay :: Way a b -> Way a (IO b)
 unliftWay act = do

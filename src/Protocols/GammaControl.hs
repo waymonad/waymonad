@@ -41,7 +41,5 @@ makeManager dsp = do
     registerGlobal "GammaControl" =<< liftIO (getGammaGlobal ptr)
     pure ptr
 
-getGammaBracket :: Way a (Bracketed (DisplayServer))
-getGammaBracket = do
-    cb <- makeCallback makeManager
-    pure $ Bracketed cb destroyGammaManager
+getGammaBracket :: Bracketed DisplayServer a
+getGammaBracket = Bracketed makeManager (liftIO . destroyGammaManager)

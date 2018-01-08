@@ -44,11 +44,14 @@ module Waymonad.Types
     , Query (..)
     , InsertAction (..)
     , Managehook
+    , runWay
     )
 where
 
-import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (ReaderT, MonadReader)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Unlift
+import Control.Monad.Reader (ReaderT, MonadReader, runReaderT, ask)
+import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.Default (Default(..))
 import Data.IORef (IORef)
 import Data.IntMap (IntMap)
@@ -189,3 +192,21 @@ instance Monoid (InsertAction a) where
     l `mappend` r = l <> r
 
 type Managehook a = Query a (InsertAction a)
+
+
+runWayLogging :: MonadIO m => WayLoggers -> WayLogging a -> m a
+runWayLogging val (WayLogging act) = liftIO $ runReaderT act val
+
+runWayBinding :: MonadIO m => WayLoggers -> WayBindingState a -> WayBinding a b -> m b
+runWayBinding logger val (WayBinding act) =
+    liftIO $ runWayLogging logger $ runReaderT act val
+
+runWay :: MonadIO m => Maybe Seat -> WayBindingState a -> WayLoggers -> Way a b -> m b
+runWay seat state logger (Way m) = liftIO $ runWayBinding logger state $ runReaderT m seat
+
+instance MonadUnliftIO (Way a) where
+    askUnliftIO = do
+        seat <- ask
+        state <- Way $ lift ask
+        loggers <- Way $ lift $ WayBinding $ lift ask
+        pure $ UnliftIO $ \act -> runWay seat state loggers  act
