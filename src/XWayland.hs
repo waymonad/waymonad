@@ -153,12 +153,10 @@ instance ShellSurface XWaySurface where
         box <- X.getX11SurfaceGeometry surf
         pure (fromIntegral $ boxWidth box, fromIntegral $ boxHeight box)
     resize (XWaySurface _ surf) width height = liftIO $ do
-        p@(Point x y) <- X.getX11SurfacePosition surf
-        hPrint stderr p
+        (Point x y) <- X.getX11SurfacePosition surf
         X.configureX11Surface surf
             (fromIntegral x) (fromIntegral y)
             (fromIntegral width) (fromIntegral height)
-        hPutStrLn stderr "Survived!"
     activate (XWaySurface _ surf) active = liftIO $ X.activateX11Surface surf active
     getEventSurface (XWaySurface _ surf) x y = liftIO $ do
         (WlrBox _ _ w h) <- X.getX11SurfaceGeometry surf

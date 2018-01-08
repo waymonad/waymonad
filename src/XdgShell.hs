@@ -174,11 +174,11 @@ getBoundingBox surf = doJust (R.xdgSurfaceGetSurface surf) $ \wlrsurf -> do
 
 xdgPopupAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgPopupAt (XdgSurface surf) x y = do
-    (popup, newx, newy) <- MaybeT (liftIO $ R.xdgPopupAt surf x y)
+    (popup, popx, popy) <- MaybeT (liftIO $ R.xdgPopupAt surf x y)
     ret <- MaybeT (liftIO $ R.xdgSurfaceGetSurface popup)
-    pure $ (ret, x - newx, y - newy)
+    pure $ (ret, x - popx, y - popy)
 
-xdgSubsurfaceAt :: MonadIO m =>  XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
+xdgSubsurfaceAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgSubsurfaceAt (XdgSurface surf) x y = do
     wlrsurf <- MaybeT (liftIO $ R.xdgSurfaceGetSurface surf)
     MaybeT (liftIO $ subSurfaceAt wlrsurf x y)
@@ -200,7 +200,7 @@ getXdgEventSurface surf x y =
 instance ShellSurface XdgSurface where
     close = liftIO . R.sendClose . unXdg
     getSurface = liftIO . R.xdgSurfaceGetSurface . unXdg
-    getSize (XdgSurface surf) = liftIO $ getBoundingBox surf
+    getSize = liftIO . getBoundingBox . unXdg
     resize (XdgSurface surf) width height =
         liftIO $ R.setSize surf width height
     activate = liftIO .: R.setActivated . unXdg

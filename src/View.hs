@@ -226,14 +226,9 @@ getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr Wl
 getViewEventSurface View {viewSurface = surf, viewPosition = local, viewScaling = scale} x y = liftIO $ do
     scaleFactor <- readIORef scale
     posBox <- readIORef local
-    evtSurf <- getEventSurface surf
+    getEventSurface surf
         ((x - fromIntegral (boxX posBox)) / realToFrac scaleFactor)
         ((y - fromIntegral (boxY posBox)) / realToFrac scaleFactor)
-    case evtSurf of
-        Nothing -> pure Nothing
-        Just tmp@(topSurf, eX, eY) -> do
-            ret <- subSurfaceAt topSurf eX eY
-            pure (ret <|> Just tmp)
 
 getViewClient :: MonadIO m => View -> m (Maybe Client)
 getViewClient View {viewSurface = surf} =
