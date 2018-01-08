@@ -35,7 +35,17 @@ import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable (peek))
 import Formatting (sformat, (%), int, float)
 
-import Graphics.Wayland.Server (OutputTransform, outputTransformNormal, outputTransform180)
+import Graphics.Wayland.Server
+    ( OutputTransform
+    , outputTransformNormal
+    , outputTransform180
+    , outputTransform90
+    , outputTransform270
+    , outputTransformFlipped
+    , outputTransformFlipped_180
+    , outputTransformFlipped_90
+    , outputTransformFlipped_270
+    )
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Output
@@ -118,7 +128,13 @@ makeModesText out = do
 
 readTransform :: Text -> Maybe OutputTransform
 readTransform "Normal" = Just outputTransformNormal
+readTransform "90" = Just outputTransform90
 readTransform "180" = Just outputTransform180
+readTransform "270" = Just outputTransform270
+readTransform "Flipped" = Just outputTransformFlipped
+readTransform "Flipped90" = Just outputTransformFlipped_90
+readTransform "Flipped180" = Just outputTransformFlipped_180
+readTransform "Flipped270" = Just outputTransformFlipped_270
 readTransform _ = Nothing
 
 makeOutputDir :: WSTag a => Output -> Way a (Entry a)

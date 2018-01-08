@@ -25,6 +25,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Data.String (IsString)
 import Protocols.Screenshooter
 import Protocols.GammaControl
 import GlobalFilter
@@ -69,9 +70,9 @@ import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 
 import Input (inputCreate)
-import Layout.Mirror (Mirror (..), MMessage (..))
+import Layout.Mirror (mkMirror, ToggleMirror (..))
 import Layout.Tall (Tall (..))
-import Layout.ToggleFull (ToggleFull (..), TMessage (..))
+import Layout.ToggleFull (mkTFull, ToggleFullM (..))
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
 import Utility (doJust)
@@ -116,44 +117,6 @@ import XdgShell (xdgShellCreate)
 
 import qualified Data.Map.Strict as M
 
-
-wsSyms :: [Keysym]
-wsSyms =
-    [ keysym_1
-    , keysym_2
-    , keysym_3
-    , keysym_4
-    , keysym_5
-    , keysym_6
-    , keysym_7
-    , keysym_8
-    , keysym_9
-    , keysym_0
-    ]
-
-workspaces :: [Text]
-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
-
-bindings :: [(([WlrModifier], Keysym), KeyBinding Text)]
-bindings =
-    [ (([modi], keysym_k), modifyFocusedWS moveLeft)
-    , (([modi], keysym_j), modifyFocusedWS moveRight)
-    , (([modi, Shift], keysym_k), modifyFocusedWS moveViewLeft)
-    , (([modi, Shift], keysym_j), modifyFocusedWS moveViewRight)
-    , (([modi], keysym_Return), spawn "weston-terminal")
-    , (([modi, Shift], keysym_Return), spawnOn "2" "weston-terminal" [])
-    , (([modi], keysym_d), spawn "dmenu_run")
-    , (([modi], keysym_f), sendMessage TMessage)
-    , (([modi], keysym_m), sendMessage MMessage)
-    , (([modi], keysym_n), focusNextOut)
-    , (([modi], keysym_q), killCurrent)
-    , (([modi], keysym_o), centerFloat)
-    , (([modi], keysym_Right), sendMessage NextLayout)
-    , (([modi], keysym_c), doJust getCurrentView makeProxy)
-    , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
-    , (([modi, Shift], keysym_e), closeCompositor)
-    ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
-    where modi = Alt
 
 makeBindingMap :: WSTag a => [(([WlrModifier], Keysym), KeyBinding a)] -> BindingMap a
 makeBindingMap = M.fromList .
@@ -278,6 +241,44 @@ wayUserMain conf = do
 
 -- This part is the intended user config (Haskell side)
 
+wsSyms :: [Keysym]
+wsSyms =
+    [ keysym_1
+    , keysym_2
+    , keysym_3
+    , keysym_4
+    , keysym_5
+    , keysym_6
+    , keysym_7
+    , keysym_8
+    , keysym_9
+    , keysym_0
+    ]
+
+workspaces :: IsString a => [a]
+workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+
+bindings :: (IsString a, WSTag a) => [(([WlrModifier], Keysym), KeyBinding a)]
+bindings =
+    [ (([modi], keysym_k), modifyFocusedWS moveLeft)
+    , (([modi], keysym_j), modifyFocusedWS moveRight)
+    , (([modi, Shift], keysym_k), modifyFocusedWS moveViewLeft)
+    , (([modi, Shift], keysym_j), modifyFocusedWS moveViewRight)
+    , (([modi], keysym_Return), spawn "weston-terminal")
+    , (([modi, Shift], keysym_Return), spawnOn "2" "weston-terminal" [])
+    , (([modi], keysym_d), spawn "dmenu_run")
+    , (([modi], keysym_f), sendMessage ToggleFullM)
+    , (([modi], keysym_m), sendMessage ToggleMirror)
+    , (([modi], keysym_n), focusNextOut)
+    , (([modi], keysym_q), killCurrent)
+    , (([modi], keysym_o), centerFloat)
+    , (([modi], keysym_Right), sendMessage NextLayout)
+    , (([modi], keysym_c), doJust getCurrentView makeProxy)
+    , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
+    , (([modi, Shift], keysym_e), closeCompositor)
+    ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
+    where modi = Alt
+
 myEventHook :: WSTag a => SomeEvent -> Way a ()
 myEventHook =
        seatOutputEventHandler
@@ -289,11 +290,11 @@ myEventHook =
     <> wsScaleHook
     <> idleLog
 
-myConf :: WayUserConf Text
+myConf :: (IsString a, WSTag a) => WayUserConf a
 myConf = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout (Mirror False (ToggleFull False (Tall ||| Spiral)))
-    , wayUserConfManagehook  = overrideXRedirect <> manageSpawnOn <> manageNamed
+    , wayUserConfLayouts     = sameLayout . mkMirror $ mkTFull (Tall ||| Spiral)
+    , wayUserConfManagehook  = overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
 
@@ -303,4 +304,4 @@ myConf = WayUserConf
     }
 
 main :: IO ()
-main = wayUserMain myConf
+main = wayUserMain (myConf :: WayUserConf Text)

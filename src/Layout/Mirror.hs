@@ -22,8 +22,9 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveAnyClass #-}
 module Layout.Mirror
-    ( MMessage (..)
+    ( ToggleMirror (..)
     , Mirror (..)
+    , mkMirror
     )
 where
 
@@ -41,16 +42,19 @@ import ViewSet
 
 import qualified Data.Text as T
 
-data MMessage = MMessage
+data ToggleMirror = ToggleMirror
     deriving (Show, Eq, Message)
 
 data Mirror l = Mirror Bool l
+
+mkMirror :: l -> Mirror l
+mkMirror = Mirror False
 
 instance LayoutClass l => LayoutClass (Mirror l) where
     handleMessage :: Mirror l -> SomeMessage -> Maybe (Mirror l)
     handleMessage (Mirror state l) m =
         case getMessage m of
-            (Just MMessage) -> Just $ Mirror (not state) l
+            (Just ToggleMirror) -> Just $ Mirror (not state) l
             Nothing -> Mirror state <$> handleMessage l m
     broadcastMessage :: Mirror l -> SomeMessage -> Maybe (Mirror l)
     broadcastMessage (Mirror state l) m = Mirror state <$> broadcastMessage l m

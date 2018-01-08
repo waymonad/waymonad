@@ -36,10 +36,7 @@ import WayUtil.Focus (setOutputWorkspace)
 import WayUtil.Timing
 import Waymonad (Way, getEvent, SomeEvent, WayBindingState (..), getState)
 
-attachFreeWS
-    :: WSTag a
-    => Output
-    -> Way a ()
+attachFreeWS :: WSTag a => Output -> Way a ()
 attachFreeWS out = do
     taken <- fmap (map fst) <$> liftIO . readIORef . wayBindingMapping =<< getState
     wss <- wayUserWorkspaces <$> getState
@@ -48,17 +45,10 @@ attachFreeWS out = do
         (x:_) -> setOutputWorkspace x out
         [] -> pure ()
 
-
-handleEvent
-    :: WSTag a
-    => OutputAddEvent
-    -> Way a ()
+handleEvent :: WSTag a => OutputAddEvent -> Way a ()
 handleEvent (OutputAdd out) = do
     time :: Word <- getSeconds <$> getBasedTime
     when (time < 300) $ attachFreeWS out
 
-outputAddHook
-    :: WSTag a
-    => SomeEvent
-    -> Way a ()
+outputAddHook :: WSTag a => SomeEvent -> Way a ()
 outputAddHook evt = whenJust (getEvent evt) handleEvent
