@@ -28,7 +28,9 @@ module XdgShell
     )
 where
 
+import Control.Applicative ((<|>))
 import Control.Monad (forM)
+import Control.Monad.Trans.Maybe (MaybeT (..))
 
 import Utility (doJust)
 import View
@@ -42,7 +44,7 @@ import Data.Maybe (fromJust)
 import Data.Composition ((.:))
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxContainsPoint)
-import Graphics.Wayland.WlRoots.Surface -- (WlrSurface)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceGetSubs, subSurfaceGetBox, subSurfaceAt)
 import Foreign.Storable (Storable(..))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import qualified Graphics.Wayland.WlRoots.XdgShell as R
@@ -170,6 +172,30 @@ getBoundingBox surf = doJust (R.xdgSurfaceGetSurface surf) $ \wlrsurf -> do
         Point hx hy = foldr (\(Point x1 y1) (Point x2 y2) -> Point (max x1 x2) (max y1 y2)) (Point bw bh) botright
     pure $ (fromIntegral (hx - lx), fromIntegral (hy - ly))
 
+xdgPopupAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
+xdgPopupAt (XdgSurface surf) x y = do
+    (popup, newx, newy) <- MaybeT (liftIO $ R.xdgPopupAt surf x y)
+    ret <- MaybeT (liftIO $ R.xdgSurfaceGetSurface popup)
+    pure $ (ret, x - newx, y - newy)
+
+xdgSubsurfaceAt :: MonadIO m =>  XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
+xdgSubsurfaceAt (XdgSurface surf) x y = do
+    wlrsurf <- MaybeT (liftIO $ R.xdgSurfaceGetSurface surf)
+    MaybeT (liftIO $ subSurfaceAt wlrsurf x y)
+
+xdgMainSurf :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
+xdgMainSurf (XdgSurface surf) x y = MaybeT . liftIO $ do
+    box <- R.getGeometry surf
+    if boxContainsPoint (Point (floor x) (floor y)) box
+        then do
+            realS <- R.xdgSurfaceGetSurface surf
+            pure $ fmap (, x, y) realS
+        else pure Nothing
+
+getXdgEventSurface :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
+getXdgEventSurface surf x y =
+    xdgPopupAt surf x y <|> xdgSubsurfaceAt surf x y <|> xdgMainSurf surf x y
+
 
 instance ShellSurface XdgSurface where
     close = liftIO . R.sendClose . unXdg
@@ -179,19 +205,7 @@ instance ShellSurface XdgSurface where
         liftIO $ R.setSize surf width height
     activate = liftIO .: R.setActivated . unXdg
     renderAdditional fun (XdgSurface surf) = renderPopups fun surf
-    getEventSurface (XdgSurface surf) x y = liftIO $ do
-        mPop <- R.xdgPopupAt surf x y
-        case mPop of
-            Nothing -> do
-                box <- R.getGeometry surf
-                if boxContainsPoint (Point (floor x) (floor y)) box
-                    then do
-                        realS <- R.xdgSurfaceGetSurface surf
-                        pure $ fmap (, x, y) realS
-                    else pure Nothing
-            Just (popup, newx, newy) -> do
-                realS <- R.xdgSurfaceGetSurface popup
-                pure $ fmap (,x - newx, y - newy) realS
+    getEventSurface surf x y = runMaybeT (getXdgEventSurface surf x y)
     getID = ptrToInt . unXdg
     getTitle = liftIO . R.getTitle . unXdg
     getAppId = liftIO . R.getAppId . unXdg
