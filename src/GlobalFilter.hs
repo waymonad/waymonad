@@ -24,6 +24,7 @@ module GlobalFilter
     , getGlobalName
     , getFilterBracket
     , filterKnown
+    , filterUser
     )
 where
 
@@ -32,8 +33,9 @@ import Data.Map (Map)
 import Data.Maybe (isNothing)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
+import System.Posix.User (getEffectiveUserID)
 
-import Graphics.Wayland.Server (DisplayServer, Client)
+import Graphics.Wayland.Server (DisplayServer, Client (..), clientGetCredentials)
 import Graphics.Wayland.Global (WlGlobal, setGlobalFilter)
 
 import Shared (Bracketed (..))
@@ -62,12 +64,20 @@ getGlobalName :: Ptr WlGlobal -> Way a (Maybe Text)
 getGlobalName name = M.lookup name . unGM <$> getEState
 
 -- | No unregister for now, it's not worth it either way :/
-getFilterBracket :: (Ptr Client -> Ptr WlGlobal -> Way a Bool) -> Bracketed DisplayServer a
+getFilterBracket :: (Client -> Ptr WlGlobal -> Way a Bool) -> Bracketed DisplayServer a
 getFilterBracket fun = Bracketed (\dsp -> do
-    cb <- makeCallback2 fun
+    cb <- makeCallback2 (fun . Client)
     liftIO (setGlobalFilter dsp $ Just cb)
                                  ) (const $ pure ())
 
 -- This is pretty useless, just to show off
-filterKnown :: Ptr Client -> Ptr WlGlobal -> Way a Bool
+filterKnown :: Client -> Ptr WlGlobal -> Way a Bool
 filterKnown _ ptr = isNothing <$> getGlobalName ptr
+
+filterUser :: Client  -> Ptr WlGlobal -> Way a Bool
+filterUser client ptr = do
+    mine <- liftIO $ getEffectiveUserID --- This could be cached?
+    (_, other, _) <- liftIO $ clientGetCredentials client
+    if mine == other
+        then pure True
+        else filterKnown client ptr

@@ -44,22 +44,24 @@ import Waymonad
 -- This may be triggered by another seat on the same output changing the
 -- output <-> seat mapping!
 handleKeyboardSwitch :: WSTag a => SomeEvent -> Way a ()
-handleKeyboardSwitch e = whenJust (getEvent e) $ \(KeyboardWSChangeEvent s pre cur) -> do
-    whenJust pre $ unsetFocus s
-    case cur of
-        -- We focused the void (in some way) clear focus
-        Nothing -> void $ keyboardClear s
-        -- Focused something
-        Just ws -> withWS ws (getFocused s) >>= \case
-            -- Ok, we have a focused view here. Just do the usual focus
-            -- setting procedure
-            Just _ -> setFocused s ws
-            -- Nothing focused yet. Try master
-            Nothing -> withWS ws getMaster >>= \case
-                -- Master doesn't exist. So this WS is empty, let's clear
-                -- focus
-                Nothing -> keyboardClear s
-                -- Master exists, set as focused and start usual procedure
-                Just v -> do
-                    focusWSView v ws
-                    setFocused s ws
+handleKeyboardSwitch e = case (getEvent e) of
+    Just (KeyboardWSChangeEvent s pre cur) -> do
+        whenJust pre $ unsetFocus s
+        case cur of
+            -- We focused the void (in some way) clear focus
+            Nothing -> void $ keyboardClear s
+            -- Focused something
+            Just ws -> withWS ws (getFocused s) >>= \case
+                -- Ok, we have a focused view here. Just do the usual focus
+                -- setting procedure
+                Just _ -> setFocused s ws
+                -- Nothing focused yet. Try master
+                Nothing -> withWS ws getMaster >>= \case
+                    -- Master doesn't exist. So this WS is empty, let's clear
+                    -- focus
+                    Nothing -> keyboardClear s
+                    -- Master exists, set as focused and start usual procedure
+                    Just v -> do
+                        focusWSView v ws
+                        setFocused s ws
+    _ -> pure ()
