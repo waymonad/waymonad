@@ -118,7 +118,7 @@ getFuseBracket = do
             eventSourceRemove
             pass
             "waymonad"
-            [fuseDir, "-o", "default_permissions"]
+            [fuseDir, "-o", "default_permissions,auto_unmount"]
             ops
             defaultExceptionHandler
                 )
