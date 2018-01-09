@@ -241,9 +241,10 @@ frameHandler secs output = do
 --    needsRedraw <- liftIO $ mapM (\v -> getViewSurface v >>= (\case
 --        Nothing -> pure mempty
 --        Just surf -> Any <$> surfaceHasDamage surf)) (fmap fst $ join $ maybeToList viewsM)
-    needsRedraw <- mapM (fmap Any . viewIsDirty) (fmap fst $ join $ maybeToList viewsM)
+    {-needsRedraw <- mapM (fmap Any . viewIsDirty) (fmap fst $ join $ maybeToList viewsM)
     needsSwap <- liftIO $ getOutputNeedsSwap output
-    when (getAny (foldr (<>) mempty needsRedraw) || needsSwap) $ liftIO $ renderOn output (compRenderer comp) $ do
+    when (getAny (foldr (<>) mempty needsRedraw) || needsSwap) $-}
+    liftIO $ renderOn output (compRenderer comp) $ do
         hPutStrLn stderr "Going to render on output"
         case viewsM of
             Nothing -> pure ()
