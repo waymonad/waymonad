@@ -25,6 +25,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import StartupHook
 import Data.String (IsString)
 import Protocols.Screenshooter
 import Protocols.GammaControl
@@ -298,7 +299,7 @@ myConf = WayUserConf
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
 
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser]
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, getStartupBracket (spawn "weston-terminal")]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket]
     }

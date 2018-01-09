@@ -123,6 +123,7 @@ executable waymonad
   other-modules:        Waymonad.Extensible
   other-modules:        XWayland
   other-modules:        XdgShell
+  other-modules:        StartupHook
   
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:    EmptyDataDecls, NumDecimals, ScopedTypeVariables, OverloadedStrings, LambdaCase, ExistentialQuantification, StandaloneDeriving, TupleSections, InstanceSigs, GeneralizedNewtypeDeriving, FlexibleContexts, FlexibleInstances

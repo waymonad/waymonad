@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2017  Markus Ongyerth
+Copyright (C) 2018  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,24 +18,24 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Output
-    ( Output (..)
-    , getOutputId
-    , setOutputDirty
+module StartupHook
+    ( getStartupBracket
     )
 where
 
-import Control.Monad.IO.Class (MonadIO)
-import Data.Text (Text)
-import Foreign.Ptr (Ptr)
+import Control.Monad (void)
+import Control.Monad.IO.Class (liftIO)
 
-import Graphics.Wayland.WlRoots.Output (WlrOutput)
+import Graphics.Wayland.Server (DisplayServer, eventLoopAddIdle, displayGetEventLoop)
 
-data Output = Output
-    { outputRoots :: Ptr WlrOutput
-    , outputName  :: Text
-    }
+import Shared (Bracketed (..))
+import Utility.Spawn (spawn)
+import Waymonad (unliftWay)
+import Waymonad.Types (Way)
 
-getOutputId :: Output -> Int
-
-setOutputDirty :: MonadIO m => Output -> m ()
+getStartupBracket :: Way a () -> Bracketed DisplayServer a
+getStartupBracket act = Bracketed (\dsp -> do
+        evtLoop <- liftIO $ displayGetEventLoop dsp
+        cb <- unliftWay act
+        void . liftIO $ eventLoopAddIdle evtLoop cb
+    ) (const $ pure ())

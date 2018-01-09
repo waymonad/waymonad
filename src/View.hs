@@ -50,6 +50,9 @@ module View
     , addViewResizeListener
     , rmViewResizeListener
     , triggerViewResize
+
+    , viewSetClean
+    , viewIsDirty
     )
 where
 
@@ -106,6 +109,7 @@ data View = forall a. ShellSurface a => View
     , viewResize   :: IORef (IntMap (View -> IO ()))
     , viewID       :: Int
     , viewTokens   :: [ListenerToken]
+    , viewDirty    :: IORef Bool
     }
 
 instance Show View where
@@ -139,6 +143,7 @@ removeListeners View {viewTokens = toks} =
 
 handleCommit :: MonadIO m => View -> IORef (Double, Double) -> m ()
 handleCommit view ref = liftIO $ do
+    writeIORef (viewDirty view) True
     (width, height) <- getViewSize view
     (oldWidth, oldHeight) <- readIORef ref
     when (oldWidth /= width || oldHeight /= height) $ do
@@ -175,6 +180,7 @@ createView surf = liftIO $ do
 
             pure [destroyHandler, commitHandler]
 
+    dirty <- newIORef True
     let ret = View
             { viewSurface = surf
             , viewBox = global
@@ -184,6 +190,7 @@ createView surf = liftIO $ do
             , viewResize = resizeCBs
             , viewID = idVal
             , viewTokens = tokens
+            , viewDirty = dirty
             }
     writeIORef viewRef ret
     pure ret
@@ -303,3 +310,9 @@ triggerViewResize :: MonadIO m => View -> m ()
 triggerViewResize v@View {viewResize = ref} = liftIO $ do
     cbs <- readIORef ref
     mapM_ ($ v) cbs
+
+viewIsDirty :: MonadIO m => View -> m Bool
+viewIsDirty = liftIO . readIORef . viewDirty
+
+viewSetClean :: MonadIO m => View -> m ()
+viewSetClean = liftIO . flip writeIORef False . viewDirty

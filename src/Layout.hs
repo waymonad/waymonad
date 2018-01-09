@@ -34,7 +34,7 @@ import Data.IORef (modifyIORef, readIORef)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
 
-import {-# SOURCE #-} Output (Output (..), getOutputId)
+import {-# SOURCE #-} Output (Output (..), getOutputId, setOutputDirty)
 import Utility (whenJust)
 import View (setViewBox)
 import ViewSet (WSTag (..), Workspace (..), Layout (..), pureLayout)
@@ -82,6 +82,7 @@ reLayout ws = do
     let cacheRef = wayBindingCache state
 
     boxes <- getLayoutBoxes ws
+    mapM_ (setOutputDirty . fst) boxes
 
     forM_ boxes $ \(out, box) -> whenJust wstate $ \case
         (Workspace _ Nothing) -> liftIO $ modifyIORef cacheRef $ IM.delete (getOutputId out)

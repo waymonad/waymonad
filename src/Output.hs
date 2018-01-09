@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase #-}
 module Output
     ( handleOutputAdd
     , handleOutputRemove
@@ -28,26 +29,29 @@ module Output
     , getOutputId
     , outputFromWlr
     , findMode
+    , setOutputDirty
     )
 where
 
 import Control.Exception (bracket_)
+import Control.Monad (forM_, forM, filterM, void, when, join)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (maximumBy, minimumBy)
 import Data.Function (on)
-import Data.List ((\\), sortOn)
-import Data.Ratio (Ratio, (%))
-import Control.Monad (forM_, forM, filterM, void, when)
-import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, readIORef, modifyIORef)
+import Data.List ((\\), sortOn, find)
 import Data.Map (Map)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, fromJust, maybeToList)
+import Data.Monoid (Any (..), (<>))
+import Data.Ratio (Ratio, (%))
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Word (Word32)
-import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
+import Foreign.Storable (Storable(peek))
+import System.IO (hPutStrLn, stderr)
+
 import Graphics.Wayland.Server (callbackDone)
-import System.IO (stderr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
@@ -62,6 +66,9 @@ import Graphics.Wayland.WlRoots.Output
     , getOutputName
     , getOutputScale
     , setOutputScale
+
+    , getOutputNeedsSwap
+    , setOutputNeedsSwap
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( WlrOutputLayout
@@ -96,8 +103,10 @@ import Graphics.Wayland.WlRoots.Surface
     , withSurfaceMatrix
     , surfaceGetTexture
     , surfaceGetScale
+    , surfaceHasDamage
     )
 
+import Waymonad (makeCallback2)
 import Waymonad.Types (Compositor (..))
 import Config (configOutputs)
 import qualified Config.Box as C (Point (..))
@@ -107,13 +116,19 @@ import Config.Output (OutputConfig (..), Mode (..))
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (whenJust, doJust)
-import View (View, getViewSurface, renderViewAdditional, getViewBox, viewGetScale, viewGetLocal)
+import View
+    ( View
+    , getViewSurface
+    , renderViewAdditional
+    , getViewBox
+    , viewGetScale
+    , viewGetLocal
+    , viewIsDirty
+    , viewSetClean
+    )
 import ViewSet (WSTag (..))
 import Waymonad
     ( Way
-    , LayoutCacheRef
-    , get
-    , runLayoutCache'
     , WayBindingState (..)
     , getState
     , EventClass
@@ -191,6 +206,7 @@ outputHandleSurface comp secs output surface scaleFactor box = do
 
 outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> View -> WlrBox -> IO (IO ())
 outputHandleView comp secs output view box = doJust (getViewSurface view) $ \surface -> do
+    viewSetClean view
     scale <- viewGetScale view
     local <- viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
@@ -212,18 +228,23 @@ outputHandleView comp secs output view box = doJust (getViewSurface view) $ \sur
 
 
 frameHandler
-    :: IORef Compositor
-    -> LayoutCacheRef
-    -> IORef (Set View)
-    -> Double
+    :: WSTag a
+    => Double
     -> Ptr WlrOutput
-    -> IO ()
-frameHandler compRef cacheRef fRef secs output = runLayoutCache' cacheRef $ do
-    comp <- liftIO $ readIORef compRef
+    -> Way a ()
+frameHandler secs output = do
+    comp <- wayCompositor <$> getState
     (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
-    viewsM <- IM.lookup (ptrToInt output) <$> get
-    floats <- filterM (intersects $ compLayout comp) . S.toList =<< liftIO (readIORef fRef)
-    liftIO $ renderOn output (compRenderer comp) $ do
+    viewsM <- IM.lookup (ptrToInt output) <$> (liftIO . readIORef . wayBindingCache =<< getState)
+    floats <- filterM (intersects $ compLayout comp) . S.toList =<< (liftIO . readIORef . wayFloating =<< getState)
+    
+--    needsRedraw <- liftIO $ mapM (\v -> getViewSurface v >>= (\case
+--        Nothing -> pure mempty
+--        Just surf -> Any <$> surfaceHasDamage surf)) (fmap fst $ join $ maybeToList viewsM)
+    needsRedraw <- mapM (fmap Any . viewIsDirty) (fmap fst $ join $ maybeToList viewsM)
+    needsSwap <- liftIO $ getOutputNeedsSwap output
+    when (getAny (foldr (<>) mempty needsRedraw) || needsSwap) $ liftIO $ renderOn output (compRenderer comp) $ do
+        hPutStrLn stderr "Going to render on output"
         case viewsM of
             Nothing -> pure ()
             Just wsViews -> do
@@ -334,16 +355,13 @@ handleOutputAdd ref _ output = do
     let out = Output output name
     liftIO $ modifyIORef current (out :)
 
-    cacheRef <- wayBindingCache <$> getState
-    floats <- wayFloating <$> getState
-
     scale <- liftIO $ getOutputScale output
     seats <- getSeats
     liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
 
     sendEvent $ OutputAdd out
+    makeCallback2 frameHandler
 
-    pure $ \secs fout -> frameHandler ref cacheRef floats secs fout
 
 handleOutputRemove
     :: Ptr WlrOutput
@@ -363,7 +381,10 @@ handleOutputRemove output = do
 getOutputId :: Output -> Int
 getOutputId = ptrToInt . outputRoots
 
-outputFromWlr :: MonadIO m => Ptr WlrOutput -> m Output
-outputFromWlr ptr = liftIO $ do
-    name <- getOutputName ptr
-    pure $ Output ptr name
+outputFromWlr :: Ptr WlrOutput -> Way a Output
+outputFromWlr ptr = do
+    outs <- liftIO . readIORef . wayBindingOutputs =<< getState
+    pure . fromJust . find ((==) ptr . outputRoots) $ outs
+
+setOutputDirty :: MonadIO m => Output -> m ()
+setOutputDirty out = liftIO $ setOutputNeedsSwap (outputRoots out) True
