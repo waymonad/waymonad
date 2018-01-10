@@ -111,8 +111,8 @@ modifyCurrentWS fun = do
     runLog
 
 modifyFocusedWS
-    :: (WSTag a, FocusCore vs a)
-    => (Seat -> a -> vs -> vs) -> Way vs a ()
+    :: (WSTag ws, FocusCore vs ws)
+    => (Seat -> ws -> vs -> vs) -> Way vs ws ()
 -- Somwhat ugly hack to make sure getSeat returns a Just value, but I prefer it
 -- over code duplication
 modifyFocusedWS fun = doJust getSeat $ \_ ->

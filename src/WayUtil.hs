@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module WayUtil
 where
 
@@ -42,6 +43,7 @@ import View (View, closeView)
 import ViewSet
     ( WSTag
     , SomeMessage (..)
+    , Layouted (..)
     , Message
     , messageWS
     , broadcastWS
@@ -100,16 +102,14 @@ sendTo ws = do
         sendEvent $ WSEnter view ws
 
 
-sendMessage :: (WSTag a, Message t) => t -> Way vs a ()
-sendMessage m = undefined -- modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
+sendMessage :: (FocusCore vs a, WSTag a, Layouted vs a, Message t) => t -> Way vs a ()
+sendMessage m = modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
 
-broadcastMessageOn :: (WSTag a, Message t) => t -> a -> Way vs a ()
-broadcastMessageOn m = undefined -- modifyWS (broadcastWS (SomeMessage m))
+broadcastMessageOn :: (WSTag a, Layouted vs a, Message t) => t -> a -> Way vs a ()
+broadcastMessageOn m ws = modifyViewSet (broadcastWS (SomeMessage m) ws)
 
-broadcastMessage :: (WSTag a, Message t) => t -> Way vs a ()
-broadcastMessage m = undefined -- do
---    wss <- wayUserWorkspaces <$> getState
---    mapM_ (broadcastMessageOn m) wss
+broadcastMessage :: forall a vs t. (WSTag a, Layouted vs a, Message t) => t -> Way vs a ()
+broadcastMessage m = modifyViewSet (broadcastVS (SomeMessage m) (error "Workspace argument in broadcastVS should not be used" :: a))
 
 runLog :: (WSTag a) => Way vs a ()
 runLog = do

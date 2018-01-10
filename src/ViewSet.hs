@@ -81,18 +81,6 @@ data SomeMessage = forall m. Message m => SomeMessage m
 getMessage :: Message m => SomeMessage -> Maybe m
 getMessage (SomeMessage m) = cast m
 
-messageWS :: SomeMessage -> Workspace a -> Workspace a
-messageWS m w@(Workspace (GenericLayout l) z) =
-    case handleMessage l  m of
-        Nothing -> w
-        Just nl -> Workspace (GenericLayout nl) z
-
-broadcastWS :: SomeMessage -> Workspace a -> Workspace a
-broadcastWS m w@(Workspace (GenericLayout l) z) =
-    case broadcastMessage l  m of
-        Nothing -> w
-        Just nl -> Workspace (GenericLayout nl) z
-
 class FocusCore vs ws where
     _getFocused :: vs -> ws -> Maybe Seat -> Maybe View
     _focusView  :: ws -> Seat -> View -> vs -> vs
@@ -103,13 +91,19 @@ class FocusCore vs ws where
     getVSWorkspaces :: vs -> [ws]
 
 
-class ListLike a ws where
-    _asList           :: a -> ws -> [(Set Seat, View)]
-    _fromList         :: ws -> [(Set Seat, View)] -> a -> a
-    _moveFocusLeft    :: ws -> Seat -> a -> a
-    _moveFocusRight   :: ws -> Seat -> a -> a
-    _moveFocusedLeft  :: ws -> Seat -> a -> a
-    _moveFocusedRight :: ws -> Seat -> a -> a
+class ListLike vs ws where
+    _asList           :: vs -> ws -> [(Set Seat, View)]
+    _fromList         :: ws -> [(Set Seat, View)] -> vs -> vs
+    _moveFocusLeft    :: ws -> Seat -> vs-> vs
+    _moveFocusRight   :: ws -> Seat -> vs-> vs
+    _moveFocusedLeft  :: ws -> Seat -> vs-> vs
+    _moveFocusedRight :: ws -> Seat -> vs-> vs
+
+class Layouted vs ws where
+    messageWS :: SomeMessage -> ws -> vs -> vs
+    broadcastWS :: SomeMessage -> ws -> vs -> vs
+    broadcastVS :: SomeMessage -> ws -> vs -> vs
+    getLayout :: vs -> ws -> Maybe Layout
 
 class LayoutClass l => GenericLayoutClass l vs ws where
     gPureLayout :: l -> vs -> ws -> WlrBox -> [(View, WlrBox)]
@@ -129,6 +123,22 @@ data Workspace a = Workspace
 
 type ViewSet a = Map a (Workspace a)
 
+instance Ord a => Layouted (ViewSet a) a where
+    getLayout vs ws = case wsLayout <$> M.lookup ws vs of
+        Nothing -> Nothing
+        Just (GenericLayout l) -> Just (Layout l)
+    broadcastWS m = M.adjust modify
+        where modify w@(Workspace (GenericLayout l) z) = case broadcastMessage l  m of
+                Nothing -> w
+                Just nl -> Workspace (GenericLayout nl) z
+    messageWS m = M.adjust modify
+        where modify w@(Workspace (GenericLayout l) z) = case handleMessage l  m of
+                Nothing -> w
+                Just nl -> Workspace (GenericLayout nl) z
+    broadcastVS m _ = fmap modify
+        where modify w@(Workspace (GenericLayout l) z) = case broadcastMessage l  m of
+                Nothing -> w
+                Just nl -> Workspace (GenericLayout nl) z
 
 instance WSTag a => FocusCore (ViewSet a) a where
     _getFocused vs ws (Just s) = getFocused s =<< M.lookup ws vs
