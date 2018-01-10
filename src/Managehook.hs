@@ -47,6 +47,7 @@ import Layout
 import ViewSet
 import WayUtil
 import WayUtil.Floating
+import WayUtil.Focus (focusView)
 import WayUtil.ViewSet
     ( modifyCurrentWS, forceFocused, modifyViewSet
     )
@@ -78,6 +79,7 @@ enactInsert act = do
             ws <- getCurrentWS
             seat <- getSeat
             VS.insertView view ws seat
+            focusView view
             sendEvent $ WSEnter view ws
         InsertInto ws -> do
             seat <- getSeat

@@ -245,7 +245,6 @@ frameHandler secs output = do
     needsSwap <- liftIO $ getOutputNeedsSwap output
     when (getAny (foldr (<>) mempty needsRedraw) || needsSwap) $-}
     liftIO $ renderOn output (compRenderer comp) $ do
-        hPutStrLn stderr "Going to render on output"
         case viewsM of
             Nothing -> pure ()
             Just wsViews -> do

@@ -121,7 +121,6 @@ focusNextOut = doJust getSeat $ \seat -> doJust getCurrentOutput $ \current -> d
         possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
         let new = head . tail . dropWhile (/= current) $ cycle possibles
         setSeatOutput seat (That new)
-        -- WARN: there was a forceFocused here
 
 data SeatOutputChangeEvent
     = PointerOutputChangeEvent

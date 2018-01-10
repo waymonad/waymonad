@@ -32,6 +32,8 @@ import WayUtil.Focus
 import WayUtil.ViewSet (unsetFocus, setFocused, withViewSet)
 import Waymonad
 
+import qualified Data.Set as S
+
 -- TODO: SANITIZE!!!!
 {- So the general idea here:
  - If we focus an empty workspace -> clear focus
@@ -56,14 +58,12 @@ handleKeyboardSwitch e = case (getEvent e) of
                 -- setting procedure
                 Just _ -> setFocused s ws
                 -- Nothing focused yet. Try master
-                Nothing -> keyboardClear s
-                -- WARN: Add some defaulting semantics
-                   -- withWS ws getMaster >>= \case
-                   -- -- Master doesn't exist. So this WS is empty, let's clear
-                   -- -- focus
-                   -- Nothing -> keyboardClear s
-                   -- -- Master exists, set as focused and start usual procedure
-                   -- Just v -> do
-                   --     focusWSView v ws
-                   --     setFocused s ws
+                Nothing -> withViewSet (\_ -> fmap snd . S.lookupMin . flip _getViews ws) >>= \case
+                    -- Master doesn't exist. So this WS is empty, let's clear
+                    -- focus
+                    Nothing -> keyboardClear s
+                    -- Master exists, set as focused and start usual procedure
+                    Just v -> do
+                        focusWSView v ws
+                        setFocused s ws
     _ -> pure ()

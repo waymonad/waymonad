@@ -34,9 +34,11 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceSendEnter
     )
 
+-- TODO: Move this into a dedicated hook
+import Layout (reLayout)
 import Utility (doJust)
 import View (View, getViewSurface)
-import ViewSet (WSTag)
+import ViewSet (WSTag, FocusCore)
 import WayUtil (ViewWSChange (..))
 import WayUtil.Focus (getWorkspaceOutputs)
 import Waymonad (Way, getEvent, SomeEvent)
@@ -52,10 +54,14 @@ sendScaleEvent fun view output = liftIO $
     doJust (getViewSurface view) (flip fun $ outputRoots output)
 
 
-wsEvt :: WSTag a => Maybe (ViewWSChange a) -> Way vs a ()
+wsEvt :: (FocusCore vs a, WSTag a) => Maybe (ViewWSChange a) -> Way vs a ()
 wsEvt Nothing = pure ()
-wsEvt (Just (WSEnter v ws)) = enactEvent (sendScaleEvent surfaceSendEnter) v ws
-wsEvt (Just (WSExit v ws) ) = enactEvent (sendScaleEvent surfaceSendLeave) v ws
+wsEvt (Just (WSEnter v ws)) = do 
+    enactEvent (sendScaleEvent surfaceSendEnter) v ws
+    reLayout ws
+wsEvt (Just (WSExit v ws) ) = do
+    enactEvent (sendScaleEvent surfaceSendLeave) v ws
+    reLayout ws
 
-wsScaleHook :: WSTag a => SomeEvent -> Way vs a ()
+wsScaleHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 wsScaleHook = wsEvt . getEvent

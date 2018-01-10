@@ -35,7 +35,7 @@ module WayUtil.ViewSet
     )
 where
 
-import Control.Monad (when, join)
+import Control.Monad (when, join, void)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
@@ -80,7 +80,7 @@ modifyViewSet fun = do
 
 setFocused :: FocusCore vs a => Seat -> a -> Way vs a ()
 setFocused seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $
-    \v -> activateView v True
+    \v -> activateView v True >> void (keyboardEnter seat v)
 
 forceFocused :: (WSTag a, FocusCore vs a) => Way vs a ()
 forceFocused = doJust getSeat $ \seat -> do
