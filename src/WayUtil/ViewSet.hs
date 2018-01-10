@@ -175,7 +175,11 @@ getWorkspaceViews :: FocusCore vs a => a -> Way vs a [View]
 getWorkspaceViews ws = withViewSet (\_ vs -> fmap snd . S.toList $ _getViews vs ws)
 
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
-insertView v ws s = modifyWS ws (\ws' -> _insertView ws' s v)
+insertView v ws s = do
+    whenJust s (`unsetFocus` ws)
+    modifyWS ws (\ws' -> _insertView ws' s v)
 
 removeView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()
-removeView v ws = modifyWS ws (\ws' -> _removeView ws' v)
+removeView v ws = do
+    activateView v False
+    modifyWS ws (\ws' -> _removeView ws' v)
