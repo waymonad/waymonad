@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 module WayUtil.ViewSet
     ( modifyViewSet
     , setFocused
@@ -32,6 +33,7 @@ module WayUtil.ViewSet
     , withCurrentWS
     , withViewSet
     , getWorkspaceViews
+    , modifyWS
     )
 where
 
@@ -81,8 +83,9 @@ modifyViewSet fun = do
     liftIO $ modifyIORef ref fun
 
 setFocused :: FocusCore vs a => Seat -> a -> Way vs a ()
-setFocused seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $
-    \v -> activateView v True >> void (keyboardEnter seat v)
+setFocused seat ws = ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) >>= \case
+    Just v -> activateView v True >> void (keyboardEnter seat v)
+    Nothing -> keyboardClear seat
 
 forceFocused :: (WSTag a, FocusCore vs a) => Way vs a ()
 forceFocused = doJust getSeat $ \seat -> do

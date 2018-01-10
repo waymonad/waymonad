@@ -49,7 +49,7 @@ import WayUtil
 import WayUtil.Floating
 import WayUtil.Focus (focusView)
 import WayUtil.ViewSet
-    ( modifyCurrentWS, forceFocused, modifyViewSet
+    ( modifyCurrentWS, forceFocused
     )
 import WayUtil.Current (getCurrentWS)
 

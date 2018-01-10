@@ -105,8 +105,8 @@ sendTo ws = do
 sendMessage :: (FocusCore vs a, WSTag a, Layouted vs a, Message t) => t -> Way vs a ()
 sendMessage m = modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
 
-broadcastMessageOn :: (WSTag a, Layouted vs a, Message t) => t -> a -> Way vs a ()
-broadcastMessageOn m ws = modifyViewSet (broadcastWS (SomeMessage m) ws)
+broadcastMessageOn :: (WSTag a, FocusCore vs a, Layouted vs a, Message t) => t -> a -> Way vs a ()
+broadcastMessageOn m ws = modifyWS ws (broadcastWS (SomeMessage m))
 
 broadcastMessage :: forall a vs t. (WSTag a, Layouted vs a, Message t) => t -> Way vs a ()
 broadcastMessage m = modifyViewSet (broadcastVS (SomeMessage m) (error "Workspace argument in broadcastVS should not be used" :: a))
