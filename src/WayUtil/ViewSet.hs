@@ -35,14 +35,16 @@ module WayUtil.ViewSet
     )
 where
 
-import Control.Monad (when, join, void)
+import Control.Monad (when, join, void, unless)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
 import Data.Set (Set)
+import Data.List (nub)
 
 import Input.Seat (Seat, keyboardEnter, keyboardClear)
 import Layout (reLayout)
+import Output (Output)
 import Utility (whenJust, doJust)
 import View (View, activateView)
 import ViewSet (ViewSet, Workspace (..), Zipper (..), WSTag, getFocused, FocusCore (..))
@@ -91,6 +93,33 @@ unsetFocus :: FocusCore vs a => Seat -> a -> Way vs a ()
 unsetFocus seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $
     \v -> activateView v False
 
+
+getWSOutputs :: WSTag a => a -> Way vs a [Output]
+getWSOutputs ws = do
+    mapping <- liftIO . readIORef . wayBindingMapping =<< getState
+    pure $ map snd $ filter ((==) ws . fst) mapping
+-- TODO: Deduplicate with WayUtil (Recursive import :()
+getOutputKeyboards :: Output -> Way vs a [Seat]
+getOutputKeyboards out = do
+    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
+    pure . map fst . filter ((==) out . snd . snd) $ currents
+
+-- | This is a utility function that makes sure things are relayouted/focus is
+-- set appropriatly when the modified workspace is displayed
+modifyWS
+    :: (WSTag a, FocusCore vs a)
+    => a
+    -> (a -> vs -> vs)
+    -> Way vs a ()
+modifyWS ws fun = do
+    outs <- getWSOutputs ws
+    modifyViewSet (fun ws)
+
+    seats <- mapM getOutputKeyboards outs
+
+    mapM_ (`setFocused` ws) $ nub $ concat seats
+    unless (null outs) (reLayout ws >> runLog)
+
 modifyCurrentWS
     :: (WSTag a, FocusCore vs a)
     => (Maybe Seat -> a -> vs -> vs)
@@ -105,10 +134,11 @@ modifyCurrentWS fun = do
     postWs <- getView
 
     -- This should really be on the 2 views we know about, not full
-    whenJust preWs (`activateView` False)
-    whenJust postWs (`activateView` True)
-    forceFocused
-    runLog
+    when (preWs /= postWs) $ do
+        whenJust preWs (`activateView` False)
+        whenJust postWs (`activateView` True)
+        forceFocused
+        runLog
 
 modifyFocusedWS
     :: (WSTag ws, FocusCore vs ws)
@@ -142,7 +172,7 @@ getWorkspaceViews :: FocusCore vs a => a -> Way vs a [View]
 getWorkspaceViews ws = withViewSet (\_ vs -> fmap snd . S.toList $ _getViews vs ws)
 
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
-insertView v ws s = modifyViewSet (_insertView ws s v)
+insertView v ws s = modifyWS ws (\ws' -> _insertView ws' s v)
 
 removeView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()
-removeView v ws = modifyViewSet (_removeView ws v)
+removeView v ws = modifyWS ws (\ws' -> _removeView ws' v)

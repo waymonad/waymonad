@@ -52,7 +52,6 @@ import Waymonad
     , sendEvent
     , getSeat
     )
-import WayUtil (runLog)
 import WayUtil.Current (getCurrentOutput, getCurrentWS)
 import WayUtil.ViewSet (modifyCurrentWS, modifyViewSet, withCurrentWS)
 import WayUtil.Log (logPutText, LogPriority(..))
@@ -79,7 +78,6 @@ setOutputWorkspace ws current = do
 
     sendEvent $ OutputMappingEvent current pre (Just ws)
 
-    runLog
     reLayout ws
     whenJust pre reLayout
 

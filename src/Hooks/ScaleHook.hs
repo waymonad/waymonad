@@ -61,7 +61,6 @@ wsEvt (Just (WSEnter v ws)) = do
     reLayout ws
 wsEvt (Just (WSExit v ws) ) = do
     enactEvent (sendScaleEvent surfaceSendLeave) v ws
-    reLayout ws
 
 wsScaleHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 wsScaleHook = wsEvt . getEvent
