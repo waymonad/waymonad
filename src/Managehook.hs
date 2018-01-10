@@ -40,7 +40,7 @@ import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 import Input.Seat
 import Utility (whenJust)
 import View
-import ViewSet (WSTag, addView, rmView, contains, wsViews)
+import ViewSet (WSTag)
 import Waymonad
 import Waymonad.Types
 import Layout

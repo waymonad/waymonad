@@ -21,6 +21,8 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Layout.Mirror
     ( ToggleMirror (..)
     , Mirror (..)
@@ -33,12 +35,6 @@ import Data.Text (Text)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import ViewSet
-    ( Message
-    , Zipper
-    , LayoutClass (..)
-    , SomeMessage
-    , getMessage
-    )
 
 import qualified Data.Text as T
 
@@ -65,10 +61,12 @@ instance LayoutClass l => LayoutClass (Mirror l) where
     currentDesc (Mirror True l) =
         "Mirror(" `T.append` currentDesc l `T.append` ")"
     currentDesc (Mirror False l) = currentDesc l
-    pureLayout :: Mirror l -> WlrBox -> Zipper b c -> [(c, WlrBox)]
-    pureLayout (Mirror False l) box z = pureLayout l box z
-    pureLayout (Mirror True l) box z =
-        fmap mirrorBox <$> pureLayout l (mirrorBox box) z
+
+
+instance GenericLayoutClass l vs ws => GenericLayoutClass (Mirror l) vs ws where
+    pureLayout (Mirror False l) vs ws box = pureLayout l vs ws box
+    pureLayout (Mirror True l) vs ws box =
+        fmap mirrorBox <$> pureLayout l vs ws (mirrorBox box)
 
 mirrorBox :: WlrBox -> WlrBox
 mirrorBox (WlrBox x y w h) = WlrBox y x h w

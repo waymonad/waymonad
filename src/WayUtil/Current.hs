@@ -39,7 +39,7 @@ import Input.Seat (getKeyboardFocus)
 import {-# SOURCE #-} Output (Output (..), getOutputId)
 import Utility (doJust)
 import View (View)
-import ViewSet (WSTag, Workspace)
+import ViewSet (WSTag)
 import Waymonad
     ( Way
     , getViewSet

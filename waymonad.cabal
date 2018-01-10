@@ -123,6 +123,9 @@ executable waymonad
   other-modules:        Waymonad.Extensible
   other-modules:        XWayland
   other-modules:        XdgShell
+
+  other-modules:        XMonad.ViewSet
+
   other-modules:        StartupHook
   
   -- LANGUAGE extensions used by modules in this package.

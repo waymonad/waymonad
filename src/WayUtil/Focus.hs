@@ -42,7 +42,7 @@ import Layout (reLayout)
 import Output (Output (..))
 import Utility (whenJust, doJust)
 import View (View)
-import ViewSet (WSTag, setFocused, getMaster, FocusCore (..), ListLike (..))
+import ViewSet (WSTag, FocusCore (..), ListLike (..))
 import Waymonad
     ( Way
     , getState

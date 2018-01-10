@@ -49,7 +49,7 @@ import Layout (reLayout)
 import Output (Output)
 import Utility (whenJust, doJust)
 import View (View, activateView)
-import ViewSet (ViewSet, Workspace (..), Zipper (..), WSTag, getFocused, FocusCore (..))
+import ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
     , getViewSet

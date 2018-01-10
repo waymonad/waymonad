@@ -20,6 +20,8 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Layout.Spiral
 where
 
@@ -28,7 +30,7 @@ import Data.Text (Text)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
-import ViewSet (LayoutClass (..), Zipper(..), SomeMessage)
+import ViewSet
 
 
 data Spiral = Spiral
@@ -56,5 +58,6 @@ instance LayoutClass Spiral where
     broadcastMessage = handleMessage
     description :: Spiral -> Text
     description _ = "Spiral"
-    pureLayout :: Spiral -> WlrBox -> Zipper b c -> [(c, WlrBox)]
-    pureLayout _ box z = doLayout 0 box (toList z)
+
+instance ListLike vs ws => GenericLayoutClass Spiral vs ws where
+    pureLayout _ vs ws box = doLayout 0 box $ snd `fmap` _asList vs ws

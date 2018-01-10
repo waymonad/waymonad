@@ -31,11 +31,8 @@ import Graphics.Wayland.WlRoots.Box (WlrBox)
 
 import ViewSet
     ( Message
-    , Zipper
     , LayoutClass (..)
     , SomeMessage
-    , getFirstFocused'
-    , getMaster'
     , getMessage
     )
 
@@ -67,9 +64,11 @@ instance LayoutClass l => LayoutClass (ToggleFull l) where
     currentDesc :: ToggleFull l -> Text
     currentDesc (ToggleFull False l) = currentDesc l
     currentDesc (ToggleFull True _) = "ToggledFull"
-    pureLayout :: ToggleFull l -> WlrBox -> Zipper b c -> [(c, WlrBox)]
-    pureLayout (ToggleFull False l) box z = pureLayout l box z
-    pureLayout (ToggleFull True _) box z =
-        case getFirstFocused' z <|> getMaster' z of
-            Nothing -> []
-            Just v -> [(v, box)]
+
+--    pureLayout :: ToggleFull l -> WlrBox -> Zipper b c -> [(c, WlrBox)]
+--    pureLayout (ToggleFull False l) box z = pureLayout l box z
+--    pureLayout (ToggleFull True _) box z =
+--        case getFirstFocused' z <|> getMaster' z of
+--            Nothing -> []
+--            Just v -> [(v, box)]
+

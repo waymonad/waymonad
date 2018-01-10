@@ -82,18 +82,12 @@ import Utility.Spawn (spawn, manageNamed, manageSpawnOn, spawnOn)
 import qualified View.Multi as Multi
 import View.Proxy (makeProxy)
 import ViewSet
-    ( Workspace(..)
-    , GenericLayout (..)
+    ( GenericLayout (..)
     , WSTag
     , Layouted
     , FocusCore
     , ListLike (..)
     , GenericLayoutClass
-    , moveRight
-    , moveLeft
-    , moveViewLeft
-    , moveViewRight
-    , ViewSet
     )
 import Waymonad
     ( Way
@@ -120,6 +114,7 @@ import WayUtil.ViewSet (modifyFocusedWS)
 import WayUtil.Floating (centerFloat)
 import XWayland (xwayShellCreate, overrideXRedirect)
 import XdgShell (xdgShellCreate)
+import XMonad.ViewSet (ViewSet, Workspace (..))
 
 import qualified Data.Map.Strict as M
 

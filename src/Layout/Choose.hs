@@ -20,6 +20,8 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Layout.Choose
     ( Choose
     , NextLayout (FirstLayout, NextLayout)
@@ -33,7 +35,7 @@ import Data.Text (Text)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
-import ViewSet (LayoutClass (..), Zipper(..), SomeMessage (..), Message, getMessage)
+import ViewSet
 
 import qualified Data.Text as T
 
@@ -79,6 +81,8 @@ instance (LayoutClass l, LayoutClass r) =>  LayoutClass (Choose l r) where
     currentDesc :: Choose l r -> Text
     currentDesc (Choose L l _) = currentDesc l
     currentDesc (Choose R _ r) = currentDesc r
-    pureLayout :: Choose l r -> WlrBox -> Zipper b c -> [(c, WlrBox)]
-    pureLayout (Choose L l _) z b = pureLayout l z b
-    pureLayout (Choose R _ r) z b = pureLayout r z b
+
+
+instance (GenericLayoutClass l vs ws, GenericLayoutClass r vs ws) => GenericLayoutClass (Choose l r) vs ws where
+    pureLayout (Choose L l _) vs ws b = pureLayout l vs ws b
+    pureLayout (Choose R _ r) vs ws b = pureLayout r vs ws b

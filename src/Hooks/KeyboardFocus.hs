@@ -27,7 +27,7 @@ import Control.Monad (void)
 import Hooks.SeatMapping
 import Input.Seat (keyboardClear)
 import Utility (whenJust)
-import ViewSet (WSTag, FocusCore (..), getFocused, getMaster)
+import ViewSet (WSTag, FocusCore (..))
 import WayUtil.Focus
 import WayUtil.ViewSet (unsetFocus, setFocused, withViewSet)
 import Waymonad

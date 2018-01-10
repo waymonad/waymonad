@@ -25,60 +25,53 @@ module WayUtil
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (when)
+import Control.Monad (when, filterM)
 import Control.Monad.IO.Class (liftIO)
+import Data.Foldable (toList)
 import Data.IORef (readIORef, modifyIORef)
 import Data.List (lookup, find)
-import Data.Maybe (fromJust, fromMaybe, listToMaybe)
+import Data.Maybe (fromJust, fromMaybe, listToMaybe, isJust)
 import Data.Tuple (swap)
 import Data.Typeable (Typeable)
 
 import Graphics.Wayland.Server (DisplayServer, displayTerminate)
-import Graphics.Wayland.WlRoots.Box (Point)
+import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 
 import Input.Seat (Seat (seatName), getPointerFocus)
 import Output (Output (..), getOutputId)
 import Utility (whenJust, doJust, These(..), getThis, getThat)
-import View (View, closeView)
+import View (View, closeView, getViewEventSurface)
 import ViewSet
-    ( WSTag
-    , SomeMessage (..)
+    ( FocusCore (..)
     , Layouted (..)
     , Message
-    , messageWS
+    , SomeMessage (..)
+    , WSTag
     , broadcastWS
-    , rmView
-    , addView
-    , viewsBelow
-    , FocusCore (..)
+    , messageWS
     )
+import WayUtil.Current (getCurrentOutput , getCurrentView , getCurrentWS)
+import WayUtil.Log (logPutText)
+import WayUtil.ViewSet
 import Waymonad
-    ( WayBindingState(..)
-    , Way
-    , getState
-    , getSeat
-    , EventClass
+    ( EventClass
     , SomeEvent
-    , sendEvent
-    , getEvent
+    , Way
+    , WayBindingState(..)
     , WayLoggers (..)
+    , getEvent
+    , getSeat
+    , getState
+    , sendEvent
     )
 import Waymonad.Extensible
     ( ExtensionClass
     , StateMap
-
     , getValue
-    , setValue
     , modifyValue
+    , setValue
     )
 import Waymonad.Types (LogPriority(..), Compositor (..))
-import WayUtil.Current
-    ( getCurrentOutput
-    , getCurrentView
-    , getCurrentWS
-    )
-import WayUtil.Log (logPutText)
-import WayUtil.ViewSet
 
 import qualified Data.Text as T
 import qualified Data.IntMap as IM
@@ -88,8 +81,6 @@ data ViewWSChange a
     | WSExit View a
 
 instance Typeable a => EventClass (ViewWSChange a)
-
-
 
 sendTo :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 sendTo ws = do
@@ -229,6 +220,19 @@ getOutputKeyboards :: Output -> Way vs a [Seat]
 getOutputKeyboards out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . snd . snd) $ currents
+
+viewsBelow
+    :: Traversable t
+    => Point
+    -> t (View, WlrBox)
+    -> IO [(View, Int, Int)]
+viewsBelow (Point x y) views =
+    map (uncurry makeLocal) <$> filterM hasSurface (toList views)
+    where   makeLocal :: View -> WlrBox -> (View, Int, Int)
+            makeLocal view (WlrBox bx by _ _) =
+                (view, x - bx, y - by)
+            hasSurface :: (View, WlrBox) -> IO Bool
+            hasSurface (view, WlrBox bx by _ _) = isJust <$> getViewEventSurface view (fromIntegral (x - bx)) (fromIntegral (y - by))
 
 
 viewBelow
