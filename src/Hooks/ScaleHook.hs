@@ -42,20 +42,20 @@ import WayUtil.Focus (getWorkspaceOutputs)
 import Waymonad (Way, getEvent, SomeEvent)
 import Output (Output (..))
 
-enactEvent :: WSTag a => (View -> Output -> Way a ()) -> View -> a -> Way a ()
+enactEvent :: WSTag a => (View -> Output -> Way vs a ()) -> View -> a -> Way vs a ()
 enactEvent fun view ws = do
     outs <- getWorkspaceOutputs ws
     forM_ outs (fun view)
 
-sendScaleEvent :: (Ptr WlrSurface -> Ptr WlrOutput -> IO ()) -> View -> Output -> Way a ()
+sendScaleEvent :: (Ptr WlrSurface -> Ptr WlrOutput -> IO ()) -> View -> Output -> Way vs a ()
 sendScaleEvent fun view output = liftIO $
     doJust (getViewSurface view) (flip fun $ outputRoots output)
 
 
-wsEvt :: WSTag a => Maybe (ViewWSChange a) -> Way a ()
+wsEvt :: WSTag a => Maybe (ViewWSChange a) -> Way vs a ()
 wsEvt Nothing = pure ()
 wsEvt (Just (WSEnter v ws)) = enactEvent (sendScaleEvent surfaceSendEnter) v ws
 wsEvt (Just (WSExit v ws) ) = enactEvent (sendScaleEvent surfaceSendLeave) v ws
 
-wsScaleHook :: WSTag a => SomeEvent -> Way a ()
+wsScaleHook :: WSTag a => SomeEvent -> Way vs a ()
 wsScaleHook = wsEvt . getEvent

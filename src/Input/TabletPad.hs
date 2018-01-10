@@ -60,14 +60,14 @@ import Waymonad.Types (Way)
 --    , padStripEvtPosition :: Double
 --    }
 
-handlePadStrip :: Seat -> Ptr PadStripEvent -> Way a ()
+handlePadStrip :: Seat -> Ptr PadStripEvent -> Way vs a ()
 handlePadStrip seat evt_ptr = do
     event <- liftIO $ peek evt_ptr
     liftIO $ hPutStrLn stderr $ "Strip event: " ++ show event
 
     pointerAxis seat (padStripEvtTime event) AxisVertical (padStripEvtPosition event)
 
-handlePadAdd :: WSTag a => Seat -> Ptr InputDevice -> Ptr WlrTabletPad -> Way a ()
+handlePadAdd :: WSTag a => Seat -> Ptr InputDevice -> Ptr WlrTabletPad -> Way vs a ()
 handlePadAdd seat _ pad = do
     let events = getPadEvents pad
 

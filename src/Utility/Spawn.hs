@@ -101,19 +101,19 @@ spawnClient socket fd cmd args = do
 clientToInt :: Client -> Int
 clientToInt (Client c) = ptrToInt c
 
-spawnNamed :: Text -> String -> [String] -> Way a ()
+spawnNamed :: Text -> String -> [String] -> Way vs a ()
 spawnNamed = spawnManaged . pure . namedSpawner
 
-namedSpawner :: Text -> Spawner a
+namedSpawner :: Text -> Spawner vs a
 namedSpawner name = Spawner
     { spawnAdd = \client -> modifyEState $ NameMap . IM.insert (clientToInt client) name . unNM
     , spawnRm = \client -> modifyEState $ NameMap . IM.delete (clientToInt client) . unNM
     }
 
-getClientName :: Client -> Way a (Maybe Text)
+getClientName :: Client -> Way vs a (Maybe Text)
 getClientName c = IM.lookup (clientToInt c) . unNM <$> getEState
 
-manageNamed :: Managehook a
+manageNamed :: Managehook vs a
 manageNamed = do
     (Just c) <- getViewClient =<< query
     liftWay $ do
@@ -122,13 +122,13 @@ manageNamed = do
             logPutText loggerSpawner Info $ "Client \"" `T.append` name `T.append` "\" just spawned"
     mempty
 
-spawnOn :: WSTag a => a -> String -> [String] -> Way a ()
+spawnOn :: WSTag a => a -> String -> [String] -> Way vs a ()
 spawnOn = spawnManaged . pure . onSpawner
 
-getClientWS :: Typeable a => Client -> Way a (Maybe a)
+getClientWS :: Typeable a => Client -> Way vs a (Maybe a)
 getClientWS c = IM.lookup (clientToInt c) . unWM <$> getEState
 
-manageSpawnOn :: WSTag a => Managehook a
+manageSpawnOn :: WSTag a => Managehook vs a
 manageSpawnOn = do
     (Just c) <- getViewClient =<< query
     wsM <- liftWay $ getClientWS c
@@ -136,24 +136,24 @@ manageSpawnOn = do
         Nothing -> mempty
         Just ws -> pure $ InsertInto ws
 
-onSpawner :: forall a. WSTag a => a -> Spawner a
+onSpawner :: forall vs a. WSTag a => a -> Spawner vs a
 onSpawner ws = Spawner
     { spawnAdd = \client -> modifyEState $ WSMap . IM.insert (clientToInt client) ws . unWM
     , spawnRm = \client -> modifyEState $
         (WSMap :: IntMap a -> WSMap a) . IM.delete (clientToInt client) . unWM
     }
 
-data Spawner a = Spawner
-    { spawnAdd :: Client -> Way a ()
-    , spawnRm :: Client -> Way a ()
+data Spawner vs a = Spawner
+    { spawnAdd :: Client -> Way vs a ()
+    , spawnRm :: Client -> Way vs a ()
     }
 
 spawnManaged
-    :: forall a.
-       [Spawner a]
+    :: forall vs a.
+       [Spawner vs a]
     -> String
     -> [String]
-    -> Way a ()
+    -> Way vs a ()
 spawnManaged spawners cmd args = do
     (cSock, sSock) <- liftIO $ socketPair AF_UNIX Stream 0
     void . liftIO . forkProcess $ spawnClient sSock (Fd $ fdSocket cSock) cmd args
@@ -165,7 +165,7 @@ spawnManaged spawners cmd args = do
     whenJust clientM $ \client -> do
         addFun client
         setCallback rmFun (addDestroyListener client)
-    where   addFun :: Client -> Way a ()
+    where   addFun :: Client -> Way vs a ()
             addFun client = void . traverse ($ client) $ map spawnAdd spawners
-            rmFun :: Client -> Way a ()
+            rmFun :: Client -> Way vs a ()
             rmFun client = void . traverse ($ client) $ map spawnRm spawners

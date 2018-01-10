@@ -27,9 +27,9 @@ import Control.Monad (void)
 import Hooks.SeatMapping
 import Input.Seat (keyboardClear)
 import Utility (whenJust)
-import ViewSet (WSTag, getFocused, getMaster)
+import ViewSet (WSTag, FocusCore (..), getFocused, getMaster)
 import WayUtil.Focus
-import WayUtil.ViewSet (unsetFocus, setFocused, withWS)
+import WayUtil.ViewSet (unsetFocus, setFocused, withViewSet)
 import Waymonad
 
 -- TODO: SANITIZE!!!!
@@ -43,7 +43,7 @@ import Waymonad
 -- Do NOT asume this has the relevant seat as current seat.
 -- This may be triggered by another seat on the same output changing the
 -- output <-> seat mapping!
-handleKeyboardSwitch :: WSTag a => SomeEvent -> Way a ()
+handleKeyboardSwitch :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 handleKeyboardSwitch e = case (getEvent e) of
     Just (KeyboardWSChangeEvent s pre cur) -> do
         whenJust pre $ unsetFocus s
@@ -51,17 +51,19 @@ handleKeyboardSwitch e = case (getEvent e) of
             -- We focused the void (in some way) clear focus
             Nothing -> void $ keyboardClear s
             -- Focused something
-            Just ws -> withWS ws (getFocused s) >>= \case
+            Just ws -> withViewSet (\_ vs -> _getFocused vs ws (Just s)) >>= \case
                 -- Ok, we have a focused view here. Just do the usual focus
                 -- setting procedure
                 Just _ -> setFocused s ws
                 -- Nothing focused yet. Try master
-                Nothing -> withWS ws getMaster >>= \case
-                    -- Master doesn't exist. So this WS is empty, let's clear
-                    -- focus
-                    Nothing -> keyboardClear s
-                    -- Master exists, set as focused and start usual procedure
-                    Just v -> do
-                        focusWSView v ws
-                        setFocused s ws
+                Nothing -> keyboardClear s
+                -- WARN: Add some defaulting semantics
+                   -- withWS ws getMaster >>= \case
+                   -- -- Master doesn't exist. So this WS is empty, let's clear
+                   -- -- focus
+                   -- Nothing -> keyboardClear s
+                   -- -- Master exists, set as focused and start usual procedure
+                   -- Just v -> do
+                   --     focusWSView v ws
+                   --     setFocused s ws
     _ -> pure ()

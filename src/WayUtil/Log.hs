@@ -57,21 +57,21 @@ logPutTime = do
 
     hPutStr stderr formatted
 
-logPutText' :: Text -> Text -> Way a ()
+logPutText' :: Text -> Text -> Way vs a ()
 logPutText' name arg = liftIO $ do
     logPutTime
     T.hPutStr stderr name
     T.hPutStr stderr ": "
     T.hPutStrLn stderr arg
 
-logPutText :: (WayLoggers -> Logger) -> LogPriority -> Text -> Way a ()
+logPutText :: (WayLoggers -> Logger) -> LogPriority -> Text -> Way vs a ()
 logPutText fun prio arg = do
     (Logger lvl name) <- fun <$> getLoggers
     when (prio <= lvl) $ logPutText' name arg
 
-logPutStr :: (WayLoggers -> Logger) -> LogPriority -> String -> Way a ()
+logPutStr :: (WayLoggers -> Logger) -> LogPriority -> String -> Way vs a ()
 logPutStr select prio arg = logPutText select prio (T.pack arg)
 
-logPrint :: (Show a) => (WayLoggers -> Logger) -> LogPriority -> a -> Way b ()
+logPrint :: (Show a) => (WayLoggers -> Logger) -> LogPriority -> a -> Way vs b ()
 logPrint fun prio = logPutStr fun prio . show
 

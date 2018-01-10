@@ -38,15 +38,15 @@ import Waymonad.Types (Way)
 
 setSignalHandler
     :: Ptr (WlSignal a)
-    -> (Ptr a -> Way b ())
-    -> Way b ListenerToken
+    -> (Ptr a -> Way vs b ())
+    -> Way vs b ListenerToken
 setSignalHandler signal act = 
     setCallback act (\fun -> addListener (WlListener fun) signal)
 
 setDestroyHandler
     :: Ptr (WlSignal a)
-    -> (Ptr a -> Way b ())
-    -> Way b ()
+    -> (Ptr a -> Way vs b ())
+    -> Way vs b ()
 setDestroyHandler signal handler = do
     var <- liftIO newEmptyMVar
     listener <- setSignalHandler signal $ \ptr -> do

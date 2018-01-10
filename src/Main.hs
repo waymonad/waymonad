@@ -22,6 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE NumDecimals #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Main
 where
 
@@ -82,13 +83,15 @@ import qualified View.Multi as Multi
 import View.Proxy (makeProxy)
 import ViewSet
     ( Workspace(..)
-    , Layout (..)
+    , GenericLayout (..)
     , WSTag
-    , LayoutClass
+    , FocusCore
+    , GenericLayoutClass
     , moveRight
     , moveLeft
     , moveViewLeft
     , moveViewRight
+    , ViewSet
     )
 import Waymonad
     ( Way
@@ -119,15 +122,15 @@ import XdgShell (xdgShellCreate)
 import qualified Data.Map.Strict as M
 
 
-makeBindingMap :: WSTag a => [(([WlrModifier], Keysym), KeyBinding a)] -> BindingMap a
+makeBindingMap :: [(([WlrModifier], Keysym), KeyBinding vs a)] -> BindingMap vs a
 makeBindingMap = M.fromList .
     map (\((mods, Keysym sym), fun) -> ((modifiersToField mods, sym), fun))
 
 makeCompositor
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => DisplayServer
     -> Ptr Backend
-    -> Way a Compositor
+    -> Way vs a Compositor
 makeCompositor display backend = do
     liftIO $ hPutStrLn stderr "Creating compositor"
     renderer <- liftIO $ rendererCreate backend
@@ -152,22 +155,24 @@ makeCompositor display backend = do
         , compInput = input
         }
 
-sameLayout :: (WSTag a, LayoutClass l) => l -> [a] -> M.Map a Workspace
-sameLayout l = M.fromList . map (, Workspace (Layout (l)) Nothing)
+sameLayout
+    :: (WSTag a, GenericLayoutClass l (ViewSet a) a)
+    => l -> [a] -> M.Map a (Workspace a)
+sameLayout l = M.fromList . map (, Workspace (GenericLayout (l)) Nothing)
 
-data WayUserConf a = WayUserConf
+data WayUserConf vs a = WayUserConf
     { wayUserConfWorkspaces  :: [a]
-    , wayUserConfLayouts     :: [a] -> M.Map a Workspace
-    , wayUserConfManagehook  :: Managehook a
-    , wayUserConfEventHook   :: SomeEvent -> Way a ()
-    , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding a)]
+    , wayUserConfLayouts     :: [a] -> vs
+    , wayUserConfManagehook  :: Managehook vs a
+    , wayUserConfEventHook   :: SomeEvent -> Way vs a ()
+    , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding vs a)]
 
-    , wayUserConfDisplayHook :: [Bracketed DisplayServer a]
-    , wayUserConfBackendHook :: [Bracketed (DisplayServer, Ptr Backend) a]
-    , wayUserConfPostHook    :: [Bracketed () a]
+    , wayUserConfDisplayHook :: [Bracketed vs DisplayServer a]
+    , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) a]
+    , wayUserConfPostHook    :: [Bracketed vs () a]
     }
 
-wayUserRealMain :: WSTag a => WayUserConf a -> IORef Compositor -> Way a ()
+wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
 wayUserRealMain conf compRef = do
     setBaseTime
 
@@ -185,7 +190,7 @@ wayUserRealMain conf compRef = do
         , outputRemoveHook = outputRm
         }
 
-wayUserMain :: WSTag a => WayUserConf a -> IO ()
+wayUserMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IO ()
 wayUserMain conf = do
     configE <- loadConfig
     case configE of
@@ -259,13 +264,13 @@ wsSyms =
 workspaces :: IsString a => [a]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
-bindings :: (IsString a, WSTag a) => [(([WlrModifier], Keysym), KeyBinding a)]
+bindings :: (FocusCore vs a, IsString a, WSTag a) => [(([WlrModifier], Keysym), KeyBinding vs a)]
 bindings =
-    [ (([modi], keysym_k), modifyFocusedWS moveLeft)
-    , (([modi], keysym_j), modifyFocusedWS moveRight)
-    , (([modi, Shift], keysym_k), modifyFocusedWS moveViewLeft)
-    , (([modi, Shift], keysym_j), modifyFocusedWS moveViewRight)
-    , (([modi], keysym_Return), spawn "weston-terminal")
+--    [ (([modi], keysym_k), modifyFocusedWS moveLeft)
+--    , (([modi], keysym_j), modifyFocusedWS moveRight)
+--    , (([modi, Shift], keysym_k), modifyFocusedWS moveViewLeft)
+--    , (([modi, Shift], keysym_j), modifyFocusedWS moveViewRight)
+    [ (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi, Shift], keysym_Return), spawnOn "2" "weston-terminal" [])
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_f), sendMessage ToggleFullM)
@@ -280,7 +285,7 @@ bindings =
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
     where modi = Alt
 
-myEventHook :: WSTag a => SomeEvent -> Way a ()
+myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 myEventHook =
        seatOutputEventHandler
     <> wsChangeEvtHook
@@ -291,10 +296,10 @@ myEventHook =
     <> wsScaleHook
     <> idleLog
 
-myConf :: (IsString a, WSTag a) => WayUserConf a
+myConf :: WayUserConf (ViewSet Text) Text
 myConf = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout . mkMirror $ mkTFull (Tall ||| Spiral)
+    , wayUserConfLayouts     = sameLayout {-mkMirror $ mkTFull (Tall ||| Spiral) -} Tall
     , wayUserConfManagehook  = overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
@@ -305,4 +310,4 @@ myConf = WayUserConf
     }
 
 main :: IO ()
-main = wayUserMain (myConf :: WayUserConf Text)
+main = wayUserMain myConf

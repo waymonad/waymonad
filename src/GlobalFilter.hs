@@ -52,29 +52,29 @@ instance ExtensionClass GlobalMap where
     initialValue = GlobalMap mempty
 
 
-registerGlobal :: Text -> Ptr WlGlobal -> Way a ()
+registerGlobal :: Text -> Ptr WlGlobal -> Way vs a ()
 registerGlobal name ptr =
     modifyEState (GlobalMap . M.insert ptr name . unGM)
 
-unregisterGlobal :: Ptr WlGlobal -> Way a ()
+unregisterGlobal :: Ptr WlGlobal -> Way vs a ()
 unregisterGlobal ptr =
     modifyEState (GlobalMap . M.delete ptr . unGM)
 
-getGlobalName :: Ptr WlGlobal -> Way a (Maybe Text)
+getGlobalName :: Ptr WlGlobal -> Way vs a (Maybe Text)
 getGlobalName name = M.lookup name . unGM <$> getEState
 
 -- | No unregister for now, it's not worth it either way :/
-getFilterBracket :: (Client -> Ptr WlGlobal -> Way a Bool) -> Bracketed DisplayServer a
+getFilterBracket :: (Client -> Ptr WlGlobal -> Way vs a Bool) -> Bracketed vs DisplayServer a
 getFilterBracket fun = Bracketed (\dsp -> do
     cb <- makeCallback2 (fun . Client)
     liftIO (setGlobalFilter dsp $ Just cb)
                                  ) (const $ pure ())
 
 -- This is pretty useless, just to show off
-filterKnown :: Client -> Ptr WlGlobal -> Way a Bool
+filterKnown :: Client -> Ptr WlGlobal -> Way vs a Bool
 filterKnown _ ptr = isNothing <$> getGlobalName ptr
 
-filterUser :: Client  -> Ptr WlGlobal -> Way a Bool
+filterUser :: Client  -> Ptr WlGlobal -> Way vs a Bool
 filterUser client ptr = do
     mine <- liftIO $ getEffectiveUserID --- This could be cached?
     (_, other, _) <- liftIO $ clientGetCredentials client

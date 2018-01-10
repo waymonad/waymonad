@@ -35,13 +35,13 @@ import GlobalFilter
 import Waymonad (makeCallback, getState)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 
-makeManager :: () -> Way a (Ptr WlrScreenshooter)
+makeManager :: () -> Way vs a (Ptr WlrScreenshooter)
 makeManager _ = do
     Compositor {compDisplay = display, compRenderer = renderer} <- wayCompositor <$> getState
     ptr <- liftIO $ screenshooterCreate display renderer
     registerGlobal "Screenshooter" =<< liftIO (getScreenshooterGlobal ptr)
     pure ptr
 
-getScreenshooterBracket :: Bracketed () a
+getScreenshooterBracket :: Bracketed vs () a
 getScreenshooterBracket = Bracketed makeManager (liftIO . screenshooterDestroy)
 

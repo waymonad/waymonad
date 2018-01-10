@@ -30,12 +30,12 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 
 import Utility (doJust)
-import ViewSet (WSTag)
+import ViewSet (WSTag, FocusCore)
 import Waymonad (Way, getState, WayBindingState(wayBindingMapping))
 import WayUtil.Current (getCurrentOutput, getCurrentWS)
 import WayUtil.Focus (setOutputWorkspace)
 
-view :: WSTag a => a -> Way a ()
+view :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 view ws = doJust getCurrentOutput $ \out -> do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     case filter ((==) ws . fst) mapping of
@@ -43,7 +43,7 @@ view ws = doJust getCurrentOutput $ \out -> do
         -- It's already mapped on some output, do nothing here.
         _ -> pure ()
 
-greedyView :: WSTag a => a -> Way a ()
+greedyView :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 greedyView ws = doJust getCurrentOutput $ \out -> do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     ws' <- getCurrentWS
@@ -51,5 +51,5 @@ greedyView ws = doJust getCurrentOutput $ \out -> do
     forM_ (filter ((==) ws . fst) mapping) $ \(_, o) -> 
         setOutputWorkspace ws' o
 
-copyView :: WSTag a => a -> Way a ()
+copyView :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 copyView ws = doJust getCurrentOutput $ setOutputWorkspace ws

@@ -62,7 +62,6 @@ import Foreign.StablePtr
 import Control.Monad (forM, when, unless)
 
 import Input.Seat
-import ViewSet (WSTag)
 import Waymonad
     ( BindingMap
     , withSeat
@@ -105,11 +104,10 @@ switchVT backend vt = do
 
 
 handleKeyPress
-    :: WSTag a
-    => BindingMap a
+    :: BindingMap vs a
     -> Word32
     -> Keysym
-    -> Way a Bool
+    -> Way vs a Bool
 handleKeyPress bindings modifiers sym@(Keysym key) = do
     backend <- compBackend . wayCompositor <$> getState
     case sym of
@@ -140,11 +138,10 @@ tellClient seat keyboard event = do
     keyboardNotifyKey (seatRoots seat) (timeSec event) (keyCode event) (state event)
 
 handleKeySimple
-    :: WSTag a
-    => BindingMap a
+    :: BindingMap vs a
     -> Keyboard
     -> CKeycode
-    -> Way a Bool
+    -> Way vs a Bool
 handleKeySimple bindings keyboard keycode = do
     keystate <- liftIO . getKeystate $ keyboardDevice keyboard
     keymap   <- liftIO . getKeymap $ keyboardDevice keyboard
@@ -159,11 +156,10 @@ handleKeySimple bindings keyboard keycode = do
     pure $ or handled
 
 handleKeyXkb
-    :: WSTag a
-    => BindingMap a
+    :: BindingMap vs a
     -> Keyboard
     -> CKeycode
-    -> Way a Bool
+    -> Way vs a Bool
 handleKeyXkb bindings keyboard keycode = do
     keystate <- liftIO . getKeystate $ keyboardDevice keyboard
     modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
@@ -179,12 +175,11 @@ handleKeyXkb bindings keyboard keycode = do
     pure $ or handled
 
 handleKeyEvent
-    :: WSTag a
-    => Keyboard
+    :: Keyboard
     -> Seat
-    -> BindingMap a
+    -> BindingMap vs a
     -> Ptr EventKey
-    -> Way a ()
+    -> Way vs a ()
 handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
@@ -200,17 +195,16 @@ handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
 
     liftIO . unless handled $ tellClient seat keyboard event
 
-handleModifiers :: Keyboard -> Seat -> Ptr a -> Way b ()
+handleModifiers :: Keyboard -> Seat -> Ptr a -> Way vs b ()
 handleModifiers keyboard seat _ = liftIO $ do
     seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
     keyboardNotifyModifiers (seatRoots seat)
 
 handleKeyboardAdd
-    :: WSTag a
-    => Seat
+    :: Seat
     -> Ptr InputDevice
     -> Ptr WlrKeyboard
-    -> Way a ()
+    -> Way vs a ()
 handleKeyboardAdd seat dev ptr = do
     let signals = getKeySignals ptr
     bindings <- wayKeybinds <$> getState

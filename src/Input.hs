@@ -73,7 +73,7 @@ import Input.TabletPad
 import Input.Seat
 import Output (Output(..))
 import View (getViewClient)
-import ViewSet (WSTag)
+import ViewSet (WSTag, FocusCore)
 import Utility (doJust)
 import WayUtil
 import Waymonad
@@ -99,7 +99,7 @@ data Input = Input
     , inputAddToken :: ListenerToken
     }
 
-doDetach :: Ptr InputDevice -> SeatFoo -> Way a ()
+doDetach :: Ptr InputDevice -> SeatFoo -> Way vs a ()
 doDetach dev foo = liftIO $ do
     iType <- inputDeviceType dev
     case iType of
@@ -110,7 +110,7 @@ doDetach dev foo = liftIO $ do
         _ -> pure ()
 
 
-detachDevice :: Ptr InputDevice -> Way a ()
+detachDevice :: Ptr InputDevice -> Way vs a ()
 detachDevice dev = do
     Compositor {compInput = input} <- wayCompositor <$> getState
     seats <- liftIO $ readIORef $ inputFooMap input
@@ -126,7 +126,7 @@ detachDevice dev = do
         [owner] -> doDetach dev owner
 
 
-doAttach :: WSTag a => Ptr InputDevice -> SeatFoo -> Way a ()
+doAttach :: WSTag a => Ptr InputDevice -> SeatFoo -> Way vs a ()
 doAttach ptr foo = do
     iType <- liftIO $ inputDeviceType ptr
 
@@ -140,17 +140,14 @@ doAttach ptr foo = do
     liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)
     setDestroyHandler (getDestroySignal ptr) (const $ liftIO $ modifyIORef (fooDevices foo) $ S.delete ptr)
 
-attachDevice :: WSTag a => Ptr InputDevice -> Text -> Way a ()
+attachDevice :: (FocusCore vs a, WSTag a) => Ptr InputDevice -> Text -> Way vs a ()
 attachDevice ptr name = do
     Compositor {compInput = input} <- wayCompositor <$> getState
     foo <- getOrCreateSeat (inputFooMap input) name
     detachDevice ptr
     doAttach ptr foo
 
-createSeat
-    :: WSTag a
-    => Text
-    -> Way a SeatFoo
+createSeat :: (FocusCore vs a, WSTag a) => Text -> Way vs a SeatFoo
 createSeat name = do
     Compositor {compDisplay = display, compLayout = layout} <- wayCompositor <$> getState
     xcursor <- liftIO $ xCursorManagerCreate "default" 16
@@ -186,10 +183,10 @@ createSeat name = do
             }
 
 getOrCreateSeat
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => IORef (Map Text SeatFoo)
     -> Text
-    -> Way a SeatFoo
+    -> Way vs a SeatFoo
 getOrCreateSeat mapRef name = do
     ret <- liftIO (M.lookup name <$> readIORef mapRef)
     case ret of
@@ -200,11 +197,11 @@ getOrCreateSeat mapRef name = do
             pure foo
 
 handleInputAdd
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => IORef (Map Text SeatFoo)
     -> IORef (Set (Ptr InputDevice))
     -> Ptr InputDevice
-    -> Way a ()
+    -> Way vs a ()
 handleInputAdd foos devRef ptr = do 
     liftIO $ modifyIORef devRef (S.insert ptr)
     setDestroyHandler (getDestroySignal ptr) (\dev -> do
@@ -215,7 +212,7 @@ handleInputAdd foos devRef ptr = do
     doAttach ptr =<< getOrCreateSeat foos "seat0"
 
 
-setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way a ()
+setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way vs a ()
 setCursorSurf cursor evt = do
     (Just seat) <- getSeat
     doJust (getKeyboardFocus seat) $ \view ->
@@ -228,7 +225,7 @@ setCursorSurf cursor evt = do
                     (seatCursorSurfaceHotspotX event)
                     (seatCursorSurfaceHotspotY event)
 
-loadCurrentScales :: Ptr WlrXCursorManager -> Way a ()
+loadCurrentScales :: Ptr WlrXCursorManager -> Way vs a ()
 loadCurrentScales manager = do
     outputs <- getOutputs
     forM_ outputs $ \output -> liftIO $ do
@@ -236,9 +233,9 @@ loadCurrentScales manager = do
         xCursorLoad manager scale
 
 inputCreate
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => Ptr Backend
-    -> Way a Input
+    -> Way vs a Input
 inputCreate backend = do
     devRef <- liftIO $ newIORef mempty
     mapRef <- liftIO $ newIORef mempty

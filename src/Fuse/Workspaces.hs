@@ -33,23 +33,22 @@ import Data.Maybe (fromMaybe)
 
 import Output (Output (outputName))
 import View (getViewTitle, getViewAppId)
-import ViewSet (WSTag (..), Workspace (..), LayoutClass (..), Layout (..))
-import Waymonad (getWorkspace)
+import ViewSet (WSTag (..), Workspace (..), LayoutClass (..), GenericLayout (..), FocusCore)
 import Waymonad.Types (Way)
 import WayUtil.Focus (getWorkspaceOutputs)
-import WayUtil.ViewSet (getWorkspaces)
+import WayUtil.ViewSet (getWorkspaces, getWorkspaceViews)
 
 import Fuse.Common
 
 import qualified Data.Map as M
 import qualified Data.Text as T
 
-makeViewDir :: WSTag a => a -> Way a (Maybe (Entry a))
+makeViewDir :: (FocusCore vs a, WSTag a) => a -> Way vs a (Maybe (Entry vs a))
 makeViewDir ws = do
-    state <- getWorkspace ws
-    case toList <$> wsViews state of
-        Nothing -> pure Nothing
-        (Just views) -> Just <$> do
+    views <- getWorkspaceViews ws
+    case views of
+        [] -> pure Nothing
+        _ -> Just <$> do
                 tmp <- forM views $ \view -> liftIO $ do
                     title <-fromMaybe "<None>" <$> getViewTitle view
                     appId <- fromMaybe "<None>" <$> getViewAppId view
@@ -58,7 +57,7 @@ makeViewDir ws = do
                 let content = T.intercalate "\n" tmp
                 pure $ FileEntry . textFile $ pure content
 
-makeOutputDir :: WSTag a => a -> Way a (Maybe (Entry a))
+makeOutputDir :: (FocusCore vs a, WSTag a) => a -> Way vs a (Maybe (Entry vs a))
 makeOutputDir ws = do
     outs <- getWorkspaceOutputs ws
     case outs of
@@ -67,15 +66,15 @@ makeOutputDir ws = do
                 let name = T.unpack $ outputName out
                  in (name, SymlinkEntry . pure $ "../../../outputs/" ++ name)
 
-makeWorkspaceDir :: WSTag a => a -> Way a (Entry a)
+makeWorkspaceDir :: (FocusCore vs a, WSTag a) => a -> Way vs a (Entry vs a)
 makeWorkspaceDir ws = do
     let layout =
-            [ ("layout", FileEntry $ textFile $  do
-                    Workspace (Layout l) _ <- getWorkspace ws
+            [{- ("layout", FileEntry $ textFile $  do
+                    Workspace (GenericLayout l) _ <- getWorkspace ws
                     pure $ description l)
             , ("current", FileEntry $ textFile $  do
-                    Workspace (Layout l) _ <- getWorkspace ws
-                    pure $ currentDesc l)
+                    Workspace (GenericLayout l) _ <- getWorkspace ws
+                    pure $ currentDesc l)-}
             ]
 
     outs <- makeOutputDir ws
@@ -86,10 +85,10 @@ makeWorkspaceDir ws = do
 
     pure $ DirEntry $ simpleDir $ M.fromList $ viewDir . outDir $ layout
 
-enumerateWSS :: WSTag a => Way a (Map String (Entry a))
+enumerateWSS :: (FocusCore vs a, WSTag a) => Way vs a (Map String (Entry vs a))
 enumerateWSS = do
     wss <- getWorkspaces
     M.fromList <$> mapM (\ws -> (T.unpack $ getName ws,) <$> makeWorkspaceDir ws) wss
 
-workspaceDir :: WSTag a => Entry a
+workspaceDir :: (FocusCore vs a, WSTag a) => Entry vs a
 workspaceDir = DirEntry $ enumeratingDir enumerateWSS

@@ -24,14 +24,17 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module ViewSet
 where
 
-import Control.Monad (filterM)
+import Control.Monad (filterM, join)
 import Data.Foldable (toList)
 import Data.List (find)
 import Data.Map (Map)
-import Data.Maybe (listToMaybe, isJust)
+import Data.Maybe (listToMaybe, isJust, fromMaybe, maybeToList)
 import Data.Monoid ((<>))
 import Data.Set (Set)
 import Data.Text (Text)
@@ -40,20 +43,11 @@ import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 
 import Input.Seat (Seat)
 import View (View, getViewEventSurface)
+import Utility (whenJust)
 
-import qualified Data.Text as T
+import qualified Data.Map as M
 import qualified Data.Set as S
-
-type ViewSet a = Map a Workspace
-
-newtype Zipper a b = Zipper [(Set a, b)]
-    deriving (Eq, Show, Functor, Foldable, Traversable)
-
-
-data Workspace = Workspace
-    { wsLayout :: Layout
-    , wsViews :: Maybe (Zipper Seat View)
-    } deriving (Show)
+import qualified Data.Text as T
 
 class (Typeable a, Show a, Eq a, Ord a) => WSTag a where
     getName :: a -> Text
@@ -87,43 +81,103 @@ data SomeMessage = forall m. Message m => SomeMessage m
 getMessage :: Message m => SomeMessage -> Maybe m
 getMessage (SomeMessage m) = cast m
 
-messageWS :: SomeMessage -> Workspace -> Workspace
-messageWS m w@(Workspace (Layout l) z) =
+messageWS :: SomeMessage -> Workspace a -> Workspace a
+messageWS m w@(Workspace (GenericLayout l) z) =
     case handleMessage l  m of
         Nothing -> w
-        Just nl -> Workspace (Layout nl) z
+        Just nl -> Workspace (GenericLayout nl) z
 
-broadcastWS :: SomeMessage -> Workspace -> Workspace
-broadcastWS m w@(Workspace (Layout l) z) =
+broadcastWS :: SomeMessage -> Workspace a -> Workspace a
+broadcastWS m w@(Workspace (GenericLayout l) z) =
     case broadcastMessage l  m of
         Nothing -> w
-        Just nl -> Workspace (Layout nl) z
+        Just nl -> Workspace (GenericLayout nl) z
 
-getMaster :: Workspace -> Maybe View
+class FocusCore vs ws where
+    _getFocused :: vs -> ws -> Maybe Seat -> Maybe View
+    _focusView  :: ws -> Seat -> View -> vs -> vs
+    _getViews   :: vs -> ws -> Set (Set Seat, View)
+    _insertView :: ws -> Maybe Seat -> View -> vs -> vs
+    _removeView :: ws -> View -> vs -> vs
+    getLayouted   :: vs -> ws -> WlrBox -> [(View, WlrBox)]
+    getVSWorkspaces :: vs -> [ws]
+
+
+class ListLike a ws where
+    _asList           :: a -> ws -> [(Set Seat, View)]
+    _fromList         :: ws -> [(Set Seat, View)] -> a -> a
+    _moveFocusLeft    :: ws -> Seat -> a -> a
+    _moveFocusRight   :: ws -> Seat -> a -> a
+    _moveFocusedLeft  :: ws -> Seat -> a -> a
+    _moveFocusedRight :: ws -> Seat -> a -> a
+
+class LayoutClass l => GenericLayoutClass l vs ws where
+    gPureLayout :: l -> vs -> ws -> WlrBox -> [(View, WlrBox)]
+
+data GenericLayout vs ws = forall l. GenericLayoutClass l vs ws => GenericLayout l
+
+instance Show (GenericLayout vs ws) where
+    show (GenericLayout l) = T.unpack $ description l
+
+newtype Zipper a b = Zipper { unZipper :: [(Set a, b)] }
+    deriving (Eq, Show, Functor, Foldable, Traversable)
+
+data Workspace a = Workspace
+    { wsLayout :: GenericLayout (ViewSet a) a
+    , wsViews :: Maybe (Zipper Seat View)
+    } deriving (Show)
+
+type ViewSet a = Map a (Workspace a)
+
+
+instance WSTag a => FocusCore (ViewSet a) a where
+    _getFocused vs ws (Just s) = getFocused s =<< M.lookup ws vs
+    _getFocused vs ws Nothing = getFirstFocused =<< M.lookup ws vs
+    _focusView ws s v = M.adjust (setFocused v s) ws
+    _getViews vs ws = fromMaybe mempty $ do
+        Workspace _ z <- M.lookup ws vs
+        Zipper xs <- z
+        pure $ S.fromList xs
+    getLayouted vs ws = whenJust (wsLayout <$> M.lookup ws vs) $
+        \(GenericLayout l) -> gPureLayout l vs ws
+    _insertView ws s v vs = M.adjust (addView s v) ws vs
+    _removeView ws v vs = M.adjust (rmView v) ws vs
+    getVSWorkspaces = fmap fst . M.toList
+
+instance WSTag a => ListLike (ViewSet a) a where
+    _asList vs ws = join . maybeToList $ fmap unZipper (wsViews =<< M.lookup ws vs)
+    _fromList ws [] vs = M.adjust (\w -> w {wsViews = Nothing}) ws vs
+    _fromList ws xs vs = M.adjust (\w -> w {wsViews = Just (Zipper xs)}) ws vs
+    _moveFocusLeft ws s vs = M.adjust (moveLeft s) ws vs
+    _moveFocusRight ws s vs = M.adjust (moveRight s) ws vs
+    _moveFocusedLeft ws s vs  = M.adjust (moveViewLeft s) ws vs
+    _moveFocusedRight ws s vs = M.adjust (moveViewRight s) ws vs
+
+getMaster :: Workspace a -> Maybe View
 getMaster (Workspace _ z) = getMaster' =<< z
 
 getMaster' :: Zipper a b -> Maybe b
 getMaster' (Zipper xs) =  snd <$> listToMaybe xs
 
-setFocused :: View -> Seat -> Workspace -> Workspace
+setFocused :: View -> Seat -> Workspace a -> Workspace a
 setFocused v t (Workspace l z) =
     Workspace l $ fmap (setFocused' t v) z
 
-getFocused :: Seat -> Workspace -> Maybe View
+getFocused :: Seat -> Workspace a -> Maybe View
 getFocused seat (Workspace _ (Just (Zipper z))) = snd <$> find (elem seat . fst) z
 getFocused _ _ = Nothing
 
-getFirstFocused :: Workspace -> Maybe View
+getFirstFocused :: Workspace a -> Maybe View
 getFirstFocused (Workspace _ z) = getFirstFocused' =<< z
 
 getFirstFocused' :: Zipper a b -> Maybe b
 getFirstFocused' (Zipper z) =
     snd <$> find (not . null . fst) z
 
-addView :: Maybe Seat -> View -> Workspace -> Workspace
+addView :: Maybe Seat -> View -> Workspace a -> Workspace a
 addView seat v (Workspace l z) = Workspace l $ addElem seat v z
 
-rmView :: View -> Workspace -> Workspace
+rmView :: View -> Workspace a -> Workspace a
 rmView v (Workspace l z) = Workspace l $ rmElem v z
 
 
@@ -185,7 +239,7 @@ contains x (Zipper xs) = elem x $ map snd xs
 snoc :: a -> [a] -> [a]
 snoc x xs = xs ++ [x]
 
-moveRight :: Seat -> Workspace -> Workspace
+moveRight :: Seat -> Workspace a -> Workspace a
 moveRight t (Workspace l z) = Workspace l $ fmap (moveRight' t) z
 
 moveRight' :: Ord a => a -> Zipper a b -> Zipper a b
@@ -198,7 +252,7 @@ moveRight' t (Zipper xs) =
             [(zs, c)] -> (t `S.insert` zs, snd $ head pre) : tail pre ++ [(t `S.delete` zs, c)]
             ((zs, c):ys) -> pre ++ (t `S.delete` zs ,c): (t `S.insert` fst (head ys), snd $ head ys) : tail ys
 
-moveLeft :: Seat -> Workspace -> Workspace
+moveLeft :: Seat -> Workspace a -> Workspace a
 moveLeft t (Workspace l z) = Workspace l $ fmap (moveLeft' t) z
 
 moveLeft' :: Ord a => a -> Zipper a b -> Zipper a b
@@ -214,7 +268,7 @@ moveLeft' t (Zipper xs) =
                 ((ts, z):zs) -> (t `S.delete` ts, z) : zs
                 [] -> []
 
-moveViewLeft :: Seat -> Workspace -> Workspace
+moveViewLeft :: Seat -> Workspace a -> Workspace a
 moveViewLeft t (Workspace l z) = Workspace l $ fmap (moveElemLeft' t) z
 
 moveElemLeft' :: Eq a => a -> Zipper a b -> Zipper a b
@@ -229,7 +283,7 @@ moveElemLeft' t (Zipper xs) =
             (z:zs) ->  let left = last ys
                         in init ys ++ z : left : zs
 
-moveViewRight :: Seat -> Workspace -> Workspace
+moveViewRight :: Seat -> Workspace a -> Workspace a
 moveViewRight t (Workspace l z) = Workspace l $ fmap (moveElemRight' t) z
 
 moveElemRight' :: Eq a => a -> Zipper a b -> Zipper a b

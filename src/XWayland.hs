@@ -44,7 +44,7 @@ import WayUtil.Signal (setSignalHandler)
 import Managehook
 import Waymonad
 import View
-import ViewSet (WSTag)
+import ViewSet (WSTag, FocusCore)
 import WayUtil.Log (logPutText, LogPriority (..))
 import Foreign.StablePtr
     ( newStablePtr
@@ -75,10 +75,10 @@ ptrToInt = fromIntegral . ptrToIntPtr
 
 
 xwayShellCreate
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => DisplayServer
     -> Ptr WlrCompositor
-    -> Way a XWayShell
+    -> Way vs a XWayShell
 xwayShellCreate display comp = do
     surfaces <- liftIO $ newIORef mempty
     roots <- liftIO $ X.xwaylandCreate display comp
@@ -91,10 +91,10 @@ xwayShellCreate display comp = do
         }
 
 handleXwayDestroy
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => MapRef
     -> Ptr X.X11Surface
-    -> Way a ()
+    -> Way vs a ()
 handleXwayDestroy ref surf = do
     logPutText loggerX11 Debug "Destroying XWayland surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
@@ -106,7 +106,7 @@ handleXwayDestroy ref surf = do
         sptr :: Ptr () <- peek (X.getX11SurfaceDataPtr surf)
         freeStablePtr $ castPtrToStablePtr sptr
 
-handleX11Configure :: View -> IORef (Int, Int) -> Ptr X.ConfigureEvent -> Way a ()
+handleX11Configure :: View -> IORef (Int, Int) -> Ptr X.ConfigureEvent -> Way vs a ()
 handleX11Configure view ref evt = do
     logPutText loggerX11 Debug "Got configure request"
     liftIO $ do
@@ -119,11 +119,11 @@ handleX11Configure view ref evt = do
             writeIORef ref (width, height)
 
 handleXwaySurface
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => Ptr X.XWayland
     -> MapRef
     -> Ptr X.X11Surface
-    -> Way a ()
+    -> Way vs a ()
 handleXwaySurface xway ref surf = do
     let xwaySurf = XWaySurface xway surf
     logPutText loggerX11 Debug "New XWayland surface"
@@ -173,7 +173,7 @@ instance ShellSurface XWaySurface where
     getAppId = liftIO . X.getClass . unXway
 
 
-overrideXRedirect :: Managehook a
+overrideXRedirect :: Managehook vs a
 overrideXRedirect = do
     view <- ask
     case getViewInner view of

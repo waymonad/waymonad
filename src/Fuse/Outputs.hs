@@ -91,7 +91,7 @@ parsePosition txt = do
     (y, ret) <- R.decimal nxt2
     pure (Point x y, ret)
 
-readMode :: Output -> Text -> Way a (Maybe (Ptr OutputMode))
+readMode :: Output -> Text -> Way vs a (Maybe (Ptr OutputMode))
 readMode out txt = do
     let parsed = do
             (Point width height, nxt) <- parsePosition txt
@@ -121,7 +121,7 @@ formatMode mode = sformat
     (modeHeight mode)
     (modeRefresh mode)
 
-makeModesText :: Output -> Way a Text
+makeModesText :: Output -> Way vs a Text
 makeModesText out = do
     modes <- liftIO (mapM peek =<< getModes (outputRoots out))
     pure $ T.intercalate "\n" $ fmap formatMode modes
@@ -137,7 +137,7 @@ readTransform "Flipped180" = Just outputTransformFlipped_180
 readTransform "Flipped270" = Just outputTransformFlipped_270
 readTransform _ = Nothing
 
-makeOutputDir :: WSTag a => Output -> Way a (Entry a)
+makeOutputDir :: WSTag a => Output -> Way vs a (Entry vs a)
 makeOutputDir out = do
     let guaranteed =
             [ ("width",  FileEntry $ textFile $ liftIO (T.pack . show <$> getWidth  (outputRoots out)))
@@ -218,10 +218,10 @@ makeOutputDir out = do
         dpms: position: scale: transform:
         guaranteed ++ modes ++ wsLink ++ catMaybes info
 
-enumerateOuts :: WSTag a => Way a (Map String (Entry a))
+enumerateOuts :: WSTag a => Way vs a (Map String (Entry vs a))
 enumerateOuts = do
     outputs <- getOutputs
     M.fromList <$> mapM (\out -> (T.unpack $ outputName out, ) <$> makeOutputDir out) outputs
 
-outputsDir :: WSTag a => Entry a
+outputsDir :: WSTag a => Entry vs a
 outputsDir = DirEntry $ enumeratingDir enumerateOuts

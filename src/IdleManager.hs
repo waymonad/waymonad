@@ -65,7 +65,7 @@ data IdleEvent
 
 instance EventClass IdleEvent
 
-gotInput :: EventSource -> Int -> Way a ()
+gotInput :: EventSource -> Int -> Way vs a ()
 gotInput src msecs = do
     (Idle idle) <- getEState
     if idle
@@ -74,7 +74,7 @@ gotInput src msecs = do
             setEState $ Idle False
         else void . liftIO $ eventSourceTimerUpdate src msecs
 
-handlePointerAdd :: Way a () -> Ptr WlrPointer -> Way a [ListenerToken]
+handlePointerAdd :: Way vs a () -> Ptr WlrPointer -> Way vs a [ListenerToken]
 handlePointerAdd report ptr = do
     let events = pointerGetEvents ptr
     sequence    [ setSignalHandler (pointerButton events) (const report)
@@ -83,12 +83,12 @@ handlePointerAdd report ptr = do
                 , setSignalHandler (pointerAxis events) (const report)
                 ]
 
-handleKeyboardAdd :: Way a () -> Ptr WlrKeyboard -> Way a [ListenerToken]
+handleKeyboardAdd :: Way vs a () -> Ptr WlrKeyboard -> Way vs a [ListenerToken]
 handleKeyboardAdd report ptr = do
     let events = getKeySignals ptr
     sequence    [ setSignalHandler (keySignalKey events) (const report) ]
 
-handleInputAdd :: Way a () -> Ptr InputDevice -> Way a ()
+handleInputAdd :: Way vs a () -> Ptr InputDevice -> Way vs a ()
 handleInputAdd report ptr = do
     iType <- liftIO $ inputDeviceType ptr
     listeners <- case iType of
@@ -98,7 +98,7 @@ handleInputAdd report ptr = do
 
     setDestroyHandler (getDestroySignal ptr) (const . liftIO $ mapM_ removeListener listeners)
 
-idleSetup :: Int -> DisplayServer -> Ptr Backend -> Way a ListenerToken
+idleSetup :: Int -> DisplayServer -> Ptr Backend -> Way vs a ListenerToken
 idleSetup msecs dsp backend = do
     evtLoop <- liftIO $ displayGetEventLoop dsp
     cb <- unliftWay (sendEvent IdleStart >> setEState (Idle True))
@@ -107,11 +107,11 @@ idleSetup msecs dsp backend = do
     let signals = backendGetSignals backend
     setSignalHandler (inputAdd signals) $ handleInputAdd (gotInput src msecs)
 
-getIdleBracket :: Int -> Bracketed (DisplayServer, Ptr Backend) a
+getIdleBracket :: Int -> Bracketed vs (DisplayServer, Ptr Backend) a
 getIdleBracket msecs =
     Bracketed (uncurry (idleSetup msecs)) (const $ pure ())
 
-idleLog :: SomeEvent -> Way a ()
+idleLog :: SomeEvent -> Way vs a ()
 idleLog evt = whenJust (getEvent evt) $ \case
     IdleStart -> liftIO $ hPutStrLn stderr "Setting up idle state"
     IdleStop -> liftIO $ hPutStrLn stderr "Tearing down idle state"

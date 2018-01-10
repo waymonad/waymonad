@@ -60,7 +60,7 @@ import WayUtil.Current (getCurrentView)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 
-hLogFun :: WSTag a => (Text -> IO ()) -> Way a ()
+hLogFun :: WSTag a => (Text -> IO ()) -> Way vs a ()
 hLogFun prnt = do
     allWS <- wayUserWorkspaces <$> getState
     actives <- fmap (map fst) . liftIO . readIORef . wayBindingMapping =<< getState
@@ -118,7 +118,7 @@ printFun clients text = do
     modifyMVar_ clients $ foldM (printSocket bs) []
 
 
-logFun :: WSTag a => IO (Way a ())
+logFun :: WSTag a => IO (Way vs a ())
 logFun = do
     server <- getSocket
     clients <- newMVar []

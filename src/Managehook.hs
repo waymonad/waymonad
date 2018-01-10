@@ -33,7 +33,7 @@ module Managehook
     )
 where
 
-import Control.Monad (void)
+import Control.Monad (void, forM_)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
@@ -44,39 +44,44 @@ import ViewSet (WSTag, addView, rmView, contains, wsViews)
 import Waymonad
 import Waymonad.Types
 import Layout
+import ViewSet
 import WayUtil
 import WayUtil.Floating
 import WayUtil.ViewSet
-    ( modifyCurrentWS, modifyWS, forceFocused, modifyViewSet
+    ( modifyCurrentWS, forceFocused, modifyViewSet
     )
 import WayUtil.Current (getCurrentWS)
+
+import qualified WayUtil.ViewSet as VS
 
 import qualified Data.Map as M
 import qualified Data.Set as S
 
-liftWay :: Way a b -> Query a b
+liftWay :: Way vs a b -> Query vs a b
 liftWay = Query . lift
 
-withView :: (View -> Way a b) -> Query a b
+withView :: (View -> Way vs a b) -> Query vs a b
 withView act = liftWay . act =<< ask
 
-runQuery :: View -> Query a b -> Way a b
+runQuery :: View -> Query vs a b -> Way vs a b
 runQuery v (Query m) = runReaderT m v
 
 enactInsert
-    :: WSTag a
-    => InsertAction a
-    -> Query a ()
+    :: (FocusCore vs a, WSTag a)
+    => InsertAction vs a
+    -> Query vs a ()
 enactInsert act = do
     view <- ask
     liftWay $ case act of
         InsertNone -> pure ()
         InsertFocused -> do
-            modifyCurrentWS (`addView` view)
-            sendEvent . WSEnter view =<< getCurrentWS
+            ws <- getCurrentWS
+            seat <- getSeat
+            VS.insertView view ws seat
+            sendEvent $ WSEnter view ws
         InsertInto ws -> do
             seat <- getSeat
-            modifyWS (addView seat view) ws
+            VS.insertView view ws seat
             sendEvent $ WSEnter view ws
         InsertFloating box -> do
             setFloating view box
@@ -85,31 +90,26 @@ enactInsert act = do
         InsertCustom ins -> ins
 
 
-query :: Query a View
+query :: Query vs a View
 query = ask
 
 insertView
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => View
-    -> Way a ()
+    -> Way vs a ()
 insertView v = do
     hook <- wayManagehook <$> getState
     runQuery v $ enactInsert . flip mappend InsertFocused =<< hook
 
 removeView
-    :: (WSTag a)
+    :: (FocusCore vs a, WSTag a)
     => View
-    -> Way a ()
+    -> Way vs a ()
 removeView v = do
-    wsL <- filter (maybe False (contains v) . wsViews . snd) . M.toList <$> getViewSet
+    vs <- getViewSet
+    forM_ (getVSWorkspaces vs) $ \ws -> do
+        VS.removeView v ws
+        forceFocused
+        reLayout ws
 
-    case wsL of
-        [(ws, _)] -> do
-            modifyViewSet $ M.adjust (rmView v) ws
-            reLayout ws
-
-            forceFocused
-        [] -> pure ()
--- TODO: log an error
-        _ -> pure ()
     modifyFloating (S.delete v)

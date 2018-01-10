@@ -36,13 +36,13 @@ import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 
 import View
-import ViewSet (WSTag)
+import ViewSet (WSTag, FocusCore)
 import Waymonad (Way, makeCallback)
 import Managehook (insertView, removeView)
 
 data ProxiedView = ProxiedView { removeProxy :: View -> IO (),  unProxy :: View, myView :: IORef View}
 
-makeProxy :: WSTag a => View -> Way a ()
+makeProxy :: (FocusCore vs a, WSTag a) => View -> Way vs a ()
 makeProxy v = do
     ref <- liftIO $ newIORef undefined
     fun <- makeCallback removeView

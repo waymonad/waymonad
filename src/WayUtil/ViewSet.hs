@@ -21,20 +21,23 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 module WayUtil.ViewSet
     ( modifyViewSet
-    , modifyWS
-    , modifyCurrentWS
     , setFocused
     , forceFocused
-    , withWS
     , unsetFocus
     , getWorkspaces
+    , modifyCurrentWS
     , modifyFocusedWS
+    , insertView
+    , removeView
+    , withCurrentWS
+    , withViewSet
+    , getWorkspaceViews
     )
 where
 
 import Control.Monad (when, join)
 import Control.Monad.IO.Class (liftIO, MonadIO)
-import Data.IORef (modifyIORef)
+import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
 import Data.Set (Set)
 
@@ -42,7 +45,7 @@ import Input.Seat (Seat, keyboardEnter, keyboardClear)
 import Layout (reLayout)
 import Utility (whenJust, doJust)
 import View (View, activateView)
-import ViewSet (ViewSet, Workspace (..), Zipper (..), WSTag, getFocused)
+import ViewSet (ViewSet, Workspace (..), Zipper (..), WSTag, getFocused, FocusCore (..))
 import Waymonad
     ( Way
     , getViewSet
@@ -58,75 +61,47 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 
 -- TODO: Place this better
-runLog :: (WSTag a) => Way a ()
+runLog :: (WSTag a) => Way vs a ()
 runLog = do
     state <- getState
     wayLogFunction state
 
-setFocus :: Seat -> (Set Seat, View) -> Way a ()
+setFocus :: Seat -> (Set Seat, View) -> Way vs a ()
 setFocus s (s', v) = when (s `S.member` s') $ do
     logPutText loggerFocus Trace "Actually setting a focus"
     liftIO $ do
         success <- keyboardEnter s v
         when success $ activateView v True
 
-setFoci :: Seat -> Workspace -> Way a ()
-setFoci s (Workspace _ Nothing) = do
-    logPutText loggerFocus Trace "Clearing focus for seat"
-    keyboardClear s
-setFoci s (Workspace _ (Just (Zipper xs))) = do
-    logPutText loggerFocus Trace "Setting foci for seat"
-    mapM_ (setFocus s) xs
-
-modifyViewSet :: Show a => (ViewSet a -> ViewSet a) -> Way a ()
+modifyViewSet :: (vs -> vs) -> Way vs a ()
 modifyViewSet fun = do
     ref <- wayBindingState <$> getState
     liftIO $ modifyIORef ref fun
-    vs <- getViewSet
-    logPutStr loggerWS Debug $ "Changed viewset, now is: " ++ show vs
 
-modifyWS
-    :: (WSTag a)
-    => (Workspace -> Workspace)
-    -> a
-    -> Way a ()
-modifyWS fun ws = do
-    logPutStr loggerWS Debug $ "Changing contents of workspace: " ++ show ws
+setFocused :: FocusCore vs a => Seat -> a -> Way vs a ()
+setFocused seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $
+    \v -> activateView v True
 
-    modifyViewSet (M.adjust fun ws)
-    reLayout ws
+forceFocused :: (WSTag a, FocusCore vs a) => Way vs a ()
+forceFocused = doJust getSeat $ \seat -> do
+    ws <- getCurrentWS
+    setFocused seat ws
 
-setFocused :: WSTag a => Seat -> a -> Way a ()
-setFocused seat ws = join . withWS ws $ setFoci seat
-
-forceFocused :: WSTag a => Way a ()
-forceFocused = do
-    seatM <- getSeat
-    case seatM of
-        Nothing -> pure ()
-        Just seat -> join (withCurrentWS $ setFoci seat)
-
-unsetFocus' :: MonadIO m => Seat -> (Set Seat, View) -> m ()
-unsetFocus' s (s', v) = when (S.singleton s == s') $ activateView v False
-
-unsetFoci :: Seat -> Workspace -> Way a ()
-unsetFoci _ (Workspace _ Nothing) = pure ()
-unsetFoci s (Workspace _ (Just (Zipper xs))) = mapM_ (unsetFocus' s) xs
-
-unsetFocus :: WSTag a => Seat -> a -> Way a ()
-unsetFocus seat ws = join . withWS ws $ unsetFoci seat
+unsetFocus :: FocusCore vs a => Seat -> a -> Way vs a ()
+unsetFocus seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $
+    \v -> activateView v False
 
 modifyCurrentWS
-    :: (WSTag a)
-    => (Maybe Seat -> Workspace -> Workspace)
-    -> Way a ()
+    :: (WSTag a, FocusCore vs a)
+    => (Maybe Seat -> a -> vs -> vs)
+    -> Way vs a ()
 modifyCurrentWS fun = do
     seatM <- getSeat
     ws <- getCurrentWS
-    let getView = whenJust seatM (\seat -> getFocused seat . fromJust . M.lookup ws <$> getViewSet)
+    let getView = whenJust seatM (\seat -> (\vs -> _getFocused vs ws $ Just seat) <$> getViewSet)
 
     preWs <- getView
-    modifyWS (fun seatM) ws
+    modifyViewSet (fun seatM ws)
     postWs <- getView
 
     -- This should really be on the 2 views we know about, not full
@@ -136,23 +111,38 @@ modifyCurrentWS fun = do
     runLog
 
 modifyFocusedWS
-    :: (WSTag a)
-    => (Seat -> Workspace -> Workspace)
-    -> Way a ()
+    :: (WSTag a, FocusCore vs a)
+    => (Seat -> a -> vs -> vs) -> Way vs a ()
 -- Somwhat ugly hack to make sure getSeat returns a Just value, but I prefer it
 -- over code duplication
 modifyFocusedWS fun = doJust getSeat $ \_ ->
     modifyCurrentWS (fun . fromJust)
 
-withWS
-    :: (WSTag a)
-    => a
-    -> (Workspace -> b)
-    -> Way a b
-withWS ws fun = do
-    vs <- getViewSet
+withCurrentWS
+    :: (FocusCore vs a)
+    => (Maybe Seat -> a -> vs -> b)
+    -> Way vs a b
+withCurrentWS fun = do
+    ws <- getCurrentWS
+    withViewSet $ flip fun ws
 
-    pure . fun . fromJust $  M.lookup ws vs
+withViewSet
+    :: (FocusCore vs a)
+    => (Maybe Seat -> vs -> b)
+    -> Way vs a b
+withViewSet fun = do
+    seat <- getSeat
+    vs <- liftIO . readIORef .  wayBindingState =<< getState
+    pure $ fun seat vs
 
-getWorkspaces :: Way a [a]
+getWorkspaces :: Way vs a [a]
 getWorkspaces = wayUserWorkspaces <$> getState
+
+getWorkspaceViews :: FocusCore vs a => a -> Way vs a [View]
+getWorkspaceViews ws = withViewSet (\_ vs -> fmap snd . S.toList $ _getViews vs ws)
+
+insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
+insertView v ws s = modifyViewSet (_insertView ws s v)
+
+removeView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()
+removeView v ws = modifyViewSet (_removeView ws v)

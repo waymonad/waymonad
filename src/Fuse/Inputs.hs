@@ -34,7 +34,7 @@ import Fuse.Common
 import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName, inputDeviceType)
 
 import Input
-import ViewSet (WSTag)
+import ViewSet (WSTag, FocusCore)
 import Waymonad
 import Waymonad.Types (Compositor (compInput))
 
@@ -43,7 +43,7 @@ import qualified Data.Set as S
 import qualified Data.Text as T
 
 
-makeInputDir :: WSTag a => Ptr InputDevice -> Way a (String, Entry a)
+makeInputDir :: (FocusCore vs a, WSTag a) => Ptr InputDevice -> Way vs a (String, Entry vs a)
 makeInputDir ptr = do
     let deviceType =
             [ ("type", FileEntry $ textFile $ liftIO $ T.pack . show <$> inputDeviceType ptr)
@@ -54,14 +54,14 @@ makeInputDir ptr = do
     pure (T.unpack name, DirEntry $ simpleDir $ M.fromList deviceType)
 
 
-enumerateInputs :: WSTag a => Way a (Map String (Entry a))
+enumerateInputs :: (FocusCore vs a, WSTag a) => Way vs a (Map String (Entry vs a))
 enumerateInputs = do
     inputRef <- inputDevices . compInput . wayCompositor <$> getState
     inputs <- liftIO $ readIORef inputRef
     M.fromList <$> mapM makeInputDir (S.toList inputs)
 
 
-makeFooDir :: (Text, SeatFoo) -> Way a (String, Entry a)
+makeFooDir :: (Text, SeatFoo) -> Way vs a (String, Entry vs a)
 makeFooDir (name, foo) = do
 
     devPtrs <- liftIO $ readIORef $ fooDevices foo
@@ -72,13 +72,13 @@ makeFooDir (name, foo) = do
 
     pure (T.unpack name, DirEntry $ simpleDir $ M.fromList [devDir])
 
-enumerateSeats :: Way a (Map String (Entry a))
+enumerateSeats :: Way vs a (Map String (Entry vs a))
 enumerateSeats = do
     fooRef <- inputFooMap . compInput . wayCompositor <$> getState
     foos <- liftIO $ readIORef fooRef
     M.fromList <$> mapM makeFooDir (M.toList foos)
 
-inputsDir :: WSTag a => Entry a
+inputsDir :: (FocusCore vs a, WSTag a) => Entry vs a
 inputsDir =
     DirEntry $ simpleDir $ M.fromList
         [ ("devices", DirEntry $ enumeratingDir enumerateInputs)

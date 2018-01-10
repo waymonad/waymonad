@@ -21,11 +21,9 @@ Reach us at https://github.com/ongy/waymonad
 module WayUtil.Current
     ( getPointerOutput
     , getCurrentOutput
-    , getCurrentWS
     , getCurrentView
     , getCurrentBox
-
-    , withCurrentWS
+    , getCurrentWS
     )
 where
 
@@ -54,7 +52,7 @@ import qualified Data.Map as M
 import qualified Data.IntMap as IM
 
 -- TODO: This should be a Maybe, we aren't guaranteed outputs
-getPointerOutput :: Way a Output
+getPointerOutput :: Way vs a Output
 getPointerOutput = do
     state <- getState
     (Just seat) <- getSeat
@@ -62,7 +60,7 @@ getPointerOutput = do
     let (Just current) = M.lookup seat $ M.fromList currents
     pure . fst $ current
 
-getCurrentOutput :: Way a (Maybe Output)
+getCurrentOutput :: Way vs a (Maybe Output)
 getCurrentOutput = doJust getSeat $ \seat -> do
     state <- getState
     currents <- liftIO . readIORef $ wayBindingCurrent state
@@ -72,7 +70,7 @@ getCurrentOutput = doJust getSeat $ \seat -> do
             outs <- readIORef $ wayBindingOutputs state
             pure $ listToMaybe outs
 
-getCurrentWS :: (WSTag a) => Way a a
+getCurrentWS :: Way vs a a
 getCurrentWS = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     output <- getCurrentOutput
@@ -82,20 +80,11 @@ getCurrentWS = do
 -- TODO: Make this a better error message!
         Nothing -> head . wayUserWorkspaces <$> getState
 
-withCurrentWS
-    :: (WSTag a)
-    => (Workspace -> b)
-    -> Way a b
-withCurrentWS fun = do
-    ws <- getCurrentWS
-    vs <- getViewSet
 
-    pure . fun . fromJust $  M.lookup ws vs
-
-getCurrentView :: WSTag a => Way a (Maybe View)
+getCurrentView :: Way vs a (Maybe View)
 getCurrentView = doJust getSeat getKeyboardFocus
 
-getCurrentBox :: Way a WlrBox
+getCurrentBox :: Way vs a WlrBox
 getCurrentBox =
     liftIO . getOutputBox . outputRoots =<< getPointerOutput
 

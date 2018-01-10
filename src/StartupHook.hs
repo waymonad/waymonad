@@ -33,7 +33,7 @@ import Utility.Spawn (spawn)
 import Waymonad (unliftWay)
 import Waymonad.Types (Way)
 
-getStartupBracket :: Way a () -> Bracketed DisplayServer a
+getStartupBracket :: Way vs a () -> Bracketed vs DisplayServer a
 getStartupBracket act = Bracketed (\dsp -> do
         evtLoop <- liftIO $ displayGetEventLoop dsp
         cb <- unliftWay act

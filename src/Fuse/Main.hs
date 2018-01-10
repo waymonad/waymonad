@@ -36,7 +36,7 @@ import Graphics.Wayland.Server
     )
 
 import Shared (Bracketed (..))
-import ViewSet (WSTag (..))
+import ViewSet (WSTag, FocusCore)
 import WayUtil (closeCompositor)
 import Waymonad (getSeat, getState, getLoggers, runWay, makeCallback, unliftWay)
 import Waymonad.Types (Way)
@@ -52,13 +52,13 @@ import qualified Data.Map as M
 openDir :: FilePath -> IO Errno
 openDir _ = pure eOK
 
-closeFile :: Entry a
+closeFile :: Entry vs a
 closeFile = FileEntry $ bytestringRWFile
     (pure mempty)
     (\_ -> Right <$> closeCompositor)
 
-fuseOps :: WSTag a => Way a (FuseOperations (FileHandle a))
-fuseOps = do
+fuseOps :: DirHandle vs a -> Way vs a (FuseOperations (FileHandle vs a))
+fuseOps dir = do
     seat <- getSeat
     state <- getState
     loggers <- getLoggers
@@ -71,11 +71,11 @@ fuseOps = do
     let fileReleaseCB path file = runWay seat state loggers $ fileRelease file path
     let fileSetSizeCB _ _ = runWay seat state loggers $ pure eOK
 
-    dirReadCB <- makeCallback (dirRead mainDir)
-    let openFileCB path mode flags = runWay seat state loggers $ dirOpenFile mainDir path mode flags
-    statCB <- makeCallback (dirGetStat mainDir)
+    dirReadCB <- makeCallback (dirRead dir)
+    let openFileCB path mode flags = runWay seat state loggers $ dirOpenFile dir path mode flags
+    statCB <- makeCallback (dirGetStat dir)
 
-    readLinkCB <- makeCallback (dirReadSym mainDir)
+    readLinkCB <- makeCallback (dirReadSym dir)
 
     pure $ defaultFuseOps
         { fuseOpenDirectory = openDir
@@ -92,7 +92,7 @@ fuseOps = do
         , fuseSetFileSize = fileSetSizeCB
         }
 
-mainDir :: WSTag a => DirHandle a
+mainDir :: (FocusCore vs a, WSTag a) => DirHandle vs a
 mainDir = simpleDir $ M.fromList
     [ ("workspaces", workspaceDir)
     , ("outputs", outputsDir)
@@ -101,12 +101,12 @@ mainDir = simpleDir $ M.fromList
     ]
 
 
-getFuseBracket :: WSTag a => Bracketed DisplayServer a
+getFuseBracket :: (FocusCore vs a, WSTag a) => Bracketed vs DisplayServer a
 getFuseBracket = do
 
 
     PreBracket (\dsp act -> do
-        ops <- fuseOps
+        ops <- fuseOps mainDir
         runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
         let fuseDir = runtimeDir ++ "/waymonad"
         liftIO $ createDirectoryIfMissing False fuseDir

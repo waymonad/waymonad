@@ -81,28 +81,28 @@ import Graphics.Wayland.Signal
     , removeListener
     )
 
-data Bracketed a b
+data Bracketed vs a b
     = forall c. Bracketed
-        { bracketSetup    :: a -> Way b c
-        , bracketTeardown :: c -> Way b ()
+        { bracketSetup    :: a -> Way vs b c
+        , bracketTeardown :: c -> Way vs b ()
         }
-  | PreBracket (forall c. a -> Way b c -> Way b c)
+  | PreBracket (forall c. a -> Way vs b c -> Way vs b c)
 
-runBracket :: Bracketed a c -> a -> (a -> Way c b) -> Way c b
+runBracket :: Bracketed vs a c -> a -> (a -> Way vs c b) -> Way vs c b
 runBracket Bracketed {bracketSetup = setup, bracketTeardown = teardown} val act =
     bracket (setup val) teardown (const $ act val)
 runBracket (PreBracket fun) val act = fun val (act val)
 
-foldBrackets :: [Bracketed a c] -> (a -> Way c b) -> a -> Way c b
+foldBrackets :: [Bracketed vs a c] -> (a -> Way vs c b) -> a -> Way vs c b
 foldBrackets [] act val = act val
 foldBrackets (b:bs) act val = runBracket b val (foldBrackets bs act)
 
 type FrameHandler = Double -> Ptr WlrOutput -> IO ()
 
-data CompHooks a = CompHooks
-    { displayHook :: [Bracketed DisplayServer a]
-    , backendPreHook :: [Bracketed (DisplayServer, Ptr Backend) a]
-    , backendPostHook :: [Bracketed () a]
+data CompHooks vs a = CompHooks
+    { displayHook :: [Bracketed vs DisplayServer a]
+    , backendPreHook :: [Bracketed vs (DisplayServer, Ptr Backend) a]
+    , backendPostHook :: [Bracketed vs () a]
 
     , inputAddHook :: Ptr InputDevice -> IO ()
     , outputAddHook :: Ptr WlrOutput -> IO FrameHandler
@@ -111,7 +111,7 @@ data CompHooks a = CompHooks
     }
 
 
-ignoreHooks :: CompHooks a
+ignoreHooks :: CompHooks vs a
 ignoreHooks = CompHooks
     { displayHook = []
     , backendPreHook = []
@@ -134,7 +134,7 @@ handleFrame hook ref output = do
 
     hook secs output
 
-handleOutputAdd :: CompHooks a -> Ptr WlrOutput -> IO ()
+handleOutputAdd :: CompHooks vs a -> Ptr WlrOutput -> IO ()
 handleOutputAdd hooks output = do
     modes <- getModes output
     readable <- mapM peek modes
@@ -152,7 +152,7 @@ handleOutputAdd hooks output = do
     sptr <- newStablePtr handler
     poke (getDataPtr output) (castStablePtrToPtr sptr)
 
-handleOutputRemove :: CompHooks a -> Ptr WlrOutput -> IO ()
+handleOutputRemove :: CompHooks vs a -> Ptr WlrOutput -> IO ()
 handleOutputRemove hooks output = do
     sptr :: Ptr () <- peek (getDataPtr output)
     freeStablePtr $ castPtrToStablePtr sptr
@@ -162,7 +162,7 @@ foreign import ccall "wl_display_add_socket_auto" c_add_socket_auto :: Ptr Displ
 
 foreign import ccall "wl_display_add_socket" c_add_socket :: Ptr DisplayServer -> Ptr CChar -> IO (Ptr CChar)
 
-backendMain :: CompHooks a -> DisplayServer -> Ptr Backend -> Way a ()
+backendMain :: CompHooks vs a -> DisplayServer -> Ptr Backend -> Way vs a ()
 backendMain hooks display backend = do
     -- This dispatches the first events, e.g. output/input add signals
     liftIO $ backendStart backend
@@ -182,12 +182,12 @@ bindSocket display = liftIO $ do
     hPutStrLn stderr sName
     setEnv "_WAYLAND_DISPLAY" sName
 
-displayMain :: CompHooks a -> DisplayServer -> Way a ()
+displayMain :: CompHooks vs a -> DisplayServer -> Way vs a ()
 displayMain hooks display = do
     let binder = Bracketed (const $ liftIO $ bindSocket display) (const $ pure ())
     let outAdd = Bracketed (liftIO . addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals . snd) (liftIO .  removeListener)
     let outRem = Bracketed (liftIO . addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals . snd) (liftIO .  removeListener)
     foldBrackets (binder: outAdd: outRem: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< (liftIO $ backendAutocreate display)
 
-launchCompositor :: CompHooks a -> Way a ()
+launchCompositor :: CompHooks vs a -> Way vs a ()
 launchCompositor hooks = foldBrackets (displayHook hooks) (displayMain hooks) =<< liftIO displayCreate

@@ -59,18 +59,18 @@ checkOutput
     => Maybe Output
     -> Maybe Output
     -> (Maybe a -> Maybe a -> SeatWSChangeEvent a)
-    -> Way a ()
+    -> Way vs a ()
 checkOutput pre cur con = do
     preWS <- join <$> traverse getOutputWS pre
     curWS <- join <$> traverse getOutputWS cur
     when (preWS /= curWS) $ sendEvent $ con preWS curWS
 
-outputChangeEvt :: WSTag a => Maybe SeatOutputChangeEvent -> Way a ()
+outputChangeEvt :: WSTag a => Maybe SeatOutputChangeEvent -> Way vs a ()
 outputChangeEvt Nothing = pure ()
 outputChangeEvt (Just (PointerOutputChangeEvent seat pre cur)) = checkOutput pre cur $ PointerWSChangeEvent seat
 outputChangeEvt (Just (KeyboardOutputChangeEvent seat pre cur)) = checkOutput pre cur $ KeyboardWSChangeEvent seat
 
-mappingChangeEvt :: WSTag a => Maybe (OutputMappingEvent a) -> Way a ()
+mappingChangeEvt :: WSTag a => Maybe (OutputMappingEvent a) -> Way vs a ()
 mappingChangeEvt Nothing = pure ()
 mappingChangeEvt (Just (OutputMappingEvent out pre cur)) = do
     keys   <- getOutputKeyboards out
@@ -79,11 +79,11 @@ mappingChangeEvt (Just (OutputMappingEvent out pre cur)) = do
     forM_ points $ \point -> sendEvent $ PointerWSChangeEvent point pre cur
     forM_ keys $ \key -> sendEvent $ KeyboardWSChangeEvent key pre cur
 
-wsChangeEvtHook :: WSTag a => SomeEvent -> Way a ()
+wsChangeEvtHook :: WSTag a => SomeEvent -> Way vs a ()
 wsChangeEvtHook e =
        outputChangeEvt (getEvent e)
     <> mappingChangeEvt (getEvent e)
 
-wsChangeLogHook :: forall a. WSTag a => SomeEvent -> Way a ()
+wsChangeLogHook :: forall a vs. WSTag a => SomeEvent -> Way vs a ()
 wsChangeLogHook e = whenJust (getEvent e) $ \(evt :: SeatWSChangeEvent a) ->
     logPrint loggerWS Debug evt

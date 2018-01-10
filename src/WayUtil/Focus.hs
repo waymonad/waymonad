@@ -34,6 +34,7 @@ where
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef, modifyIORef)
 import Data.List (lookup, find)
+import Data.Maybe (listToMaybe)
 import Data.Tuple (swap)
 import Data.Typeable (Typeable)
 
@@ -41,7 +42,7 @@ import Layout (reLayout)
 import Output (Output (..))
 import Utility (whenJust, doJust)
 import View (View)
-import ViewSet (WSTag, setFocused, getMaster)
+import ViewSet (WSTag, setFocused, getMaster, FocusCore (..), ListLike (..))
 import Waymonad
     ( Way
     , getState
@@ -52,8 +53,8 @@ import Waymonad
     , getSeat
     )
 import WayUtil (runLog)
-import WayUtil.Current (getCurrentOutput, withCurrentWS)
-import WayUtil.ViewSet (modifyCurrentWS, modifyWS)
+import WayUtil.Current (getCurrentOutput, getCurrentWS)
+import WayUtil.ViewSet (modifyCurrentWS, modifyViewSet, withCurrentWS)
 import WayUtil.Log (logPutText, LogPriority(..))
 
 data OutputMappingEvent a = OutputMappingEvent
@@ -64,7 +65,7 @@ data OutputMappingEvent a = OutputMappingEvent
 
 instance Typeable a => EventClass (OutputMappingEvent a)
 
-setOutputWorkspace :: WSTag a => a -> Output -> Way a ()
+setOutputWorkspace :: (FocusCore vs a, WSTag a) => a -> Output -> Way vs a ()
 setOutputWorkspace ws current = do
     state <- getState
     -- Do this manually here, since we don't want the defaulting to first
@@ -82,33 +83,36 @@ setOutputWorkspace ws current = do
     reLayout ws
     whenJust pre reLayout
 
-getWorkspaceOutputs :: Eq a => a -> Way a [Output]
+getWorkspaceOutputs :: Eq a => a -> Way vs a [Output]
 getWorkspaceOutputs ws = do
     xs <- liftIO . readIORef . wayBindingMapping =<< getState
     pure . map snd . filter ((==) ws . fst) $ xs
 
-getOutputWorkspace :: Output -> Way a (Maybe a)
+getOutputWorkspace :: Output -> Way vs a (Maybe a)
 getOutputWorkspace out = do
     xs <- liftIO . readIORef . wayBindingMapping =<< getState
     pure . fmap fst . find ((==) out . snd) $ xs
 
-setWorkspace :: WSTag a => a -> Way a ()
+setWorkspace :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 setWorkspace ws =
     doJust getCurrentOutput $ setOutputWorkspace ws
 
-focusWSView :: WSTag a => View -> a -> Way a ()
+focusWSView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()
 focusWSView view ws = do
     logPutText loggerFocus Trace "Calling focusView"
-    (Just seat) <- getSeat
-    modifyWS (setFocused view seat) ws
+    doJust getSeat $ \seat ->  do
+        ws <- getCurrentWS
+        modifyViewSet (_focusView ws seat view)
 
-focusView :: WSTag a => View -> Way a ()
+focusView :: (FocusCore vs a, WSTag a) => View -> Way vs a ()
 focusView view = do
     logPutText loggerFocus Trace "Calling focusView"
-    modifyCurrentWS $ \s w -> case s of
-        Just seat -> setFocused view seat w
-        Nothing -> w
+    modifyCurrentWS $ \s ws vs -> case s of
+        Just seat -> _focusView ws seat view vs
+        Nothing -> vs
 
 
-focusMaster :: WSTag a => Way a ()
-focusMaster = doJust (withCurrentWS getMaster) focusView
+focusMaster :: (FocusCore vs a, ListLike vs a, WSTag a) => Way vs a ()
+focusMaster = do
+    master <- withCurrentWS (\_ ws vs -> fmap snd . listToMaybe $ _asList vs ws)
+    whenJust master focusView

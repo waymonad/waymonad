@@ -231,7 +231,7 @@ frameHandler
     :: WSTag a
     => Double
     -> Ptr WlrOutput
-    -> Way a ()
+    -> Way vs a ()
 frameHandler secs output = do
     comp <- wayCompositor <$> getState
     (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
@@ -320,7 +320,7 @@ configureOutput
     -> Map Text OutputConfig
     -> Text
     -> Ptr WlrOutput
-    -> Way a ()
+    -> Way vs a ()
 configureOutput layout configs name output = liftIO $ do
     let conf = M.lookup name configs
         position = outPosition =<< conf
@@ -344,7 +344,7 @@ handleOutputAdd
     => IORef Compositor
     -> [a]
     -> Ptr WlrOutput
-    -> Way a FrameHandler
+    -> Way vs a FrameHandler
 handleOutputAdd ref _ output = do
     comp <- liftIO $ readIORef ref
     state <- getState
@@ -366,7 +366,7 @@ handleOutputAdd ref _ output = do
 
 handleOutputRemove
     :: Ptr WlrOutput
-    -> Way a ()
+    -> Way vs a ()
 handleOutputRemove output = do
     state <- getState
     name <- liftIO $ getOutputName output
@@ -382,7 +382,7 @@ handleOutputRemove output = do
 getOutputId :: Output -> Int
 getOutputId = ptrToInt . outputRoots
 
-outputFromWlr :: Ptr WlrOutput -> Way a Output
+outputFromWlr :: Ptr WlrOutput -> Way vs a Output
 outputFromWlr ptr = do
     outs <- liftIO . readIORef . wayBindingOutputs =<< getState
     pure . fromJust . find ((==) ptr . outputRoots) $ outs

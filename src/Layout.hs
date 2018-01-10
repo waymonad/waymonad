@@ -30,14 +30,16 @@ where
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
+import Data.Maybe (fromJust)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
 
 import {-# SOURCE #-} Output (Output (..), getOutputId, setOutputDirty)
 import Utility (whenJust)
-import View (setViewBox)
-import ViewSet (WSTag (..), Workspace (..), Layout (..), pureLayout)
+import View (View, setViewBox)
+import ViewSet
+    (WSTag (..), Workspace (..), GenericLayout (..), FocusCore (..), gPureLayout)
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
 import Waymonad.Types (LogPriority(Debug))
 import WayUtil.Log (logPutText)
@@ -50,7 +52,7 @@ import qualified Data.Text as T
 getBoxes
     :: WSTag a
     => a
-    -> Way a [(Output, WlrBox)]
+    -> Way vs a [(Output, WlrBox)]
 getBoxes ws = do
     xs <- liftIO . readIORef . wayBindingMapping =<< getState
     let outputs = map snd . filter ((==) ws . fst) $ xs
@@ -60,7 +62,7 @@ getBoxes ws = do
 getLayoutBoxes
     :: WSTag a
     => a
-    -> Way a [(Output, WlrBox)]
+    -> Way vs a [(Output, WlrBox)]
 getLayoutBoxes ws = do
     outs <- getBoxes ws
 
@@ -73,28 +75,27 @@ getLayoutBoxes ws = do
 
 
 reLayout
-    :: WSTag a
+    :: forall vs a. (WSTag a, FocusCore vs a)
     => a
-    -> Way a ()
+    -> Way vs a ()
 reLayout ws = do
     state <- getState
-    wstate <- M.lookup ws <$> (liftIO . readIORef . wayBindingState $ state)
+    wstate <- liftIO . readIORef . wayBindingState $ state
     let cacheRef = wayBindingCache state
 
     boxes <- getLayoutBoxes ws
     mapM_ (setOutputDirty . fst) boxes
 
-    forM_ boxes $ \(out, box) -> whenJust wstate $ \case
-        (Workspace _ Nothing) -> liftIO $ modifyIORef cacheRef $ IM.delete (getOutputId out)
-        (Workspace (Layout l) (Just vs)) -> do
-            let layout = pureLayout l box vs
-            liftIO $ modifyIORef cacheRef $ IM.insert (getOutputId out) layout
+    forM_ boxes $ \(out, box) -> do
+        let layout = getLayouted wstate ws box
 
-            mapM_ (uncurry setViewBox) layout
-            logPutText loggerLayout Debug $
-                "Set the layout for "
-                `T.append` getName ws
-                `T.append` "  on "
-                `T.append` outputName out
-                `T.append` " to: "
-                `T.append` T.pack (show $ map snd layout)
+        liftIO $ modifyIORef cacheRef $ IM.insert (getOutputId out) layout
+
+        mapM_ (uncurry setViewBox) layout
+        logPutText loggerLayout Debug $
+            "Set the layout for "
+            `T.append` getName ws
+            `T.append` "  on "
+            `T.append` outputName out
+            `T.append` " to: "
+            `T.append` T.pack (show $ map snd layout)

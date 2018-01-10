@@ -38,54 +38,50 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Utility (doJust)
 import View (View, moveView, resizeView)
-import ViewSet (WSTag, addView, rmView)
+import ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
     , WayBindingState (..)
     , getState
     )
 import WayUtil.Current (getCurrentBox, getCurrentView)
-import WayUtil.ViewSet (modifyCurrentWS)
+import WayUtil.ViewSet (modifyFocusedWS)
 
 import qualified Data.Set as S
 
-modifyFloating :: (Set View -> Set View) -> Way a ()
+modifyFloating :: (Set View -> Set View) -> Way vs a ()
 modifyFloating fun = liftIO . flip modifyIORef fun . wayFloating =<< getState
 
-getFloats :: Way a (Set View)
+getFloats :: Way vs a (Set View)
 getFloats = liftIO . readIORef . wayFloating =<< getState
 
-isFloating :: View -> Way a Bool
+isFloating :: View -> Way vs a Bool
 isFloating v = S.member v <$> getFloats
 
-setFloating
-    :: WSTag a => View -> WlrBox -> Way a ()
+setFloating :: View -> WlrBox -> Way vs a ()
 setFloating view (WlrBox x y width height) = do
     moveView view (fromIntegral x) (fromIntegral y)
     resizeView view (fromIntegral width) (fromIntegral height)
     modifyFloating $ S.insert view
 
-unsetFloating
-    :: WSTag a => View -> Way a ()
+unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
 unsetFloating view = do
     floats <- isFloating view
     when floats $ do
         modifyFloating $ S.delete view
-        modifyCurrentWS (`addView` view)
+        modifyFocusedWS (\s ws vs -> _insertView ws (Just s) view vs)
 
-toggleFloat
-    :: WSTag a => WlrBox ->  Way a ()
+toggleFloat :: (WSTag a, FocusCore vs a) => WlrBox ->  Way vs a ()
 toggleFloat box = doJust getCurrentView $ \view -> do
     floats <- isFloating view
     if floats
         then unsetFloating view
         else do
-            modifyCurrentWS $ const $ rmView view
+            modifyFocusedWS (\_ ws vs -> _removeView ws view vs)
             setFloating view box
 
 
-centerFloat
-    :: WSTag a => Way a ()
+centerFloat :: (WSTag a, FocusCore vs a) => Way vs a ()
 centerFloat = do
     (WlrBox x y w h) <- getCurrentBox
     let nw = w `div` 2

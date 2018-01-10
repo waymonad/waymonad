@@ -35,11 +35,11 @@ import Shared (Bracketed (..))
 import Waymonad (makeCallback)
 import Waymonad.Types (Way)
 
-makeManager :: DisplayServer -> Way a (Ptr WlrGammaManager)
+makeManager :: DisplayServer -> Way vs a (Ptr WlrGammaManager)
 makeManager dsp = do
     ptr <- liftIO $ createGammaManager dsp
     registerGlobal "GammaControl" =<< liftIO (getGammaGlobal ptr)
     pure ptr
 
-getGammaBracket :: Bracketed DisplayServer a
+getGammaBracket :: Bracketed vs DisplayServer a
 getGammaBracket = Bracketed makeManager (liftIO . destroyGammaManager)

@@ -48,6 +48,7 @@ import ViewSet
     , rmView
     , addView
     , viewsBelow
+    , FocusCore (..)
     )
 import Waymonad
     ( WayBindingState(..)
@@ -86,40 +87,41 @@ data ViewWSChange a
 
 instance Typeable a => EventClass (ViewWSChange a)
 
-sendTo :: (WSTag a) => a -> Way a ()
+
+
+sendTo :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 sendTo ws = do
-    viewM <- getCurrentView
     seat <- getSeat
-    whenJust viewM $ \view -> do
-        modifyCurrentWS (\_ -> rmView view)
+    doJust getCurrentView $ \view -> do
         cws <- getCurrentWS
+        removeView view cws
         sendEvent $ WSExit view cws
-        modifyWS (addView seat view) ws
+        insertView view ws seat
         sendEvent $ WSEnter view ws
 
 
-sendMessage :: (WSTag a, Message t) => t -> Way a ()
-sendMessage m = modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
+sendMessage :: (WSTag a, Message t) => t -> Way vs a ()
+sendMessage m = undefined -- modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
 
-broadcastMessageOn :: (WSTag a, Message t) => t -> a -> Way a ()
-broadcastMessageOn m = modifyWS (broadcastWS (SomeMessage m))
+broadcastMessageOn :: (WSTag a, Message t) => t -> a -> Way vs a ()
+broadcastMessageOn m = undefined -- modifyWS (broadcastWS (SomeMessage m))
 
-broadcastMessage :: (WSTag a, Message t) => t -> Way a ()
-broadcastMessage m = do
-    wss <- wayUserWorkspaces <$> getState
-    mapM_ (broadcastMessageOn m) wss
+broadcastMessage :: (WSTag a, Message t) => t -> Way vs a ()
+broadcastMessage m = undefined -- do
+--    wss <- wayUserWorkspaces <$> getState
+--    mapM_ (broadcastMessageOn m) wss
 
-runLog :: (WSTag a) => Way a ()
+runLog :: (WSTag a) => Way vs a ()
 runLog = do
     state <- getState
     wayLogFunction state
 
-focusNextOut :: WSTag a => Way a ()
+focusNextOut :: WSTag a => Way vs a ()
 focusNextOut = doJust getSeat $ \seat -> doJust getCurrentOutput $ \current -> do
         possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
         let new = head . tail . dropWhile (/= current) $ cycle possibles
         setSeatOutput seat (That new)
-        forceFocused
+        -- WARN: there was a forceFocused here
 
 data SeatOutputChangeEvent
     = PointerOutputChangeEvent
@@ -137,7 +139,7 @@ instance EventClass SeatOutputChangeEvent
 
 -- This: Pointer Focus
 -- That: Keyboard Focus
-setSeatOutput :: WSTag a => Seat -> These Output -> Way a ()
+setSeatOutput :: WSTag a => Seat -> These Output -> Way vs a ()
 setSeatOutput seat foci = do
     state <- getState
     current <- lookup seat <$> liftIO (readIORef (wayBindingCurrent state))
@@ -162,10 +164,7 @@ setSeatOutput seat foci = do
         KeyboardOutputChangeEvent seat curk newk
     runLog
 
-seatOutputEventHandler
-    :: WSTag a
-    => SomeEvent
-    -> Way a ()
+seatOutputEventHandler :: WSTag a => SomeEvent -> Way vs a ()
 seatOutputEventHandler e = case getEvent e of
     Nothing -> pure ()
     (Just (PointerOutputChangeEvent seat pre new)) -> do
@@ -191,50 +190,50 @@ seatOutputEventHandler e = case getEvent e of
             " to " `T.append`
             fromMaybe "None" nName
 
-modifyStateRef :: (StateMap -> StateMap) -> Way a ()
+modifyStateRef :: (StateMap -> StateMap) -> Way vs a ()
 modifyStateRef fun = do
     ref <- wayExtensibleState <$> getState
     liftIO $ modifyIORef ref fun
 
-modifyEState :: ExtensionClass a => (a -> a) -> Way b ()
+modifyEState :: ExtensionClass a => (a -> a) -> Way vs b ()
 modifyEState = modifyStateRef . modifyValue
 
-setEState :: ExtensionClass a => a -> Way b ()
+setEState :: ExtensionClass a => a -> Way vs b ()
 setEState = modifyStateRef . setValue
 
-getEState :: ExtensionClass a => Way b a
+getEState :: ExtensionClass a => Way vs b a
 getEState = do
     state <- liftIO . readIORef . wayExtensibleState =<< getState
     pure $ getValue state
 
 
-killCurrent :: WSTag a => Way a ()
+killCurrent :: WSTag a => Way vs a ()
 killCurrent = do
     view <- getCurrentView
     whenJust view closeView
 
-getOutputWS :: WSTag a => Output -> Way a (Maybe a)
+getOutputWS :: WSTag a => Output -> Way vs a (Maybe a)
 getOutputWS output =  do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     pure $ lookup output $ map swap mapping
 
-getOutputPointers :: Output -> Way a [Seat]
+getOutputPointers :: Output -> Way vs a [Seat]
 getOutputPointers out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . fst . snd) $ currents
 
-getOutputKeyboards :: Output -> Way a [Seat]
+getOutputKeyboards :: Output -> Way vs a [Seat]
 getOutputKeyboards out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . snd . snd) $ currents
 
-getOutputs :: Way a [Output]
+getOutputs :: Way vs a [Output]
 getOutputs = liftIO . readIORef . wayBindingOutputs =<< getState
 
 
 viewBelow
     :: Point
-    -> Way a (Maybe (View, Int, Int))
+    -> Way vs a (Maybe (View, Int, Int))
 viewBelow point = do
     ws <- getCurrentOutput
     fullCache <- liftIO . readIORef . wayBindingCache =<< getState
@@ -252,10 +251,10 @@ viewBelow point = do
                         Just focused -> 
                             pure $ find (\(v, _, _) -> v == focused) candidates <|> listToMaybe candidates
 
-getDisplay :: Way a DisplayServer
+getDisplay :: Way vs a DisplayServer
 getDisplay = compDisplay . wayCompositor <$> getState
 
-closeCompositor :: Way a ()
+closeCompositor :: Way vs a ()
 closeCompositor = do
     dsp <- getDisplay
     liftIO (displayTerminate dsp)

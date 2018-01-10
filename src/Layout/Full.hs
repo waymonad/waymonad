@@ -19,6 +19,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Layout.Full
 where
 
@@ -31,5 +34,10 @@ instance LayoutClass Full where
     handleMessage _ _ = Nothing
     broadcastMessage _ _ = Nothing
     pureLayout _ box zipper = case getMaster' zipper of
+        Nothing -> []
+        Just v -> [(v, box)]
+
+instance FocusCore vs ws => GenericLayoutClass Full vs ws where
+    gPureLayout _ vs ws box = case _getFocused ws vs Nothing of
         Nothing -> []
         Just v -> [(v, box)]

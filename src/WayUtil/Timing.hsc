@@ -69,10 +69,10 @@ getTime = liftIO $ alloca $ \ptr -> do
     _ <- c_gettime #{const CLOCK_MONOTONIC} ptr
     peek ptr
 
-setBaseTime :: Way a ()
+setBaseTime :: Way vs a ()
 setBaseTime = setEState =<< getTime
 
-getBasedTime :: Way a Time
+getBasedTime :: Way vs a Time
 getBasedTime = do
     current <- getTime
     base <- getEState

@@ -90,25 +90,21 @@ import Waymonad.Types.Logger
 -- but we are in IO, which can be abused with this trick.
 -- It should all be hidden in the high level apis, low level APIs will
 -- require the get and runWayState around callbacks that are IO
-type WayStateRef a = IORef (ViewSet a)
+type WayStateRef vs = IORef vs
 
 type LayoutCacheRef = IORef (IntMap [(View, WlrBox)])
 
 newtype LayoutCache a = LayoutCache (ReaderT LayoutCacheRef IO a)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader LayoutCacheRef)
 
-newtype WayState a b = WayState (ReaderT (WayStateRef a) IO b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayStateRef a))
+newtype WayState vs b = WayState (ReaderT (WayStateRef vs) IO b)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayStateRef vs))
 
 
 class Typeable e => EventClass e
 
 data SomeEvent = forall e. EventClass e => SomeEvent e
 
--- data WayHooks = WayHooks
---     {
--- 
---     }
 
 data Compositor = Compositor
     { compDisplay :: DisplayServer
@@ -122,9 +118,9 @@ data Compositor = Compositor
     , compInput :: Input
     }
 
-data WayBindingState a = WayBindingState
+data WayBindingState vs a = WayBindingState
     { wayBindingCache    :: LayoutCacheRef
-    , wayBindingState    :: WayStateRef a
+    , wayBindingState    :: WayStateRef vs
     -- Left Pointer, Right Keyboard
     , wayBindingCurrent  :: IORef [(Seat, (Output, Output))]
     , wayBindingMapping  :: IORef [(a, Output)]
@@ -133,78 +129,78 @@ data WayBindingState a = WayBindingState
     , wayFloating        :: IORef (Set View)
     , wayExtensibleState :: IORef StateMap
 
-    , wayLogFunction     :: LogFun a
-    , wayKeybinds        :: BindingMap a
+    , wayLogFunction     :: LogFun vs a
+    , wayKeybinds        :: BindingMap vs a
     , wayConfig          :: WayConfig
-    , wayEventHook       :: SomeEvent -> Way a ()
+    , wayEventHook       :: SomeEvent -> Way vs a ()
     , wayUserWorkspaces  :: [a]
     , wayCompositor      :: Compositor
     , wayInjectChan      :: InjectChan
-    , wayManagehook      :: Managehook a
+    , wayManagehook      :: Managehook vs a
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader WayLoggers)
 
-newtype WayBinding a b = WayBinding (ReaderT (WayBindingState a) WayLogging b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState a))
+newtype WayBinding vs a b = WayBinding (ReaderT (WayBindingState vs a) WayLogging b)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState vs a))
 
-type KeyBinding a = Way a ()
-type BindingMap a = Map (Word32, Int) (KeyBinding a)
+type KeyBinding vs a = Way vs a ()
+type BindingMap vs a = Map (Word32, Int) (KeyBinding vs a)
 
-type LogFun a = Way a ()
+type LogFun vs a = Way vs a ()
 
-newtype Way a b = Way (ReaderT (Maybe Seat) (WayBinding a) b)
+newtype Way vs a b = Way (ReaderT (Maybe Seat) (WayBinding vs a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe Seat))
 
-instance Monoid a => Monoid (Way b a) where
+instance Monoid a => Monoid (Way vs b a) where
     mempty = pure mempty
     left `mappend` right = mappend <$> left <*> right
 
-instance forall a b. (Typeable a, Typeable b) => Show (Way a b) where
+instance (Typeable a, Typeable b, Typeable vs) => Show (Way vs a b) where
     show =  show . typeOf
 
 
-newtype Query a b = Query (ReaderT View (Way a) b)
+newtype Query vs a b = Query (ReaderT View (Way vs a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader View)
 
-instance Monoid b => Monoid (Query a b) where
+instance Monoid b => Monoid (Query vs a b) where
     mempty = pure mempty
     left `mappend` right = mappend <$> left <*> right
 
-data InsertAction a
+data InsertAction vs a
     = InsertNone
     | InsertFocused
     | InsertInto a
     | InsertFloating WlrBox
-    | InsertCustom (Way a ())
+    | InsertCustom (Way vs a ())
     deriving (Show)
 
-instance Semigroup (InsertAction a) where
+instance Semigroup (InsertAction vs a) where
     InsertNone <> x = x
     i <> _ = i
 
-instance Default (InsertAction a) where
+instance Default (InsertAction vs a) where
     def = InsertNone
 
-instance Monoid (InsertAction a) where
+instance Monoid (InsertAction vs a) where
     mempty = def
     l `mappend` r = l <> r
 
-type Managehook a = Query a (InsertAction a)
+type Managehook vs a = Query vs a (InsertAction vs a)
 
 
 runWayLogging :: MonadIO m => WayLoggers -> WayLogging a -> m a
 runWayLogging val (WayLogging act) = liftIO $ runReaderT act val
 
-runWayBinding :: MonadIO m => WayLoggers -> WayBindingState a -> WayBinding a b -> m b
+runWayBinding :: MonadIO m => WayLoggers -> WayBindingState vs a -> WayBinding vs a b -> m b
 runWayBinding logger val (WayBinding act) =
     liftIO $ runWayLogging logger $ runReaderT act val
 
-runWay :: MonadIO m => Maybe Seat -> WayBindingState a -> WayLoggers -> Way a b -> m b
+runWay :: MonadIO m => Maybe Seat -> WayBindingState vs a -> WayLoggers -> Way vs a b -> m b
 runWay seat state logger (Way m) = liftIO $ runWayBinding logger state $ runReaderT m seat
 
-instance MonadUnliftIO (Way a) where
+instance MonadUnliftIO (Way vs a) where
     askUnliftIO = do
         seat <- ask
         state <- Way $ lift ask

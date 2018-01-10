@@ -31,38 +31,35 @@ import Graphics.Wayland.WlRoots.Surface (surfaceSendLeave, surfaceSendEnter)
 import Output (Output (..))
 import Utility (whenJust, doJust)
 import View (getViewSurface)
-import ViewSet (Workspace (..), WSTag)
+import ViewSet (Workspace (..), WSTag, FocusCore (..))
 import WayUtil.Focus (OutputMappingEvent (..))
-import Waymonad (getEvent, SomeEvent, getWorkspace)
+import Waymonad (getEvent, SomeEvent)
 import Waymonad.Types (Way)
+import WayUtil.ViewSet (withViewSet)
 
-sendLeaves
-    :: WSTag a
-    => Output
-    -> a
-    -> Way a ()
-sendLeaves output ws = doJust (wsViews <$> getWorkspace ws) $ \zipper ->
-    liftIO $ forM_ zipper $ \view ->
+import qualified Data.Set as S
+
+sendLeaves :: (FocusCore vs a, WSTag a) => Output -> a -> Way vs a ()
+sendLeaves output ws = do
+    zipper <- withViewSet $ \_ vs -> _getViews vs ws
+    liftIO $ forM_ (fmap snd $ S.toList zipper) $ \view ->
         doJust (getViewSurface view) (flip surfaceSendLeave $ outputRoots output)
 
-sendEnters
-    :: WSTag a
-    => Output
-    -> a
-    -> Way a ()
-sendEnters output ws = doJust (wsViews <$> getWorkspace ws) $ \zipper ->
-    liftIO $ forM_ zipper $ \view ->
+sendEnters :: (FocusCore vs a, WSTag a) => Output -> a -> Way vs a ()
+sendEnters output ws = do
+    zipper <- withViewSet $ \_ vs -> _getViews vs ws
+    liftIO $ forM_ (fmap snd $ S.toList zipper) $ \view ->
         doJust (getViewSurface view) (flip surfaceSendEnter $ outputRoots output)
 
 outputChangeEvt
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => Maybe (OutputMappingEvent a)
-    -> Way a ()
+    -> Way vs a ()
 outputChangeEvt Nothing = pure ()
 outputChangeEvt (Just evt) = do
     whenJust (outputMappingEvtPre evt) (sendLeaves $ outputMappingEvtOutput evt)
     whenJust (outputMappingEvtCur evt) (sendEnters $ outputMappingEvtOutput evt)
 
 
-enterLeaveHook :: WSTag a => SomeEvent -> Way a ()
+enterLeaveHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 enterLeaveHook = outputChangeEvt . getEvent

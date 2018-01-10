@@ -54,7 +54,7 @@ import View
     , addViewDestroyListener
     , closeView
     )
-import ViewSet (WSTag (..))
+import ViewSet (WSTag (..), FocusCore)
 import Managehook (insertView, removeView)
 import Waymonad (makeCallback)
 
@@ -130,9 +130,9 @@ makeMulti' view delFun = MultiView
     <*> pure delFun
 
 makeMulti
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => View
-    -> Way a (MultiView a)
+    -> Way vs a (MultiView a)
 makeMulti view = do
     removeView view
     delFun <- makeCallback removeView
@@ -143,7 +143,7 @@ makeMulti view = do
 deriveSlave
     :: Typeable a
     => MultiView a
-    -> Way a View
+    -> Way vs a View
 deriveSlave multi = do
     view <- liftIO $ do
         let ref = multiSlaveCounter multi
@@ -160,9 +160,9 @@ deriveSlave multi = do
     pure view
 
 copyView
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => View
-    -> Way a ()
+    -> Way vs a ()
 copyView view = case getViewInner view of
     Nothing -> do
         multi <- makeMulti view

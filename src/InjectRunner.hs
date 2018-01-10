@@ -57,7 +57,7 @@ data InjectChan = InjectChan
     , injectRead  :: Fd
     }
 
-handleInjected :: Inject -> Way a ()
+handleInjected :: Inject -> Way vs a ()
 handleInjected (ChangeMode out mode) =
     liftIO $ setOutputMode mode (outputRoots out)
 handleInjected (ChangeScale out scale) =
@@ -66,7 +66,7 @@ handleInjected (ChangePosition out (Point x y)) = do
     layout <- compLayout . wayCompositor <$> getState
     liftIO $ moveOutput layout (outputRoots out) x y
 
-readInjectEvt :: InjectChan -> Way a ()
+readInjectEvt :: InjectChan -> Way vs a ()
 readInjectEvt chan = do
     next <- liftIO . atomically . tryReadTChan $ injectChan chan
     case next of
@@ -76,13 +76,13 @@ readInjectEvt chan = do
             readInjectEvt chan
         Nothing -> pure ()
 
-injectEvt :: Inject -> Way a ()
+injectEvt :: Inject -> Way vs a ()
 injectEvt inj = do
     chan <- wayInjectChan <$> getState
     liftIO . atomically $ writeTChan (injectChan chan) inj
     void . liftIO $ with 1 $ \ptr -> fdWriteBuf (injectWrite chan) ptr 1
 
-registerInjectHandler :: DisplayServer -> Way a ()
+registerInjectHandler :: DisplayServer -> Way vs a ()
 registerInjectHandler display = do
     chan <- wayInjectChan <$> getState
     evtLoop <- liftIO $ displayGetEventLoop display

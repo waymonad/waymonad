@@ -56,7 +56,7 @@ import Foreign.StablePtr
     , freeStablePtr
     , castPtrToStablePtr
     )
-import ViewSet (WSTag)
+import ViewSet (WSTag, FocusCore)
 import Managehook (insertView, removeView)
 
 import qualified Data.IntMap.Strict as M
@@ -75,9 +75,9 @@ ptrToInt = fromIntegral . ptrToIntPtr
 newtype XdgSurface = XdgSurface { unXdg :: Ptr R.WlrXdgSurface }
 
 xdgShellCreate
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => DisplayServer
-    -> Way a XdgShell
+    -> Way vs a XdgShell
 xdgShellCreate display = do
     surfaces <- liftIO $ newIORef mempty
     roots <- setCallback
@@ -92,10 +92,10 @@ xdgShellCreate display = do
         }
 
 handleXdgDestroy
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => MapRef
     -> Ptr R.WlrXdgSurface
-    -> Way a ()
+    -> Way vs a ()
 handleXdgDestroy ref surf = do
     logPutText loggerXdg Debug "Destroying xdg toplevel surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
@@ -109,10 +109,10 @@ handleXdgDestroy ref surf = do
         freeStablePtr $ castPtrToStablePtr sptr
 
 handleXdgSurface
-    :: WSTag a
+    :: (FocusCore vs a, WSTag a)
     => MapRef
     -> Ptr R.WlrXdgSurface
-    -> Way a ()
+    -> Way vs a ()
 handleXdgSurface ref surf = do
     isPopup <- liftIO $ R.isXdgPopup surf
     unless isPopup $ do

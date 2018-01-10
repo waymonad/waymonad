@@ -19,6 +19,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Layout.Tall
 where
 
@@ -35,6 +38,24 @@ instance LayoutClass Tall where
     handleMessage _ _ = Nothing
     broadcastMessage _ _ = Nothing
     pureLayout _ box zipper = case toList zipper of
+        [x] -> [(x, box)]
+        (x:xs)->
+            let width = boxWidth box `div` 2
+                master = (x, box { boxWidth = width  })
+                slaves = zip xs [0 ..]
+                num = length xs
+                height = boxHeight box `div` num
+                ibox i = box
+                    { boxWidth = width
+                    , boxX = boxX box + width
+                    , boxHeight = height
+                    , boxY = boxY box + i * height
+                    }
+             in master : map (fmap ibox) slaves
+        [] -> []
+
+instance ListLike vs ws => GenericLayoutClass Tall vs ws where
+    gPureLayout _ vs ws box = case snd `fmap` _asList vs ws of
         [x] -> [(x, box)]
         (x:xs)->
             let width = boxWidth box `div` 2
