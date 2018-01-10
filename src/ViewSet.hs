@@ -23,6 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 module ViewSet
 where
 
+import Data.Maybe (listToMaybe)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable
@@ -31,6 +32,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Input.Seat (Seat)
 import View (View)
 
+import qualified Data.Set as S
 import qualified Data.Text as T
 
 class (Typeable a, Show a, Eq a, Ord a) => WSTag a where
@@ -95,3 +97,6 @@ data GenericLayout vs ws = forall l. GenericLayoutClass l vs ws => GenericLayout
 
 instance Show (GenericLayout vs ws) where
     show (GenericLayout l) = T.unpack $ description l
+
+getFirst :: FocusCore vs ws => vs -> ws -> Maybe View
+getFirst vs ws = fmap snd . listToMaybe . S.toList $ _getViews vs ws

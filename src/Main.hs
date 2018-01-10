@@ -261,12 +261,14 @@ wsSyms =
 workspaces :: IsString a => [a]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
-bindings :: (Layouted vs a, FocusCore vs a, ListLike vs a, IsString a, WSTag a) => [(([WlrModifier], Keysym), KeyBinding vs a)]
+bindings
+    :: (Layouted vs a, FocusCore vs a, ListLike vs a, IsString a, WSTag a)
+    => [(([WlrModifier], Keysym), KeyBinding vs a)]
 bindings =
-    [ (([modi], keysym_k), modifyFocusedWS $ \s ws vs -> _moveFocusLeft ws s vs)
-    , (([modi], keysym_j), modifyFocusedWS $ \s ws vs -> _moveFocusRight ws s vs)
-    , (([modi, Shift], keysym_k), modifyFocusedWS $ \s ws vs -> _moveFocusedLeft  ws s vs)
-    , (([modi, Shift], keysym_j), modifyFocusedWS $ \s ws vs -> _moveFocusedRight ws s vs)
+    [ (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft)
+    , (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
+    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
+    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi, Shift], keysym_Return), spawnOn "2" "weston-terminal" [])
     , (([modi], keysym_d), spawn "dmenu_run")
@@ -296,7 +298,7 @@ myEventHook =
 myConf :: WayUserConf (ViewSet Text) Text
 myConf = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout {-mkMirror $ mkTFull (Tall ||| Spiral) -} Tall
+    , wayUserConfLayouts     = sameLayout .  mkMirror $ mkTFull (Tall ||| Spiral)
     , wayUserConfManagehook  = overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings

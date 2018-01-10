@@ -25,6 +25,7 @@ Reach us at https://github.com/ongy/waymonad
 module Layout.Full
 where
 
+import Control.Applicative ((<|>))
 import ViewSet
 
 data Full = Full
@@ -33,11 +34,8 @@ instance LayoutClass Full where
     description _ = "Full"
     handleMessage _ _ = Nothing
     broadcastMessage _ _ = Nothing
-    pureLayout _ box zipper = case getMaster' zipper of
-        Nothing -> []
-        Just v -> [(v, box)]
 
 instance FocusCore vs ws => GenericLayoutClass Full vs ws where
-    gPureLayout _ vs ws box = case _getFocused ws vs Nothing of
+    pureLayout _ vs ws box = case _getFocused vs ws Nothing <|> getFirst vs ws of
         Nothing -> []
         Just v -> [(v, box)]

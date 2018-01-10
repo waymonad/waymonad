@@ -27,12 +27,10 @@ import Control.Monad (void)
 import Hooks.SeatMapping
 import Input.Seat (keyboardClear)
 import Utility (whenJust)
-import ViewSet (WSTag, FocusCore (..))
+import ViewSet (WSTag, FocusCore (..), getFirst)
 import WayUtil.Focus
 import WayUtil.ViewSet (unsetFocus, setFocused, withViewSet)
 import Waymonad
-
-import qualified Data.Set as S
 
 -- TODO: SANITIZE!!!!
 {- So the general idea here:
@@ -58,7 +56,7 @@ handleKeyboardSwitch e = case (getEvent e) of
                 -- setting procedure
                 Just _ -> setFocused s ws
                 -- Nothing focused yet. Try master
-                Nothing -> withViewSet (\_ -> fmap snd . S.lookupMin . flip _getViews ws) >>= \case
+                Nothing -> withViewSet (\_ vs -> getFirst vs ws) >>= \case
                     -- Master doesn't exist. So this WS is empty, let's clear
                     -- focus
                     Nothing -> keyboardClear s

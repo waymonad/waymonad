@@ -21,20 +21,15 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Layout.ToggleFull
 where
 
-import Control.Applicative ((<|>))
 import Data.Text (Text)
 
-import Graphics.Wayland.WlRoots.Box (WlrBox)
-
+import Layout.Full (Full (..))
 import ViewSet
-    ( Message
-    , LayoutClass (..)
-    , SomeMessage
-    , getMessage
-    )
 
 import qualified Data.Text as T
 
@@ -65,10 +60,7 @@ instance LayoutClass l => LayoutClass (ToggleFull l) where
     currentDesc (ToggleFull False l) = currentDesc l
     currentDesc (ToggleFull True _) = "ToggledFull"
 
---    pureLayout :: ToggleFull l -> WlrBox -> Zipper b c -> [(c, WlrBox)]
---    pureLayout (ToggleFull False l) box z = pureLayout l box z
---    pureLayout (ToggleFull True _) box z =
---        case getFirstFocused' z <|> getMaster' z of
---            Nothing -> []
---            Just v -> [(v, box)]
 
+instance (FocusCore vs ws, GenericLayoutClass l vs ws) => GenericLayoutClass (ToggleFull l) vs ws where
+    pureLayout (ToggleFull False l) vs ws box = pureLayout l vs ws box
+    pureLayout (ToggleFull True _) vs ws box = pureLayout Full vs ws box
