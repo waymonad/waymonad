@@ -25,49 +25,91 @@ Reach us at https://github.com/ongy/waymonad
 module XdgShell
     ( xdgShellCreate
     , XdgShell
+
+    , XdgRef
+    , makeShell
     )
 where
 
-import Control.Applicative ((<|>))
-import Control.Monad (forM)
-import Control.Monad.Trans.Maybe (MaybeT (..))
 
-import Utility (doJust)
-import View
-import Waymonad
-import WayUtil.Signal (setSignalHandler)
-import WayUtil.Log (logPutText, LogPriority (..))
+import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM_, unless)
+import Control.Monad (forM)
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Maybe (MaybeT (..))
+import Data.Composition ((.:))
+import Data.IORef (newIORef, IORef, modifyIORef, readIORef, writeIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
-import Data.Composition ((.:))
-
-import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxContainsPoint)
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceGetSubs, subSurfaceGetBox, subSurfaceAt)
-import Foreign.Storable (Storable(..))
 import Foreign.Ptr (Ptr, ptrToIntPtr)
-import qualified Graphics.Wayland.WlRoots.XdgShell as R
-import Data.IORef (newIORef, IORef, modifyIORef, readIORef)
-import Graphics.Wayland.Server (DisplayServer)
 import Foreign.StablePtr
-    ( newStablePtr
+    ( castPtrToStablePtr
     , castStablePtrToPtr
     , freeStablePtr
-    , castPtrToStablePtr
+    , newStablePtr
     )
-import ViewSet (WSTag, FocusCore)
+import Foreign.Storable (Storable(..))
+
+import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxContainsPoint)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceGetSubs, subSurfaceGetBox, subSurfaceAt)
+
+
 import Managehook (insertView, removeView)
+import Utility (doJust)
+import View
+import ViewSet (WSTag, FocusCore)
+import WayUtil.Log (logPutText, LogPriority (..))
+import WayUtil.Signal (setSignalHandler)
+import Waymonad
+import Waymonad.Types
+import Waymonad.Shells
 
 import qualified Data.IntMap.Strict as M
+import qualified Data.Set as S
+import qualified Graphics.Wayland.WlRoots.XdgShell as R
+
+newtype XdgRef = XdgRef (IORef (Maybe XdgShell))
 
 type MapRef =  IORef (IntMap View)
+
+instance ShellClass XdgRef where
+    activateShell (XdgRef ref) = do
+        ret <- liftIO $ readIORef ref
+        case ret of
+            Just _ -> pure ()
+            Nothing -> do
+                dsp <- compDisplay . wayCompositor <$> getState
+                shell <- xdgShellCreate dsp
+                liftIO $ writeIORef ref $ Just shell
+    deactivateShell (XdgRef ref) = do
+        ret <- liftIO $ readIORef ref
+        case ret of
+            Just XdgShell {xdgWlrootsShell = roots} -> liftIO $ do
+                R.xdgShellDestroy roots
+                writeIORef ref Nothing
+            Nothing -> pure ()
+    isShellActive (XdgRef ref) = do
+        ret <- liftIO $ readIORef ref
+        pure $ case ret of
+            Just _ -> True
+            Nothing -> False
+    getShellName _ = "XdgShell (v6)"
+    getShellViews (XdgRef ref) = liftIO $ do
+        ret <- readIORef ref
+        case ret of
+            Nothing -> pure mempty
+            Just XdgShell {xdgSurfaceRef = surfRef} -> do
+                surfMap <- readIORef surfRef
+                pure $ S.fromList $ M.elems surfMap
+
+makeShell :: IO WayShell
+makeShell = WayShell . XdgRef <$> liftIO (newIORef Nothing)
 
 data XdgShell = XdgShell
     { xdgSurfaceRef :: MapRef
     , xdgWlrootsShell :: Ptr R.WlrXdgShell
     }
-
 
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr

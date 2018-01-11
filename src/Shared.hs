@@ -72,7 +72,10 @@ import Text.XkbCommon.Types
 
 import Foreign.C.Types (CChar)
 import Foreign.C.String
-import Waymonad.Types (Way)
+import ViewSet (FocusCore, WSTag)
+import Waymonad (getState)
+import Waymonad.Types (Way, WayBindingState (wayCoreShells))
+import Waymonad.Shells (startShell)
 
 
 import Graphics.Wayland.Signal
@@ -162,8 +165,10 @@ foreign import ccall "wl_display_add_socket_auto" c_add_socket_auto :: Ptr Displ
 
 foreign import ccall "wl_display_add_socket" c_add_socket :: Ptr DisplayServer -> Ptr CChar -> IO (Ptr CChar)
 
-backendMain :: CompHooks vs a -> DisplayServer -> Ptr Backend -> Way vs a ()
+backendMain :: (FocusCore vs a, WSTag a) => CompHooks vs a -> DisplayServer -> Ptr Backend -> Way vs a ()
 backendMain hooks display backend = do
+    shells <- wayCoreShells <$> getState
+    mapM_ startShell shells
     -- This dispatches the first events, e.g. output/input add signals
     liftIO $ backendStart backend
     liftIO $ setEnv "WAYLAND_DISPLAY" =<< getEnv "_WAYLAND_DISPLAY"
@@ -182,12 +187,12 @@ bindSocket display = liftIO $ do
     hPutStrLn stderr sName
     setEnv "_WAYLAND_DISPLAY" sName
 
-displayMain :: CompHooks vs a -> DisplayServer -> Way vs a ()
+displayMain :: (FocusCore vs a, WSTag a) => CompHooks vs a -> DisplayServer -> Way vs a ()
 displayMain hooks display = do
     let binder = Bracketed (const $ liftIO $ bindSocket display) (const $ pure ())
     let outAdd = Bracketed (liftIO . addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals . snd) (liftIO .  removeListener)
     let outRem = Bracketed (liftIO . addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals . snd) (liftIO .  removeListener)
     foldBrackets (binder: outAdd: outRem: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< (liftIO $ backendAutocreate display)
 
-launchCompositor :: CompHooks vs a -> Way vs a ()
+launchCompositor :: (FocusCore vs a, WSTag a) => CompHooks vs a -> Way vs a ()
 launchCompositor hooks = foldBrackets (displayHook hooks) (displayMain hooks) =<< liftIO displayCreate

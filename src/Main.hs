@@ -100,7 +100,7 @@ import Waymonad
     , WayLoggers (..)
     , Logger (..)
     )
-import Waymonad.Types (Compositor (..), LogPriority (..), Managehook, SomeEvent, WayHooks (..))
+import Waymonad.Types (Compositor (..), LogPriority (..), Managehook, SomeEvent, WayHooks (..), WayShell)
 import WayUtil
     ( sendMessage
     , focusNextOut
@@ -112,11 +112,11 @@ import WayUtil
 import WayUtil.Current (getCurrentView)
 import WayUtil.ViewSet (modifyFocusedWS)
 import WayUtil.Floating (centerFloat)
-import XWayland (xwayShellCreate, overrideXRedirect)
-import XdgShell (xdgShellCreate)
 import XMonad.ViewSet (ViewSet, Workspace (..))
 
 import qualified Data.Map.Strict as M
+import qualified XdgShell as Xdg
+import qualified XWayland as XWay
 
 
 makeBindingMap :: [(([WlrModifier], Keysym), KeyBinding vs a)] -> BindingMap vs a
@@ -138,15 +138,11 @@ makeCompositor display backend = do
 
     input <- inputCreate backend
 
-    xdgShell <- xdgShellCreate display
-    xway <- xwayShellCreate display comp
     pure Compositor
         { compDisplay = display
         , compRenderer = renderer
         , compCompositor = comp
-        , compXdg = xdgShell
         , compManager = devManager
-        , compXWayland = xway
         , compBackend = backend
         , compLayout = layout
         , compInput = input
@@ -168,6 +164,7 @@ data WayUserConf vs ws = WayUserConf
     , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) ws]
     , wayUserConfPostHook    :: [Bracketed vs () ws]
     , wayUserConfCoreHooks   :: WayHooks vs ws
+    , wayUserConfShells      :: [IO WayShell]
     }
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
@@ -208,6 +205,7 @@ wayUserMain conf = do
             compRef <- newIORef $ error "Tried to access compositor to early"
             logF <- logFun
             inject <- makeInject
+            shells <- sequence $ wayUserConfShells conf
 
             let state = WayBindingState
                     { wayBindingCache = layoutRef
@@ -227,6 +225,7 @@ wayUserMain conf = do
                     , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
                     , wayManagehook = wayUserConfManagehook conf
                     , wayCoreHooks = wayUserConfCoreHooks conf
+                    , wayCoreShells = shells
                     }
 
 
@@ -295,7 +294,7 @@ myConf :: WayUserConf (ViewSet Text) Text
 myConf = WayUserConf
     { wayUserConfWorkspaces  = workspaces
     , wayUserConfLayouts     = sameLayout .  mkMirror $ mkTFull (Tall ||| Spiral)
-    , wayUserConfManagehook  = overrideXRedirect <> manageSpawnOn
+    , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
 
@@ -308,6 +307,7 @@ myConf = WayUserConf
         , wayHooksSeatWSChange  = SM.wsChangeLogHook <> handleKeyboardSwitch
         , wayHooksSeatOutput = seatOutputEventLogger <> SM.outputChangeEvt
         }
+    , wayUserConfShells = [Xdg.makeShell, XWay.makeShell]
     }
 
 main :: IO ()

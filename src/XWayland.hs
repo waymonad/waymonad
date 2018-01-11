@@ -25,37 +25,82 @@ module XWayland
     ( xwayShellCreate
     , XWayShell
     , overrideXRedirect
+
+    , XWayRef
+    , makeShell
     )
 where
-
-import System.IO
-import Foreign.Ptr (Ptr, ptrToIntPtr)
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
+import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
-import Foreign.Storable (Storable(..))
-import Graphics.Wayland.Server (DisplayServer)
-import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
-import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
-import WayUtil.Signal (setSignalHandler)
-
-import Managehook
-import Waymonad
-import View
-import ViewSet (WSTag, FocusCore)
-import WayUtil.Log (logPutText, LogPriority (..))
+import Foreign.Ptr (Ptr, ptrToIntPtr)
+import System.IO
 import Foreign.StablePtr
     ( newStablePtr
     , castStablePtrToPtr
     , freeStablePtr
     , castPtrToStablePtr
     )
+import Foreign.Storable (Storable(..))
+import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
+import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 
-import qualified Graphics.Wayland.WlRoots.XWayland as X
+import Managehook
+import View
+import ViewSet (WSTag, FocusCore)
+import WayUtil.Log (logPutText, LogPriority (..))
+import WayUtil.Signal (setSignalHandler)
+import Waymonad
+import Waymonad.Types
+    ( Compositor (..)
+    , ShellClass (..)
+    , WayBindingState (..)
+    , WayShell (..)
+    )
+
 import qualified Data.IntMap.Strict as M
-import Data.IntMap (IntMap)
+import qualified Data.Set as S
+import qualified Graphics.Wayland.WlRoots.XWayland as X
+
+newtype XWayRef = XWayRef (IORef (Maybe XWayShell))
+
+makeShell :: IO WayShell
+makeShell = WayShell . XWayRef <$> newIORef Nothing
+
+instance ShellClass XWayRef where
+    activateShell (XWayRef ref) = do
+        ret <- liftIO $ readIORef ref
+        case ret of
+            Just _ -> pure ()
+            Nothing -> do
+                dsp <- compDisplay . wayCompositor <$> getState
+                comp <- compCompositor . wayCompositor <$> getState
+                shell <- xwayShellCreate dsp comp
+                liftIO $ writeIORef ref $ Just shell
+    deactivateShell (XWayRef ref) = do
+        ret <- liftIO $ readIORef ref
+        case ret of
+            Just XWayShell {xwayWlrootsShell = roots} -> liftIO $ do
+                X.xwaylandDestroy roots
+                writeIORef ref Nothing
+            Nothing -> pure ()
+    isShellActive (XWayRef ref) = do
+        ret <- liftIO $ readIORef ref
+        pure $ case ret of
+            Just _ -> True
+            Nothing -> False
+    getShellName _ = "XWayShell (v6)"
+    getShellViews (XWayRef ref) = liftIO $ do
+        ret <- readIORef ref
+        case ret of
+            Nothing -> pure mempty
+            Just XWayShell {xwaySurfaceRef = surfRef} -> do
+                surfMap <- readIORef surfRef
+                pure $ S.fromList $ M.elems surfMap
 
 type MapRef =  IORef (IntMap View)
 

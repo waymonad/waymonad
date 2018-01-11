@@ -118,6 +118,7 @@ executable waymonad
   other-modules:        WayUtil.ViewSet
 
   other-modules:        Waymonad
+  other-modules:        Waymonad.Shells
   other-modules:        Waymonad.Types
   other-modules:        Waymonad.Types.Logger
   other-modules:        Waymonad.Extensible

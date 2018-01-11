@@ -51,6 +51,8 @@ module Waymonad.Types
     , OutputMappingEvent (..)
     , SeatWSChange  (..)
     , SeatOutputChange (..)
+    , ShellClass (..)
+    , WayShell (..)
     )
 where
 
@@ -64,6 +66,7 @@ import Data.IntMap (IntMap)
 import Data.Map (Map)
 import Data.Semigroup (Semigroup (..))
 import Data.Set (Set)
+import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
@@ -81,9 +84,8 @@ import {-# SOURCE #-} Input (Input)
 import Input.Seat (Seat)
 import {-# SOURCE #-} Output (Output)
 import View (View)
+import ViewSet (FocusCore, WSTag)
 import Waymonad.Extensible (StateMap)
-import {-# SOURCE #-} XWayland (XWayShell)
-import {-# SOURCE #-} XdgShell (XdgShell)
 import {-# SOURCE #-} InjectRunner (InjectChan)
 
 import Waymonad.Types.Logger
@@ -105,7 +107,6 @@ newtype LayoutCache a = LayoutCache (ReaderT LayoutCacheRef IO a)
 newtype WayState vs b = WayState (ReaderT (WayStateRef vs) IO b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayStateRef vs))
 
-
 class Typeable e => EventClass e
 
 data SomeEvent = forall e. EventClass e => SomeEvent e
@@ -114,25 +115,29 @@ data Compositor = Compositor
     { compDisplay :: DisplayServer
     , compRenderer :: Ptr Renderer
     , compCompositor :: Ptr WlrCompositor
-    , compXdg :: XdgShell
     , compManager :: Ptr WlrDeviceManager
-    , compXWayland :: XWayShell
     , compBackend :: Ptr Backend
     , compLayout :: Ptr WlrOutputLayout
     , compInput :: Input
     }
 
+class Typeable a => ShellClass a where
+    deactivateShell :: (FocusCore vs ws, WSTag ws) => a -> Way vs ws ()
+    activateShell   :: (FocusCore vs ws, WSTag ws) => a -> Way vs ws ()
+    isShellActive   :: a -> Way vs ws Bool
+    getShellName    :: a -> Text
+    getShellViews   :: a -> Way vs ws (Set View)
 
-data ViewWSChange a
-    = WSEnter View a
-    | WSExit View a
+data WayShell = forall a. ShellClass a => WayShell a
+
+
+data ViewWSChange a = WSEnter View a | WSExit View a
 
 data OutputMappingEvent a = OutputMappingEvent
     { outputMappingEvtOutput :: Output
     , outputMappingEvtPre    :: Maybe a
     , outputMappingEvtCur    :: Maybe a
     }
-
 
 data SeatOutputChange
     = PointerOutputChange
@@ -176,6 +181,7 @@ data WayBindingState vs ws = WayBindingState
     , wayFloating        :: IORef (Set View)
     , wayExtensibleState :: IORef StateMap
 
+    , wayCoreShells      :: [WayShell]
     , wayLogFunction     :: LogFun vs ws
     , wayKeybinds        :: BindingMap vs ws
     , wayConfig          :: WayConfig

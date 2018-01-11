@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2017  Markus Ongyerth
+Copyright (C) 2018  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,22 +18,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module XdgShell
-    ( XdgShell
-    )
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+module Waymonad.Shells
 where
 
-import Data.IORef (IORef)
-import Data.IntMap (IntMap)
-import Foreign.Ptr (Ptr)
+import ViewSet (FocusCore, WSTag)
+import Waymonad.Types (Way, WayShell (..), ShellClass (..))
 
-import View (View)
-import qualified Graphics.Wayland.WlRoots.XdgShell as R
-
-type MapRef =  IORef (IntMap View)
-
-data XdgShell = XdgShell
-    { xdgSurfaceRef :: MapRef
-    , xdgWlrootsShell :: Ptr R.WlrXdgShell
-    }
-
+startShell :: (FocusCore vs ws, WSTag ws) => WayShell -> Way vs ws ()
+startShell (WayShell shell) = activateShell shell
