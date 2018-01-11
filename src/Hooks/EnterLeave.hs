@@ -51,15 +51,10 @@ sendEnters output ws = do
     liftIO $ forM_ (fmap snd $ S.toList zipper) $ \view ->
         doJust (getViewSurface view) (flip surfaceSendEnter $ outputRoots output)
 
-outputChangeEvt
+enterLeaveHook
     :: (FocusCore vs a, WSTag a)
-    => Maybe (OutputMappingEvent a)
+    => OutputMappingEvent a
     -> Way vs a ()
-outputChangeEvt Nothing = pure ()
-outputChangeEvt (Just evt) = do
+enterLeaveHook evt = do
     whenJust (outputMappingEvtPre evt) (sendLeaves $ outputMappingEvtOutput evt)
     whenJust (outputMappingEvtCur evt) (sendEnters $ outputMappingEvtOutput evt)
-
-
-enterLeaveHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
-enterLeaveHook = outputChangeEvt . getEvent

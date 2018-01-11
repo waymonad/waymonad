@@ -73,6 +73,7 @@ enactInsert
     -> Query vs a ()
 enactInsert act = do
     view <- ask
+    hook <- wayHooksVWSChange . wayCoreHooks <$> liftWay getState
     liftWay $ case act of
         InsertNone -> pure ()
         InsertFocused -> do
@@ -80,11 +81,11 @@ enactInsert act = do
             seat <- getSeat
             VS.insertView view ws seat
             focusView view
-            sendEvent $ WSEnter view ws
+            hook $ WSEnter view ws
         InsertInto ws -> do
             seat <- getSeat
             VS.insertView view ws seat
-            sendEvent $ WSEnter view ws
+            hook $ WSEnter view ws
         InsertFloating box -> do
             setFloating view box
             seat <- getSeat

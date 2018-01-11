@@ -71,26 +71,27 @@ import Waymonad.Extensible
     , modifyValue
     , setValue
     )
-import Waymonad.Types (LogPriority(..), Compositor (..))
+import Waymonad.Types
+    ( LogPriority(..)
+    , Compositor (..)
+    , ViewWSChange (..)
+    , WayHooks (..)
+    , SeatOutputChange (..)
+    )
 
 import qualified Data.Text as T
 import qualified Data.IntMap as IM
 
-data ViewWSChange a
-    = WSEnter View a
-    | WSExit View a
-
-instance Typeable a => EventClass (ViewWSChange a)
-
 sendTo :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 sendTo ws = do
     seat <- getSeat
+    hook <- wayHooksVWSChange . wayCoreHooks <$> getState
     doJust getCurrentView $ \view -> do
         cws <- getCurrentWS
         removeView view cws
-        sendEvent $ WSExit view cws
+        hook $ WSExit view cws
         insertView view ws seat
-        sendEvent $ WSEnter view ws
+        hook $ WSEnter view ws
 
 
 sendMessage :: (FocusCore vs a, WSTag a, Layouted vs a, Message t) => t -> Way vs a ()
@@ -113,20 +114,6 @@ focusNextOut = doJust getSeat $ \seat -> doJust getCurrentOutput $ \current -> d
         let new = head . tail . dropWhile (/= current) $ cycle possibles
         setSeatOutput seat (That new)
 
-data SeatOutputChangeEvent
-    = PointerOutputChangeEvent
-        { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe Output
-        , seatOutChangeEvtNew :: Maybe Output
-        }
-    | KeyboardOutputChangeEvent
-        { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe Output
-        , seatOutChangeEvtNew :: Maybe Output
-        }
-
-instance EventClass SeatOutputChangeEvent
-
 -- This: Pointer Focus
 -- That: Keyboard Focus
 setSeatOutput :: WSTag a => Seat -> These Output -> Way vs a ()
@@ -147,38 +134,35 @@ setSeatOutput seat foci = do
         (wayBindingCurrent state)
         ((:) (seat, new) . filter ((/=) seat . fst))
 
-    when (newp /= curp) $ sendEvent $
-        PointerOutputChangeEvent seat curp newp
+    hook <- wayHooksSeatOutput . wayCoreHooks <$> getState
+    when (newp /= curp) $ hook $ PointerOutputChange seat curp newp
+    when (newk /= curk) $ hook $ KeyboardOutputChange seat curk newk
 
-    when (newk /= curk) $ sendEvent $
-        KeyboardOutputChangeEvent seat curk newk
     runLog
 
-seatOutputEventHandler :: WSTag a => SomeEvent -> Way vs a ()
-seatOutputEventHandler e = case getEvent e of
-    Nothing -> pure ()
-    (Just (PointerOutputChangeEvent seat pre new)) -> do
-        let pName = outputName <$> pre
-        let nName = outputName <$> new
-        let sName = seatName seat
-        logPutText loggerOutput Debug $
-            "Seat " `T.append`
-            T.pack sName `T.append`
-            " changed pointer focus from " `T.append`
-            fromMaybe "None" pName `T.append`
-            " to " `T.append`
-            fromMaybe "None" nName
-    (Just (KeyboardOutputChangeEvent seat pre new)) -> do
-        let pName = outputName <$> pre
-        let nName = outputName <$> new
-        let sName = seatName seat
-        logPutText loggerOutput Debug $
-            "Seat " `T.append`
-            T.pack sName `T.append`
-            " changed keyboard focus from " `T.append`
-            fromMaybe "None" pName `T.append`
-            " to " `T.append`
-            fromMaybe "None" nName
+seatOutputEventLogger :: WSTag a => SeatOutputChange -> Way vs a ()
+seatOutputEventLogger (PointerOutputChange seat pre new) = do
+    let pName = outputName <$> pre
+    let nName = outputName <$> new
+    let sName = seatName seat
+    logPutText loggerOutput Debug $
+        "Seat " `T.append`
+        T.pack sName `T.append`
+        " changed pointer focus from " `T.append`
+        fromMaybe "None" pName `T.append`
+        " to " `T.append`
+        fromMaybe "None" nName
+seatOutputEventLogger (KeyboardOutputChange seat pre new) = do
+    let pName = outputName <$> pre
+    let nName = outputName <$> new
+    let sName = seatName seat
+    logPutText loggerOutput Debug $
+        "Seat " `T.append`
+        T.pack sName `T.append`
+        " changed keyboard focus from " `T.append`
+        fromMaybe "None" pName `T.append`
+        " to " `T.append`
+        fromMaybe "None" nName
 
 modifyStateRef :: (StateMap -> StateMap) -> Way vs a ()
 modifyStateRef fun = do

@@ -52,17 +52,10 @@ import Waymonad
     , sendEvent
     , getSeat
     )
+import Waymonad.Types
 import WayUtil.Current (getCurrentOutput, getCurrentWS)
 import WayUtil.ViewSet (modifyCurrentWS, modifyViewSet, withCurrentWS)
 import WayUtil.Log (logPutText, LogPriority(..))
-
-data OutputMappingEvent a = OutputMappingEvent
-    { outputMappingEvtOutput :: Output
-    , outputMappingEvtPre    :: Maybe a
-    , outputMappingEvtCur    :: Maybe a
-    }
-
-instance Typeable a => EventClass (OutputMappingEvent a)
 
 setOutputWorkspace :: (FocusCore vs a, WSTag a) => a -> Output -> Way vs a ()
 setOutputWorkspace ws current = do
@@ -76,7 +69,8 @@ setOutputWorkspace ws current = do
         (wayBindingMapping state)
         ((:) (ws, current) . filter ((/=) current . snd))
 
-    sendEvent $ OutputMappingEvent current pre (Just ws)
+    hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
+    hook $ OutputMappingEvent current pre (Just ws)
 
     reLayout ws
     whenJust pre reLayout

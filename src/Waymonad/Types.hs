@@ -45,6 +45,12 @@ module Waymonad.Types
     , InsertAction (..)
     , Managehook
     , runWay
+
+    , WayHooks (..)
+    , ViewWSChange (..)
+    , OutputMappingEvent (..)
+    , SeatWSChange  (..)
+    , SeatOutputChange (..)
     )
 where
 
@@ -104,7 +110,6 @@ class Typeable e => EventClass e
 
 data SomeEvent = forall e. EventClass e => SomeEvent e
 
-
 data Compositor = Compositor
     { compDisplay :: DisplayServer
     , compRenderer :: Ptr Renderer
@@ -117,25 +122,69 @@ data Compositor = Compositor
     , compInput :: Input
     }
 
-data WayBindingState vs a = WayBindingState
+
+data ViewWSChange a
+    = WSEnter View a
+    | WSExit View a
+
+data OutputMappingEvent a = OutputMappingEvent
+    { outputMappingEvtOutput :: Output
+    , outputMappingEvtPre    :: Maybe a
+    , outputMappingEvtCur    :: Maybe a
+    }
+
+
+data SeatOutputChange
+    = PointerOutputChange
+        { seatOutChangeEvtSeat :: Seat
+        , seatOutChangeEvtPre :: Maybe Output
+        , seatOutChangeEvtNew :: Maybe Output
+        }
+    | KeyboardOutputChange
+        { seatOutChangeEvtSeat :: Seat
+        , seatOutChangeEvtPre :: Maybe Output
+        , seatOutChangeEvtNew :: Maybe Output
+        }
+
+data SeatWSChange a
+    = PointerWSChange
+        { seatWSChangeSeat :: Seat
+        , seatWSChangePre :: Maybe a
+        , seatWSChangeCur :: Maybe a
+        }
+    | KeyboardWSChange
+        { seatWSChangeSeat :: Seat
+        , seatWSChangePre :: Maybe a
+        , seatWSChangeCur :: Maybe a
+        } deriving (Eq, Show)
+
+data WayHooks vs ws = WayHooks
+    { wayHooksVWSChange     :: ViewWSChange ws -> Way vs ws ()
+    , wayHooksOutputMapping :: OutputMappingEvent ws -> Way vs ws ()
+    , wayHooksSeatOutput    :: SeatOutputChange -> Way vs ws ()
+    , wayHooksSeatWSChange  :: SeatWSChange ws -> Way vs ws ()
+    }
+
+data WayBindingState vs ws = WayBindingState
     { wayBindingCache    :: LayoutCacheRef
     , wayBindingState    :: WayStateRef vs
     -- Left Pointer, Right Keyboard
     , wayBindingCurrent  :: IORef [(Seat, (Output, Output))]
-    , wayBindingMapping  :: IORef [(a, Output)]
+    , wayBindingMapping  :: IORef [(ws, Output)]
     , wayBindingOutputs  :: IORef [Output]
     , wayBindingSeats    :: IORef [Seat]
     , wayFloating        :: IORef (Set View)
     , wayExtensibleState :: IORef StateMap
 
-    , wayLogFunction     :: LogFun vs a
-    , wayKeybinds        :: BindingMap vs a
+    , wayLogFunction     :: LogFun vs ws
+    , wayKeybinds        :: BindingMap vs ws
     , wayConfig          :: WayConfig
-    , wayEventHook       :: SomeEvent -> Way vs a ()
-    , wayUserWorkspaces  :: [a]
+    , wayEventHook       :: SomeEvent -> Way vs ws ()
+    , wayUserWorkspaces  :: [ws]
     , wayCompositor      :: Compositor
     , wayInjectChan      :: InjectChan
-    , wayManagehook      :: Managehook vs a
+    , wayManagehook      :: Managehook vs ws
+    , wayCoreHooks       :: WayHooks vs ws
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)

@@ -42,7 +42,7 @@ import Layout.Choose
 import qualified Hooks.OutputAdd as H
 import WayUtil.View
 import WayUtil.Timing
-import Hooks.SeatMapping
+import qualified Hooks.SeatMapping as SM
 import Hooks.KeyboardFocus
 import Hooks.ScaleHook
 import Log
@@ -78,7 +78,7 @@ import Layout.ToggleFull (mkTFull, ToggleFullM (..))
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
 import Utility (doJust)
-import Utility.Spawn (spawn, manageNamed, manageSpawnOn, spawnOn)
+import Utility.Spawn (spawn, manageSpawnOn, spawnOn)
 import qualified View.Multi as Multi
 import View.Proxy (makeProxy)
 import ViewSet
@@ -100,13 +100,13 @@ import Waymonad
     , WayLoggers (..)
     , Logger (..)
     )
-import Waymonad.Types (Compositor (..), LogPriority (..), Managehook, SomeEvent)
+import Waymonad.Types (Compositor (..), LogPriority (..), Managehook, SomeEvent, WayHooks (..))
 import WayUtil
     ( sendMessage
     , focusNextOut
     , sendTo
     , killCurrent
-    , seatOutputEventHandler
+    , seatOutputEventLogger
     , closeCompositor
     )
 import WayUtil.Current (getCurrentView)
@@ -157,16 +157,17 @@ sameLayout
     => l -> [a] -> M.Map a (Workspace a)
 sameLayout l = M.fromList . map (, Workspace (GenericLayout (l)) Nothing)
 
-data WayUserConf vs a = WayUserConf
-    { wayUserConfWorkspaces  :: [a]
-    , wayUserConfLayouts     :: [a] -> vs
-    , wayUserConfManagehook  :: Managehook vs a
-    , wayUserConfEventHook   :: SomeEvent -> Way vs a ()
-    , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding vs a)]
+data WayUserConf vs ws = WayUserConf
+    { wayUserConfWorkspaces  :: [ws]
+    , wayUserConfLayouts     :: [ws] -> vs
+    , wayUserConfManagehook  :: Managehook vs ws
+    , wayUserConfEventHook   :: SomeEvent -> Way vs ws ()
+    , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding vs ws)]
 
-    , wayUserConfDisplayHook :: [Bracketed vs DisplayServer a]
-    , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) a]
-    , wayUserConfPostHook    :: [Bracketed vs () a]
+    , wayUserConfDisplayHook :: [Bracketed vs DisplayServer ws]
+    , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) ws]
+    , wayUserConfPostHook    :: [Bracketed vs () ws]
+    , wayUserConfCoreHooks   :: WayHooks vs ws
     }
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
@@ -225,6 +226,7 @@ wayUserMain conf = do
                     , wayCompositor = unsafePerformIO (readIORef compRef)
                     , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
                     , wayManagehook = wayUserConfManagehook conf
+                    , wayCoreHooks = wayUserConfCoreHooks conf
                     }
 
 
@@ -286,13 +288,7 @@ bindings =
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 myEventHook =
-       seatOutputEventHandler
-    <> wsChangeEvtHook
-    <> wsChangeLogHook
-    <> handleKeyboardSwitch
-    <> H.outputAddHook
-    <> enterLeaveHook
-    <> wsScaleHook
+       H.outputAddHook
     <> idleLog
 
 myConf :: WayUserConf (ViewSet Text) Text
@@ -306,6 +302,12 @@ myConf = WayUserConf
     , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, getStartupBracket (spawn "weston-terminal")]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket]
+    , wayUserConfCoreHooks   = WayHooks
+        { wayHooksVWSChange     = wsScaleHook
+        , wayHooksOutputMapping = enterLeaveHook <> SM.mappingChangeEvt
+        , wayHooksSeatWSChange  = SM.wsChangeLogHook <> handleKeyboardSwitch
+        , wayHooksSeatOutput = seatOutputEventLogger <> SM.outputChangeEvt
+        }
     }
 
 main :: IO ()

@@ -20,8 +20,8 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Hooks.SeatMapping
-    ( SeatWSChangeEvent (..)
-    , wsChangeEvtHook
+    ( mappingChangeEvt
+    , outputChangeEvt
     , wsChangeLogHook
     )
 where
@@ -34,56 +34,39 @@ import Input.Seat (Seat)
 import Output (Output)
 import Utility (whenJust)
 import ViewSet (WSTag)
-import Waymonad
+import Waymonad (getState)
+import Waymonad.Types
 import WayUtil
 import WayUtil.Log
 import WayUtil.Focus
-
-data SeatWSChangeEvent a
-    = PointerWSChangeEvent
-        { seatWSChangeSeat :: Seat
-        , seatWSChangePre :: Maybe a
-        , seatWSChangeCur :: Maybe a
-        }
-    | KeyboardWSChangeEvent
-        { seatWSChangeSeat :: Seat
-        , seatWSChangePre :: Maybe a
-        , seatWSChangeCur :: Maybe a
-        } deriving (Eq, Show)
-
-instance Typeable a => EventClass (SeatWSChangeEvent a)
-
 
 checkOutput
     :: WSTag a
     => Maybe Output
     -> Maybe Output
-    -> (Maybe a -> Maybe a -> SeatWSChangeEvent a)
+    -> (Maybe a -> Maybe a -> SeatWSChange a)
     -> Way vs a ()
 checkOutput pre cur con = do
     preWS <- join <$> traverse getOutputWS pre
     curWS <- join <$> traverse getOutputWS cur
-    when (preWS /= curWS) $ sendEvent $ con preWS curWS
+    when (preWS /= curWS) $ do
+        hook <- wayHooksSeatWSChange . wayCoreHooks <$> getState
+        hook $ con preWS curWS
 
-outputChangeEvt :: WSTag a => Maybe SeatOutputChangeEvent -> Way vs a ()
-outputChangeEvt Nothing = pure ()
-outputChangeEvt (Just (PointerOutputChangeEvent seat pre cur)) = checkOutput pre cur $ PointerWSChangeEvent seat
-outputChangeEvt (Just (KeyboardOutputChangeEvent seat pre cur)) = checkOutput pre cur $ KeyboardWSChangeEvent seat
+outputChangeEvt :: WSTag a => SeatOutputChange -> Way vs a ()
+outputChangeEvt (PointerOutputChange seat pre cur) =
+    checkOutput pre cur $ PointerWSChange seat
+outputChangeEvt (KeyboardOutputChange seat pre cur) =
+    checkOutput pre cur $ KeyboardWSChange seat
 
-mappingChangeEvt :: WSTag a => Maybe (OutputMappingEvent a) -> Way vs a ()
-mappingChangeEvt Nothing = pure ()
-mappingChangeEvt (Just (OutputMappingEvent out pre cur)) = do
+mappingChangeEvt :: WSTag a => OutputMappingEvent a -> Way vs a ()
+mappingChangeEvt (OutputMappingEvent out pre cur) = do
     keys   <- getOutputKeyboards out
     points <- getOutputPointers  out
 
-    forM_ points $ \point -> sendEvent $ PointerWSChangeEvent point pre cur
-    forM_ keys $ \key -> sendEvent $ KeyboardWSChangeEvent key pre cur
+    hook <- wayHooksSeatWSChange . wayCoreHooks <$> getState
+    forM_ points $ \point -> hook $ PointerWSChange point pre cur
+    forM_ keys $ \key -> hook $ KeyboardWSChange key pre cur
 
-wsChangeEvtHook :: WSTag a => SomeEvent -> Way vs a ()
-wsChangeEvtHook e =
-       outputChangeEvt (getEvent e)
-    <> mappingChangeEvt (getEvent e)
-
-wsChangeLogHook :: forall a vs. WSTag a => SomeEvent -> Way vs a ()
-wsChangeLogHook e = whenJust (getEvent e) $ \(evt :: SeatWSChangeEvent a) ->
-    logPrint loggerWS Debug evt
+wsChangeLogHook :: forall ws vs. WSTag ws => SeatWSChange ws -> Way vs ws ()
+wsChangeLogHook evt = logPrint loggerWS Debug evt

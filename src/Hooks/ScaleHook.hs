@@ -39,7 +39,7 @@ import Layout (reLayout)
 import Utility (doJust)
 import View (View, getViewSurface)
 import ViewSet (WSTag, FocusCore)
-import WayUtil (ViewWSChange (..))
+import Waymonad.Types (ViewWSChange (..))
 import WayUtil.Focus (getWorkspaceOutputs)
 import Waymonad (Way, getEvent, SomeEvent)
 import Output (Output (..))
@@ -54,13 +54,6 @@ sendScaleEvent fun view output = liftIO $
     doJust (getViewSurface view) (flip fun $ outputRoots output)
 
 
-wsEvt :: (FocusCore vs a, WSTag a) => Maybe (ViewWSChange a) -> Way vs a ()
-wsEvt Nothing = pure ()
-wsEvt (Just (WSEnter v ws)) = do 
-    enactEvent (sendScaleEvent surfaceSendEnter) v ws
-    reLayout ws
-wsEvt (Just (WSExit v ws) ) = do
-    enactEvent (sendScaleEvent surfaceSendLeave) v ws
-
-wsScaleHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
-wsScaleHook = wsEvt . getEvent
+wsScaleHook :: (FocusCore vs a, WSTag a) => ViewWSChange a -> Way vs a ()
+wsScaleHook (WSEnter v ws) = enactEvent (sendScaleEvent surfaceSendEnter) v ws
+wsScaleHook (WSExit v ws) = enactEvent (sendScaleEvent surfaceSendLeave) v ws
