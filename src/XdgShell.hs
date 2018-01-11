@@ -63,7 +63,6 @@ import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Signal (setSignalHandler)
 import Waymonad
 import Waymonad.Types
-import Waymonad.Shells
 
 import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S

@@ -28,3 +28,6 @@ import Waymonad.Types (Way, WayShell (..), ShellClass (..))
 
 startShell :: (FocusCore vs ws, WSTag ws) => WayShell -> Way vs ws ()
 startShell (WayShell shell) = activateShell shell
+
+stopShell :: (FocusCore vs ws, WSTag ws) => WayShell -> Way vs ws ()
+stopShell (WayShell shell) = deactivateShell shell

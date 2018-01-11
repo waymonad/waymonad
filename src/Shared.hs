@@ -75,7 +75,7 @@ import Foreign.C.String
 import ViewSet (FocusCore, WSTag)
 import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (wayCoreShells))
-import Waymonad.Shells (startShell)
+import Waymonad.Shells (startShell, stopShell)
 
 
 import Graphics.Wayland.Signal
@@ -175,6 +175,7 @@ backendMain hooks display backend = do
     -- Start the hooks that want to run *after* the backend got initialised and
     -- run the display
     foldBrackets (backendPostHook hooks) (const $ liftIO $ displayRun display) ()
+    mapM_ stopShell shells
 
 bindSocket :: MonadIO m => DisplayServer -> m ()
 bindSocket display = liftIO $ do
