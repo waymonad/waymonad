@@ -93,7 +93,7 @@ instance ShellClass XWayRef where
         pure $ case ret of
             Just _ -> True
             Nothing -> False
-    getShellName _ = "XWayShell (v6)"
+    getShellName _ = "XWayland"
     getShellViews (XWayRef ref) = liftIO $ do
         ret <- readIORef ref
         case ret of

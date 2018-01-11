@@ -45,6 +45,7 @@ import Fuse.Common
 import Fuse.Inputs
 import Fuse.Outputs
 import Fuse.Workspaces
+import Fuse.Shells
 
 
 import qualified Data.Map as M
@@ -98,6 +99,7 @@ mainDir = simpleDir $ M.fromList
     , ("outputs", outputsDir)
     , ("shutdown", closeFile)
     , ("inputs", inputsDir)
+    , ("shells", shellsDir)
     ]
 
 

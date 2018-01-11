@@ -302,10 +302,10 @@ myConf = WayUserConf
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
-        { wayHooksVWSChange     = wsScaleHook
-        , wayHooksOutputMapping = enterLeaveHook <> SM.mappingChangeEvt
-        , wayHooksSeatWSChange  = SM.wsChangeLogHook <> handleKeyboardSwitch
-        , wayHooksSeatOutput = seatOutputEventLogger <> SM.outputChangeEvt
+        { wayHooksVWSChange     = wsScaleHook <> (liftIO . hPrint stderr)
+        , wayHooksOutputMapping = enterLeaveHook <> SM.mappingChangeEvt <> (liftIO . hPrint stderr)
+          , wayHooksSeatWSChange  = SM.wsChangeLogHook <> handleKeyboardSwitch <> (liftIO . hPrint stderr)
+        , wayHooksSeatOutput = SM.outputChangeEvt <> (liftIO . hPrint stderr)
         }
     , wayUserConfShells = [Xdg.makeShell, XWay.makeShell]
     }

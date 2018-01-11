@@ -36,6 +36,8 @@ data Output = Output
     , outputName  :: Text
     }
 
+instance Show Output
+
 getOutputId :: Output -> Int
 
 setOutputDirty :: MonadIO m => Output -> m ()

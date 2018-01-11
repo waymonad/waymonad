@@ -23,6 +23,10 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Shells
 where
 
+import Data.Set (Set)
+import Data.Text (Text)
+
+import View (View)
 import ViewSet (FocusCore, WSTag)
 import Waymonad.Types (Way, WayShell (..), ShellClass (..))
 
@@ -31,3 +35,12 @@ startShell (WayShell shell) = activateShell shell
 
 stopShell :: (FocusCore vs ws, WSTag ws) => WayShell -> Way vs ws ()
 stopShell (WayShell shell) = deactivateShell shell
+
+shellName :: WayShell -> Text
+shellName (WayShell shell) = getShellName shell
+
+shellActive :: WayShell -> Way vs ws Bool
+shellActive (WayShell shell) = isShellActive shell
+
+shellViews :: WayShell -> Way vs ws (Set View)
+shellViews (WayShell shell) = getShellViews shell

@@ -131,13 +131,13 @@ class Typeable a => ShellClass a where
 data WayShell = forall a. ShellClass a => WayShell a
 
 
-data ViewWSChange a = WSEnter View a | WSExit View a
+data ViewWSChange a = WSEnter View a | WSExit View a deriving (Show)
 
 data OutputMappingEvent a = OutputMappingEvent
     { outputMappingEvtOutput :: Output
     , outputMappingEvtPre    :: Maybe a
     , outputMappingEvtCur    :: Maybe a
-    }
+    } deriving (Show)
 
 data SeatOutputChange
     = PointerOutputChange
@@ -149,7 +149,7 @@ data SeatOutputChange
         { seatOutChangeEvtSeat :: Seat
         , seatOutChangeEvtPre :: Maybe Output
         , seatOutChangeEvtNew :: Maybe Output
-        }
+        } deriving (Show)
 
 data SeatWSChange a
     = PointerWSChange
