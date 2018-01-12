@@ -46,8 +46,6 @@ import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
     , DeviceType(..)
-    , getDestroySignal
-    , getDeviceName
     )
 import Graphics.Wayland.WlRoots.XCursorManager
     ( WlrXCursorManager
@@ -110,19 +108,20 @@ getDeviceSiblings ptr = do
     devices <- liftIO . readIORef $ inputDevices input
     liftIO $ doJust (getDeviceHandle ptr) $ \handle -> do
         group <- LI.getInputDeviceGroup handle
-        ret <- filterM (\dev -> do
-            devHandle <- getDeviceHandle dev
-            case devHandle of
-                Nothing -> pure False
-                Just x -> do
-                    devGroup <- LI.getInputDeviceGroup x
-                    pure $ devGroup == group) $ S.toList devices
+        ret <- filterM (\dev -> if dev == ptr
+            then pure False
+            else do
+                devHandle <- getDeviceHandle dev
+                case devHandle of
+                    Nothing -> pure False
+                    Just x -> do
+                        devGroup <- LI.getInputDeviceGroup x
+                        pure $ devGroup == group) $ S.toList devices
         pure $ S.fromList ret
 
 
 doDetach :: Ptr InputDevice -> SeatFoo -> Way vs a ()
 doDetach dev foo = liftIO $ do
-    name <- T.unpack <$> getDeviceName dev
     iType <- inputDeviceType dev
     case iType of
         (DeviceKeyboard kptr) -> detachKeyboard kptr
@@ -149,7 +148,6 @@ detachDevice dev = do
 
 doAttach :: WSTag a => Ptr InputDevice -> SeatFoo -> Way vs a ()
 doAttach ptr foo = do
-    name <- liftIO (T.unpack <$> getDeviceName ptr)
     iType <- liftIO $ inputDeviceType ptr
 
     withSeat (Just $ fooSeat foo) $ case iType of
