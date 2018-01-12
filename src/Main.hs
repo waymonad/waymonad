@@ -26,7 +26,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
-import StartupHook
+import Startup.Generic
 import Data.String (IsString)
 import Protocols.Screenshooter
 import Protocols.GammaControl

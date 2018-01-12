@@ -101,6 +101,7 @@ executable waymonad
   other-modules:        Protocols.Screenshooter
 
   other-modules:        Startup.Environment
+  other-modules:        Startup.Generic
 
   other-modules:        Shared
   other-modules:        Utility
@@ -130,7 +131,6 @@ executable waymonad
 
   other-modules:        XMonad.ViewSet
 
-  other-modules:        StartupHook
   
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:    EmptyDataDecls, NumDecimals, ScopedTypeVariables, OverloadedStrings, LambdaCase, ExistentialQuantification, StandaloneDeriving, TupleSections, InstanceSigs, GeneralizedNewtypeDeriving, FlexibleContexts, FlexibleInstances
