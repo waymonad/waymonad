@@ -1,2 +1,2 @@
-packages: ./ hsroots hsroots/haskell-wayland hsroots/haskell-xkbcommon hfuse
+packages: ./ hsroots hsroots/haskell-wayland hsroots/haskell-xkbcommon hsroots/libinput hfuse
 

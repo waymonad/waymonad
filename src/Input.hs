@@ -26,10 +26,11 @@ module Input
     , inputCreate
     , detachDevice
     , attachDevice
+    , getDeviceSiblings
     )
 where
 
-import Control.Monad (when, forM_, forM)
+import Control.Monad (when, forM_, forM, filterM)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
 import Data.Map (Map)
@@ -40,6 +41,7 @@ import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(peek))
 import System.IO.Unsafe (unsafePerformIO)
 
+import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
 import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
@@ -82,6 +84,8 @@ import Waymonad.Types (Compositor (..))
 import WayUtil.Focus (focusView)
 import WayUtil.Signal
 
+import qualified System.InputDevice as LI
+
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -99,6 +103,22 @@ data Input = Input
     , inputFooMap :: IORef (Map Text SeatFoo)
     , inputAddToken :: [ListenerToken]
     }
+
+getDeviceSiblings :: Ptr InputDevice -> Way vs ws (Set (Ptr InputDevice))
+getDeviceSiblings ptr = do
+    Compositor {compInput = input} <- wayCompositor <$> getState
+    devices <- liftIO . readIORef $ inputDevices input
+    liftIO $ doJust (getDeviceHandle ptr) $ \handle -> do
+        group <- LI.getInputDeviceGroup handle
+        ret <- filterM (\dev -> do
+            devHandle <- getDeviceHandle dev
+            case devHandle of
+                Nothing -> pure False
+                Just x -> do
+                    devGroup <- LI.getInputDeviceGroup x
+                    pure $ devGroup == group) $ S.toList devices
+        pure $ S.fromList ret
+
 
 doDetach :: Ptr InputDevice -> SeatFoo -> Way vs a ()
 doDetach dev foo = liftIO $ do

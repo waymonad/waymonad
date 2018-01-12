@@ -50,8 +50,17 @@ makeInputDir ptr = do
             , ("detach", FileEntry $ textRWFile (pure "") (\_ -> Right <$> detachDevice ptr))
             , ("attach", FileEntry $ textRWFile (pure "") (fmap Right . attachDevice ptr))
             ]
+    let makeDevLink sib = do
+            devName <- liftIO $ T.unpack <$> getDeviceName sib
+            pure (devName, SymlinkEntry $ pure $ "../../" ++ devName)
+    siblings <- getDeviceSiblings ptr
+    let sibDir = if S.null siblings
+        then mempty
+        else [("siblings", DirEntry $ enumeratingDir $ fmap M.fromList $ mapM makeDevLink $ S.toList siblings)]
+
     name <- liftIO $ getDeviceName ptr
-    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList deviceType)
+
+    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList (deviceType ++ sibDir))
 
 
 enumerateInputs :: (FocusCore vs a, WSTag a) => Way vs a (Map String (Entry vs a))
@@ -63,7 +72,6 @@ enumerateInputs = do
 
 makeFooDir :: (Text, SeatFoo) -> Way vs a (String, Entry vs a)
 makeFooDir (name, foo) = do
-
     devPtrs <- liftIO $ readIORef $ fooDevices foo
     let makeDevLink ptr = do
             devName <- liftIO $ T.unpack <$> getDeviceName ptr
