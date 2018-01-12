@@ -32,8 +32,8 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
 
-import Graphics.Wayland.WlRoots.Box (WlrBox (..), centerBox)
-import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
+import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
 import {-# SOURCE #-} Output (Output (..), getOutputId, setOutputDirty)
 import Utility (whenJust)
@@ -87,10 +87,11 @@ reLayout ws = do
 
     forM_ boxes $ \(out, box) -> do
         let layout = getLayouted wstate ws box
+        Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
 
         liftIO $ modifyIORef cacheRef $ IM.insert (getOutputId out) layout
 
-        mapM_ (uncurry setViewBox) layout
+        mapM_ (\(v, (WlrBox bx by w h)) -> setViewBox v (WlrBox (bx + ox) (by + oy) w h)) layout
         logPutText loggerLayout Debug $
             "Set the layout for "
             `T.append` getName ws
