@@ -45,6 +45,7 @@ import Graphics.Wayland.WlRoots.Input
     , inputDeviceType
     , DeviceType(..)
     , getDestroySignal
+    , getDeviceName
     )
 import Graphics.Wayland.WlRoots.XCursorManager
     ( WlrXCursorManager
@@ -96,18 +97,20 @@ data SeatFoo = SeatFoo
 data Input = Input
     { inputDevices :: IORef (Set (Ptr InputDevice))
     , inputFooMap :: IORef (Map Text SeatFoo)
-    , inputAddToken :: ListenerToken
+    , inputAddToken :: [ListenerToken]
     }
 
 doDetach :: Ptr InputDevice -> SeatFoo -> Way vs a ()
 doDetach dev foo = liftIO $ do
+    name <- T.unpack <$> getDeviceName dev
     iType <- inputDeviceType dev
     case iType of
         (DeviceKeyboard kptr) -> detachKeyboard kptr
+        (DeviceTabletPad pptr) -> handlePadRemove pptr
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceTabletTool _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
-        (DeviceTabletPad pptr) -> handlePadRemove pptr
         _ -> pure ()
+    modifyIORef (fooDevices foo) $ S.delete dev
 
 
 detachDevice :: Ptr InputDevice -> Way vs a ()
@@ -121,13 +124,12 @@ detachDevice dev = do
                     else Nothing
     case catMaybes candidates of
         [] -> pure ()
--- TODO: Log an error
-        (_:_:_) -> pure ()
-        [owner] -> doDetach dev owner
+        xs -> mapM_ (doDetach dev) xs
 
 
 doAttach :: WSTag a => Ptr InputDevice -> SeatFoo -> Way vs a ()
 doAttach ptr foo = do
+    name <- liftIO (T.unpack <$> getDeviceName ptr)
     iType <- liftIO $ inputDeviceType ptr
 
     withSeat (Just $ fooSeat foo) $ case iType of
@@ -138,7 +140,6 @@ doAttach ptr foo = do
         _ -> pure ()
 
     liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)
-    setDestroyHandler (getDestroySignal ptr) (const $ liftIO $ modifyIORef (fooDevices foo) $ S.delete ptr)
 
 attachDevice :: (FocusCore vs a, WSTag a) => Ptr InputDevice -> Text -> Way vs a ()
 attachDevice ptr name = do
@@ -204,10 +205,6 @@ handleInputAdd
     -> Way vs a ()
 handleInputAdd foos devRef ptr = do 
     liftIO $ modifyIORef devRef (S.insert ptr)
-    setDestroyHandler (getDestroySignal ptr) (\dev -> do
-        liftIO $ modifyIORef devRef $ S.delete ptr
-        detachDevice dev
-                                             )
 
     doAttach ptr =<< getOrCreateSeat foos "seat0"
 
@@ -232,6 +229,11 @@ loadCurrentScales manager = do
         scale <- getOutputScale $ outputRoots output
         xCursorLoad manager scale
 
+handleInputRemove :: IORef (Set (Ptr InputDevice)) -> Ptr InputDevice -> Way vs a ()
+handleInputRemove devRef ptr = do
+    liftIO $ modifyIORef devRef $ S.delete ptr
+    detachDevice ptr
+
 inputCreate
     :: (FocusCore vs a, WSTag a)
     => Ptr Backend
@@ -242,9 +244,10 @@ inputCreate backend = do
 
     let signals = backendGetSignals backend
     aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd mapRef devRef
+    rTok <- setSignalHandler (inputRemove signals) $ handleInputRemove devRef
 
     pure Input
         { inputDevices = devRef
         , inputFooMap = mapRef
-        , inputAddToken = aTok
+        , inputAddToken = [aTok, rTok]
         }

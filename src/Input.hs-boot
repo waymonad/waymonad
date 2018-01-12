@@ -46,5 +46,5 @@ data SeatFoo = SeatFoo
 data Input = Input
     { inputDevices :: IORef (Set (Ptr InputDevice))
     , inputFooMap :: IORef (Map Text SeatFoo)
-    , inputAddToken :: ListenerToken
+    , inputAddToken :: [ListenerToken]
     }

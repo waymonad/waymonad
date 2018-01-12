@@ -100,6 +100,8 @@ executable waymonad
   other-modules:        Protocols.GammaControl
   other-modules:        Protocols.Screenshooter
 
+  other-modules:        Startup.Environment
+
   other-modules:        Shared
   other-modules:        Utility
   other-modules:        Utility.Spawn

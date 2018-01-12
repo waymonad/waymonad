@@ -18,38 +18,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module WayUtil.Signal
+module Startup.Environment
 where
 
-import Control.Concurrent.MVar (newEmptyMVar, takeMVar, putMVar)
 import Control.Monad.IO.Class (liftIO)
-import Foreign.Ptr (Ptr)
+import System.Environment (setEnv)
 
-import Graphics.Wayland.Signal
-    ( addListener
-    , WlListener (..)
-    , ListenerToken
-    , WlSignal
-    , destroyListener
-    )
+import Shared (Bracketed (..))
 
-import Waymonad (setCallback)
-import Waymonad.Types (Way)
-
-setSignalHandler
-    :: Ptr (WlSignal a)
-    -> (Ptr a -> Way vs b ())
-    -> Way vs b ListenerToken
-setSignalHandler signal act = 
-    setCallback act (\fun -> addListener (WlListener fun) signal)
-
-setDestroyHandler
-    :: Ptr (WlSignal a)
-    -> (Ptr a -> Way vs b ())
-    -> Way vs b ()
-setDestroyHandler signal handler = do
-    var <- liftIO newEmptyMVar
-    listener <- setSignalHandler signal $ \ptr -> do
-        handler ptr
-        liftIO $ (destroyListener =<< takeMVar var)
-    liftIO $ putMVar var listener
+envBracket :: [(String, String)] -> Bracketed vs () ws
+envBracket xs = Bracketed
+    (\_ -> liftIO (mapM_ (uncurry setEnv) xs))
+    (\_ -> pure ())
