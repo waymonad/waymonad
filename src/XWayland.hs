@@ -37,14 +37,16 @@ import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
 import Foreign.Ptr (Ptr, ptrToIntPtr)
-import System.IO
 import Foreign.StablePtr
-    ( newStablePtr
+    ( castPtrToStablePtr
     , castStablePtrToPtr
     , freeStablePtr
-    , castPtrToStablePtr
+    , newStablePtr
     )
 import Foreign.Storable (Storable(..))
+import System.IO
+
+import Graphics.Wayland.Signal (removeListener, ListenerToken)
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
@@ -53,7 +55,7 @@ import Managehook
 import View
 import ViewSet (WSTag, FocusCore)
 import WayUtil.Log (logPutText, LogPriority (..))
-import WayUtil.Signal (setSignalHandler)
+import WayUtil.Signal (setSignalHandler, setDestroyHandler)
 import Waymonad
 import Waymonad.Types
     ( Compositor (..)
@@ -138,18 +140,18 @@ xwayShellCreate display comp = do
 handleXwayDestroy
     :: (FocusCore vs a, WSTag a)
     => MapRef
+    -> [ListenerToken]
     -> Ptr X.X11Surface
     -> Way vs a ()
-handleXwayDestroy ref surf = do
+handleXwayDestroy ref tokens surf = do
     logPutText loggerX11 Debug "Destroying XWayland surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     triggerViewDestroy view
     removeView view
-
     liftIO $ do
-        modifyIORef ref $ M.delete (ptrToInt surf)
-        sptr :: Ptr () <- peek (X.getX11SurfaceDataPtr surf)
-        freeStablePtr $ castPtrToStablePtr sptr
+        mapM_ removeListener tokens
+        stPtr <- peek (X.getX11SurfaceDataPtr surf)
+        freeStablePtr $ castPtrToStablePtr stPtr
 
 handleX11Configure :: View -> IORef (Int, Int) -> Ptr X.ConfigureEvent -> Way vs a ()
 handleX11Configure view ref evt = do
@@ -162,6 +164,11 @@ handleX11Configure view ref evt = do
         when (oldWidth /= width || oldHeight /= height) $ do
             setViewLocal view $ WlrBox 0 0 width height
             writeIORef ref (width, height)
+
+handleX11Map :: View -> Ptr X.X11Surface -> Way vs a ()
+handleX11Map view surf = liftIO $ do
+    Point x y <- X.getX11SurfacePosition surf
+    moveView view (fromIntegral x) (fromIntegral y)
 
 handleXwaySurface
     :: (FocusCore vs a, WSTag a)
@@ -182,13 +189,18 @@ handleXwaySurface xway ref surf = do
     let signals = X.getX11SurfaceEvents surf
 
     sizeRef <- liftIO $ newIORef (0, 0)
-    handler <- setSignalHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref
-    handler2 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
-    handler3 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view sizeRef
+    h1 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
+    h2 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view sizeRef
 
+    h3 <- setSignalHandler (X.x11SurfaceEvtMove signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a move")
+    h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a configure")
+    h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const . liftIO $ (hPutStrLn stderr "Something wants unmapping")
+    h6 <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleX11Map view
+
+    setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h2, h3, h4, h5, h6]
     liftIO $ do
-        sptr <- newStablePtr (handler, handler2, handler3)
-        poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr sptr)
+        stPtr <- newStablePtr view
+        poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
 
 
 instance ShellSurface XWaySurface where
