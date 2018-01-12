@@ -47,8 +47,18 @@ makeInputDir :: (FocusCore vs a, WSTag a) => Ptr InputDevice -> Way vs a (String
 makeInputDir ptr = do
     let deviceType =
             [ ("type", FileEntry $ textFile $ liftIO $ T.pack . show <$> inputDeviceType ptr)
-            , ("detach", FileEntry $ textRWFile (pure "") (\_ -> Right <$> detachDevice ptr))
-            , ("attach", FileEntry $ textRWFile (pure "") (fmap Right . attachDevice ptr))
+            , ("detach", FileEntry $ textRWFile (pure "") (\_ -> do
+                    siblings <- getDeviceSiblings ptr
+                    mapM_ detachDevice $ ptr: S.toList siblings
+                    pure $ Right ()
+                                                          )
+              )
+            , ("attach", FileEntry $ textRWFile (pure "") (\seat -> do
+                    siblings <- getDeviceSiblings ptr
+                    mapM_ (`attachDevice` seat) $ ptr: S.toList siblings
+                    pure $ Right ()
+                                                          )
+              )
             ]
     let makeDevLink sib = do
             devName <- liftIO $ T.unpack <$> getDeviceName sib
