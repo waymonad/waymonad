@@ -21,7 +21,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
-module XWayland
+module Shells.XWayland
     ( xwayShellCreate
     , XWayShell
     , overrideXRedirect

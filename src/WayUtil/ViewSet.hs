@@ -44,7 +44,7 @@ import Data.Maybe (fromJust)
 import Data.Set (Set)
 import Data.List (nub)
 
-import Input.Seat (Seat, keyboardEnter, keyboardClear)
+import Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
 import Layout (reLayout)
 import Output (Output)
 import Utility (whenJust, doJust)
@@ -77,10 +77,11 @@ setFocus s (s', v) = when (s `S.member` s') $ do
         success <- keyboardEnter s v
         when success $ activateView v True
 
-modifyViewSet :: (vs -> vs) -> Way vs a ()
+modifyViewSet :: WSTag ws => (vs -> vs) -> Way vs ws ()
 modifyViewSet fun = do
     ref <- wayBindingState <$> getState
     liftIO $ modifyIORef ref fun
+    runLog
 
 setFocused :: FocusCore vs a => Seat -> a -> Way vs a ()
 setFocused seat ws = ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) >>= \case
@@ -116,11 +117,15 @@ modifyWS
     -> Way vs a ()
 modifyWS ws fun = do
     outs <- getWSOutputs ws
+    seats <- nub . concat <$> mapM getOutputKeyboards outs
+
+    mapM_ (\case
+        Just view -> activateView view False
+        Nothing -> pure ()
+          ) =<< mapM getKeyboardFocus seats
     modifyViewSet (fun ws)
 
-    seats <- mapM getOutputKeyboards outs
-
-    mapM_ (`setFocused` ws) $ nub $ concat seats
+    mapM_ (`setFocused` ws) seats
     unless (null outs) (reLayout ws >> runLog)
 
 modifyCurrentWS
@@ -130,18 +135,7 @@ modifyCurrentWS
 modifyCurrentWS fun = do
     seatM <- getSeat
     ws <- getCurrentWS
-    let getView = whenJust seatM (\seat -> (\vs -> _getFocused vs ws $ Just seat) <$> getViewSet)
-
-    preWs <- getView
-    modifyViewSet (fun seatM ws)
-    postWs <- getView
-
-    -- This should really be on the 2 views we know about, not full
-    when (preWs /= postWs) $ do
-        whenJust preWs (`activateView` False)
-        whenJust postWs (`activateView` True)
-        forceFocused
-        runLog
+    modifyWS ws (fun seatM)
 
 modifyFocusedWS
     :: (WSTag ws, FocusCore vs ws)

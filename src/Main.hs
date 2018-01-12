@@ -115,8 +115,8 @@ import WayUtil.Floating (centerFloat)
 import XMonad.ViewSet (ViewSet, Workspace (..))
 
 import qualified Data.Map.Strict as M
-import qualified XdgShell as Xdg
-import qualified XWayland as XWay
+import qualified Shells.XdgShell as Xdg
+import qualified Shells.XWayland as XWay
 
 
 makeBindingMap :: [(([WlrModifier], Keysym), KeyBinding vs a)] -> BindingMap vs a
