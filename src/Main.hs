@@ -268,20 +268,16 @@ workspaces :: IsString a => [a]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "video"]
 
 bindings
-    :: (Layouted vs ws, {-ListLike vs a,-} FocusCore vs ws, IsString ws, WSTag ws)
-    => [(([WlrModifier], Keysym), KeyBinding (ToggleFull (Map ws) (QuadrantSet vs ws)) ws)]
+    :: (Layouted vs ws, ListLike vs ws, FocusCore vs ws, IsString ws, WSTag ws)
+    => [(([WlrModifier], Keysym), KeyBinding vs ws)]
 bindings =
---    [ (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft)
---    , (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
---    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
---    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
-    [ (([modi], keysym_f), sendMessage ToggleFullM)
+    [ (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft)
+    , (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
+    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
+    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
+    , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_Right), sendMessage NextLayout)
-    , (([modi], keysym_k), modifyFocusedWS $ \ws s -> liftFull $ sendToQ TL ws s)
-    , (([modi], keysym_j), modifyFocusedWS $ \ws s -> liftFull $ sendToQ TR ws s)
-    , (([modi, Shift], keysym_k), modifyFocusedWS $ \ws s -> liftFull $ sendToQ BL ws s)
-    , (([modi, Shift], keysym_j), modifyFocusedWS $ \ws s -> liftFull $ sendToQ BR ws s)
     , (([modi], keysym_Return), spawn "alacritty")
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_w), spawn "vwatch")
@@ -300,10 +296,10 @@ myEventHook =
        H.outputAddHook
     <> idleLog
 
-myConf :: WayUserConf (ToggleFull (Map Text) (QuadrantSet (ViewSet Text) Text)) Text
+myConf :: WayUserConf (ViewSet Text) Text
 myConf = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = mkVSFull . setupQuadrant (sameLayout .  mkMirror $ (Tall ||| Spiral))
+    , wayUserConfLayouts     = sameLayout .  mkMirror $ (Tall ||| Spiral)
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
