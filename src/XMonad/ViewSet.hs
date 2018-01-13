@@ -90,8 +90,6 @@ instance WSTag a => FocusCore (ViewSet a) a where
 
 instance WSTag a => ListLike (ViewSet a) a where
     _asList vs ws = join . maybeToList $ fmap unZipper (wsViews =<< M.lookup ws vs)
-    _fromList ws [] vs = M.adjust (\w -> w {wsViews = Nothing}) ws vs
-    _fromList ws xs vs = M.adjust (\w -> w {wsViews = Just (Zipper xs)}) ws vs
     _moveFocusLeft ws s vs = M.adjust (moveLeft s) ws vs
     _moveFocusRight ws s vs = M.adjust (moveRight s) ws vs
     _moveFocusedLeft ws s vs  = M.adjust (moveViewLeft s) ws vs

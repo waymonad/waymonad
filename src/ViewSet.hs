@@ -78,7 +78,6 @@ class FocusCore vs ws where
 
 class ListLike vs ws where
     _asList           :: vs -> ws -> [(Set Seat, View)]
-    _fromList         :: ws -> [(Set Seat, View)] -> vs -> vs
     _moveFocusLeft    :: ws -> Seat -> vs-> vs
     _moveFocusRight   :: ws -> Seat -> vs-> vs
     _moveFocusedLeft  :: ws -> Seat -> vs-> vs

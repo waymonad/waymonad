@@ -95,7 +95,6 @@ instance (Ord ws, FocusCore vs ws) => FocusCore (ToggleFull (Map ws) vs) ws wher
 
 instance ListLike vs ws => ListLike (ToggleFull c vs) ws where
     _asList (ToggleFull _ vs) ws = _asList vs ws
-    _fromList = undefined
     _moveFocusLeft ws seat (ToggleFull s vs) = ToggleFull s (_moveFocusLeft ws seat vs)
     _moveFocusRight ws seat (ToggleFull s vs) = ToggleFull s (_moveFocusRight ws seat vs)
     _moveFocusedLeft ws seat (ToggleFull s vs) = ToggleFull s (_moveFocusedLeft ws seat vs)
