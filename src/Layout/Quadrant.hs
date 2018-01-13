@@ -22,6 +22,9 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Layout.Quadrant
     ( QuadrantSet
+    , setupQuadrant
+    , sendToQ
+    , Quadrant (..)
     )
 where
 
@@ -40,6 +43,10 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 
 data Quadrant = TL | TR | BL | BR deriving (Eq, Show)
+
+setupQuadrant :: ([ws] -> child) -> [ws] -> QuadrantSet child ws
+setupQuadrant fun xs = QuadrantSet (fun xs) (fun xs) (fun xs) (fun xs) mempty
+
 
 data QuadrantSet child ws = QuadrantSet
     { quadrantTL :: child
@@ -67,6 +74,12 @@ updateQuadrant BR q f = q { quadrantBR = f $ quadrantBR q }
 updateAll :: QuadrantSet child ws -> (child -> child) -> QuadrantSet child ws
 updateAll set fun =
     updateQuadrant TL (updateQuadrant TR (updateQuadrant BL (updateQuadrant BR set fun) fun) fun) fun
+
+sendToQ :: (FocusCore child ws, Eq ws) => Quadrant -> Seat -> ws -> QuadrantSet child ws -> QuadrantSet child ws
+sendToQ q seat ws set =
+    case _getFocused set ws (Just seat) of
+        Nothing -> set
+        Just view -> updateQuadrant q (_removeView ws view set) (_insertView ws (Just seat) view)
 
 instance (Eq ws, FocusCore child ws) => FocusCore (QuadrantSet child ws) ws where
         -- TODO: Filter focus to focused quadrant

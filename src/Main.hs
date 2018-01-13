@@ -267,38 +267,42 @@ workspaces :: IsString a => [a]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "video"]
 
 bindings
-    :: (Layouted vs a, FocusCore vs a, ListLike vs a, IsString a, WSTag a)
-    => [(([WlrModifier], Keysym), KeyBinding vs a)]
+    :: ({-Layouted vs a, ListLike vs a,-} FocusCore vs ws, IsString ws, WSTag ws)
+    => [(([WlrModifier], Keysym), KeyBinding (QuadrantSet vs ws) ws)]
 bindings =
-    [ (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft)
-    , (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
-    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
-    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
+--    [ (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft)
+--    , (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
+--    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
+--    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
+--    , (([modi], keysym_f), sendMessage ToggleFullM)
+--    , (([modi], keysym_m), sendMessage ToggleMirror)
+--    , (([modi], keysym_Right), sendMessage NextLayout)
+    [ (([modi], keysym_k), modifyFocusedWS $ sendToQ TL )
+    , (([modi], keysym_j), modifyFocusedWS $ sendToQ TR)
+    , (([modi, Shift], keysym_k), modifyFocusedWS $ sendToQ BL)
+    , (([modi, Shift], keysym_j), modifyFocusedWS $ sendToQ BR)
     , (([modi], keysym_Return), spawn "alacritty")
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_w), spawn "vwatch")
     , (([modi], keysym_t), spawn "mpc toggle")
-    , (([modi], keysym_f), sendMessage ToggleFullM)
-    , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_n), focusNextOut)
     , (([modi], keysym_q), killCurrent)
     , (([modi], keysym_o), centerFloat)
-    , (([modi], keysym_Right), sendMessage NextLayout)
     , (([modi], keysym_c), doJust getCurrentView makeProxy)
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
     , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
-    where modi = Logo
+    where modi = Alt
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 myEventHook =
        H.outputAddHook
     <> idleLog
 
-myConf :: WayUserConf (ViewSet Text) Text
+myConf :: WayUserConf (QuadrantSet (ViewSet Text) Text) Text
 myConf = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout .  mkMirror $ mkTFull (Tall ||| Spiral)
+    , wayUserConfLayouts     = setupQuadrant (sameLayout .  mkMirror $ mkTFull (Tall ||| Spiral))
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
