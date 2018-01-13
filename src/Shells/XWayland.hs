@@ -31,12 +31,13 @@ module Shells.XWayland
     )
 where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class
 import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
-import Foreign.Ptr (Ptr, ptrToIntPtr)
+import Foreign.Ptr (Ptr)
 import Foreign.StablePtr
     ( castPtrToStablePtr
     , castStablePtrToPtr
@@ -51,7 +52,9 @@ import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 
+import Input.Seat
 import Managehook
+import Utility
 import View
 import ViewSet (WSTag, FocusCore)
 import WayUtil.Log (logPutText, LogPriority (..))
@@ -117,9 +120,6 @@ data XWaySurface = XWaySurface
     , unXway :: Ptr X.X11Surface
     }
 
-ptrToInt :: Num b => Ptr a -> b
-ptrToInt = fromIntegral . ptrToIntPtr
-
 
 xwayShellCreate
     :: (FocusCore vs a, WSTag a)
@@ -166,9 +166,10 @@ handleX11Configure view ref evt = do
             writeIORef ref (width, height)
 
 handleX11Map :: View -> Ptr X.X11Surface -> Way vs a ()
-handleX11Map view surf = liftIO $ do
-    Point x y <- X.getX11SurfacePosition surf
+handleX11Map view surf = do
+    Point x y <- liftIO $ X.getX11SurfacePosition surf
     moveView view (fromIntegral x) (fromIntegral y)
+    doJust getSeat (void . flip keyboardEnter view)
 
 handleXwaySurface
     :: (FocusCore vs a, WSTag a)

@@ -80,10 +80,11 @@ import Data.List (find)
 import Data.Maybe (maybeToList, listToMaybe, fromJust)
 import Data.Typeable (cast)
 
-import Graphics.Wayland.WlRoots.Box (Point (..))
+import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 
 import Input.Seat (Seat, getPointerFocus)
-import View (View, getViewEventSurface)
+import Utility (doJust)
+import View (View, getViewEventSurface, getViewBox)
 import Waymonad.Types
 
 
@@ -115,18 +116,20 @@ runLayoutCache' ref act = runLayoutCache act ref
 
 floatsBelow
     :: Point
-    -> Way vs a [View]
+    -> Way vs a [(View, Double, Double)]
 floatsBelow (Point x y) = do
     views <- liftIO . fmap S.toList . readIORef . wayFloating =<< getState
     candidates <- liftIO $ forM views $
-        \view -> unsafeInterleaveIO $ fmap (const view) <$>
-            getViewEventSurface view (fromIntegral x) (fromIntegral y)
+        \view -> unsafeInterleaveIO $ do
+            WlrBox vx vy _ _ <- getViewBox view
+            doJust (getViewEventSurface view (fromIntegral $ x - vx) (fromIntegral $ y - vy)) $ \_ ->
+                pure $ Just (view, (fromIntegral $ x - vx), (fromIntegral $ y - vy))
 
     pure $ foldMap maybeToList candidates
 
 floatBelow
     :: Point
-    -> Way vs a (Maybe View)
+    -> Way vs a (Maybe (View, Double, Double))
 floatBelow p = do
     floats <- floatsBelow p
     seat <- getSeat
@@ -139,7 +142,7 @@ floatBelow p = do
             case focused of
                 Nothing -> pure $ listToMaybe floats
                 Just f ->
-                    pure $ find (== f) floats <|> listToMaybe floats
+                    pure $ find (\(v, _, _) -> v == f) floats <|> listToMaybe floats
 
 
 getEvent :: EventClass e => SomeEvent -> Maybe e

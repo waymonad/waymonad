@@ -206,7 +206,7 @@ getOutputKeyboards out = do
     pure . map fst . filter ((==) out . snd . snd) $ currents
 
 viewsBelow
-    :: Traversable t
+    :: Foldable t
     => Point
     -> t (View, WlrBox)
     -> IO [(View, Int, Int)]

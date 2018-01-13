@@ -122,7 +122,7 @@ getCursorView layout cursor = do
     -- TODO: Pretty this up. probably with unsafeInterleaveIO
     floatM <- floatBelow (Point (floor baseX) (floor baseY))
     case floatM of
-        Just v -> pure $ Just (v, floor baseX, floor baseY)
+        Just (v, x, y) -> pure $ Just (v, floor x, floor y)
         Nothing -> do
             outputM <- liftIO $ layoutAtPos layout baseX baseY
             case outputM of
