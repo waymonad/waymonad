@@ -66,6 +66,7 @@ import Graphics.Wayland.WlRoots.Output
     , getMake
     , getModel
     , getSerial
+    , effectiveResolution
     )
 
 import InjectRunner (Inject (..), injectEvt)
@@ -140,8 +141,9 @@ readTransform _ = Nothing
 makeOutputDir :: WSTag a => Output -> Way vs a (Entry vs a)
 makeOutputDir out = do
     let guaranteed =
-            [ ("width",  FileEntry $ textFile $ liftIO (T.pack . show <$> getWidth  (outputRoots out)))
-            , ("height", FileEntry $ textFile $ liftIO (T.pack . show <$> getHeight (outputRoots out)))
+            [ ("width",  FileEntry $ textFile $ liftIO (sformat int <$> getWidth  (outputRoots out)))
+            , ("height", FileEntry $ textFile $ liftIO (sformat int <$> getHeight (outputRoots out)))
+            , ("effective", FileEntry $ textFile $ liftIO (uncurry (sformat (int % "x" % int)) <$> effectiveResolution (outputRoots out)))
             ]
 
     let handleMaybe :: Monad m => (m a -> b) -> m (Maybe a) -> m (Maybe b)

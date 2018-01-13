@@ -307,7 +307,7 @@ myConf = WayUserConf
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
 
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser]
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, Bracketed (registerInjectHandler) (const $ pure ())]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket, envBracket [("PULSE_SERVER", "zelda.ongy")]]
     , wayUserConfCoreHooks   = WayHooks
