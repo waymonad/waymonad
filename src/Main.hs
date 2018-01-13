@@ -26,7 +26,10 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Layout.Quadrant
+
 import Startup.Generic
+import Startup.Environment
 import Data.String (IsString)
 import Protocols.Screenshooter
 import Protocols.GammaControl
@@ -257,10 +260,11 @@ wsSyms =
     , keysym_8
     , keysym_9
     , keysym_0
+    , keysym_v
     ]
 
 workspaces :: IsString a => [a]
-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "video"]
 
 bindings
     :: (Layouted vs a, FocusCore vs a, ListLike vs a, IsString a, WSTag a)
@@ -270,9 +274,10 @@ bindings =
     , (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
     , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
     , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
-    , (([modi], keysym_Return), spawn "weston-terminal")
-    , (([modi, Shift], keysym_Return), spawnOn "2" "weston-terminal" [])
+    , (([modi], keysym_Return), spawn "alacritty")
     , (([modi], keysym_d), spawn "dmenu_run")
+    , (([modi], keysym_w), spawn "vwatch")
+    , (([modi], keysym_t), spawn "mpc toggle")
     , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_n), focusNextOut)
@@ -283,7 +288,7 @@ bindings =
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
     , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
-    where modi = Alt
+    where modi = Logo
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 myEventHook =
@@ -298,9 +303,9 @@ myConf = WayUserConf
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
 
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, getStartupBracket (spawn "weston-terminal")]
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
-    , wayUserConfPostHook    = [getScreenshooterBracket]
+    , wayUserConfPostHook    = [getScreenshooterBracket, envBracket [("PULSE_SERVER", "zelda.ongy")]]
     , wayUserConfCoreHooks   = WayHooks
         { wayHooksVWSChange     = wsScaleHook <> (liftIO . hPrint stderr)
         , wayHooksOutputMapping = enterLeaveHook <> SM.mappingChangeEvt <> (liftIO . hPrint stderr)
