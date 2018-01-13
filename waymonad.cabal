@@ -94,6 +94,7 @@ executable waymonad
   other-modules:        Log
 
   other-modules:        Managehook
+  other-modules:        Navigation2D
   other-modules:        Output
 
   other-modules:        Protocols.GammaControl

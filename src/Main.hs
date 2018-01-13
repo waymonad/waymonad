@@ -26,6 +26,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Navigation2D
 import Layout.Quadrant
 
 import Startup.Generic
@@ -238,7 +239,7 @@ wayUserMain conf = do
                     , loggerWS = Logger Warn "Workspaces"
                     , loggerFocus = Logger Warn "Focus"
                     , loggerXdg = Logger Warn "Xdg_Shell"
-                    , loggerX11 = Logger Warn "XWayland"
+                    , loggerX11 = Logger Trace "XWayland"
                     , loggerKeybinds = Logger Warn "Keybindings"
                     , loggerSpawner = Logger Warn "Spawner"
                     , loggerLayout = Logger Warn "Layout"
@@ -271,8 +272,10 @@ bindings
     :: (Layouted vs ws, ListLike vs ws, FocusCore vs ws, IsString ws, WSTag ws)
     => [(([WlrModifier], Keysym), KeyBinding vs ws)]
 bindings =
-    [ (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft)
-    , (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
+    [ (([modi], keysym_k), moveUp)
+    , (([modi], keysym_j), moveDown)
+    , (([modi], keysym_h), moveLeft)
+    , (([modi], keysym_l), moveRight)
     , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
     , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
     , (([modi], keysym_f), sendMessage ToggleFullM)

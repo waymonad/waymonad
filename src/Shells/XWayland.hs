@@ -153,17 +153,17 @@ handleXwayDestroy ref tokens surf = do
         stPtr <- peek (X.getX11SurfaceDataPtr surf)
         freeStablePtr $ castPtrToStablePtr stPtr
 
-handleX11Configure :: View -> IORef (Int, Int) -> Ptr X.ConfigureEvent -> Way vs a ()
-handleX11Configure view ref evt = do
+handleX11Configure :: View -> Ptr X.X11Surface -> Ptr X.ConfigureEvent -> Way vs a ()
+handleX11Configure view surf evt = do
     logPutText loggerX11 Debug "Got configure request"
-    liftIO $ do
-        event <- peek evt
-        (oldWidth, oldHeight) <- readIORef ref
+    override <- liftIO $ X.x11SurfaceOverrideRedirect surf
+    when override $ do
+        event <- liftIO $ peek evt
         let width = fromIntegral $ X.configureEvtWidth event
         let height = fromIntegral $ X.configureEvtHeight event
-        when (oldWidth /= width || oldHeight /= height) $ do
-            setViewLocal view $ WlrBox 0 0 width height
-            writeIORef ref (width, height)
+        let x = fromIntegral $ X.configureEvtX event
+        let y = fromIntegral $ X.configureEvtY event
+        setViewBox view (WlrBox x y width height)
 
 handleX11Map :: View -> Ptr X.X11Surface -> Way vs a ()
 handleX11Map view surf = do
@@ -189,16 +189,13 @@ handleXwaySurface xway ref surf = do
 
     let signals = X.getX11SurfaceEvents surf
 
-    sizeRef <- liftIO $ newIORef (0, 0)
     h1 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
-    h2 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view sizeRef
-
     h3 <- setSignalHandler (X.x11SurfaceEvtMove signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a move")
-    h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a configure")
+    h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view surf
     h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const . liftIO $ (hPutStrLn stderr "Something wants unmapping")
     h6 <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleX11Map view
 
-    setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h2, h3, h4, h5, h6]
+    setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h3, h4, h5, h6]
     liftIO $ do
         stPtr <- newStablePtr view
         poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)

@@ -85,6 +85,5 @@ getCurrentView :: Way vs a (Maybe View)
 getCurrentView = doJust getSeat getKeyboardFocus
 
 getCurrentBox :: Way vs a WlrBox
-getCurrentBox =
-    liftIO . getOutputBox . outputRoots =<< getPointerOutput
+getCurrentBox = liftIO . getOutputBox . outputRoots =<< getPointerOutput
 
