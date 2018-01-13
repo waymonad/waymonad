@@ -56,6 +56,7 @@ import Config
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (newIORef, IORef, writeIORef, readIORef)
+import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text)
@@ -77,7 +78,7 @@ import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 import Input (inputCreate)
 import Layout.Mirror (mkMirror, ToggleMirror (..))
 import Layout.Tall (Tall (..))
-import Layout.ToggleFull (mkTFull, ToggleFullM (..))
+import Layout.ToggleFull (mkTFull, ToggleFullM (..), ToggleFull, mkVSFull, liftFull)
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
 import Utility (doJust)
@@ -267,20 +268,20 @@ workspaces :: IsString a => [a]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "video"]
 
 bindings
-    :: ({-Layouted vs a, ListLike vs a,-} FocusCore vs ws, IsString ws, WSTag ws)
-    => [(([WlrModifier], Keysym), KeyBinding (QuadrantSet vs ws) ws)]
+    :: (Layouted vs ws, {-ListLike vs a,-} FocusCore vs ws, IsString ws, WSTag ws)
+    => [(([WlrModifier], Keysym), KeyBinding (ToggleFull (Map ws) (QuadrantSet vs ws)) ws)]
 bindings =
 --    [ (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft)
 --    , (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
 --    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
 --    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
---    , (([modi], keysym_f), sendMessage ToggleFullM)
---    , (([modi], keysym_m), sendMessage ToggleMirror)
---    , (([modi], keysym_Right), sendMessage NextLayout)
-    [ (([modi], keysym_k), modifyFocusedWS $ sendToQ TL )
-    , (([modi], keysym_j), modifyFocusedWS $ sendToQ TR)
-    , (([modi, Shift], keysym_k), modifyFocusedWS $ sendToQ BL)
-    , (([modi, Shift], keysym_j), modifyFocusedWS $ sendToQ BR)
+    [ (([modi], keysym_f), sendMessage ToggleFullM)
+    , (([modi], keysym_m), sendMessage ToggleMirror)
+    , (([modi], keysym_Right), sendMessage NextLayout)
+    , (([modi], keysym_k), modifyFocusedWS $ \ws s -> liftFull $ sendToQ TL ws s)
+    , (([modi], keysym_j), modifyFocusedWS $ \ws s -> liftFull $ sendToQ TR ws s)
+    , (([modi, Shift], keysym_k), modifyFocusedWS $ \ws s -> liftFull $ sendToQ BL ws s)
+    , (([modi, Shift], keysym_j), modifyFocusedWS $ \ws s -> liftFull $ sendToQ BR ws s)
     , (([modi], keysym_Return), spawn "alacritty")
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_w), spawn "vwatch")
@@ -299,10 +300,10 @@ myEventHook =
        H.outputAddHook
     <> idleLog
 
-myConf :: WayUserConf (QuadrantSet (ViewSet Text) Text) Text
+myConf :: WayUserConf (ToggleFull (Map Text) (QuadrantSet (ViewSet Text) Text)) Text
 myConf = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = setupQuadrant (sameLayout .  mkMirror $ mkTFull (Tall ||| Spiral))
+    , wayUserConfLayouts     = mkVSFull . setupQuadrant (sameLayout .  mkMirror $ (Tall ||| Spiral))
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings

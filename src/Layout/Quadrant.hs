@@ -131,3 +131,9 @@ instance (Eq ws, FocusCore child ws) => FocusCore (QuadrantSet child ws) ws wher
                 blvs = getLayouted bl ws box' { boxY = boxY box + height }
                 brvs = getLayouted br ws box' { boxX = boxX box + width, boxY = boxY box + height }
              in tlvs <> trvs <> blvs <> brvs
+
+instance Layouted vs ws => Layouted (QuadrantSet vs ws) ws where
+    messageWS m ws vs = updateAll vs (messageWS m ws)
+    broadcastWS m ws vs = updateAll vs (broadcastWS m ws)
+    broadcastVS m ws vs = updateAll vs (broadcastVS m ws)
+    getLayout _ _ = Nothing

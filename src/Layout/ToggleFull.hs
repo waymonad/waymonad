@@ -26,11 +26,14 @@ Reach us at https://github.com/ongy/waymonad
 module Layout.ToggleFull
 where
 
-import Data.Text (Text)
+import Data.Functor.Identity
+import Data.Map (Map)
+import Data.Maybe (fromMaybe)
 
 import Layout.Full (Full (..))
 import ViewSet
 
+import qualified Data.Map as M
 import qualified Data.Text as T
 
 data ToggleFullM
@@ -39,28 +42,96 @@ data ToggleFullM
     | UnsetFull
     deriving (Show, Eq, Message)
 
-data ToggleFull l = ToggleFull Bool l
+data ToggleFull c l = ToggleFull
+    { toggleFullState :: c Bool
+    , toggleFullChild :: l
+    }
 
-mkTFull :: l -> ToggleFull l
-mkTFull = ToggleFull False
+mkTFull :: l -> ToggleFull Identity l
+mkTFull = ToggleFull (Identity False)
 
-instance LayoutClass l => LayoutClass (ToggleFull l) where
-    handleMessage :: ToggleFull l -> SomeMessage -> Maybe (ToggleFull l)
-    handleMessage (ToggleFull state l) m =
-        case getMessage m of
-            (Just ToggleFullM) -> Just $ ToggleFull (not state) l
-            (Just SetFull) -> Just $ ToggleFull True l
-            (Just UnsetFull) -> Just $ ToggleFull False l
-            Nothing -> ToggleFull state <$> handleMessage l m
-    broadcastMessage :: ToggleFull l -> SomeMessage -> Maybe (ToggleFull l)
-    broadcastMessage (ToggleFull state l) m = ToggleFull state <$> broadcastMessage l m
-    description :: ToggleFull l -> Text
+mkVSFull :: Ord ws => vs -> ToggleFull (Map ws) vs
+mkVSFull = ToggleFull mempty
+
+instance LayoutClass l => LayoutClass (ToggleFull Identity l) where
+    handleMessage (ToggleFull state l) m = case getMessage m of
+        (Just ToggleFullM) -> Just $ ToggleFull (fmap not state) l
+        (Just SetFull) -> Just $ ToggleFull (Identity True) l
+        (Just UnsetFull) -> Just $ ToggleFull (Identity False) l
+        Nothing -> ToggleFull state <$> handleMessage l m
+    broadcastMessage (ToggleFull state l) m = case getMessage m of
+        (Just ToggleFullM) -> Just $ ToggleFull (fmap not state) l
+        (Just SetFull) -> Just $ ToggleFull (Identity True) l
+        (Just UnsetFull) -> Just $ ToggleFull (Identity False) l
+        Nothing -> ToggleFull state <$> broadcastMessage l m
     description (ToggleFull _ l) = "ToggleFull(" `T.append` description l `T.append` ")"
-    currentDesc :: ToggleFull l -> Text
-    currentDesc (ToggleFull False l) = currentDesc l
-    currentDesc (ToggleFull True _) = "ToggledFull"
+    currentDesc (ToggleFull (Identity False) l) = currentDesc l
+    currentDesc (ToggleFull (Identity True) _) = "ToggledFull"
 
 
-instance (FocusCore vs ws, GenericLayoutClass l vs ws) => GenericLayoutClass (ToggleFull l) vs ws where
-    pureLayout (ToggleFull False l) vs ws box = pureLayout l vs ws box
-    pureLayout (ToggleFull True _) vs ws box = pureLayout Full vs ws box
+instance (FocusCore vs ws, GenericLayoutClass l vs ws) => GenericLayoutClass (ToggleFull Identity l) vs ws where
+    pureLayout (ToggleFull (Identity False) l) vs ws box = pureLayout l vs ws box
+    pureLayout (ToggleFull (Identity True) _) vs ws box = pureLayout Full vs ws box
+
+
+getState :: Ord ws => ws -> ToggleFull (Map ws) vs -> Bool
+getState ws (ToggleFull m _) = fromMaybe False $ M.lookup ws m
+
+liftFull :: (vs -> vs) -> ToggleFull a vs -> ToggleFull a vs
+liftFull fun (ToggleFull state vs) = ToggleFull state (fun vs)
+
+instance (Ord ws, FocusCore vs ws) => FocusCore (ToggleFull (Map ws) vs) ws where
+    _getFocused (ToggleFull _ vs) ws seat = _getFocused vs ws seat
+    _getViews (ToggleFull _ vs) ws = _getViews vs ws
+    _focusView ws seat view (ToggleFull s vs) = ToggleFull s (_focusView ws seat view vs)
+    _insertView ws seat view (ToggleFull s vs) = ToggleFull s (_insertView ws seat view vs)
+    _removeView ws view (ToggleFull s vs) = ToggleFull s (_removeView ws view vs)
+    getVSWorkspaces (ToggleFull _ vs) = getVSWorkspaces vs
+    getLayouted t@(ToggleFull _ vs) ws box = if getState ws t
+        then case _getFocused vs ws Nothing of
+                Nothing -> []
+                Just v -> [(v, box)]
+        else getLayouted vs ws box
+
+instance ListLike vs ws => ListLike (ToggleFull c vs) ws where
+    _asList (ToggleFull _ vs) ws = _asList vs ws
+    _fromList = undefined
+    _moveFocusLeft ws seat (ToggleFull s vs) = ToggleFull s (_moveFocusLeft ws seat vs)
+    _moveFocusRight ws seat (ToggleFull s vs) = ToggleFull s (_moveFocusRight ws seat vs)
+    _moveFocusedLeft ws seat (ToggleFull s vs) = ToggleFull s (_moveFocusedLeft ws seat vs)
+    _moveFocusedRight ws seat (ToggleFull s vs) = ToggleFull s (_moveFocusedRight ws seat vs)
+
+-- This may be a thing when I integrate the IfCxt hack
+-- instance {-# OVERLAPPABLE #-} Ord ws => Layouted (ToggleFull (Map ws) vs) ws where
+--     messageWS message ws t@(ToggleFull state vs) = case getMessage message of
+--         (Just ToggleFullM) -> ToggleFull (M.adjust not ws state) vs
+--         (Just SetFull) -> ToggleFull (M.insert ws True state) vs
+--         (Just UnsetFull) -> ToggleFull (M.insert ws False state) vs
+--         Nothing -> t
+--     broadcastWS = messageWS
+--     broadcastVS message _ t@(ToggleFull state vs) = case getMessage message of
+--         (Just ToggleFullM) -> ToggleFull (fmap not state) vs
+--         (Just SetFull) -> ToggleFull (fmap (const True) state) vs
+--         (Just UnsetFull) -> ToggleFull (fmap (const False) state) vs
+--         Nothing -> t
+--     getLayout _ _ = Nothing
+
+instance (Layouted vs ws, Ord ws) => Layouted (ToggleFull (Map ws) vs) ws where
+    messageWS message ws (ToggleFull state vs) = case getMessage message of
+        (Just ToggleFullM) -> ToggleFull (M.alter (Just . maybe True not) ws state) vs
+        (Just SetFull) -> ToggleFull (M.insert ws True state) vs
+        (Just UnsetFull) -> ToggleFull (M.insert ws False state) vs
+        Nothing -> ToggleFull state (messageWS message ws vs)
+    broadcastWS message ws (ToggleFull state vs) = case getMessage message of
+        (Just ToggleFullM) -> ToggleFull (M.alter (Just . maybe True not) ws state) vs
+        (Just SetFull) -> ToggleFull (M.insert ws True state) vs
+        (Just UnsetFull) -> ToggleFull (M.insert ws False state) vs
+        Nothing -> ToggleFull state (broadcastWS message ws vs)
+    broadcastVS message ws (ToggleFull state vs) = case getMessage message of
+        (Just ToggleFullM) -> ToggleFull (fmap not state) vs
+        (Just SetFull) -> ToggleFull (fmap (const True) state) vs
+        (Just UnsetFull) -> ToggleFull (fmap (const False) state) vs
+        Nothing -> ToggleFull state (broadcastVS message ws vs)
+    getLayout t@(ToggleFull _ vs) ws = if getState ws t
+        then pure (Layout Full)
+        else getLayout vs ws
