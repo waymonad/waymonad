@@ -30,7 +30,7 @@ module Input
     )
 where
 
-import Control.Monad (when, forM_, forM, filterM)
+import Control.Monad (when, forM_, forM, filterM, unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
 import Data.Map (Map)
@@ -41,12 +41,13 @@ import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(peek))
 import System.IO.Unsafe (unsafePerformIO)
 
-import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
 import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
     , DeviceType(..)
     )
+import Graphics.Wayland.WlRoots.Backend.Headless (inputDeviceIsHeadless)
+import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
 import Graphics.Wayland.WlRoots.XCursorManager
     ( WlrXCursorManager
     , xCursorManagerCreate
@@ -221,10 +222,11 @@ handleInputAdd
     -> IORef (Set (Ptr InputDevice))
     -> Ptr InputDevice
     -> Way vs a ()
-handleInputAdd foos devRef ptr = do 
-    liftIO $ modifyIORef devRef (S.insert ptr)
-
-    doAttach ptr =<< getOrCreateSeat foos "seat0"
+handleInputAdd foos devRef ptr = do
+    isHeadless <- liftIO $ inputDeviceIsHeadless ptr
+    unless isHeadless $ do
+        liftIO $ modifyIORef devRef (S.insert ptr)
+        doAttach ptr =<< getOrCreateSeat foos "seat0"
 
 
 setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way vs a ()
