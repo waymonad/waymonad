@@ -80,7 +80,8 @@ import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 import Input (inputCreate)
 import Layout.Mirror (mkMirror, ToggleMirror (..))
 import Layout.Tall (Tall (..))
-import Layout.ToggleFull (mkTFull, ToggleFullM (..), ToggleFull, mkVSFull, liftFull)
+import Layout.TwoPane (TwoPane (..))
+import Layout.ToggleFull (mkTFull, ToggleFullM (..), ToggleFull)
 import Output (handleOutputAdd, handleOutputRemove)
 import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
 import Utility (doJust)
@@ -282,10 +283,14 @@ bindings =
     , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_Right), sendMessage NextLayout)
+
     , (([modi], keysym_Return), spawn "alacritty")
     , (([modi], keysym_d), spawn "dmenu_run")
     , (([modi], keysym_w), spawn "vwatch")
     , (([modi], keysym_t), spawn "mpc toggle")
+    , (([modi, Shift], keysym_leftarrow), spawn "mpc prev")
+    , (([modi, Shift], keysym_rightarrow), spawn "mpc next")
+
     , (([modi], keysym_n), focusNextOut)
     , (([modi], keysym_q), killCurrent)
     , (([modi], keysym_o), centerFloat)
@@ -296,14 +301,12 @@ bindings =
     where modi = Alt
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
-myEventHook =
-       H.outputAddHook
-    <> idleLog
+myEventHook = H.outputAddHook <> idleLog
 
 myConf :: WayUserConf (ViewSet Text) Text
 myConf = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout .  mkMirror $ (Tall ||| Spiral)
+    , wayUserConfLayouts     = sameLayout .  mkMirror . mkTFull $ (Tall ||| TwoPane ||| Spiral)
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
