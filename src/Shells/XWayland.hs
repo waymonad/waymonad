@@ -47,10 +47,11 @@ import Foreign.StablePtr
 import Foreign.Storable (Storable(..))
 import System.IO
 
-import Graphics.Wayland.Signal (removeListener, ListenerToken)
 import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.Signal (removeListener, ListenerToken)
 import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, WlrSurfaceEvents (..), getWlrSurfaceEvents)
 
 import Input.Seat
 import Managehook
@@ -171,6 +172,11 @@ handleX11Map view surf = do
     moveView view (fromIntegral x) (fromIntegral y)
     doJust getSeat (void . flip keyboardEnter view)
 
+handleOverrideCommit :: View -> Ptr X.X11Surface -> Ptr WlrSurface -> Way vs a ()
+handleOverrideCommit view surf _ = do
+    WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
+    resizeView view (fromIntegral w) (fromIntegral h)
+
 handleXwaySurface
     :: (FocusCore vs a, WSTag a)
     => Ptr X.XWayland
@@ -238,6 +244,11 @@ overrideXRedirect = do
             if override
                 then do
                     liftWay $ logPutText loggerX11 Info "Overriding a redirect"
+                    liftWay $ doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \wlrSurf -> do
+                        let events = getWlrSurfaceEvents wlrSurf
+                        ch <- setSignalHandler (wlrSurfaceEvtCommit events) $ handleOverrideCommit view surf
+                        setDestroyHandler (wlrSurfaceEvtDestroy events) (const $ liftIO $ removeListener ch)
+
                     (Point x y) <- liftIO $ X.getX11SurfacePosition surf
                     (width, height) <- getViewSize view
                     pure . InsertFloating $ WlrBox x y (floor width) (floor height)
