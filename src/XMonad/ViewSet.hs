@@ -22,13 +22,16 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module XMonad.ViewSet
     ( ViewSet
     , Workspace (..)
+    , sameLayout
     )
 where
 
@@ -94,6 +97,11 @@ instance WSTag a => ListLike (ViewSet a) a where
     _moveFocusRight ws s vs = M.adjust (moveRight s) ws vs
     _moveFocusedLeft ws s vs  = M.adjust (moveViewLeft s) ws vs
     _moveFocusedRight ws s vs = M.adjust (moveViewRight s) ws vs
+
+sameLayout
+    :: (WSTag a, GenericLayoutClass l (ViewSet a) a)
+    => l -> [a] -> M.Map a (Workspace a)
+sameLayout l = M.fromList . map (, Workspace (GenericLayout (l)) Nothing)
 
 setFocused :: View -> Seat -> Workspace a -> Workspace a
 setFocused v t (Workspace l z) =

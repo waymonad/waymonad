@@ -26,6 +26,7 @@ module WayUtil.Timing
     , setBaseTime
     , getBasedTime
     , getSeconds
+    , baseTimeBracket
     )
 where
 
@@ -38,6 +39,9 @@ import Foreign.Marshal.Alloc (alloca)
 import Foreign.Storable (Storable(..))
 import Foreign.Ptr (Ptr)
 
+import Graphics.Wayland.Server (DisplayServer)
+
+import Shared (Bracketed (..))
 import Waymonad
 import Waymonad.Extensible
 import WayUtil
@@ -80,3 +84,6 @@ getBasedTime = do
 
 getSeconds :: Num a => Time -> a
 getSeconds = fromIntegral . flip div 10e9
+
+baseTimeBracket :: Bracketed vs DisplayServer ws
+baseTimeBracket = Bracketed (const setBaseTime) (const $ pure ())

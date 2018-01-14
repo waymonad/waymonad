@@ -23,6 +23,7 @@ module InjectRunner
     , makeInject
     , registerInjectHandler
     , injectEvt
+    , injectBracket
 
     , Inject (..)
     )
@@ -43,8 +44,11 @@ import Graphics.Wayland.WlRoots.Output (OutputMode, setOutputMode, setOutputScal
 import Graphics.Wayland.WlRoots.OutputLayout (moveOutput)
 
 import Output (Output (outputRoots))
+import Shared
 import Waymonad (getState, makeCallback2)
+import WayUtil
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
+import Waymonad.Extensible (ExtensionClass (..))
 
 data Inject
     = ChangeMode Output (Ptr OutputMode)
@@ -56,6 +60,9 @@ data InjectChan = InjectChan
     , injectWrite :: Fd
     , injectRead  :: Fd
     }
+
+instance ExtensionClass InjectChan where
+    initialValue = undefined
 
 handleInjected :: Inject -> Way vs a ()
 handleInjected (ChangeMode out mode) =
@@ -78,13 +85,13 @@ readInjectEvt chan = do
 
 injectEvt :: Inject -> Way vs a ()
 injectEvt inj = do
-    chan <- wayInjectChan <$> getState
+    chan <- getEState
     liftIO . atomically $ writeTChan (injectChan chan) inj
     void . liftIO $ with 1 $ \ptr -> fdWriteBuf (injectWrite chan) ptr 1
 
 registerInjectHandler :: DisplayServer -> Way vs a ()
 registerInjectHandler display = do
-    chan <- wayInjectChan <$> getState
+    chan <- getEState
     evtLoop <- liftIO $ displayGetEventLoop display
     cb <- makeCallback2 $ \_ _ -> readInjectEvt chan >> pure False
 
@@ -99,3 +106,9 @@ makeInject = do
     (readFd, writeFd) <- liftIO createPipe
     chan <- newTChanIO
     pure $ InjectChan chan writeFd readFd
+
+injectBracket :: Bracketed vs DisplayServer ws
+injectBracket = Bracketed (\dsp -> do
+    setEState =<< liftIO makeInject
+    registerInjectHandler dsp
+                          ) (const $ pure ())

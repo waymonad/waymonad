@@ -26,8 +26,6 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
-
--- import Control.Concurrent (runInBoundThread)
 import Control.Monad.IO.Class (liftIO)
 import Data.Monoid ((<>))
 import Data.Text (Text)
@@ -55,7 +53,6 @@ import Layout.TwoPane (TwoPane (..))
 import Navigation2D
 import Protocols.GammaControl
 import Protocols.Screenshooter
-import Shared (Bracketed (..))
 import Startup.Environment
 import Utility (doJust)
 import Utility.Spawn (spawn, manageSpawnOn)
@@ -64,11 +61,12 @@ import ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
 import WayUtil (sendMessage, focusNextOut, sendTo, killCurrent, closeCompositor)
 import WayUtil.Current (getCurrentView)
 import WayUtil.Floating (centerFloat)
+import WayUtil.Timing
 import WayUtil.View
 import WayUtil.ViewSet (modifyFocusedWS)
 import Waymonad (Way, KeyBinding)
 import Waymonad.Types (SomeEvent, WayHooks (..))
-import XMonad.ViewSet (ViewSet)
+import XMonad.ViewSet (ViewSet, sameLayout)
 
 import qualified View.Multi as Multi
 import qualified Hooks.OutputAdd as H
@@ -138,7 +136,7 @@ myConf = WayUserConf
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
 
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, Bracketed (registerInjectHandler) (const $ pure ())]
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, injectBracket, baseTimeBracket]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket, envBracket [("PULSE_SERVER", "zelda.ongy")]]
     , wayUserConfCoreHooks   = WayHooks
@@ -149,6 +147,7 @@ myConf = WayUserConf
         , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
         }
     , wayUserConfShells = [Xdg.makeShell, XWay.makeShell]
+    , wayUserConfLog = pure ()
     }
 
 main :: IO ()

@@ -29,7 +29,6 @@ import System.IO
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
-import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Foreign.Ptr (Ptr)
 import System.IO.Unsafe (unsafePerformIO)
@@ -51,11 +50,7 @@ import Waymonad (makeCallback)
 import Waymonad.Types
 
 -- TODO: Remove
-import WayUtil.Timing (setBaseTime)
-import XMonad.ViewSet
 import Config
-import InjectRunner
-import Log
 
 import qualified Data.Map as M
 
@@ -88,11 +83,6 @@ makeCompositor display backend = do
         , compInput = input
         }
 
-sameLayout
-    :: (WSTag a, GenericLayoutClass l (ViewSet a) a)
-    => l -> [a] -> M.Map a (Workspace a)
-sameLayout l = M.fromList . map (, Workspace (GenericLayout (l)) Nothing)
-
 data WayUserConf vs ws = WayUserConf
     { wayUserConfWorkspaces  :: [ws]
     , wayUserConfLayouts     :: [ws] -> vs
@@ -105,12 +95,11 @@ data WayUserConf vs ws = WayUserConf
     , wayUserConfPostHook    :: [Bracketed vs () ws]
     , wayUserConfCoreHooks   :: WayHooks vs ws
     , wayUserConfShells      :: [IO WayShell]
+    , wayUserConfLog         :: Way vs ws ()
     }
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
 wayUserRealMain conf compRef = do
-    setBaseTime
-
     outputAdd <- makeCallback $ handleOutputAdd compRef $ wayUserConfWorkspaces conf
     outputRm  <- makeCallback handleOutputRemove
 
@@ -143,8 +132,6 @@ wayUserMain conf = do
             extensible <- newIORef mempty
             floats <- newIORef mempty
             compRef <- newIORef $ error "Tried to access compositor to early"
-            logF <- logFun
-            inject <- makeInject
             shells <- sequence $ wayUserConfShells conf
 
             let state = WayBindingState
@@ -154,13 +141,12 @@ wayUserMain conf = do
                     , wayBindingMapping = mapRef
                     , wayBindingOutputs = outputs
                     , wayBindingSeats = seats
-                    , wayLogFunction = logF
+                    , wayLogFunction = wayUserConfLog conf
                     , wayExtensibleState = extensible
                     , wayConfig = config
                     , wayFloating = floats
                     , wayEventHook = wayUserConfEventHook conf
                     , wayUserWorkspaces = wayUserConfWorkspaces conf
-                    , wayInjectChan = inject
                     , wayCompositor = unsafePerformIO (readIORef compRef)
                     , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
                     , wayManagehook = wayUserConfManagehook conf

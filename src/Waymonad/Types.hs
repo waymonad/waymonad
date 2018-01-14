@@ -87,7 +87,6 @@ import {-# SOURCE #-} Output (Output)
 import View (View)
 import ViewSet (FocusCore, WSTag)
 import Waymonad.Extensible (StateMap)
-import {-# SOURCE #-} InjectRunner (InjectChan)
 
 import Waymonad.Types.Logger
 
@@ -195,7 +194,6 @@ data WayBindingState vs ws = WayBindingState
     , wayEventHook       :: SomeEvent -> Way vs ws ()
     , wayUserWorkspaces  :: [ws]
     , wayCompositor      :: Compositor
-    , wayInjectChan      :: InjectChan
     , wayManagehook      :: Managehook vs ws
     , wayCoreHooks       :: WayHooks vs ws
     }
