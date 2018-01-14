@@ -73,9 +73,8 @@ runLog = do
 setFocus :: Seat -> (Set Seat, View) -> Way vs a ()
 setFocus s (s', v) = when (s `S.member` s') $ do
     logPutText loggerFocus Trace "Actually setting a focus"
-    liftIO $ do
-        success <- keyboardEnter s v
-        when success $ activateView v True
+    success <- keyboardEnter s v
+    when success $ activateView v True
 
 modifyViewSet :: WSTag ws => (vs -> vs) -> Way vs ws ()
 modifyViewSet fun = do

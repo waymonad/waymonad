@@ -82,8 +82,7 @@ toggleFloat box = doJust getCurrentView $ \view -> do
 
 
 centerFloat :: (WSTag a, FocusCore vs a) => Way vs a ()
-centerFloat = do
-    (WlrBox x y w h) <- getCurrentBox
+centerFloat = doJust getCurrentBox $ \(WlrBox x y w h) -> do
     let nw = w `div` 2
     let nh = h `div` 2
     toggleFloat $ WlrBox (x + nw `div` 2) (y + nh `div` 2) nw nh

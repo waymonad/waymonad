@@ -34,28 +34,23 @@ module Managehook
 where
 
 import Control.Monad (void, forM_)
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
 import Input.Seat
-import Utility (whenJust)
+import Utility (doJust)
 import View
 import ViewSet (WSTag)
 import Waymonad
 import Waymonad.Types
 import Layout
 import ViewSet
-import WayUtil
 import WayUtil.Floating
 import WayUtil.Focus (focusView)
-import WayUtil.ViewSet
-    ( modifyCurrentWS, forceFocused
-    )
+import WayUtil.ViewSet (forceFocused)
 import WayUtil.Current (getCurrentWS)
 
 import qualified WayUtil.ViewSet as VS
 
-import qualified Data.Map as M
 import qualified Data.Set as S
 
 liftWay :: Way vs a b -> Query vs a b
@@ -88,8 +83,7 @@ enactInsert act = do
             hook $ WSEnter view ws
         InsertFloating box -> do
             setFloating view box
-            seat <- getSeat
-            liftIO $ whenJust seat $ void . flip keyboardEnter view
+            doJust getSeat $ void . flip keyboardEnter view
         InsertCustom ins -> ins
 
 

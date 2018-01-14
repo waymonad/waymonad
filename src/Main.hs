@@ -26,6 +26,7 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Hooks.FocusFollowPointer
 import Navigation2D
 import Layout.Quadrant
 
@@ -315,6 +316,7 @@ myConf = WayUserConf
         , wayHooksOutputMapping = enterLeaveHook <> SM.mappingChangeEvt <> (liftIO . hPrint stderr)
           , wayHooksSeatWSChange  = SM.wsChangeLogHook <> handleKeyboardSwitch <> (liftIO . hPrint stderr)
         , wayHooksSeatOutput = SM.outputChangeEvt <> (liftIO . hPrint stderr)
+        , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
         }
     , wayUserConfShells = [Xdg.makeShell, XWay.makeShell]
     }

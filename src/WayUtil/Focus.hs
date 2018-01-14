@@ -38,6 +38,7 @@ import Data.Maybe (listToMaybe)
 import Data.Tuple (swap)
 import Data.Typeable (Typeable)
 
+import Input.Seat (Seat)
 import Layout (reLayout)
 import Output (Output (..))
 import Utility (whenJust, doJust)
@@ -89,12 +90,10 @@ setWorkspace :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 setWorkspace ws =
     doJust getCurrentOutput $ setOutputWorkspace ws
 
-focusWSView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()
-focusWSView view ws = do
-    logPutText loggerFocus Trace "Calling focusView"
-    doJust getSeat $ \seat ->  do
-        ws <- getCurrentWS
-        modifyViewSet (_focusView ws seat view)
+focusWSView :: (FocusCore vs a, WSTag a) => View -> Seat -> a -> Way vs a ()
+focusWSView view seat ws = do
+    logPutText loggerFocus Trace "Calling focusWSView"
+    modifyViewSet (_focusView ws seat view)
 
 focusView :: (FocusCore vs a, WSTag a) => View -> Way vs a ()
 focusView view = do
@@ -102,7 +101,6 @@ focusView view = do
     modifyCurrentWS $ \s ws vs -> case s of
         Just seat -> _focusView ws seat view vs
         Nothing -> vs
-
 
 focusMaster :: (FocusCore vs a, ListLike vs a, WSTag a) => Way vs a ()
 focusMaster = do

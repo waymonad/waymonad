@@ -110,9 +110,9 @@ runLog = do
 
 focusNextOut :: WSTag a => Way vs a ()
 focusNextOut = doJust getSeat $ \seat -> doJust getCurrentOutput $ \current -> do
-        possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
-        let new = head . tail . dropWhile (/= current) $ cycle possibles
-        setSeatOutput seat (That new)
+    possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
+    let new = head . tail . dropWhile (/= current) $ cycle possibles
+    setSeatOutput seat (That new)
 
 -- This: Pointer Focus
 -- That: Keyboard Focus

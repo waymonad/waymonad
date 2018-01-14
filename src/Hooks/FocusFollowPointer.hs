@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2017  Markus Ongyerth
+Copyright (C) 2018  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,33 +18,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Input
-    ( Input (..)
-    )
+module Hooks.FocusFollowPointer
 where
 
-import Data.IORef (IORef)
-import Data.Map (Map)
-import Data.Set (Set)
-import Data.Text (Text)
-import Foreign.Ptr (Ptr)
+import Control.Monad (void)
 
-import Graphics.Wayland.WlRoots.XCursorManager (WlrXCursorManager)
-import Graphics.Wayland.WlRoots.Input (InputDevice)
-import Graphics.Wayland.Signal (ListenerToken)
+import Utility (These (..), doJust)
+import ViewSet (FocusCore, WSTag)
+import Waymonad.Types (SeatFocusChange (..), Way)
+import WayUtil (setSeatOutput)
+import WayUtil.Focus (focusView)
+import WayUtil.Current (getPointerOutputS)
 
-import {-# SOURCE #-} Input.Cursor (Cursor)
-import {-# SOURCE #-} Input.Seat (Seat)
 
-data SeatFoo = SeatFoo
-    { fooXCursorManager :: Ptr WlrXCursorManager
-    , fooCursor :: Cursor
-    , fooSeat :: Seat
-    , fooImageToken :: ListenerToken
-    }
-
-data Input = Input
-    { inputDevices :: IORef (Set (Ptr InputDevice))
-    , inputFooMap :: IORef (Map Text SeatFoo)
-    , inputAddToken :: [ListenerToken]
-    }
+focusFollowPointer :: (WSTag ws, FocusCore vs ws) => SeatFocusChange -> Way vs ws ()
+focusFollowPointer (PointerFocusChange  seat _ (Just view)) =
+    doJust (getPointerOutputS seat) $ \output -> do
+        setSeatOutput seat (That output)
+        focusView view
+focusFollowPointer _ = pure ()

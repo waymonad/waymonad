@@ -22,7 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 module Input.Cursor
 where
 
-import Control.Monad (when)
+import Control.Monad (when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Word (Word32)
@@ -69,7 +69,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
 import Graphics.Wayland.Signal (ListenerToken)
 
 import Output (outputFromWlr)
-import Utility (ptrToInt, doJust, These(..), whenJust)
+import Utility (ptrToInt, doJust, These(..))
 import View (View)
 import ViewSet (WSTag, FocusCore)
 import Waymonad
@@ -84,7 +84,8 @@ import WayUtil
     )
 import WayUtil.Signal (setSignalHandler)
 import WayUtil.Log (logPutText, LogPriority (..))
-import WayUtil.Focus (focusView)
+import WayUtil.Focus (focusView, setWorkspace)
+import WayUtil.Current (getPointerWS)
 
 data Cursor = Cursor
     { cursorRoots :: Ptr WlrCursor
@@ -160,8 +161,7 @@ updatePosition layout cursor outref time = do
     case viewM of
         Nothing -> pointerClear seat
         Just (view, baseX, baseY) -> do
-            tmp <- pointerMotion seat view time (fromIntegral baseX) (fromIntegral baseY)
-            whenJust tmp focusView
+            void $ pointerMotion seat view time (fromIntegral baseX) (fromIntegral baseY)
 
 
 handleCursorMotion
@@ -215,6 +215,7 @@ handleCursorButton layout cursor event_ptr = do
             ret <- pointerButton seat view (fromIntegral x) (fromIntegral y)
                 (eventPointerButtonTime event) (eventPointerButtonButton event)
                 (eventPointerButtonState event)
+            setWorkspace =<< getPointerWS
             when ret (focusView view)
 
 handleCursorAxis

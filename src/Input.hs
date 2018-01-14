@@ -172,14 +172,12 @@ createSeat name = do
     Compositor {compDisplay = display, compLayout = layout} <- wayCompositor <$> getState
     xcursor <- liftIO $ xCursorManagerCreate "default" 16
     loadCurrentScales xcursor
-    focus <- makeCallback $ \(seat, view) -> withSeat (Just seat) $ focusView view
 
     cursorRef <- liftIO $ newIORef $ error $ "Something tried to access the cursor for seat " ++ T.unpack name ++ " to early"
     seat  <- liftIO $
         seatCreate
             display
             (T.unpack name)
-            (curry focus)
             (xCursorSetImage xcursor "left_ptr" (cursorRoots $ unsafePerformIO $ readIORef cursorRef))
             (xCursorLoad xcursor)
 

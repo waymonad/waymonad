@@ -61,7 +61,5 @@ handleKeyboardSwitch (KeyboardWSChange s pre cur) = do
                 -- focus
                 Nothing -> keyboardClear s
                 -- Master exists, set as focused and start usual procedure
-                Just v -> do
-                    focusWSView v ws
-                    setFocused s ws
+                Just v -> focusWSView v s ws
 handleKeyboardSwitch _ = pure ()

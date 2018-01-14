@@ -29,7 +29,7 @@ import Data.Text (Text)
 import Data.Typeable
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 
-import Input.Seat (Seat)
+import {-# SOURCE #-} Input.Seat (Seat)
 import View (View)
 
 import qualified Data.Set as S

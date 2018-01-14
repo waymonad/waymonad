@@ -53,6 +53,7 @@ module Waymonad.Types
     , SeatOutputChange (..)
     , ShellClass (..)
     , WayShell (..)
+    , SeatFocusChange (..)
     )
 where
 
@@ -81,7 +82,7 @@ import Graphics.Wayland.WlRoots.Render (Renderer)
 
 import Config (WayConfig)
 import {-# SOURCE #-} Input (Input)
-import Input.Seat (Seat)
+import {-# SOURCE #-} Input.Seat (Seat)
 import {-# SOURCE #-} Output (Output)
 import View (View)
 import ViewSet (FocusCore, WSTag)
@@ -163,11 +164,17 @@ data SeatWSChange a
         , seatWSChangeCur :: Maybe a
         } deriving (Eq, Show)
 
+data SeatFocusChange
+    = PointerFocusChange  Seat (Maybe View) (Maybe View)
+    | KeyboardFocusChange Seat (Maybe View) (Maybe View)
+    deriving (Eq, Show)
+
 data WayHooks vs ws = WayHooks
-    { wayHooksVWSChange     :: ViewWSChange ws -> Way vs ws ()
-    , wayHooksOutputMapping :: OutputMappingEvent ws -> Way vs ws ()
-    , wayHooksSeatOutput    :: SeatOutputChange -> Way vs ws ()
-    , wayHooksSeatWSChange  :: SeatWSChange ws -> Way vs ws ()
+    { wayHooksVWSChange        :: ViewWSChange ws -> Way vs ws ()
+    , wayHooksOutputMapping    :: OutputMappingEvent ws -> Way vs ws ()
+    , wayHooksSeatOutput       :: SeatOutputChange -> Way vs ws ()
+    , wayHooksSeatWSChange     :: SeatWSChange ws -> Way vs ws ()
+    , wayHooksSeatFocusChange  :: SeatFocusChange -> Way vs ws ()
     }
 
 data WayBindingState vs ws = WayBindingState

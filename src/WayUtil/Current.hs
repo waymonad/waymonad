@@ -20,10 +20,12 @@ Reach us at https://github.com/ongy/waymonad
 -}
 module WayUtil.Current
     ( getPointerOutput
+    , getPointerOutputS
     , getCurrentOutput
     , getCurrentView
     , getCurrentBox
     , getCurrentWS
+    , getPointerWS
     )
 where
 
@@ -35,7 +37,7 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
-import Input.Seat (getKeyboardFocus)
+import {-# SOURCE #-} Input.Seat (Seat, getKeyboardFocus)
 import {-# SOURCE #-} Output (Output (..), getOutputId)
 import Utility (doJust)
 import View (View)
@@ -52,13 +54,15 @@ import qualified Data.Map as M
 import qualified Data.IntMap as IM
 
 -- TODO: This should be a Maybe, we aren't guaranteed outputs
-getPointerOutput :: Way vs a Output
-getPointerOutput = do
+getPointerOutput :: Way vs a (Maybe Output)
+getPointerOutput = doJust getSeat getPointerOutputS
+
+getPointerOutputS :: Seat -> Way vs ws (Maybe Output)
+getPointerOutputS seat = do
     state <- getState
-    (Just seat) <- getSeat
     currents <- liftIO . readIORef $ wayBindingCurrent state
-    let (Just current) = M.lookup seat $ M.fromList currents
-    pure . fst $ current
+    let current = M.lookup seat $ M.fromList currents
+    pure . fmap fst $ current
 
 getCurrentOutput :: Way vs a (Maybe Output)
 getCurrentOutput = doJust getSeat $ \seat -> do
@@ -80,10 +84,21 @@ getCurrentWS = do
 -- TODO: Make this a better error message!
         Nothing -> head . wayUserWorkspaces <$> getState
 
+getPointerWS :: Way vs a a
+getPointerWS = do
+    mapping <- liftIO . readIORef . wayBindingMapping =<< getState
+    output <- getPointerOutput
+    let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) =<< output
+    case ws of
+        Just x -> pure x
+-- TODO: Make this a better error message!
+        Nothing -> head . wayUserWorkspaces <$> getState
+
 
 getCurrentView :: Way vs a (Maybe View)
 getCurrentView = doJust getSeat getKeyboardFocus
 
-getCurrentBox :: Way vs a WlrBox
-getCurrentBox = liftIO . getOutputBox . outputRoots =<< getPointerOutput
+getCurrentBox :: Way vs a (Maybe WlrBox)
+getCurrentBox =
+    doJust getPointerOutput (fmap Just . liftIO . getOutputBox . outputRoots)
 
