@@ -26,231 +26,58 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
-import Hooks.FocusFollowPointer
-import Navigation2D
-import Layout.Quadrant
-
-import Startup.Generic
-import Startup.Environment
-import Data.String (IsString)
-import Protocols.Screenshooter
-import Protocols.GammaControl
-import GlobalFilter
-import IdleManager
-import InjectRunner
---import System.Posix.Signals
-import Fuse.Main
-import Hooks.EnterLeave (enterLeaveHook)
-import Layout.Spiral
-import Layout.Choose
-
-import qualified Hooks.OutputAdd as H
-import WayUtil.View
-import WayUtil.Timing
-import qualified Hooks.SeatMapping as SM
-import Hooks.KeyboardFocus
-import Hooks.ScaleHook
-import Log
-
-import Config
 
 -- import Control.Concurrent (runInBoundThread)
-import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (newIORef, IORef, writeIORef, readIORef)
-import Data.Map (Map)
-import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text)
-import Foreign.Ptr (Ptr)
-import Graphics.Wayland.Server (DisplayServer, displayInitShm)
 import System.IO
-import System.IO.Unsafe (unsafePerformIO)
 
 import Text.XkbCommon.InternalTypes (Keysym(..))
 import Text.XkbCommon.KeysymList
+import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..))
 
-import Graphics.Wayland.WlRoots.Backend (Backend)
-import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
-import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
-import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
-import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
-import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
-
-import Input (inputCreate)
+import Data.String (IsString)
+import Fuse.Main
+import GlobalFilter
+import Hooks.EnterLeave (enterLeaveHook)
+import Hooks.FocusFollowPointer
+import Hooks.KeyboardFocus
+import Hooks.ScaleHook
+import IdleManager
+import InjectRunner
+import Layout.Choose
 import Layout.Mirror (mkMirror, ToggleMirror (..))
+import Layout.Spiral
 import Layout.Tall (Tall (..))
+import Layout.ToggleFull (mkTFull, ToggleFullM (..))
 import Layout.TwoPane (TwoPane (..))
-import Layout.ToggleFull (mkTFull, ToggleFullM (..), ToggleFull)
-import Output (handleOutputAdd, handleOutputRemove)
-import Shared (CompHooks (..), ignoreHooks, launchCompositor, Bracketed (..))
+import Navigation2D
+import Protocols.GammaControl
+import Protocols.Screenshooter
+import Shared (Bracketed (..))
+import Startup.Environment
 import Utility (doJust)
-import Utility.Spawn (spawn, manageSpawnOn, spawnOn)
-import qualified View.Multi as Multi
+import Utility.Spawn (spawn, manageSpawnOn)
 import View.Proxy (makeProxy)
-import ViewSet
-    ( GenericLayout (..)
-    , WSTag
-    , Layouted
-    , FocusCore
-    , ListLike (..)
-    , GenericLayoutClass
-    )
-import Waymonad
-    ( Way
-    , runWay
-    , BindingMap
-    , KeyBinding
-    , WayBindingState (..)
-    , makeCallback
-
-    , WayLoggers (..)
-    , Logger (..)
-    )
-import Waymonad.Types (Compositor (..), LogPriority (..), Managehook, SomeEvent, WayHooks (..), WayShell)
-import WayUtil
-    ( sendMessage
-    , focusNextOut
-    , sendTo
-    , killCurrent
-    , seatOutputEventLogger
-    , closeCompositor
-    )
+import ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
+import WayUtil (sendMessage, focusNextOut, sendTo, killCurrent, closeCompositor)
 import WayUtil.Current (getCurrentView)
-import WayUtil.ViewSet (modifyFocusedWS)
 import WayUtil.Floating (centerFloat)
-import XMonad.ViewSet (ViewSet, Workspace (..))
+import WayUtil.View
+import WayUtil.ViewSet (modifyFocusedWS)
+import Waymonad (Way, KeyBinding)
+import Waymonad.Types (SomeEvent, WayHooks (..))
+import XMonad.ViewSet (ViewSet)
 
-import qualified Data.Map.Strict as M
+import qualified View.Multi as Multi
+import qualified Hooks.OutputAdd as H
+import qualified Hooks.SeatMapping as SM
 import qualified Shells.XdgShell as Xdg
 import qualified Shells.XWayland as XWay
 
+import Waymonad.Main
 
-makeBindingMap :: [(([WlrModifier], Keysym), KeyBinding vs a)] -> BindingMap vs a
-makeBindingMap = M.fromList .
-    map (\((mods, Keysym sym), fun) -> ((modifiersToField mods, sym), fun))
-
-makeCompositor
-    :: (FocusCore vs a, WSTag a)
-    => DisplayServer
-    -> Ptr Backend
-    -> Way vs a Compositor
-makeCompositor display backend = do
-    liftIO $ hPutStrLn stderr "Creating compositor"
-    renderer <- liftIO $ rendererCreate backend
-    void $ liftIO $ displayInitShm display
-    comp <- liftIO $ compositorCreate display renderer
-    devManager <- liftIO $ managerCreate display
-    layout <- liftIO createOutputLayout
-
-    input <- inputCreate backend
-
-    pure Compositor
-        { compDisplay = display
-        , compRenderer = renderer
-        , compCompositor = comp
-        , compManager = devManager
-        , compBackend = backend
-        , compLayout = layout
-        , compInput = input
-        }
-
-sameLayout
-    :: (WSTag a, GenericLayoutClass l (ViewSet a) a)
-    => l -> [a] -> M.Map a (Workspace a)
-sameLayout l = M.fromList . map (, Workspace (GenericLayout (l)) Nothing)
-
-data WayUserConf vs ws = WayUserConf
-    { wayUserConfWorkspaces  :: [ws]
-    , wayUserConfLayouts     :: [ws] -> vs
-    , wayUserConfManagehook  :: Managehook vs ws
-    , wayUserConfEventHook   :: SomeEvent -> Way vs ws ()
-    , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding vs ws)]
-
-    , wayUserConfDisplayHook :: [Bracketed vs DisplayServer ws]
-    , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) ws]
-    , wayUserConfPostHook    :: [Bracketed vs () ws]
-    , wayUserConfCoreHooks   :: WayHooks vs ws
-    , wayUserConfShells      :: [IO WayShell]
-    }
-
-wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
-wayUserRealMain conf compRef = do
-    setBaseTime
-
-    outputAdd <- makeCallback $ handleOutputAdd compRef $ wayUserConfWorkspaces conf
-    outputRm  <- makeCallback handleOutputRemove
-
-    compFun <- pure $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
-
-    launchCompositor ignoreHooks
-        { displayHook =  wayUserConfDisplayHook conf
-        , backendPreHook = Bracketed compFun (const $ pure ()): wayUserConfBackendHook conf
-        , backendPostHook  = wayUserConfPostHook conf
-
-        , outputAddHook    = outputAdd
-        , outputRemoveHook = outputRm
-        }
-
-wayUserMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IO ()
-wayUserMain conf = do
-    configE <- loadConfig
-    case configE of
-        Left str -> do
-            -- TODO: This should probably be visual later on when possible
-            hPutStrLn stderr "Error while loading config:"
-            hPutStrLn stderr str
-        Right config -> do
-            stateRef  <- newIORef $ wayUserConfLayouts conf $ wayUserConfWorkspaces conf
-            layoutRef <- newIORef mempty
-            mapRef <- newIORef []
-            currentRef <- newIORef []
-            outputs <- newIORef []
-            seats <- newIORef []
-            extensible <- newIORef mempty
-            floats <- newIORef mempty
-            compRef <- newIORef $ error "Tried to access compositor to early"
-            logF <- logFun
-            inject <- makeInject
-            shells <- sequence $ wayUserConfShells conf
-
-            let state = WayBindingState
-                    { wayBindingCache = layoutRef
-                    , wayBindingState = stateRef
-                    , wayBindingCurrent = currentRef
-                    , wayBindingMapping = mapRef
-                    , wayBindingOutputs = outputs
-                    , wayBindingSeats = seats
-                    , wayLogFunction = logF
-                    , wayExtensibleState = extensible
-                    , wayConfig = config
-                    , wayFloating = floats
-                    , wayEventHook = wayUserConfEventHook conf
-                    , wayUserWorkspaces = wayUserConfWorkspaces conf
-                    , wayInjectChan = inject
-                    , wayCompositor = unsafePerformIO (readIORef compRef)
-                    , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
-                    , wayManagehook = wayUserConfManagehook conf
-                    , wayCoreHooks = wayUserConfCoreHooks conf
-                    , wayCoreShells = shells
-                    }
-
-
-            let loggers = WayLoggers
-                    { loggerOutput = Logger Warn "Output"
-                    , loggerWS = Logger Warn "Workspaces"
-                    , loggerFocus = Logger Warn "Focus"
-                    , loggerXdg = Logger Warn "Xdg_Shell"
-                    , loggerX11 = Logger Trace "XWayland"
-                    , loggerKeybinds = Logger Warn "Keybindings"
-                    , loggerSpawner = Logger Warn "Spawner"
-                    , loggerLayout = Logger Warn "Layout"
-                    , loggerRender = Logger Warn "Frame"
-                    }
-
-            runWay Nothing state (fromMaybe loggers $ configLoggers config) (wayUserRealMain conf compRef)
-
--- This part is the intended user config (Haskell side)
 
 wsSyms :: [Keysym]
 wsSyms =
