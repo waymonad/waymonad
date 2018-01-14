@@ -29,7 +29,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 import Data.List ((\\))
 
-import Output (Output, OutputAddEvent(OutputAdd))
+import Output (Output)
 import Utility (whenJust)
 import ViewSet (WSTag, FocusCore)
 import WayUtil.Focus (setOutputWorkspace)
@@ -45,10 +45,7 @@ attachFreeWS out = do
         (x:_) -> setOutputWorkspace x out
         [] -> pure ()
 
-handleEvent :: (FocusCore vs a, WSTag a) => OutputAddEvent -> Way vs a ()
-handleEvent (OutputAdd out) = do
+outputAddHook :: (FocusCore vs a, WSTag a) => Output -> Way vs a ()
+outputAddHook out = do
     time :: Word <- getSeconds <$> getBasedTime
     when (time < 300) $ attachFreeWS out
-
-outputAddHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
-outputAddHook evt = whenJust (getEvent evt) handleEvent

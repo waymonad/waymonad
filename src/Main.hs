@@ -75,6 +75,7 @@ import qualified Shells.XdgShell as Xdg
 import qualified Shells.XWayland as XWay
 
 import Waymonad.Main
+import Config
 
 
 wsSyms :: [Keysym]
@@ -126,7 +127,7 @@ bindings =
     where modi = Alt
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
-myEventHook = H.outputAddHook <> idleLog
+myEventHook = idleLog
 
 myConf :: WayUserConf (ViewSet Text) Text
 myConf = WayUserConf
@@ -148,7 +149,14 @@ myConf = WayUserConf
         }
     , wayUserConfShells = [Xdg.makeShell, XWay.makeShell]
     , wayUserConfLog = pure ()
+    , wayUserConfOutputAdd = H.outputAddHook
     }
 
 main :: IO ()
-main = wayUserMain myConf
+main = do
+    confE <- loadConfig
+    case confE of
+        Left err -> do
+            hPutStrLn stderr "Couldn't load config:"
+            hPutStrLn stderr err
+        Right conf -> wayUserMain $ modifyConfig conf myConf

@@ -25,6 +25,7 @@ module Config
     ( WayConfig (..)
     , printConfigInfo
     , loadConfig
+    , modifyConfig
     )
 where
 
@@ -41,6 +42,7 @@ import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isDoesNotExistError)
 
 import Waymonad.Types.Logger (WayLoggers)
+import Waymonad.Main (WayUserConf (..))
 
 import Config.Output
 import Config.Logger ()
@@ -76,7 +78,6 @@ emptyConfig = WayConfig
     , configLoggers = Nothing
     }
 
-
 loadConfig :: MonadIO m => m (Either String WayConfig)
 loadConfig = liftIO $ do
     path <- getUserConfigFile "waymonad" "main.cfg"
@@ -90,3 +91,6 @@ loadConfig = liftIO $ do
     let parseHandler   = Handler $ \(ex :: ParseError) -> pure . Left $ show ex
 
     liftIO $ catches (Right <$> loadValueFromFile waySpec path) [ioHandler, schemaHandler, parseHandler]
+
+modifyConfig :: WayConfig -> WayUserConf ws vs -> WayUserConf ws vs
+modifyConfig WayConfig {configOutputs = outputs} = modifyOutputConfig outputs

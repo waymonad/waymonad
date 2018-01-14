@@ -80,7 +80,6 @@ import Graphics.Wayland.WlRoots.DeviceManager (WlrDeviceManager)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Render (Renderer)
 
-import Config (WayConfig)
 import {-# SOURCE #-} Input (Input)
 import {-# SOURCE #-} Input.Seat (Seat)
 import {-# SOURCE #-} Output (Output)
@@ -190,7 +189,6 @@ data WayBindingState vs ws = WayBindingState
     , wayCoreShells      :: [WayShell]
     , wayLogFunction     :: LogFun vs ws
     , wayKeybinds        :: BindingMap vs ws
-    , wayConfig          :: WayConfig
     , wayEventHook       :: SomeEvent -> Way vs ws ()
     , wayUserWorkspaces  :: [ws]
     , wayCompositor      :: Compositor

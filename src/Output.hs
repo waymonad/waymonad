@@ -24,7 +24,6 @@ Reach us at https://github.com/ongy/waymonad
 module Output
     ( handleOutputAdd
     , handleOutputRemove
-    , OutputAddEvent (..)
     , Output (..)
     , getOutputId
     , outputFromWlr
@@ -108,11 +107,6 @@ import Graphics.Wayland.WlRoots.Surface
 
 import Waymonad (makeCallback2)
 import Waymonad.Types (Compositor (..))
-import Config (configOutputs)
-import qualified Config.Box as C (Point (..))
-import Config.Output (OutputConfig (..), Mode (..))
---import Input (Input(inputXCursor, inputCursor))
---import Input.Cursor (cursorRoots)
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (whenJust, doJust)
@@ -257,41 +251,6 @@ frameHandler secs output = do
 
     where  intersects layout view = liftIO (outputIntersects layout output =<< getViewBox view)
 
-pickMode
-    :: MonadIO m
-    => Ptr WlrOutput
-    -> Maybe Mode
-    -> m (Maybe (Ptr OutputMode))
--- If there's no config, just pick the "last" mode, it's the native resolution
-pickMode output Nothing = liftIO $ do
-    modes <- getModes output
-    pure $ listToMaybe $ reverse modes
-pickMode output (Just cfg) = liftIO $ do
-    modes <- getModes output
-    paired <- forM modes $ \x -> do
-        marshalled <- peek x
-        pure (marshalled, x)
-    -- First try to find modes that match *exactly* on resolution
-    let matches = map snd . sortOn (refreshDist . fst) $ filter (sameResolution . fst) paired
-    let ratio = map snd . sortOn (\m -> (resDist $ fst m, refreshDist $ fst m)) $ filter (sameAspect . fst) paired
-
-    -- TODO: Sanitize this
-    pure . listToMaybe . reverse $ modes ++ ratio ++ matches
-    where   sameResolution :: OutputMode -> Bool
-            sameResolution mode =
-                fromIntegral (modeWidth mode) == modeCWidth cfg
-                && fromIntegral (modeHeight mode) == modeCHeight cfg
-            refreshDist :: OutputMode -> Int -- Cast to Int, so we don't get wrapping arithmetic, *should* be big enough!
-            refreshDist mode = abs $ fromIntegral (modeRefresh mode) - fromIntegral (modeCRefresh cfg)
-            confAspect :: Ratio Word
-            confAspect = modeCWidth cfg % modeCHeight cfg
-            aspect :: OutputMode -> Ratio Word
-            aspect mode = fromIntegral (modeWidth mode) % fromIntegral (modeHeight mode)
-            sameAspect :: OutputMode -> Bool
-            sameAspect = (==) confAspect . aspect
-            resDist :: OutputMode -> Int -- We know it's the same ration, so be lazy here
-            resDist mode = abs $ fromIntegral (modeWidth mode) - fromIntegral (modeCWidth cfg)
-
 findMode
     :: MonadIO m
     => Ptr WlrOutput
@@ -314,42 +273,18 @@ findMode output width height refresh = liftIO $ do
         [] -> Nothing
         xs -> Just . snd . fun $ xs
 
-configureOutput
-    :: Ptr WlrOutputLayout
-    -> Map Text OutputConfig
-    -> Text
-    -> Ptr WlrOutput
-    -> Way vs a ()
-configureOutput layout configs name output = liftIO $ do
-    let conf = M.lookup name configs
-        position = outPosition =<< conf
-        confMode = outMode =<< conf
-    case position of
-        Nothing -> addOutputAuto layout output
-        Just (C.Point x y) -> addOutput layout output x y
-    mode <- pickMode output confMode
-
-    whenJust mode (`setOutputMode` output)
-
-    whenJust (outScale =<< conf) (setOutputScale output)
-
-newtype OutputAddEvent = OutputAdd Output
-    deriving (Eq, Show)
-
-instance EventClass OutputAddEvent
-
 handleOutputAdd
-    :: WSTag a
+    :: WSTag ws
     => IORef Compositor
-    -> [a]
+    -> (Output -> Way vs ws ())
     -> Ptr WlrOutput
-    -> Way vs a FrameHandler
-handleOutputAdd ref _ output = do
+    -> Way vs ws FrameHandler
+handleOutputAdd ref hook output = do
     comp <- liftIO $ readIORef ref
     state <- getState
     name <- liftIO $ getOutputName output
 
-    configureOutput (compLayout comp) (configOutputs $ wayConfig state) name output
+--    configureOutput (compLayout comp) (configOutputs $ wayConfig state) name output
 
     current <- wayBindingOutputs <$> getState
     let out = Output output name
@@ -359,7 +294,7 @@ handleOutputAdd ref _ output = do
     seats <- getSeats
     liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
 
-    sendEvent $ OutputAdd out
+    hook out
     makeCallback2 frameHandler
 
 

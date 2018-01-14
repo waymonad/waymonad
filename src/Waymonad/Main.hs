@@ -43,14 +43,11 @@ import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 import Text.XkbCommon.InternalTypes (Keysym(..))
 
 import Input (inputCreate)
-import Output (handleOutputAdd, handleOutputRemove)
+import Output (Output, handleOutputAdd, handleOutputRemove)
 import Shared
 import ViewSet
 import Waymonad (makeCallback)
 import Waymonad.Types
-
--- TODO: Remove
-import Config
 
 import qualified Data.Map as M
 
@@ -90,6 +87,7 @@ data WayUserConf vs ws = WayUserConf
     , wayUserConfEventHook   :: SomeEvent -> Way vs ws ()
     , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding vs ws)]
 
+    , wayUserConfOutputAdd   :: Output -> Way vs ws ()
     , wayUserConfDisplayHook :: [Bracketed vs DisplayServer ws]
     , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) ws]
     , wayUserConfPostHook    :: [Bracketed vs () ws]
@@ -100,7 +98,7 @@ data WayUserConf vs ws = WayUserConf
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
 wayUserRealMain conf compRef = do
-    outputAdd <- makeCallback $ handleOutputAdd compRef $ wayUserConfWorkspaces conf
+    outputAdd <- makeCallback $ handleOutputAdd compRef $ wayUserConfOutputAdd conf
     outputRm  <- makeCallback handleOutputRemove
 
     compFun <- pure $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
@@ -116,56 +114,48 @@ wayUserRealMain conf compRef = do
 
 wayUserMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IO ()
 wayUserMain conf = do
-    configE <- loadConfig
-    case configE of
-        Left str -> do
-            -- TODO: This should probably be visual later on when possible
-            hPutStrLn stderr "Error while loading config:"
-            hPutStrLn stderr str
-        Right config -> do
-            stateRef  <- newIORef $ wayUserConfLayouts conf $ wayUserConfWorkspaces conf
-            layoutRef <- newIORef mempty
-            mapRef <- newIORef []
-            currentRef <- newIORef []
-            outputs <- newIORef []
-            seats <- newIORef []
-            extensible <- newIORef mempty
-            floats <- newIORef mempty
-            compRef <- newIORef $ error "Tried to access compositor to early"
-            shells <- sequence $ wayUserConfShells conf
+    stateRef  <- newIORef $ wayUserConfLayouts conf $ wayUserConfWorkspaces conf
+    layoutRef <- newIORef mempty
+    mapRef <- newIORef []
+    currentRef <- newIORef []
+    outputs <- newIORef []
+    seats <- newIORef []
+    extensible <- newIORef mempty
+    floats <- newIORef mempty
+    compRef <- newIORef $ error "Tried to access compositor to early"
+    shells <- sequence $ wayUserConfShells conf
 
-            let state = WayBindingState
-                    { wayBindingCache = layoutRef
-                    , wayBindingState = stateRef
-                    , wayBindingCurrent = currentRef
-                    , wayBindingMapping = mapRef
-                    , wayBindingOutputs = outputs
-                    , wayBindingSeats = seats
-                    , wayLogFunction = wayUserConfLog conf
-                    , wayExtensibleState = extensible
-                    , wayConfig = config
-                    , wayFloating = floats
-                    , wayEventHook = wayUserConfEventHook conf
-                    , wayUserWorkspaces = wayUserConfWorkspaces conf
-                    , wayCompositor = unsafePerformIO (readIORef compRef)
-                    , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
-                    , wayManagehook = wayUserConfManagehook conf
-                    , wayCoreHooks = wayUserConfCoreHooks conf
-                    , wayCoreShells = shells
-                    }
+    let state = WayBindingState
+            { wayBindingCache = layoutRef
+            , wayBindingState = stateRef
+            , wayBindingCurrent = currentRef
+            , wayBindingMapping = mapRef
+            , wayBindingOutputs = outputs
+            , wayBindingSeats = seats
+            , wayLogFunction = wayUserConfLog conf
+            , wayExtensibleState = extensible
+            , wayFloating = floats
+            , wayEventHook = wayUserConfEventHook conf
+            , wayUserWorkspaces = wayUserConfWorkspaces conf
+            , wayCompositor = unsafePerformIO (readIORef compRef)
+            , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
+            , wayManagehook = wayUserConfManagehook conf
+            , wayCoreHooks = wayUserConfCoreHooks conf
+            , wayCoreShells = shells
+            }
 
 
-            let loggers = WayLoggers
-                    { loggerOutput = Logger Warn "Output"
-                    , loggerWS = Logger Warn "Workspaces"
-                    , loggerFocus = Logger Warn "Focus"
-                    , loggerXdg = Logger Warn "Xdg_Shell"
-                    , loggerX11 = Logger Warn "XWayland"
-                    , loggerKeybinds = Logger Warn "Keybindings"
-                    , loggerSpawner = Logger Warn "Spawner"
-                    , loggerLayout = Logger Warn "Layout"
-                    , loggerRender = Logger Warn "Frame"
-                    }
+    let loggers = WayLoggers
+            { loggerOutput = Logger Warn "Output"
+            , loggerWS = Logger Warn "Workspaces"
+            , loggerFocus = Logger Warn "Focus"
+            , loggerXdg = Logger Warn "Xdg_Shell"
+            , loggerX11 = Logger Warn "XWayland"
+            , loggerKeybinds = Logger Warn "Keybindings"
+            , loggerSpawner = Logger Warn "Spawner"
+            , loggerLayout = Logger Warn "Layout"
+            , loggerRender = Logger Warn "Frame"
+            }
 
-            runWay Nothing state (fromMaybe loggers $ configLoggers config) (wayUserRealMain conf compRef)
+    runWay Nothing state loggers (wayUserRealMain conf compRef)
 
