@@ -316,10 +316,10 @@ handleOutputRemove output = do
 getOutputId :: Output -> Int
 getOutputId = ptrToInt . outputRoots
 
-outputFromWlr :: Ptr WlrOutput -> Way vs a Output
+outputFromWlr :: Ptr WlrOutput -> Way vs a (Maybe Output)
 outputFromWlr ptr = do
     outs <- liftIO . readIORef . wayBindingOutputs =<< getState
-    pure . fromJust . find ((==) ptr . outputRoots) $ outs
+    pure . find ((==) ptr . outputRoots) $ outs
 
 setOutputDirty :: MonadIO m => Output -> m ()
 setOutputDirty out = liftIO $ setOutputNeedsSwap (outputRoots out) True

@@ -154,8 +154,8 @@ updatePosition layout cursor outref time = do
         old <- liftIO $ readIORef outref
         when (old /= ptrToInt out) $ do
             liftIO $ writeIORef outref $ ptrToInt out
-            arg <- outputFromWlr out
-            setSeatOutput seat $ These arg arg
+            doJust (outputFromWlr out) $ \arg -> 
+                setSeatOutput seat $ These arg arg
 
     viewM <- getCursorView layout cursor
     case viewM of

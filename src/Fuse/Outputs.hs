@@ -30,7 +30,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
-import Foreign.C.Error (eINVAL)
+import Foreign.C.Error (Errno, eINVAL, eBADF)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable (peek))
 import Formatting (sformat, (%), int, float)
@@ -72,7 +72,7 @@ import Graphics.Wayland.WlRoots.Output
     )
 import Graphics.Wayland.WlRoots.OutputLayout (moveOutput)
 
-import Output (Output(..), findMode)
+import Output (Output(..), findMode, outputFromWlr)
 import ViewSet (WSTag (..))
 import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
@@ -141,12 +141,25 @@ readTransform "Flipped180" = Just outputTransformFlipped_180
 readTransform "Flipped270" = Just outputTransformFlipped_270
 readTransform _ = Nothing
 
+-- By going through this, we get the same output again, but we ensure that it's
+-- still valid.
+ensureOutput :: Output -> (Way vs ws Text) -> Way vs ws Text
+ensureOutput out fun = do
+    roots <- outputFromWlr $ outputRoots out
+    maybe (pure "Output was disconnected since this file was opened") (const fun) roots
+
+ensureWOutput :: Output -> Way vs ws (Either Errno a) -> Way vs ws (Either Errno a)
+ensureWOutput out fun = do
+    roots <- outputFromWlr $ outputRoots out
+    maybe (pure $ Left eBADF) (const fun) roots
+
+
 makeOutputDir :: WSTag a => Output -> Way vs a (Entry vs a)
 makeOutputDir out = do
     let guaranteed =
-            [ ("width",  FileEntry $ textFile $ liftIO (sformat int <$> getWidth  (outputRoots out)))
-            , ("height", FileEntry $ textFile $ liftIO (sformat int <$> getHeight (outputRoots out)))
-            , ("effective", FileEntry $ textFile $ liftIO (uncurry (sformat (int % "x" % int)) <$> effectiveResolution (outputRoots out)))
+            [ ("width",  FileEntry $ textFile $ ensureOutput out $ liftIO (sformat int <$> getWidth  (outputRoots out)))
+            , ("height", FileEntry $ textFile $ ensureOutput out $ liftIO (sformat int <$> getHeight (outputRoots out)))
+            , ("effective", FileEntry $ textFile $ ensureOutput out $ liftIO (uncurry (sformat (int % "x" % int)) <$> effectiveResolution (outputRoots out)))
             ]
 
     let handleMaybe :: Monad m => (m a -> b) -> m (Maybe a) -> m (Maybe b)
@@ -156,18 +169,18 @@ makeOutputDir out = do
                 Nothing -> pure Nothing
                 Just x -> pure $ Just $ fun $ pure x
     info <- liftIO $ sequence
-            [ handleMaybe (("make", ) . FileEntry . textFile . liftIO) $ getMake (outputRoots out)
-            , handleMaybe (("model", ) . FileEntry . textFile . liftIO) $ getModel (outputRoots out)
-            , handleMaybe (("serial", ) . FileEntry . textFile . liftIO) $ getSerial (outputRoots out)
+            [ handleMaybe (("make", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getMake (outputRoots out)
+            , handleMaybe (("model", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getModel (outputRoots out)
+            , handleMaybe (("serial", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getSerial (outputRoots out)
             ]
 
     hm <- liftIO $ hasModes $ outputRoots out
     let modes = if hm
             then
-                [ ("modes", FileEntry $ textFile $ makeModesText out)
-                , ("mode", FileEntry $ textRWFile 
-                    (liftIO $ maybe (pure "None") (fmap formatMode . peek) =<< getMode (outputRoots out))
-                    (\txt -> liftIO $ do
+                [ ("modes", FileEntry $ textFile . ensureOutput out $ makeModesText out)
+                , ("mode", FileEntry $ textRWFile
+                    (ensureOutput out . liftIO $ maybe (pure "None") (fmap formatMode . peek) =<< getMode (outputRoots out))
+                    (\txt -> ensureWOutput out . liftIO $ do
                         mode <- readMode out txt
                         case mode of
                             Just x -> Right <$> setOutputMode x (outputRoots out)
@@ -183,27 +196,27 @@ makeOutputDir out = do
             Just xs -> [("ws", SymlinkEntry (pure $ "../../workspaces/" ++ T.unpack (getName xs)))]
 
     let transform = ("transform", FileEntry $ textRWFile
-            (liftIO (T.pack . show <$> getOutputTransform (outputRoots out)))
-            (\txt -> case readTransform txt of
+            (ensureOutput out $ liftIO (T.pack . show <$> getOutputTransform (outputRoots out)))
+            (\txt -> ensureWOutput out $ case readTransform txt of
                         Nothing -> pure $ Left eINVAL
                         Just trans -> liftIO $ Right <$> transformOutput (outputRoots out) trans
             )
                     )
 
     let scale = ("scale", FileEntry $ textRWFile
-            (liftIO (sformat float <$> getOutputScale (outputRoots out)))
-            (\txt -> liftIO $ case R.rational txt of
+            (ensureOutput out $ liftIO (sformat float <$> getOutputScale (outputRoots out)))
+            (\txt -> ensureWOutput out . liftIO $ case R.rational txt of
                         Left _ -> pure $ Left eINVAL
                         Right (x, _) -> Right <$> setOutputScale (outputRoots out) x
             )
                 )
 
     let position = ("position", FileEntry $ textRWFile
-            (liftIO $ do
+            (ensureOutput out . liftIO $ do
                 box <- getOutputBox (outputRoots out)
                 pure $ sformat (int % "x" % int) (boxX box) (boxY box)
             )
-            (\txt -> case parsePosition txt of
+            (\txt -> ensureWOutput out $ case parsePosition txt of
                         Left _ -> pure $ Left eINVAL
                         Right (Point x y, _) -> Right <$> do
                             layout <- compLayout . wayCompositor <$> getState
@@ -214,7 +227,7 @@ makeOutputDir out = do
     let dpms = ("dpms", FileEntry $ textRWFile
             (pure "Can't read enabled state yet"
             )
-            (\txt -> liftIO $ case txt of
+            (\txt -> ensureWOutput out $ liftIO $ case txt of
                         "enable"  -> Right <$> outputEnable (outputRoots out)
                         "disable" -> Right <$> outputDisable (outputRoots out)
                         _ ->  pure $ Left eINVAL
