@@ -29,12 +29,18 @@ module Utility
     , getThat
 
     , firstDir
+
+    , showT
+    , readT
     )
 where
 
-import Foreign.Ptr (Ptr, ptrToIntPtr, intPtrToPtr)
 import Data.Default (Default (..))
+import Data.Text (Text)
+import Foreign.Ptr (Ptr, ptrToIntPtr, intPtrToPtr)
+import Safe (readMay)
 
+import qualified Data.Text as T
 
 intToPtr :: Integral a => a -> Ptr b
 intToPtr = intPtrToPtr . fromIntegral
@@ -70,3 +76,9 @@ getThat _ = Nothing
 firstDir :: String -> (String, String)
 firstDir [] = ([], [])
 firstDir path = span (/= '/') path
+
+showT :: Show a => a -> Text
+showT = T.pack . show
+
+readT :: Read a => Text -> Maybe a
+readT = readMay . T.unpack

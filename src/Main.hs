@@ -26,6 +26,8 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Input.Libinput
+
 import Control.Monad.IO.Class (liftIO)
 import Data.Monoid ((<>))
 import Data.Text (Text)

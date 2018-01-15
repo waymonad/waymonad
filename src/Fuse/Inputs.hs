@@ -19,22 +19,28 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 module Fuse.Inputs
     ( inputsDir
     )
 where
 
+import Control.Monad (filterM)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 import Data.Map (Map)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
-import Foreign.C.Error (Errno, eBADF)
+import Foreign.C.Error (Errno, eBADF, eINVAL)
 import Fuse.Common
 
+import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
 import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName, inputDeviceType)
 
+
 import Input
+import Input.Libinput
+import Utility (doJust)
 import ViewSet (WSTag, FocusCore)
 import Waymonad
 import Waymonad.Types (Compositor (compInput))
@@ -42,7 +48,9 @@ import Waymonad.Types (Compositor (compInput))
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
+import qualified System.InputDevice as LI
 
+import System.IO
 
 ensureWDevice :: Ptr InputDevice -> Way vs ws (Either Errno a) -> Way vs ws (Either Errno a)
 ensureWDevice ptr act = do
@@ -50,6 +58,35 @@ ensureWDevice ptr act = do
     if ptr `S.member` devs
         then act
         else pure $ Left eBADF
+
+makeOptionDir :: LI.InputDevice -> LibinputOption -> (String, Entry vs ws)
+makeOptionDir dev opt =
+    let guaranteed =
+            [ ("default", FileEntry $ textFile . liftIO $ optionDefault opt dev)
+            , ("value", FileEntry $ textRWFile
+                    (liftIO $ optionGet opt dev)
+                    (\txt -> liftIO $ do
+                        ret <- optionSet opt dev txt
+                        case ret of
+                            Nothing -> pure $ Right ()
+                            Just err -> liftIO $ do
+                                hPutStrLn stderr "Failed to set option:"
+                                hPutStrLn stderr (T.unpack err)
+                                pure $ Left eINVAL
+                    )
+              )
+            ]
+        valids = maybe id (\fun -> (:) ("valid", FileEntry $ textFile . liftIO $ fun dev)) (optionValids opt)
+        files = valids guaranteed
+     in  (T.unpack $ optionName opt, DirEntry $ simpleDir $ M.fromList files)
+
+makeOptionsDir :: Ptr InputDevice -> Way vs ws (Maybe (Entry vs ws))
+makeOptionsDir dev = liftIO $ doJust (getDeviceHandle dev) $ \handle -> do
+    opts <- filterM (\opt -> optionExists opt handle) libinputOptions
+    if null opts
+        then pure Nothing
+        else pure . Just $ DirEntry . simpleDir . M.fromList $ map (makeOptionDir handle) opts
+
 
 makeInputDir :: (FocusCore vs a, WSTag a) => Ptr InputDevice -> Way vs a (String, Entry vs a)
 makeInputDir ptr = do
@@ -78,8 +115,10 @@ makeInputDir ptr = do
         else [("siblings", DirEntry $ enumeratingDir $ fmap M.fromList $ mapM makeDevLink $ S.toList siblings)]
 
     name <- liftIO $ getDeviceName ptr
+    optDir <- makeOptionsDir ptr
+    let optFun = maybe id (:) $ fmap ("options",) optDir
 
-    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList (deviceType ++ sibDir))
+    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList (optFun deviceType ++ sibDir))
 
 
 enumerateInputs :: (FocusCore vs a, WSTag a) => Way vs a (Map String (Entry vs a))

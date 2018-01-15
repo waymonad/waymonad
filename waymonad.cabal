@@ -74,6 +74,7 @@ executable waymonad
   other-modules:        Input
   other-modules:        Input.Cursor
   other-modules:        Input.Keyboard
+  other-modules:        Input.Libinput
   other-modules:        Input.Seat
   other-modules:        Input.TabletPad
 
@@ -148,6 +149,7 @@ executable waymonad
   build-depends:       config-schema, config-value, xdg-basedir, network
   build-depends:       bytestring, data-default, semigroupoids, HFuse
   build-depends:       formatting, stm, unliftio-core, unliftio, libinput
+  build-depends:       safe
   
   -- Directories containing source files.
   hs-source-dirs:      src
