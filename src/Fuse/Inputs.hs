@@ -29,6 +29,7 @@ import Data.IORef (readIORef)
 import Data.Map (Map)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
+import Foreign.C.Error (Errno, eBADF)
 import Fuse.Common
 
 import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName, inputDeviceType)
@@ -43,17 +44,25 @@ import qualified Data.Set as S
 import qualified Data.Text as T
 
 
+ensureWDevice :: Ptr InputDevice -> Way vs ws (Either Errno a) -> Way vs ws (Either Errno a)
+ensureWDevice ptr act = do
+    devs <- liftIO . readIORef . inputDevices . compInput . wayCompositor =<< getState
+    if ptr `S.member` devs
+        then act
+        else pure $ Left eBADF
+
 makeInputDir :: (FocusCore vs a, WSTag a) => Ptr InputDevice -> Way vs a (String, Entry vs a)
 makeInputDir ptr = do
+    typeStr <- liftIO $ T.pack . show <$> inputDeviceType ptr
     let deviceType =
-            [ ("type", FileEntry $ textFile $ liftIO $ T.pack . show <$> inputDeviceType ptr)
-            , ("detach", FileEntry $ textRWFile (pure "") (\_ -> do
+            [ ("type", FileEntry $ textFile $ pure typeStr)
+            , ("detach", FileEntry $ textRWFile (pure "") (\_ -> ensureWDevice ptr $ do
                     siblings <- getDeviceSiblings ptr
                     mapM_ detachDevice $ ptr: S.toList siblings
                     pure $ Right ()
                                                           )
               )
-            , ("attach", FileEntry $ textRWFile (pure "") (\seat -> do
+            , ("attach", FileEntry $ textRWFile (pure "") (\seat -> ensureWDevice ptr $ do
                     siblings <- getDeviceSiblings ptr
                     mapM_ (`attachDevice` seat) $ ptr: S.toList siblings
                     pure $ Right ()
