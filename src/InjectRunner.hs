@@ -29,6 +29,7 @@ module InjectRunner
     )
 where
 
+import System.IO.Unsafe (unsafePerformIO)
 import Control.Concurrent.STM (atomically)
 import Control.Concurrent.STM.TChan (TChan, newTChanIO, tryReadTChan, writeTChan)
 import Control.Monad (void)
@@ -36,7 +37,7 @@ import Control.Monad.IO.Class (liftIO)
 import Foreign.Marshal.Utils (with)
 import Foreign.Ptr (Ptr)
 import System.Posix.Types (Fd)
-import System.Posix.IO (createPipe, fdRead, fdWriteBuf)
+import System.Posix.IO (createPipe, fdRead, fdWriteBuf, setFdOption, FdOption(CloseOnExec))
 import Graphics.Wayland.Server (displayGetEventLoop, eventLoopAddFd, clientStateReadable, DisplayServer)
 
 import Graphics.Wayland.WlRoots.Box (Point (..))
@@ -62,7 +63,7 @@ data InjectChan = InjectChan
     }
 
 instance ExtensionClass InjectChan where
-    initialValue = undefined
+    initialValue = unsafePerformIO makeInject
 
 handleInjected :: Inject -> Way vs a ()
 handleInjected (ChangeMode out mode) =
@@ -104,11 +105,13 @@ registerInjectHandler display = do
 makeInject :: IO InjectChan
 makeInject = do
     (readFd, writeFd) <- liftIO createPipe
+    liftIO $ setFdOption readFd CloseOnExec True
+    liftIO $ setFdOption writeFd CloseOnExec True
     chan <- newTChanIO
     pure $ InjectChan chan writeFd readFd
 
 injectBracket :: Bracketed vs DisplayServer ws
 injectBracket = Bracketed (\dsp -> do
-    setEState =<< liftIO makeInject
+    -- setEState =<< liftIO makeInject
     registerInjectHandler dsp
                           ) (const $ pure ())

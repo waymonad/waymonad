@@ -231,7 +231,7 @@ frameHandler secs output = do
     (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
     viewsM <- IM.lookup (ptrToInt output) <$> (liftIO . readIORef . wayBindingCache =<< getState)
     floats <- filterM (intersects $ compLayout comp) . S.toList =<< (liftIO . readIORef . wayFloating =<< getState)
-    
+
 --    needsRedraw <- liftIO $ mapM (\v -> getViewSurface v >>= (\case
 --        Nothing -> pure mempty
 --        Just surf -> Any <$> surfaceHasDamage surf)) (fmap fst $ join $ maybeToList viewsM)

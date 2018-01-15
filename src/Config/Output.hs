@@ -126,13 +126,13 @@ pickMode output (Just cfg) = liftIO $ do
             resDist mode = abs $ fromIntegral (modeWidth mode) - fromIntegral (modeCWidth cfg)
 
 configureOutput
-    :: OutputConfig
+    :: Maybe OutputConfig
     -> Ptr WlrOutput
     -> Way vs a ()
 configureOutput conf output = do
     layout <- compLayout . wayCompositor <$> getState
-    let position = outPosition conf
-        confMode = outMode conf
+    let position = outPosition =<< conf
+        confMode = outMode =<< conf
     mode <- pickMode output confMode
 
     liftIO $ case position of
@@ -140,13 +140,12 @@ configureOutput conf output = do
         Just (Point x y) -> addOutput layout output x y
 
     liftIO $ whenJust mode (`setOutputMode` output)
-    liftIO $ whenJust (outScale conf) (setOutputScale output)
+    liftIO $ whenJust (outScale =<< conf) (setOutputScale output)
 
 prependConfig :: Map Text OutputConfig -> (Output -> Way vs ws ()) -> (Output -> Way vs ws ())
-prependConfig configs others output = 
-    case M.lookup (outputName output) configs of
-        Nothing -> others output
-        Just conf -> configureOutput conf (outputRoots output)
+prependConfig configs others output = do
+    configureOutput (M.lookup (outputName output) configs) (outputRoots output)
+    others output
 
 modifyOutputConfig :: Map Text OutputConfig -> WayUserConf vs ws -> WayUserConf vs ws
 modifyOutputConfig m conf = conf { wayUserConfOutputAdd = prependConfig m $ wayUserConfOutputAdd conf }
