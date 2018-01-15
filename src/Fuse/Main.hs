@@ -22,6 +22,8 @@ Reach us at https://github.com/ongy/waymonad
 module Fuse.Main
 where
 
+import System.IO
+
 import Control.Monad.IO.Class (liftIO)
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (getEnv)
@@ -118,7 +120,12 @@ getFuseBracket = do
         liftIO $ fuseRunInline
             register
             eventSourceRemove
-            pass
+            (\val -> do
+                case val of
+                    Left err -> hPutStrLn stderr "Failed to start fuse:" >> hPutStrLn stderr err
+                    Right _ -> pure ()
+                pass
+            )
             "waymonad"
             [fuseDir, "-o", "default_permissions,auto_unmount"]
             ops
