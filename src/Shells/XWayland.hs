@@ -166,10 +166,11 @@ handleX11Configure view surf evt = do
         let y = fromIntegral $ X.configureEvtY event
         setViewBox view (WlrBox x y width height)
 
-handleX11Map :: View -> Ptr X.X11Surface -> Way vs a ()
+handleX11Map :: (FocusCore vs ws, WSTag ws) => View -> Ptr X.X11Surface -> Way vs ws ()
 handleX11Map view surf = do
     Point x y <- liftIO $ X.getX11SurfacePosition surf
     moveView view (fromIntegral x) (fromIntegral y)
+    insertView view
     doJust getSeat (void . flip keyboardEnter view)
 
 handleOverrideCommit :: View -> Ptr X.X11Surface -> Ptr WlrSurface -> Way vs a ()
@@ -198,7 +199,7 @@ handleXwaySurface xway ref surf = do
     h1 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
     h3 <- setSignalHandler (X.x11SurfaceEvtMove signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a move")
     h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view surf
-    h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const . liftIO $ (hPutStrLn stderr "Something wants unmapping")
+    h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const (removeView view)
     h6 <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleX11Map view
 
     setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h3, h4, h5, h6]
