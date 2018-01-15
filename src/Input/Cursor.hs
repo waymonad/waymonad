@@ -47,6 +47,7 @@ import Input.Seat
     , pointerClear
     , pointerAxis
     , pointerButton
+    , getKeyboardFocus
     )
 import Graphics.Wayland.WlRoots.Cursor
     ( WlrCursor
@@ -85,7 +86,7 @@ import WayUtil
 import WayUtil.Signal (setSignalHandler)
 import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Focus (focusView, setWorkspace)
-import WayUtil.Current (getPointerWS)
+import WayUtil.Current (getPointerWS, getPointerOutputS)
 
 data Cursor = Cursor
     { cursorRoots :: Ptr WlrCursor
@@ -216,7 +217,12 @@ handleCursorButton layout cursor event_ptr = do
                 (eventPointerButtonTime event) (eventPointerButtonButton event)
                 (eventPointerButtonState event)
             setWorkspace =<< getPointerWS
-            when ret (focusView view)
+            when ret $ do
+                old <- getKeyboardFocus seat
+                when (old /= Just view) $
+                    doJust (getPointerOutputS seat) $ \output -> do
+                        setSeatOutput seat (That output)
+                        focusView view
 
 handleCursorAxis
     :: Ptr WlrEventPointerAxis
