@@ -31,12 +31,12 @@ module WayUtil.Focus
     )
 where
 
+import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef, modifyIORef)
 import Data.List (lookup, find)
 import Data.Maybe (listToMaybe)
 import Data.Tuple (swap)
-import Data.Typeable (Typeable)
 
 import Input.Seat (Seat)
 import Layout (reLayout)
@@ -49,12 +49,9 @@ import Waymonad
     , getState
     , WayBindingState (..)
     , WayLoggers (..)
-    , EventClass
-    , sendEvent
-    , getSeat
     )
 import Waymonad.Types
-import WayUtil.Current (getCurrentOutput, getCurrentWS)
+import WayUtil.Current (getCurrentOutput)
 import WayUtil.ViewSet (modifyCurrentWS, modifyViewSet, withCurrentWS)
 import WayUtil.Log (logPutText, LogPriority(..))
 
@@ -66,15 +63,16 @@ setOutputWorkspace ws current = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     let pre = lookup current $ map swap mapping
 
-    liftIO $ modifyIORef
-        (wayBindingMapping state)
-        ((:) (ws, current) . filter ((/=) current . snd))
+    when (pre /= Just ws) $ do
+        liftIO $ modifyIORef
+            (wayBindingMapping state)
+            ((:) (ws, current) . filter ((/=) current . snd))
 
-    hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
-    hook $ OutputMappingEvent current pre (Just ws)
+        hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
+        hook $ OutputMappingEvent current pre (Just ws)
 
-    reLayout ws
-    whenJust pre reLayout
+        reLayout ws
+        whenJust pre reLayout
 
 getWorkspaceOutputs :: Eq a => a -> Way vs a [Output]
 getWorkspaceOutputs ws = do

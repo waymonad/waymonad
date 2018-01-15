@@ -43,7 +43,6 @@ import Hooks.FocusFollowPointer
 import Hooks.KeyboardFocus
 import Hooks.ScaleHook
 import IdleManager
-import InjectRunner
 import Layout.Choose
 import Layout.Mirror (mkMirror, ToggleMirror (..))
 import Layout.Spiral
@@ -124,7 +123,7 @@ bindings =
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
     , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
-    where modi = Alt
+    where modi = Logo
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 myEventHook = idleLog
@@ -137,7 +136,7 @@ myConf = WayUserConf
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
 
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, injectBracket, baseTimeBracket]
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket, envBracket [("PULSE_SERVER", "zelda.ongy")]]
     , wayUserConfCoreHooks   = WayHooks

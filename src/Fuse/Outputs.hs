@@ -67,12 +67,15 @@ import Graphics.Wayland.WlRoots.Output
     , getModel
     , getSerial
     , effectiveResolution
+    , setOutputMode
+    , setOutputScale
     )
+import Graphics.Wayland.WlRoots.OutputLayout (moveOutput)
 
-import InjectRunner (Inject (..), injectEvt)
 import Output (Output(..), findMode)
 import ViewSet (WSTag (..))
-import Waymonad.Types (Way)
+import Waymonad (getState)
+import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 import WayUtil (getOutputs)
 import WayUtil.Focus (getOutputWorkspace)
 
@@ -92,7 +95,7 @@ parsePosition txt = do
     (y, ret) <- R.decimal nxt2
     pure (Point x y, ret)
 
-readMode :: Output -> Text -> Way vs a (Maybe (Ptr OutputMode))
+readMode :: Output -> Text -> IO (Maybe (Ptr OutputMode))
 readMode out txt = do
     let parsed = do
             (Point width height, nxt) <- parsePosition txt
@@ -164,10 +167,10 @@ makeOutputDir out = do
                 [ ("modes", FileEntry $ textFile $ makeModesText out)
                 , ("mode", FileEntry $ textRWFile 
                     (liftIO $ maybe (pure "None") (fmap formatMode . peek) =<< getMode (outputRoots out))
-                    (\txt -> do
+                    (\txt -> liftIO $ do
                         mode <- readMode out txt
                         case mode of
-                            Just x -> Right <$> injectEvt (ChangeMode out x)
+                            Just x -> Right <$> setOutputMode x (outputRoots out)
                             Nothing -> pure $ Left eINVAL
                     )
                   )
@@ -189,9 +192,9 @@ makeOutputDir out = do
 
     let scale = ("scale", FileEntry $ textRWFile
             (liftIO (sformat float <$> getOutputScale (outputRoots out)))
-            (\txt -> case R.rational txt of
+            (\txt -> liftIO $ case R.rational txt of
                         Left _ -> pure $ Left eINVAL
-                        Right (x, _) -> Right <$> injectEvt (ChangeScale out x)
+                        Right (x, _) -> Right <$> setOutputScale (outputRoots out) x
             )
                 )
 
@@ -202,7 +205,9 @@ makeOutputDir out = do
             )
             (\txt -> case parsePosition txt of
                         Left _ -> pure $ Left eINVAL
-                        Right (p, _) -> Right <$> injectEvt (ChangePosition out p)
+                        Right (Point x y, _) -> Right <$> do
+                            layout <- compLayout . wayCompositor <$> getState
+                            liftIO $ moveOutput layout (outputRoots out) x y
             )
                    )
 

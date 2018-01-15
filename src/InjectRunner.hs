@@ -1,4 +1,4 @@
-{-
+ {-
 waymonad A wayland compositor in the spirit of xmonad
 Copyright (C) 2018  Markus Ongyerth
 
@@ -35,46 +35,32 @@ import Control.Concurrent.STM.TChan (TChan, newTChanIO, tryReadTChan, writeTChan
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Foreign.Marshal.Utils (with)
-import Foreign.Ptr (Ptr)
 import System.Posix.Types (Fd)
 import System.Posix.IO (createPipe, fdRead, fdWriteBuf, setFdOption, FdOption(CloseOnExec))
 import Graphics.Wayland.Server (displayGetEventLoop, eventLoopAddFd, clientStateReadable, DisplayServer)
+import Data.Typeable (Typeable)
 
-import Graphics.Wayland.WlRoots.Box (Point (..))
-import Graphics.Wayland.WlRoots.Output (OutputMode, setOutputMode, setOutputScale)
-import Graphics.Wayland.WlRoots.OutputLayout (moveOutput)
-
-import Output (Output (outputRoots))
 import Shared
-import Waymonad (getState, makeCallback2)
+import Waymonad (makeCallback2)
 import WayUtil
-import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
+import Waymonad.Types (Way)
 import Waymonad.Extensible (ExtensionClass (..))
 
-data Inject
-    = ChangeMode Output (Ptr OutputMode)
-    | ChangeScale Output Float
-    | ChangePosition Output Point
+data Inject vs ws = Inject (Way vs ws ())
 
-data InjectChan = InjectChan
-    { injectChan  :: TChan Inject
+data InjectChan vs ws = InjectChan
+    { injectChan  :: TChan (Inject vs ws)
     , injectWrite :: Fd
     , injectRead  :: Fd
     }
 
-instance ExtensionClass InjectChan where
+instance (Typeable vs, Typeable ws) => ExtensionClass (InjectChan vs ws) where
     initialValue = unsafePerformIO makeInject
 
-handleInjected :: Inject -> Way vs a ()
-handleInjected (ChangeMode out mode) =
-    liftIO $ setOutputMode mode (outputRoots out)
-handleInjected (ChangeScale out scale) =
-    liftIO $ setOutputScale (outputRoots out) scale
-handleInjected (ChangePosition out (Point x y)) = do
-    layout <- compLayout . wayCompositor <$> getState
-    liftIO $ moveOutput layout (outputRoots out) x y
+handleInjected :: Inject vs ws -> Way vs ws ()
+handleInjected (Inject act) = act
 
-readInjectEvt :: InjectChan -> Way vs a ()
+readInjectEvt :: InjectChan vs ws -> Way vs ws ()
 readInjectEvt chan = do
     next <- liftIO . atomically . tryReadTChan $ injectChan chan
     case next of
@@ -84,13 +70,13 @@ readInjectEvt chan = do
             readInjectEvt chan
         Nothing -> pure ()
 
-injectEvt :: Inject -> Way vs a ()
+injectEvt :: (Typeable vs, Typeable ws) => Inject vs ws -> Way vs ws ()
 injectEvt inj = do
     chan <- getEState
     liftIO . atomically $ writeTChan (injectChan chan) inj
     void . liftIO $ with 1 $ \ptr -> fdWriteBuf (injectWrite chan) ptr 1
 
-registerInjectHandler :: DisplayServer -> Way vs a ()
+registerInjectHandler :: (Typeable vs, Typeable ws) => DisplayServer -> Way vs ws ()
 registerInjectHandler display = do
     chan <- getEState
     evtLoop <- liftIO $ displayGetEventLoop display
@@ -102,7 +88,7 @@ registerInjectHandler display = do
         clientStateReadable
         cb
 
-makeInject :: IO InjectChan
+makeInject :: IO (InjectChan vs ws)
 makeInject = do
     (readFd, writeFd) <- liftIO createPipe
     liftIO $ setFdOption readFd CloseOnExec True
@@ -110,7 +96,7 @@ makeInject = do
     chan <- newTChanIO
     pure $ InjectChan chan writeFd readFd
 
-injectBracket :: Bracketed vs DisplayServer ws
+injectBracket :: (Typeable vs, Typeable ws) => Bracketed vs DisplayServer ws
 injectBracket = Bracketed (\dsp -> do
     -- setEState =<< liftIO makeInject
     registerInjectHandler dsp
