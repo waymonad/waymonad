@@ -155,6 +155,7 @@ deriveSlave multi = do
                 }
         ret <- createView slave
         modifyIORef (multiSlaves multi) (IM.insert sId ret)
+        modifyIORef (multiSlaveBoxes multi) (IM.insert sId (WlrBox 0 0 0 0))
         pure ret
 
     pure view
