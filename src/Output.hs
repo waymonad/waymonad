@@ -68,6 +68,8 @@ import Graphics.Wayland.WlRoots.Output
 
     , getOutputNeedsSwap
     , setOutputNeedsSwap
+    , isOutputEnabled
+    , outputDisable
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( WlrOutputLayout
@@ -227,27 +229,29 @@ frameHandler
     -> Ptr WlrOutput
     -> Way vs a ()
 frameHandler secs output = do
-    comp <- wayCompositor <$> getState
-    (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
-    viewsM <- IM.lookup (ptrToInt output) <$> (liftIO . readIORef . wayBindingCache =<< getState)
-    floats <- filterM (intersects $ compLayout comp) . S.toList =<< (liftIO . readIORef . wayFloating =<< getState)
+    enabled <- liftIO $ isOutputEnabled output
+    when enabled $ do
+        comp <- wayCompositor <$> getState
+        (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
+        viewsM <- IM.lookup (ptrToInt output) <$> (liftIO . readIORef . wayBindingCache =<< getState)
+        floats <- filterM (intersects $ compLayout comp) . S.toList =<< (liftIO . readIORef . wayFloating =<< getState)
 
---    needsRedraw <- liftIO $ mapM (\v -> getViewSurface v >>= (\case
---        Nothing -> pure mempty
---        Just surf -> Any <$> surfaceHasDamage surf)) (fmap fst $ join $ maybeToList viewsM)
-    {-needsRedraw <- mapM (fmap Any . viewIsDirty) (fmap fst $ join $ maybeToList viewsM)
-    needsSwap <- liftIO $ getOutputNeedsSwap output
-    when (getAny (foldr (<>) mempty needsRedraw) || needsSwap) $-}
-    liftIO $ renderOn output (compRenderer comp) $ do
-        case viewsM of
-            Nothing -> pure ()
-            Just wsViews -> do
-                overs <- mapM (uncurry $ outputHandleView comp secs output) wsViews
-                sequence_ overs
-        forM_ floats $ \view -> do
-            (WlrBox x y w h) <- getViewBox view
-            let box = WlrBox (x - ox) (y - oy) w h
-            outputHandleView comp secs output view box
+    --    needsRedraw <- liftIO $ mapM (\v -> getViewSurface v >>= (\case
+    --        Nothing -> pure mempty
+    --        Just surf -> Any <$> surfaceHasDamage surf)) (fmap fst $ join $ maybeToList viewsM)
+        {-needsRedraw <- mapM (fmap Any . viewIsDirty) (fmap fst $ join $ maybeToList viewsM)
+        needsSwap <- liftIO $ getOutputNeedsSwap output
+        when (getAny (foldr (<>) mempty needsRedraw) || needsSwap) $-}
+        liftIO $ renderOn output (compRenderer comp) $ do
+            case viewsM of
+                Nothing -> pure ()
+                Just wsViews -> do
+                    overs <- mapM (uncurry $ outputHandleView comp secs output) wsViews
+                    sequence_ overs
+            forM_ floats $ \view -> do
+                (WlrBox x y w h) <- getViewBox view
+                let box = WlrBox (x - ox) (y - oy) w h
+                outputHandleView comp secs output view box
 
     where  intersects layout view = liftIO (outputIntersects layout output =<< getViewBox view)
 
@@ -284,7 +288,7 @@ handleOutputAdd ref hook output = do
     state <- getState
     name <- liftIO $ getOutputName output
 
---    configureOutput (compLayout comp) (configOutputs $ wayConfig state) name output
+    liftIO $ outputDisable output
 
     current <- wayBindingOutputs <$> getState
     let out = Output output name

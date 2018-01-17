@@ -125,7 +125,7 @@ bindings =
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
     , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
-    where modi = Logo
+    where modi = Alt
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 myEventHook = idleLog
