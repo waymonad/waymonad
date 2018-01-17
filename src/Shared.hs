@@ -107,7 +107,6 @@ data CompHooks vs a = CompHooks
     , backendPreHook :: [Bracketed vs (DisplayServer, Ptr Backend) a]
     , backendPostHook :: [Bracketed vs () a]
 
-    , inputAddHook :: Ptr InputDevice -> IO ()
     , outputAddHook :: Ptr WlrOutput -> IO FrameHandler
     , keyPressHook :: Keysym -> Direction -> IO ()
     , outputRemoveHook :: Ptr WlrOutput -> IO ()
@@ -119,7 +118,6 @@ ignoreHooks = CompHooks
     { displayHook = []
     , backendPreHook = []
     , backendPostHook = []
-    , inputAddHook = \_ -> pure ()
     , outputAddHook = \_ -> pure $ \_ _ -> pure ()
     , keyPressHook = \_ _ -> pure ()
     , outputRemoveHook = \_ -> pure ()

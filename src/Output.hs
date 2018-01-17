@@ -288,7 +288,7 @@ handleOutputAdd ref hook output = do
     state <- getState
     name <- liftIO $ getOutputName output
 
-    liftIO $ outputDisable output
+--    liftIO $ outputDisable output
 
     current <- wayBindingOutputs <$> getState
     let out = Output output name

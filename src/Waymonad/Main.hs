@@ -37,6 +37,7 @@ import Graphics.Wayland.Server (DisplayServer, displayInitShm)
 import Graphics.Wayland.WlRoots.Backend (Backend)
 import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
 import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
+import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
@@ -56,11 +57,12 @@ makeBindingMap = M.fromList .
     map (\((mods, Keysym sym), fun) -> ((modifiersToField mods, sym), fun))
 
 makeCompositor
-    :: (FocusCore vs a, WSTag a)
-    => DisplayServer
+    :: (FocusCore vs ws, WSTag ws)
+    => (Ptr InputDevice -> Way vs ws ())
+    -> DisplayServer
     -> Ptr Backend
-    -> Way vs a Compositor
-makeCompositor display backend = do
+    -> Way vs ws Compositor
+makeCompositor inputAdd display backend = do
     liftIO $ hPutStrLn stderr "Creating compositor"
     renderer <- liftIO $ rendererCreate backend
     void $ liftIO $ displayInitShm display
@@ -68,7 +70,7 @@ makeCompositor display backend = do
     devManager <- liftIO $ managerCreate display
     layout <- liftIO createOutputLayout
 
-    input <- inputCreate backend
+    input <- inputCreate backend inputAdd
 
     pure Compositor
         { compDisplay = display
@@ -88,6 +90,7 @@ data WayUserConf vs ws = WayUserConf
     , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding vs ws)]
 
     , wayUserConfOutputAdd   :: Output -> Way vs ws ()
+    , wayUserConfInputAdd    :: Ptr InputDevice -> Way vs ws ()
     , wayUserConfDisplayHook :: [Bracketed vs DisplayServer ws]
     , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) ws]
     , wayUserConfPostHook    :: [Bracketed vs () ws]
@@ -101,7 +104,7 @@ wayUserRealMain conf compRef = do
     outputAdd <- makeCallback $ handleOutputAdd compRef $ wayUserConfOutputAdd conf
     outputRm  <- makeCallback handleOutputRemove
 
-    compFun <- pure $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor display backend
+    compFun <- pure $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor (wayUserConfInputAdd conf) display backend
 
     launchCompositor ignoreHooks
         { displayHook =  wayUserConfDisplayHook conf
@@ -150,7 +153,7 @@ wayUserMain conf = do
             , loggerWS = Logger Warn "Workspaces"
             , loggerFocus = Logger Warn "Focus"
             , loggerXdg = Logger Warn "Xdg_Shell"
-            , loggerX11 = Logger Warn "XWayland"
+            , loggerX11 = Logger Trace "XWayland"
             , loggerKeybinds = Logger Warn "Keybindings"
             , loggerSpawner = Logger Warn "Spawner"
             , loggerLayout = Logger Warn "Layout"

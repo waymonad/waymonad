@@ -26,15 +26,17 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
-import Input.Libinput
-
+import Control.Monad (when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Monoid ((<>))
 import Data.Text (Text)
+import Foreign.Ptr (Ptr)
 import System.IO
 
 import Text.XkbCommon.InternalTypes (Keysym(..))
 import Text.XkbCommon.KeysymList
+import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
+import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..))
 
 import Data.String (IsString)
@@ -45,6 +47,7 @@ import Hooks.FocusFollowPointer
 import Hooks.KeyboardFocus
 import Hooks.ScaleHook
 import IdleManager
+import Input (attachDevice)
 import Layout.Choose
 import Layout.Mirror (mkMirror, ToggleMirror (..))
 import Layout.Spiral
@@ -69,15 +72,23 @@ import Waymonad (Way, KeyBinding)
 import Waymonad.Types (SomeEvent, WayHooks (..))
 import XMonad.ViewSet (ViewSet, sameLayout)
 
-import qualified View.Multi as Multi
 import qualified Hooks.OutputAdd as H
 import qualified Hooks.SeatMapping as SM
-import qualified Shells.XdgShell as Xdg
 import qualified Shells.XWayland as XWay
+import qualified Shells.XdgShell as Xdg
+import qualified System.InputDevice as LI
+import qualified View.Multi as Multi
+import qualified Data.Text as T
 
 import Waymonad.Main
 import Config
 
+setupTrackball :: Ptr InputDevice -> IO ()
+setupTrackball dev = doJust (getDeviceHandle dev) $ \handle -> do
+    name <- getDeviceName dev
+    when ("Logitech USB Trackball" `T.isPrefixOf` name) $ do
+        void $ LI.setScrollMethod handle LI.ScrollOnButtonDown
+        void $ LI.setScrollButton handle 0x116
 
 wsSyms :: [Keysym]
 wsSyms =
@@ -138,6 +149,9 @@ myConf = WayUserConf
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings
 
+    , wayUserConfInputAdd    = \ptr -> do
+        liftIO $ setupTrackball ptr
+        attachDevice ptr "seat0"
     , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket, envBracket [("PULSE_SERVER", "zelda.ongy")]]

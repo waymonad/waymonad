@@ -215,16 +215,16 @@ getOrCreateSeat mapRef name = do
             pure foo
 
 handleInputAdd
-    :: (FocusCore vs a, WSTag a)
-    => IORef (Map Text SeatFoo)
-    -> IORef (Set (Ptr InputDevice))
+    :: (FocusCore vs ws, WSTag ws)
+    => IORef (Set (Ptr InputDevice))
+    -> (Ptr InputDevice -> Way vs ws ())
     -> Ptr InputDevice
-    -> Way vs a ()
-handleInputAdd foos devRef ptr = do
+    -> Way vs ws ()
+handleInputAdd devRef userFun ptr = do
     isHeadless <- liftIO $ inputDeviceIsHeadless ptr
     unless isHeadless $ do
         liftIO $ modifyIORef devRef (S.insert ptr)
-        doAttach ptr =<< getOrCreateSeat foos "seat0"
+        userFun ptr
 
 
 setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way vs a ()
@@ -253,15 +253,16 @@ handleInputRemove devRef ptr = do
     detachDevice ptr
 
 inputCreate
-    :: (FocusCore vs a, WSTag a)
+    :: (FocusCore vs ws, WSTag ws)
     => Ptr Backend
-    -> Way vs a Input
-inputCreate backend = do
+    -> (Ptr InputDevice -> Way vs ws ())
+    -> Way vs ws Input
+inputCreate backend userFun = do
     devRef <- liftIO $ newIORef mempty
     mapRef <- liftIO $ newIORef mempty
 
     let signals = backendGetSignals backend
-    aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd mapRef devRef
+    aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd devRef userFun
     rTok <- setSignalHandler (inputRemove signals) $ handleInputRemove devRef
 
     pure Input
