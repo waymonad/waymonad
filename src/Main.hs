@@ -26,12 +26,14 @@ Reach us at https://github.com/ongy/waymonad
 module Main
 where
 
+import Control.Applicative ((<|>))
 import Control.Monad (when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import System.IO
+import System.Environment (lookupEnv)
 
 import Text.XkbCommon.InternalTypes (Keysym(..))
 import Text.XkbCommon.KeysymList
@@ -108,10 +110,17 @@ wsSyms =
 workspaces :: IsString a => [a]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "video"]
 
+-- Use Logo as modifier when standalone, but Alt when started as child
+getModi :: IO WlrModifier
+getModi = do
+    way <- lookupEnv "WAYLAND_DISPLAY"
+    x11 <- lookupEnv "DISPLAY"
+    pure . maybe Logo (const Alt) $ way <|> x11
+
 bindings
     :: (Layouted vs ws, ListLike vs ws, FocusCore vs ws, IsString ws, WSTag ws)
-    => [(([WlrModifier], Keysym), KeyBinding vs ws)]
-bindings =
+    => WlrModifier -> [(([WlrModifier], Keysym), KeyBinding vs ws)]
+bindings modi =
     [ (([modi], keysym_k), moveUp)
     , (([modi], keysym_j), moveDown)
     , (([modi], keysym_h), moveLeft)
@@ -136,18 +145,17 @@ bindings =
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
     , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
-    where modi = Alt
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 myEventHook = idleLog
 
-myConf :: WayUserConf (ViewSet Text) Text
-myConf = WayUserConf
+myConf :: WlrModifier -> WayUserConf (ViewSet Text) Text
+myConf modi = WayUserConf
     { wayUserConfWorkspaces  = workspaces
     , wayUserConfLayouts     = sameLayout .  mkMirror . mkTFull $ (Tall ||| TwoPane ||| Spiral)
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
-    , wayUserConfKeybinds    = bindings
+    , wayUserConfKeybinds    = bindings modi
 
     , wayUserConfInputAdd    = \ptr -> do
         liftIO $ setupTrackball ptr
@@ -169,9 +177,10 @@ myConf = WayUserConf
 
 main :: IO ()
 main = do
+    modi <- getModi
     confE <- loadConfig
     case confE of
         Left err -> do
             hPutStrLn stderr "Couldn't load config:"
             hPutStrLn stderr err
-        Right conf -> wayUserMain $ modifyConfig conf myConf
+        Right conf -> wayUserMain $ modifyConfig conf (myConf modi)
