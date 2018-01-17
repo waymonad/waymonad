@@ -150,6 +150,7 @@ handleXwayDestroy ref tokens surf = do
     triggerViewDestroy view
     removeView view
     liftIO $ do
+        modifyIORef ref (M.delete $ ptrToInt surf)
         mapM_ removeListener tokens
         stPtr <- peek (X.getX11SurfaceDataPtr surf)
         freeStablePtr $ castPtrToStablePtr stPtr
