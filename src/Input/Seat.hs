@@ -131,14 +131,9 @@ pointerButton
     -> Word32
     -> Word32
     -> ButtonState
-    -> Way vs ws Bool
-pointerButton seat view baseX baseY time button state = do
+    -> Way vs ws ()
+pointerButton seat view baseX baseY time button state =
     liftIO $ R.pointerNotifyButton (seatRoots seat) time button state
-
-    evtSurf <- getViewEventSurface view baseX baseY
-    case evtSurf of
-        Just (surf, _, _) -> keyboardEnter' seat surf view
-        Nothing -> pure False
 
 -- TODO: Deduplicate this away
 modifyViewSet :: WSTag ws => (vs -> vs) -> Way vs ws ()

@@ -24,9 +24,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module Waymonad.Types
-    ( WayStateRef
-    , LayoutCacheRef
-    , WayLoggers (..)
+    ( WayLoggers (..)
     , Compositor (..)
     , WayBindingState (..)
     , Way (..)
@@ -34,8 +32,6 @@ module Waymonad.Types
     , WayLogging (..)
     , SomeEvent (..)
     , EventClass
-    , LayoutCache (..)
-    , WayState (..)
     , Logger (..)
     , LogFun
     , BindingMap
@@ -89,27 +85,13 @@ import Waymonad.Extensible (StateMap)
 
 import Waymonad.Types.Logger
 
--- All of this makes for a fake `Monad State` in IO
--- We need this because we run into callbacks *a lot*.
--- We have to preserve/modify state around those, which cannot be
--- done with the normal StateT (since we exit our Monad-Stack all the time)
--- but we are in IO, which can be abused with this trick.
--- It should all be hidden in the high level apis, low level APIs will
--- require the get and runWayState around callbacks that are IO
-type WayStateRef vs = IORef vs
-
-type LayoutCacheRef = IORef (IntMap [(View, WlrBox)])
-
-newtype LayoutCache a = LayoutCache (ReaderT LayoutCacheRef IO a)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader LayoutCacheRef)
-
-newtype WayState vs b = WayState (ReaderT (WayStateRef vs) IO b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayStateRef vs))
-
+-- | The class used for generic non-core events.
 class Typeable e => EventClass e
 
+-- | Wrapper type for EventClass to allow the Eventhook to have a type.
 data SomeEvent = forall e. EventClass e => SomeEvent e
 
+-- | (static) core wlroots structs.
 data Compositor = Compositor
     { compDisplay :: DisplayServer
     , compRenderer :: Ptr Renderer
@@ -120,6 +102,8 @@ data Compositor = Compositor
     , compInput :: Input
     }
 
+-- | A class all shells need to implement. This allows to load/unload them at
+-- runtime over IPC.
 class Typeable a => ShellClass a where
     deactivateShell :: (FocusCore vs ws, WSTag ws) => a -> Way vs ws ()
     activateShell   :: (FocusCore vs ws, WSTag ws) => a -> Way vs ws ()
@@ -127,17 +111,25 @@ class Typeable a => ShellClass a where
     getShellName    :: a -> Text
     getShellViews   :: a -> Way vs ws (Set View)
 
+-- | The wrapper type for ShellClass to allow a list of shells.
 data WayShell = forall a. ShellClass a => WayShell a
 
+-- | Core event emitted when a view enters or exists a workspace
+data ViewWSChange ws = WSEnter View ws | WSExit View ws deriving (Show)
 
-data ViewWSChange a = WSEnter View a | WSExit View a deriving (Show)
-
-data OutputMappingEvent a = OutputMappingEvent
+-- | Core event emittend when the workspace displayed on an output is changed
+data OutputMappingEvent ws = OutputMappingEvent
     { outputMappingEvtOutput :: Output
-    , outputMappingEvtPre    :: Maybe a
-    , outputMappingEvtCur    :: Maybe a
+    , outputMappingEvtPre    :: Maybe ws
+    , outputMappingEvtCur    :: Maybe ws
     } deriving (Show)
 
+{- | Core event emittend when a seat changes output focus.
+    -
+This happens for pointers when they cross the border between them
+For keyboards this is emitted when a keybind to changed focused output is
+used, or when it's configured to follow the pointer.
+-}
 data SeatOutputChange
     = PointerOutputChange
         { seatOutChangeEvtSeat :: Seat
@@ -150,6 +142,11 @@ data SeatOutputChange
         , seatOutChangeEvtNew :: Maybe Output
         } deriving (Show)
 
+{- | Core event emittedn when a seat changes the focused workspace.
+
+This event is synthesized from 'SeatOutputChange' and 'OutputMappingEvent' event handlers.
+See those two for a better idea when this happens.
+-}
 data SeatWSChange a
     = PointerWSChange
         { seatWSChangeSeat :: Seat
@@ -162,11 +159,13 @@ data SeatWSChange a
         , seatWSChangeCur :: Maybe a
         } deriving (Eq, Show)
 
+-- | Core event emitted by a seat when the focus changed
 data SeatFocusChange
     = PointerFocusChange  Seat (Maybe View) (Maybe View)
     | KeyboardFocusChange Seat (Maybe View) (Maybe View)
     deriving (Eq, Show)
 
+-- | The core hooks. This should be filled in by the user.
 data WayHooks vs ws = WayHooks
     { wayHooksVWSChange        :: ViewWSChange ws -> Way vs ws ()
     , wayHooksOutputMapping    :: OutputMappingEvent ws -> Way vs ws ()
@@ -175,25 +174,27 @@ data WayHooks vs ws = WayHooks
     , wayHooksSeatFocusChange  :: SeatFocusChange -> Way vs ws ()
     }
 
+-- | The main state/config of the compositor. This is the struct provided by
+-- the 'Way' monad as ReaderT.
 data WayBindingState vs ws = WayBindingState
-    { wayBindingCache    :: LayoutCacheRef
-    , wayBindingState    :: WayStateRef vs
+    { wayBindingState    :: IORef vs -- ^The ViewSet.
+    , wayBindingCache    :: IORef (IntMap [(View, WlrBox)]) -- ^The layout cache. This is set from the layouts and consumed by outputs and input handling.
     -- Left Pointer, Right Keyboard
-    , wayBindingCurrent  :: IORef [(Seat, (Output, Output))]
-    , wayBindingMapping  :: IORef [(ws, Output)]
-    , wayBindingOutputs  :: IORef [Output]
-    , wayBindingSeats    :: IORef [Seat]
-    , wayFloating        :: IORef (Set View)
-    , wayExtensibleState :: IORef StateMap
+    , wayBindingCurrent  :: IORef [(Seat, (Output, Output))] -- ^The mapping from seat to currently focused outputs. (Pointer, Keyboard)
+    , wayBindingMapping  :: IORef [(ws, Output)] -- ^The mapping which output currently displays which viewset. (1 Workspace <> N outputs)
+    , wayBindingOutputs  :: IORef [Output] -- ^The total list of existing outputs. May be enabled or disable.
+    , wayBindingSeats    :: IORef [Seat] -- ^The seats that currently exist. Probably a singleton for most situations
+    , wayFloating        :: IORef (Set View) -- ^The set of views floated. This is currently effectivly overrideredirect only.
+    , wayExtensibleState :: IORef StateMap -- The statemap for extensible state.
 
-    , wayCoreShells      :: [WayShell]
-    , wayLogFunction     :: LogFun vs ws
-    , wayKeybinds        :: BindingMap vs ws
-    , wayEventHook       :: SomeEvent -> Way vs ws ()
+    , wayCoreShells      :: [WayShell] -- ^The shells that are loaded for this compositor.
+    , wayLogFunction     :: LogFun vs ws -- ^The logfunction (call to feed statusbar)
+    , wayKeybinds        :: BindingMap vs ws -- ^The default keybinds a keyboard should aquire
+    , wayEventHook       :: SomeEvent -> Way vs ws () -- ^The event hooks that consume non-core events
     , wayUserWorkspaces  :: [ws]
-    , wayCompositor      :: Compositor
-    , wayManagehook      :: Managehook vs ws
-    , wayCoreHooks       :: WayHooks vs ws
+    , wayCompositor      :: Compositor -- ^The core wlroots struct pointers
+    , wayManagehook      :: Managehook vs ws -- ^The Managehook
+    , wayCoreHooks       :: WayHooks vs ws -- ^The core hooks to consume core events
     }
 
 newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)
@@ -207,6 +208,8 @@ type BindingMap vs a = Map (Word32, Int) (KeyBinding vs a)
 
 type LogFun vs a = Way vs a ()
 
+-- | The Monad the compositor lives in. This allows access to all the required
+-- state.
 newtype Way vs a b = Way (ReaderT (Maybe Seat) (WayBinding vs a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe Seat))
 
@@ -217,7 +220,8 @@ instance Monoid a => Monoid (Way vs b a) where
 instance (Typeable a, Typeable b, Typeable vs) => Show (Way vs a b) where
     show =  show . typeOf
 
-
+-- | A 'Way' action that can additionally get a current view. This is used for
+-- the managehook.
 newtype Query vs a b = Query (ReaderT View (Way vs a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader View)
 
@@ -225,12 +229,13 @@ instance Monoid b => Monoid (Query vs a b) where
     mempty = pure mempty
     left `mappend` right = mappend <$> left <*> right
 
+-- | The return value for Managehooks.
 data InsertAction vs a
-    = InsertNone
-    | InsertFocused
-    | InsertInto a
-    | InsertFloating WlrBox
-    | InsertCustom (Way vs a ())
+    = InsertNone -- ^Return this if the Managehook doesn't care about this view.
+    | InsertFocused -- ^Force this view to be inserted into the currently focused workspace
+    | InsertInto a -- ^Insert the view into the provided workspace
+    | InsertFloating WlrBox -- ^Set the view to be floating at the given rectangle
+    | InsertCustom (Way vs a ()) -- ^Do something custom with the View. You are responsible to keep track of it
     deriving (Show)
 
 instance Semigroup (InsertAction vs a) where
@@ -244,6 +249,8 @@ instance Monoid (InsertAction vs a) where
     mempty = def
     l `mappend` r = l <> r
 
+-- | Managehooks are called when a new View is created and inserted into the
+-- compositor state.
 type Managehook vs a = Query vs a (InsertAction vs a)
 
 

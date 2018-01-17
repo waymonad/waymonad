@@ -30,6 +30,7 @@ import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(..))
 
 import Graphics.Wayland.WlRoots.Box (Point(..))
+import Graphics.Wayland.WlRoots.Input.Buttons
 import Graphics.Wayland.WlRoots.Input.Pointer
     ( WlrEventPointerButton (..)
     , WlrEventPointerMotion (..)
@@ -213,11 +214,11 @@ handleCursorButton layout cursor event_ptr = do
     case viewM of
         Nothing -> pointerClear seat
         Just (view, x, y) -> do
-            ret <- pointerButton seat view (fromIntegral x) (fromIntegral y)
+            pointerButton seat view (fromIntegral x) (fromIntegral y)
                 (eventPointerButtonTime event) (eventPointerButtonButton event)
                 (eventPointerButtonState event)
-            setWorkspace =<< getPointerWS
-            when ret $ do
+            when (eventPointerButtonState event == ButtonPressed) $ do
+                setWorkspace =<< getPointerWS
                 old <- getKeyboardFocus seat
                 when (old /= Just view) $
                     doJust (getPointerOutputS seat) $ \output -> do
@@ -276,8 +277,14 @@ handleToolTip layout cursor event_ptr = do
      (Just seat) <- getSeat
 
      case viewM of
-         Nothing -> pointerClear seat
-         Just (view, x, y) -> do
-             ret <- pointerButton seat view (fromIntegral x) (fromIntegral y)
+        Nothing -> pointerClear seat
+        Just (view, x, y) -> do
+            pointerButton seat view (fromIntegral x) (fromIntegral y)
                 (toolTipEvtTime event) 0x110 (tipStateToButtonState $ toolTipEvtState event)
-             when ret (focusView view)
+            when (tipStateToButtonState (toolTipEvtState event) == ButtonPressed) $ do
+                setWorkspace =<< getPointerWS
+                old <- getKeyboardFocus seat
+                when (old /= Just view) $
+                    doJust (getPointerOutputS seat) $ \output -> do
+                        setSeatOutput seat (That output)
+                        focusView view

@@ -26,16 +26,6 @@ module Waymonad
     ( get
     , modify
 
-    , WayStateRef
-    , WayState
-    , runWayState
-    , runWayState'
-
-    , LayoutCacheRef
-    , LayoutCache
-    , runLayoutCache
-    , runLayoutCache'
-
     , floatBelow
 
     , KeyBinding
@@ -101,18 +91,6 @@ modify :: (MonadReader (IORef a) m, MonadIO m) => (a -> a) -> m ()
 modify fun = do
     ref <- ask
     liftIO $ modifyIORef ref fun
-
-runWayState :: MonadIO m =>  WayState a b -> WayStateRef a -> m b
-runWayState (WayState m) ref = liftIO $ runReaderT m ref
-
-runWayState' :: MonadIO m => WayStateRef a -> WayState a b -> m b
-runWayState' ref act = runWayState act ref
-
-runLayoutCache :: MonadIO m => LayoutCache a -> LayoutCacheRef -> m a
-runLayoutCache (LayoutCache m) ref = liftIO $ runReaderT m ref
-
-runLayoutCache' :: MonadIO m => LayoutCacheRef -> LayoutCache a -> m a
-runLayoutCache' ref act = runLayoutCache act ref
 
 floatsBelow
     :: Point
