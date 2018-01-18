@@ -30,21 +30,18 @@ where
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
-import Data.Maybe (fromJust)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
 import {-# SOURCE #-} Output (Output (..), getOutputId, setOutputDirty)
-import Utility (whenJust)
-import View (View, setViewBox)
-import ViewSet (WSTag (..), GenericLayout (..), FocusCore (..))
+import View (setViewBox)
+import ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
 import Waymonad.Types (LogPriority(Debug))
 import WayUtil.Log (logPutText)
 
 import qualified Data.IntMap.Strict as IM
-import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 
 

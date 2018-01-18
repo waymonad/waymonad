@@ -80,7 +80,6 @@ import Utility (doJust)
 import WayUtil
 import Waymonad
 import Waymonad.Types (Compositor (..))
-import WayUtil.Focus (focusView)
 import WayUtil.Signal
 
 import qualified System.InputDevice as LI

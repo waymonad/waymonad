@@ -27,12 +27,11 @@ where
 import Control.Monad.IO.Class (liftIO)
 import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.WlRoots.Screenshooter
 
 import Shared (Bracketed (..))
 import GlobalFilter
-import Waymonad (makeCallback, getState)
+import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 
 makeManager :: () -> Way vs a (Ptr WlrScreenshooter)

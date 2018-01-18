@@ -33,7 +33,6 @@ where
 
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM_, unless)
-import Control.Monad (forM)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Data.Composition ((.:))
@@ -51,7 +50,7 @@ import Foreign.Storable (Storable(..))
 
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxContainsPoint)
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceGetSubs, subSurfaceGetBox, subSurfaceAt, surfaceGetSize)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
 
 
 import Managehook (insertView, removeView)
@@ -207,7 +206,7 @@ getBoundingBox surf = doJust (R.xdgSurfaceGetSurface surf) $ \wlrsurf -> do
             Point x y <-  surfaceGetSize wlrsurf
             pure (x, y)
         else pure (gw, gh)
-    subs <- surfaceGetSubs wlrsurf
+    --subs <- surfaceGetSubs wlrsurf
 --    points <- forM subs $ \sub -> do
 --        WlrBox x y w h <- subSurfaceGetBox sub
 --        pure $ ((Point x y), (Point (x + w) (y + h)))

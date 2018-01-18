@@ -49,7 +49,6 @@ import Graphics.Wayland.WlRoots.Backend
     ( Backend, backendAutocreate, backendStart
     , BackendSignals(..), backendGetSignals
     )
-import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
     , getModes

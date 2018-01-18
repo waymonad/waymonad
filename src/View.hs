@@ -56,7 +56,6 @@ module View
     )
 where
 
-import Control.Applicative ((<|>))
 import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
@@ -73,7 +72,7 @@ import Graphics.Wayland.Signal
 import Graphics.Wayland.Resource (resourceGetClient)
 import Graphics.Wayland.Server (Client)
 
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, subSurfaceAt, getWlrSurfaceEvents, WlrSurfaceEvents (..))
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, getWlrSurfaceEvents, WlrSurfaceEvents (..))
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
 
 import Utility (doJust)

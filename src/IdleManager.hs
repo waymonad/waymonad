@@ -48,7 +48,7 @@ import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard, KeyboardSignals (..
 
 import Shared (Bracketed (..))
 import Utility (whenJust)
-import Waymonad (unliftWay, sendEvent, makeCallback, getEvent)
+import Waymonad (unliftWay, sendEvent, getEvent)
 import Waymonad.Extensible (ExtensionClass (..))
 import Waymonad.Types (Way, EventClass, SomeEvent)
 import WayUtil (getEState, setEState)

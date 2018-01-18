@@ -132,7 +132,7 @@ pointerButton
     -> Word32
     -> ButtonState
     -> Way vs ws ()
-pointerButton seat view baseX baseY time button state =
+pointerButton seat _ _ _ time button state =
     liftIO $ R.pointerNotifyButton (seatRoots seat) time button state
 
 -- TODO: Deduplicate this away

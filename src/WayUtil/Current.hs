@@ -30,7 +30,7 @@ module WayUtil.Current
 where
 
 import Control.Monad.IO.Class (liftIO)
-import Data.Maybe (fromJust, listToMaybe)
+import Data.Maybe (listToMaybe)
 import Data.IORef (readIORef)
 import Data.Tuple (swap)
 
@@ -41,10 +41,8 @@ import {-# SOURCE #-} Input.Seat (Seat, getKeyboardFocus)
 import {-# SOURCE #-} Output (Output (..), getOutputId)
 import Utility (doJust)
 import View (View)
-import ViewSet (WSTag)
 import Waymonad
     ( Way
-    , getViewSet
     , getSeat
     , getState
     , WayBindingState (..)

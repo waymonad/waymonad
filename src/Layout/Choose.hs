@@ -33,8 +33,6 @@ import Control.Applicative ((<|>))
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
-import Graphics.Wayland.WlRoots.Box (WlrBox (..))
-
 import ViewSet
 
 import qualified Data.Text as T

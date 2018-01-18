@@ -24,7 +24,6 @@ where
 
 import Control.Monad (void)
 
-import Hooks.SeatMapping
 import Input.Seat (keyboardClear)
 import Utility (whenJust)
 import ViewSet (WSTag, FocusCore (..), getFirst)

@@ -21,8 +21,6 @@ Reach us at https://github.com/ongy/waymonad
 module Hooks.FocusFollowPointer
 where
 
-import Control.Monad (void)
-
 import Utility (These (..), doJust)
 import ViewSet (FocusCore, WSTag)
 import Waymonad.Types (SeatFocusChange (..), Way)

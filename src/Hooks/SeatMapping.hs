@@ -27,18 +27,13 @@ module Hooks.SeatMapping
 where
 
 import Control.Monad (when, join, forM_)
-import Data.Monoid ((<>))
-import Data.Typeable (Typeable)
 
-import Input.Seat (Seat)
 import Output (Output)
-import Utility (whenJust)
 import ViewSet (WSTag)
 import Waymonad (getState)
 import Waymonad.Types
 import WayUtil
 import WayUtil.Log
-import WayUtil.Focus
 
 checkOutput
     :: WSTag a

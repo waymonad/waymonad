@@ -32,7 +32,6 @@ import Data.IORef (readIORef, modifyIORef)
 import Data.List (lookup, find)
 import Data.Maybe (fromJust, fromMaybe, listToMaybe, isJust)
 import Data.Tuple (swap)
-import Data.Typeable (Typeable)
 
 import Graphics.Wayland.Server (DisplayServer, displayTerminate)
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
@@ -54,15 +53,11 @@ import WayUtil.Current (getCurrentOutput , getCurrentView , getCurrentWS)
 import WayUtil.Log (logPutText)
 import WayUtil.ViewSet
 import Waymonad
-    ( EventClass
-    , SomeEvent
-    , Way
+    ( Way
     , WayBindingState(..)
     , WayLoggers (..)
-    , getEvent
     , getSeat
     , getState
-    , sendEvent
     )
 import Waymonad.Extensible
     ( ExtensionClass

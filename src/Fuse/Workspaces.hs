@@ -27,13 +27,12 @@ where
 
 import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
-import Data.Foldable (toList)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 
 import Output (Output (outputName))
 import View (getViewTitle, getViewAppId)
-import ViewSet (WSTag (..), LayoutClass (..), GenericLayout (..), FocusCore)
+import ViewSet (WSTag (..){-, LayoutClass (..), GenericLayout (..)-}, FocusCore)
 import Waymonad.Types (Way)
 import WayUtil.Focus (getWorkspaceOutputs)
 import WayUtil.ViewSet (getWorkspaces, getWorkspaceViews)

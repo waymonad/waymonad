@@ -33,22 +33,17 @@ module Output
 where
 
 import Control.Exception (bracket_)
-import Control.Monad (forM_, forM, filterM, void, when, join)
+import Control.Monad (forM_, forM, filterM, void, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (maximumBy, minimumBy)
 import Data.Function (on)
-import Data.IORef (IORef, readIORef, modifyIORef)
-import Data.List ((\\), sortOn, find)
-import Data.Map (Map)
-import Data.Maybe (listToMaybe, fromJust, maybeToList)
-import Data.Monoid (Any (..), (<>))
-import Data.Ratio (Ratio, (%))
-import Data.Set (Set)
+import Data.IORef (readIORef, modifyIORef)
+import Data.List ((\\), find)
 import Data.Text (Text)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Foreign.Storable (Storable(peek))
-import System.IO (hPutStrLn, stderr)
+import System.IO (stderr)
 
 import Graphics.Wayland.Server (callbackDone)
 
@@ -57,25 +52,20 @@ import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
     , OutputMode (..)
-    , setOutputMode
     , getModes
     , getTransMatrix
     , swapOutputBuffers
     , makeOutputCurrent
     , getOutputName
     , getOutputScale
-    , setOutputScale
 
-    , getOutputNeedsSwap
+--    , getOutputNeedsSwap
     , setOutputNeedsSwap
     , isOutputEnabled
-    , outputDisable
+--    , outputDisable
     )
 import Graphics.Wayland.WlRoots.OutputLayout
-    ( WlrOutputLayout
-    , addOutput
-    , addOutputAuto
-    , outputIntersects
+    ( outputIntersects
 -- TODO: I think wlroots made this simpler
     , layoutOuputGetPosition
     , layoutGetOutput
@@ -104,14 +94,14 @@ import Graphics.Wayland.WlRoots.Surface
     , withSurfaceMatrix
     , surfaceGetTexture
     , surfaceGetScale
-    , surfaceHasDamage
+    --, surfaceHasDamage
     )
 
 import Waymonad (makeCallback2)
 import Waymonad.Types (Compositor (..))
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
-import Utility (whenJust, doJust)
+import Utility (doJust)
 import View
     ( View
     , getViewSurface
@@ -119,7 +109,7 @@ import View
     , getViewBox
     , viewGetScale
     , viewGetLocal
-    , viewIsDirty
+--    , viewIsDirty
     , viewSetClean
     )
 import ViewSet (WSTag (..))
@@ -127,12 +117,9 @@ import Waymonad
     ( Way
     , WayBindingState (..)
     , getState
-    , EventClass
-    , sendEvent
     , getSeats
     )
 import qualified Data.IntMap.Strict as IM
-import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -279,13 +266,10 @@ findMode output width height refresh = liftIO $ do
 
 handleOutputAdd
     :: WSTag ws
-    => IORef Compositor
-    -> (Output -> Way vs ws ())
+    => (Output -> Way vs ws ())
     -> Ptr WlrOutput
     -> Way vs ws FrameHandler
-handleOutputAdd ref hook output = do
-    comp <- liftIO $ readIORef ref
-    state <- getState
+handleOutputAdd hook output = do
     name <- liftIO $ getOutputName output
 
 --    liftIO $ outputDisable output

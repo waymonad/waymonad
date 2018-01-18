@@ -30,11 +30,10 @@ import Data.IORef (readIORef)
 import Data.List ((\\))
 
 import Output (Output)
-import Utility (whenJust)
 import ViewSet (WSTag, FocusCore)
 import WayUtil.Focus (setOutputWorkspace)
 import WayUtil.Timing
-import Waymonad (Way, getEvent, SomeEvent, WayBindingState (..), getState)
+import Waymonad (Way, WayBindingState (..), getState)
 
 attachFreeWS :: (FocusCore vs a, WSTag a) => Output -> Way vs a ()
 attachFreeWS out = do

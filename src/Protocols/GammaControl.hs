@@ -32,7 +32,6 @@ import Graphics.Wayland.WlRoots.GammaControl
 
 import GlobalFilter (registerGlobal)
 import Shared (Bracketed (..))
-import Waymonad (makeCallback)
 import Waymonad.Types (Way)
 
 makeManager :: DisplayServer -> Way vs a (Ptr WlrGammaManager)

@@ -29,7 +29,6 @@ import System.IO
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
-import Data.Maybe (fromMaybe)
 import Foreign.Ptr (Ptr)
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -104,7 +103,7 @@ data WayUserConf vs ws = WayUserConf
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
 wayUserRealMain conf compRef = do
-    outputAdd <- makeCallback $ handleOutputAdd compRef $ wayUserConfOutputAdd conf
+    outputAdd <- makeCallback $ handleOutputAdd $ wayUserConfOutputAdd conf
     outputRm  <- makeCallback handleOutputRemove
 
     compFun <- pure $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor (wayUserConfInputAdd conf) display backend

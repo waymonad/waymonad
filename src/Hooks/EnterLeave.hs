@@ -33,7 +33,6 @@ import Utility (whenJust, doJust)
 import View (getViewSurface)
 import ViewSet (WSTag, FocusCore (..))
 import WayUtil.Focus (OutputMappingEvent (..))
-import Waymonad (getEvent, SomeEvent)
 import Waymonad.Types (Way)
 import WayUtil.ViewSet (withViewSet)
 

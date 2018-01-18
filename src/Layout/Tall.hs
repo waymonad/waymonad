@@ -25,8 +25,6 @@ Reach us at https://github.com/ongy/waymonad
 module Layout.Tall
 where
 
-import Data.Foldable (toList)
-
 import Graphics.Wayland.WlRoots.Box (WlrBox(..))
 
 import ViewSet

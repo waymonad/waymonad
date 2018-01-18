@@ -63,11 +63,11 @@ import System.IO.Unsafe (unsafeInterleaveIO)
 import Control.Applicative ((<|>))
 import Control.Monad (forM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Reader (ReaderT(..), MonadReader(..), local)
+import Control.Monad.Reader (MonadReader(..), local)
 import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
 import Data.List (find)
-import Data.Maybe (maybeToList, listToMaybe, fromJust)
+import Data.Maybe (maybeToList, listToMaybe)
 import Data.Typeable (cast)
 
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
@@ -77,9 +77,6 @@ import Utility (doJust)
 import View (View, getViewEventSurface, getViewBox)
 import Waymonad.Types
 
-
-import qualified ViewSet as VS
-import qualified Data.Map as M
 import qualified Data.Set as S
 
 

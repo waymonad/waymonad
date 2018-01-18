@@ -25,7 +25,6 @@ Reach us at https://github.com/ongy/waymonad
 module Layout.Spiral
 where
 
-import Data.Foldable (toList)
 import Data.Text (Text)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))

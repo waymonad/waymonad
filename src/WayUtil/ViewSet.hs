@@ -37,11 +37,10 @@ module WayUtil.ViewSet
     )
 where
 
-import Control.Monad (when, join, void, unless)
-import Control.Monad.IO.Class (liftIO, MonadIO)
+import Control.Monad (void, unless)
+import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
-import Data.Set (Set)
 import Data.List (nub)
 
 import Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
@@ -53,15 +52,12 @@ import ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
     , getViewSet
-    , WayLoggers (..)
     , getState
     , getSeat
     , WayBindingState (..)
     )
-import WayUtil.Log (logPutStr, logPutText, LogPriority(..))
 import WayUtil.Current
 
-import qualified Data.Map as M
 import qualified Data.Set as S
 
 -- TODO: Place this better
@@ -69,12 +65,6 @@ runLog :: (WSTag a) => Way vs a ()
 runLog = do
     state <- getState
     wayLogFunction state
-
-setFocus :: Seat -> (Set Seat, View) -> Way vs a ()
-setFocus s (s', v) = when (s `S.member` s') $ do
-    logPutText loggerFocus Trace "Actually setting a focus"
-    success <- keyboardEnter s v
-    when success $ activateView v True
 
 modifyViewSet :: WSTag ws => (vs -> vs) -> Way vs ws ()
 modifyViewSet fun = do
