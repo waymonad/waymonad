@@ -73,6 +73,7 @@ getLayoutBoxes ws = do
             toOrigin (WlrBox _ _ w h) = WlrBox 0 0 w h
 
 
+-- | update the layout cache for the given workspace.
 reLayout
     :: forall vs a. (WSTag a, FocusCore vs a)
     => a

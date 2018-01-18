@@ -28,6 +28,13 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-|
+Module      : XMonad.ViewSet
+Description : An implemention for the ViewSet that aims to recreate the XMonad ViewSet.
+Maintainer  : ongy
+Stability   : testing
+Portability : Linux
+-}
 module XMonad.ViewSet
     ( ViewSet
     , Workspace (..)
@@ -53,11 +60,14 @@ import qualified Data.Map as M
 newtype Zipper a b = Zipper { unZipper :: [(Set a, b)] }
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
+-- | Internal Workspace representation for the 'ViewSet'
 data Workspace a = Workspace
     { wsLayout :: GenericLayout (ViewSet a) a
     , wsViews :: Maybe (Zipper Seat View)
     } deriving (Show)
 
+-- | The ViewSet type that resembles the XMonad ViewSet. Doesn't use zippers to
+-- allow multiseat.
 type ViewSet a = Map a (Workspace a)
 
 instance Ord a => Layouted (ViewSet a) a where
@@ -98,9 +108,9 @@ instance WSTag a => ListLike (ViewSet a) a where
     _moveFocusedLeft ws s vs  = M.adjust (moveViewLeft s) ws vs
     _moveFocusedRight ws s vs = M.adjust (moveViewRight s) ws vs
 
-sameLayout
-    :: (WSTag a, GenericLayoutClass l (ViewSet a) a)
-    => l -> [a] -> M.Map a (Workspace a)
+-- | Create a 'ViewSet' that uses the same layout on all workspace
+sameLayout :: (WSTag a, GenericLayoutClass l (ViewSet a) a)
+           => l -> [a] -> M.Map a (Workspace a)
 sameLayout l = M.fromList . map (, Workspace (GenericLayout (l)) Nothing)
 
 setFocused :: View -> Seat -> Workspace a -> Workspace a
