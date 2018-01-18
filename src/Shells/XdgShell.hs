@@ -49,7 +49,7 @@ import Foreign.StablePtr
 import Foreign.Storable (Storable(..))
 
 import Graphics.Wayland.Server (DisplayServer)
-import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxContainsPoint)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
 
 
@@ -230,8 +230,8 @@ xdgSubsurfaceAt (XdgSurface surf) x y = do
 
 xdgMainSurf :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgMainSurf (XdgSurface surf) x y = MaybeT . liftIO $ do
-    box <- R.getGeometry surf
-    if boxContainsPoint (Point (floor x) (floor y)) box
+    (w, h) <- getBoundingBox surf
+    if x > 0 && x < w && y > 0 && y < h
         then do
             realS <- R.xdgSurfaceGetSurface surf
             pure $ fmap (, x, y) realS
