@@ -30,7 +30,9 @@ import Data.IORef (readIORef)
 import Data.List ((\\))
 
 import Output (Output)
+import Utility (These (..))
 import ViewSet (WSTag, FocusCore)
+import WayUtil (setSeatOutput)
 import WayUtil.Focus (setOutputWorkspace)
 import WayUtil.Timing
 import Waymonad (Way, WayBindingState (..), getState)
@@ -44,7 +46,19 @@ attachFreeWS out = do
         (x:_) -> setOutputWorkspace x out
         [] -> pure ()
 
+attachFreeSeats :: WSTag ws => Output -> Way vs ws ()
+attachFreeSeats out = do
+    state <- getState
+    seats <- liftIO . readIORef . wayBindingSeats $ state
+    mapped <- liftIO . readIORef . wayBindingCurrent $ state
+
+    let free = seats \\ map fst mapped
+    mapM_ (`setSeatOutput` These out out) free
+
+
 outputAddHook :: (FocusCore vs a, WSTag a) => Output -> Way vs a ()
 outputAddHook out = do
     time :: Word <- getSeconds <$> getBasedTime
-    when (time < 300) $ attachFreeWS out
+    when (time < 300) $ do
+        attachFreeWS out
+        attachFreeSeats out
