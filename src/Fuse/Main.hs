@@ -25,7 +25,7 @@ where
 import System.IO
 
 import Control.Monad.IO.Class (liftIO)
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, removeDirectory)
 import System.Environment (getEnv)
 import System.Fuse
 
@@ -106,28 +106,28 @@ mainDir = simpleDir $ M.fromList
 
 
 getFuseBracket :: (FocusCore vs a, WSTag a) => Bracketed vs DisplayServer a
-getFuseBracket = do
-
-
-    PreBracket (\dsp act -> do
-        ops <- fuseOps mainDir
-        runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
-        let fuseDir = runtimeDir ++ "/waymonad"
-        liftIO $ createDirectoryIfMissing False fuseDir
-        evtLoop <- liftIO $ displayGetEventLoop dsp
-        let register fd cb = eventLoopAddFd evtLoop fd clientStateReadable (\ _ _ -> cb >> pure False)
-        pass <- unliftWay act
-        liftIO $ fuseRunInline
-            register
-            eventSourceRemove
-            (\val -> do
-                case val of
-                    Left err -> hPutStrLn stderr "Failed to start fuse:" >> hPutStrLn stderr err
-                    Right _ -> pure ()
-                pass
-            )
-            "waymonad"
-            [fuseDir, "-o", "default_permissions,auto_unmount"]
-            ops
-            defaultExceptionHandler
-                )
+getFuseBracket = PreBracket (\dsp act -> do
+    ops <- fuseOps mainDir
+    runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
+    localDisplay <- liftIO $ getEnv "_WAYLAND_DISPLAY"
+    let fuseDir = runtimeDir ++ "/waymonad/" ++ localDisplay
+    liftIO $ createDirectoryIfMissing False fuseDir
+    evtLoop <- liftIO $ displayGetEventLoop dsp
+    let register fd cb = eventLoopAddFd evtLoop fd clientStateReadable (\ _ _ -> cb >> pure False)
+    pass <- unliftWay act
+    ret <- liftIO $ fuseRunInline
+        register
+        eventSourceRemove
+        (\val -> do
+            case val of
+                Left err -> hPutStrLn stderr "Failed to start fuse:" >> hPutStrLn stderr err
+                Right _ -> pure ()
+            pass
+        )
+        "waymonad"
+        [fuseDir, "-o", "default_permissions,auto_unmount"]
+        ops
+        defaultExceptionHandler
+    liftIO $ removeDirectory fuseDir
+    pure ret
+                            )

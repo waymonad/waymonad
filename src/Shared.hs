@@ -32,6 +32,7 @@ module Shared
     )
 where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import UnliftIO.Exception (bracket)
 import System.Clock (toNanoSecs , getTime , Clock(Monotonic))
@@ -66,7 +67,7 @@ import Graphics.Wayland.Server
 
 import Foreign.C.String (withCString)
 import System.IO (hPutStr, hPutStrLn, stderr, hPrint)
-import System.Environment (lookupEnv, getEnv, setEnv)
+import System.Environment (lookupEnv, getEnv, setEnv, unsetEnv)
 import Text.XkbCommon.Types
 
 import Foreign.C.Types (CChar)
@@ -169,6 +170,7 @@ backendMain hooks display backend = do
     -- This dispatches the first events, e.g. output/input add signals
     liftIO $ backendStart backend
     liftIO $ setEnv "WAYLAND_DISPLAY" =<< getEnv "_WAYLAND_DISPLAY"
+    liftIO $ unsetEnv "_WAYLAND_DISPLAY"
     -- Start the hooks that want to run *after* the backend got initialised and
     -- run the display
     foldBrackets (backendPostHook hooks) (const $ liftIO $ displayRun display) ()
@@ -179,7 +181,10 @@ bindSocket display = liftIO $ do
     waySocket <- lookupEnv "WAYMONAD_DISPLAY"
     let addFun dsp = case waySocket of
             Nothing -> peekCString =<< c_add_socket_auto dsp
-            Just name -> (withCString name $ c_add_socket dsp) >> pure name
+            Just name -> do
+                void $ withCString name $ c_add_socket dsp
+                unsetEnv "WAYMONAD_DISPLAY"
+                pure name
     sName <- (\(DisplayServer ptr) -> addFun ptr) display
     hPutStr stderr "Opened on socket: "
     hPutStrLn stderr sName
@@ -187,10 +192,11 @@ bindSocket display = liftIO $ do
 
 displayMain :: (FocusCore vs a, WSTag a) => CompHooks vs a -> DisplayServer -> Way vs a ()
 displayMain hooks display = do
-    let binder = Bracketed (const $ liftIO $ bindSocket display) (const $ pure ())
     let outAdd = Bracketed (liftIO . addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals . snd) (liftIO .  removeListener)
     let outRem = Bracketed (liftIO . addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals . snd) (liftIO .  removeListener)
-    foldBrackets (binder: outAdd: outRem: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< (liftIO $ backendAutocreate display)
+    foldBrackets (outAdd: outRem: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< (liftIO $ backendAutocreate display)
 
 launchCompositor :: (FocusCore vs a, WSTag a) => CompHooks vs a -> Way vs a ()
-launchCompositor hooks = foldBrackets (displayHook hooks) (displayMain hooks) =<< liftIO displayCreate
+launchCompositor hooks = 
+    let binder = Bracketed (bindSocket) (const $ pure ())
+     in foldBrackets (binder: displayHook hooks) (displayMain hooks) =<< liftIO displayCreate
