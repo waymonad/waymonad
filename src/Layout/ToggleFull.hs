@@ -23,6 +23,13 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-|
+Module      : Layout.ToggleFull
+Description : Toggle a View as fullscreen on the workspace
+Maintainer  : ongy
+Stability   : testing
+Portability : Linux
+-}
 module Layout.ToggleFull
 where
 
@@ -36,20 +43,24 @@ import ViewSet
 import qualified Data.Map as M
 import qualified Data.Text as T
 
+-- | Type for sending messages to 'ToggleFull'
 data ToggleFullM
-    = ToggleFullM
-    | SetFull
-    | UnsetFull
+    = ToggleFullM -- ^Toggle the state
+    | SetFull -- ^Force set fullscreen
+    | UnsetFull -- ^Force unset fullscreen
     deriving (Show, Eq, Message)
 
+-- | The ToggleFull type
 data ToggleFull c l = ToggleFull
-    { toggleFullState :: c Bool
-    , toggleFullChild :: l
+    { toggleFullState :: c Bool -- ^Whether it's full or not
+    , toggleFullChild :: l -- ^The child
     }
 
+-- | Use 'ToggleFull' as layout modifier
 mkTFull :: l -> ToggleFull Identity l
 mkTFull = ToggleFull (Identity False)
 
+-- | Use 'ToggleFull' as ViewSet modifier
 mkVSFull :: Ord ws => vs -> ToggleFull (Map ws) vs
 mkVSFull = ToggleFull mempty
 
@@ -73,10 +84,12 @@ instance (FocusCore vs ws, GenericLayoutClass l vs ws) => GenericLayoutClass (To
     pureLayout (ToggleFull (Identity False) l) vs ws box = pureLayout l vs ws box
     pureLayout (ToggleFull (Identity True) _) vs ws box = pureLayout Full vs ws box
 
-
+-- | Get the state for the current workspace
 getState :: Ord ws => ws -> ToggleFull (Map ws) vs -> Bool
 getState ws (ToggleFull m _) = fromMaybe False $ M.lookup ws m
 
+-- | Lift a (non-generic) action on the ViewSet into the 'ToggleFull' wrapped
+-- one
 liftFull :: (vs -> vs) -> ToggleFull a vs -> ToggleFull a vs
 liftFull fun (ToggleFull state vs) = ToggleFull state (fun vs)
 

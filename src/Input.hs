@@ -94,6 +94,7 @@ data SeatFoo = SeatFoo
     , fooSeat :: Seat
     , fooImageToken :: ListenerToken
     , fooDevices :: IORef (Set (Ptr InputDevice))
+    , fooName    :: Text
     }
 
 data Input = Input
@@ -121,15 +122,21 @@ getDeviceSiblings ptr = do
 
 
 doDetach :: Ptr InputDevice -> SeatFoo -> Way vs a ()
-doDetach dev foo = liftIO $ do
-    iType <- inputDeviceType dev
-    case iType of
+doDetach dev foo = do
+    iType <- liftIO $ inputDeviceType dev
+    liftIO $ case iType of
         (DeviceKeyboard kptr) -> detachKeyboard kptr
         (DeviceTabletPad pptr) -> handlePadRemove pptr
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceTabletTool _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         _ -> pure ()
-    modifyIORef (fooDevices foo) $ S.delete dev
+    devs <- liftIO $ readIORef (fooDevices foo)
+    let remaining = S.delete dev devs
+    if S.null remaining
+        then do
+            Compositor {compInput = input} <- wayCompositor <$> getState
+            liftIO $ modifyIORef (inputFooMap input) (M.delete $ fooName foo)
+        else liftIO $ writeIORef (fooDevices foo) remaining
 
 
 detachDevice :: Ptr InputDevice -> Way vs a ()
@@ -200,6 +207,7 @@ createSeat name = do
             , fooSeat = seat
             , fooImageToken = iTok
             , fooDevices = devs
+            , fooName = name
             }
 
 getOrCreateSeat

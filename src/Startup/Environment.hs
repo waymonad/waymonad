@@ -18,15 +18,32 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-|
+Module      : Startup.Environment
+Description : Allows to set environment variables on startup.
+Maintainer  : ongy
+Stability   : testing
+Portability : Linux
+-}
 module Startup.Environment
 where
 
 import Control.Monad.IO.Class (liftIO)
 import System.Environment (setEnv)
 
+import Graphics.Wayland.Server (DisplayServer)
+
 import Shared (Bracketed (..))
 
-envBracket :: [(String, String)] -> Bracketed vs () ws
+{- | Set environment variables on startup.
+
+This happens early enough to be used by wlroots/backend stuff.
+
+@
+    envBracket [(\"PULSE_SERVER\", "zelda.ongy")]
+@
+-}
+envBracket :: [(String, String)] -> Bracketed vs DisplayServer ws
 envBracket xs = Bracketed
     (\_ -> liftIO (mapM_ (uncurry setEnv) xs))
     (\_ -> pure ())

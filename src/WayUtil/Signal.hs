@@ -18,7 +18,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-|
+Module      : WayUtil.Signal
+Description : Utility functions to attach to wayland signals. Probably useless for endusers
+Maintainer  : ongy
+Stability   : testing
+Portability : Linux
+-}
 module WayUtil.Signal
+    ( setSignalHandler
+    , setDestroyHandler
+    )
 where
 
 import Control.Concurrent.MVar (newEmptyMVar, takeMVar, putMVar)
@@ -36,17 +46,18 @@ import Graphics.Wayland.Signal
 import Waymonad (setCallback)
 import Waymonad.Types (Way)
 
-setSignalHandler
-    :: Ptr (WlSignal a)
-    -> (Ptr a -> Way vs b ())
-    -> Way vs b ListenerToken
+-- | Set a 'Way' action as signal handler.
+setSignalHandler :: Ptr (WlSignal a)
+                 -> (Ptr a -> Way vs b ())
+                 -> Way vs b ListenerToken
 setSignalHandler signal act = 
     setCallback act (\fun -> addListener (WlListener fun) signal)
 
-setDestroyHandler
-    :: Ptr (WlSignal a)
-    -> (Ptr a -> Way vs b ())
-    -> Way vs b ()
+-- | Set a signal handler that will remove itself after it's fired once. This
+-- can be used for destroy handlers that don't have to be stored anywhere.
+setDestroyHandler :: Ptr (WlSignal a)
+                  -> (Ptr a -> Way vs b ())
+                  -> Way vs b ()
 setDestroyHandler signal handler = do
     var <- liftIO newEmptyMVar
     listener <- setSignalHandler signal $ \ptr -> do

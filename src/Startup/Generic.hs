@@ -18,6 +18,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-|
+Module      : Startup.Generic
+Description : Allows to run any Way action when the compositor is done starting up
+Maintainer  : ongy
+Stability   : testing
+Portability : Linux
+-}
 module Startup.Generic
     ( getStartupBracket
     )
@@ -32,6 +39,12 @@ import Shared (Bracketed (..))
 import Waymonad (unliftWay)
 import Waymonad.Types (Way)
 
+{- | Run a Way action when the compositor is started up.
+
+@
+    getStartupBracket (spawn "alacritty")
+@
+-}
 getStartupBracket :: Way vs a () -> Bracketed vs DisplayServer a
 getStartupBracket act = Bracketed (\dsp -> do
         evtLoop <- liftIO $ displayGetEventLoop dsp

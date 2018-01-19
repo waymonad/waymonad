@@ -21,21 +21,31 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-|
+Module      : Utility.Spawn
+Description : Utility functions for spawning clients
+Maintainer  : ongy
+Stability   : testing
+Portability : Linux
+
+WARNING: The interesting things here only work with wayland clients.
+XWayland clients won't be detected properly.
+-}
 module Utility.Spawn
     ( spawn
 
     , spawnNamed
     , manageNamed
     , namedSpawner
+    , getClientName
 
     , spawnOn
     , manageSpawnOn
     , onSpawner
 
-    , getClientName
-
     , Spawner (..)
     , spawnManaged
+    , spawnManaged'
     )
 where
 
@@ -52,7 +62,7 @@ import Network.Socket
     , fdSocket
     , close
     )
-import System.Posix.Env (putEnv)
+import System.Environment (setEnv)
 import System.Posix.Types (Fd (..))
 import System.Posix.Process (forkProcess, executeFile)
 import System.Process (spawnCommand)
@@ -76,7 +86,7 @@ import WayUtil.Log (logPutText, LogPriority (..))
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Text as T
 
--- The most simple generic spawn function
+-- | The most simple generic spawn function
 spawn :: (MonadIO m) => String -> m ()
 spawn = void . liftIO . spawnCommand
 
@@ -92,27 +102,35 @@ newtype NameMap = NameMap { unNM :: IntMap Text }
 instance ExtensionClass NameMap where
     initialValue = mempty
 
-spawnClient :: Socket -> Fd -> String -> [String] -> IO ()
-spawnClient socket fd cmd args = do
+-- | Execute in the spawned process to exec the client
+spawnClient :: Socket -> Fd -> String -> [String] -> IO () -> IO ()
+spawnClient socket fd cmd args act = do
     close socket
-    putEnv $ "WAYLAND_SOCKET=" ++ show fd
+    setEnv "WAYLAND_SOCKET" $ show fd
+    act
     executeFile cmd True args Nothing
 
+-- | Convert a client to an Int for storage in IntMap. Guaranteed to be unique
+-- while the 'Client' is valid
 clientToInt :: Client -> Int
 clientToInt (Client c) = ptrToInt c
 
+-- | Attach a name to a client. This name could be used by filters.
 spawnNamed :: Text -> String -> [String] -> Way vs a ()
 spawnNamed = spawnManaged . pure . namedSpawner
 
+-- | 'Spawner' implementation for 'spawnNamed'
 namedSpawner :: Text -> Spawner vs a
 namedSpawner name = Spawner
     { spawnAdd = \client -> modifyEState $ NameMap . IM.insert (clientToInt client) name . unNM
     , spawnRm = \client -> modifyEState $ NameMap . IM.delete (clientToInt client) . unNM
     }
 
+-- | Get the name given to a client with spawnNamed
 getClientName :: Client -> Way vs a (Maybe Text)
 getClientName c = IM.lookup (clientToInt c) . unNM <$> getEState
 
+-- | Simple Managehook to log named spawns. Intended for debugging
 manageNamed :: Managehook vs a
 manageNamed = do
     (Just c) <- getViewClient =<< query
@@ -122,12 +140,16 @@ manageNamed = do
             logPutText loggerSpawner Info $ "Client \"" `T.append` name `T.append` "\" just spawned"
     mempty
 
+-- | Spawn a client on the given workspace
 spawnOn :: WSTag a => a -> String -> [String] -> Way vs a ()
 spawnOn = spawnManaged . pure . onSpawner
 
+-- | Get the workspace assigned to a client
 getClientWS :: Typeable a => Client -> Way vs a (Maybe a)
 getClientWS c = IM.lookup (clientToInt c) . unWM <$> getEState
 
+-- | Managehook that checks whether a client had a Workspace attached and will
+-- redirect it towards that if it does.
 manageSpawnOn :: WSTag a => Managehook vs a
 manageSpawnOn = do
     (Just c) <- getViewClient =<< query
@@ -136,6 +158,7 @@ manageSpawnOn = do
         Nothing -> mempty
         Just ws -> pure $ InsertInto ws
 
+-- | 'Spawner' implementation for 'spawnOn'
 onSpawner :: forall vs a. WSTag a => a -> Spawner vs a
 onSpawner ws = Spawner
     { spawnAdd = \client -> modifyEState $ WSMap . IM.insert (clientToInt client) ws . unWM
@@ -143,20 +166,31 @@ onSpawner ws = Spawner
         (WSMap :: IntMap a -> WSMap a) . IM.delete (clientToInt client) . unWM
     }
 
+-- | A way to stack multiple data attachements on a client that should be
+-- spanwed
 data Spawner vs a = Spawner
-    { spawnAdd :: Client -> Way vs a ()
-    , spawnRm :: Client -> Way vs a ()
+    { spawnAdd :: Client -> Way vs a () -- ^Set up the client data
+    , spawnRm :: Client -> Way vs a () -- ^Remove the client data. Will be called when the 'Client' object is destroyed.
     }
 
-spawnManaged
-    :: forall vs a.
-       [Spawner vs a]
-    -> String
-    -> [String]
-    -> Way vs a ()
-spawnManaged spawners cmd args = do
+-- | Sapwn a client with multiple 'Spawner's attached, to e.g. place it on a
+-- desired workspace and log it.
+spawnManaged :: [Spawner vs a] -- ^The spawners to use
+             -> String -- ^The application name
+             -> [String] -- ^The application arguments
+             -> Way vs a ()
+spawnManaged spawner name args = spawnManaged' spawner name args (pure ())
+
+
+spawnManaged' :: forall vs a.
+                 [Spawner vs a] -- ^The spawners to use
+              -> String -- ^The application name
+              -> [String] -- ^The application arguments
+              -> IO () -- ^An IO action to execute in the client process before execute
+              -> Way vs a ()
+spawnManaged' spawners cmd args act = do
     (cSock, sSock) <- liftIO $ socketPair AF_UNIX Stream 0
-    void . liftIO . forkProcess $ spawnClient sSock (Fd $ fdSocket cSock) cmd args
+    void . liftIO . forkProcess $ spawnClient sSock (Fd $ fdSocket cSock) cmd args act
 
     liftIO $ close cSock
     let cFd = fdSocket sSock

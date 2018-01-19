@@ -127,7 +127,7 @@ handleKeyPress bindings modifiers sym@(Keysym key) = do
         _ -> case M.lookup (modifiers, key) bindings of
                 Nothing -> pure False
                 Just fun -> do
-                    logPutText loggerKeybinds Info "Found a keybind"
+                    logPutText loggerKeybinds Debug "Found a keybind"
                     fun
                     pure True
 

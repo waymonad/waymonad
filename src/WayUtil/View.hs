@@ -18,6 +18,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-|
+Module      : WayUtil.View
+Description : Provides functions to modify the mapping from output to workspace
+Maintainer  : ongy
+Stability   : testing
+Portability : Linux
+-}
 module WayUtil.View
     ( view
     , greedyView
@@ -35,6 +42,8 @@ import Waymonad (Way, getState, WayBindingState(wayBindingMapping))
 import WayUtil.Current (getCurrentOutput, getCurrentWS)
 import WayUtil.Focus (setOutputWorkspace)
 
+-- | Change the displayed workspace on the current output to the argument. Will
+-- do nothing if it's displayed on another output.
 view :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 view ws = doJust getCurrentOutput $ \out -> do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
@@ -43,6 +52,9 @@ view ws = doJust getCurrentOutput $ \out -> do
         -- It's already mapped on some output, do nothing here.
         _ -> pure ()
 
+-- | Change the displayed workspace on the current output to the argument. Will
+-- switch the current workplace onto any output that currently displays the
+-- target.
 greedyView :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 greedyView ws = doJust getCurrentOutput $ \out -> do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
@@ -51,5 +63,8 @@ greedyView ws = doJust getCurrentOutput $ \out -> do
     forM_ (filter ((==) ws . fst) mapping) $ \(_, o) -> 
         setOutputWorkspace ws' o
 
+-- | Change the displayed workspace on the current output to the argument.
+-- If another output currently displays this workspace, both outputs will show
+-- the same workspace.
 copyView :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 copyView ws = doJust getCurrentOutput $ setOutputWorkspace ws

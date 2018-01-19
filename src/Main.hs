@@ -120,9 +120,8 @@ getModi = do
     x11 <- lookupEnv "DISPLAY"
     pure . maybe Logo (const Alt) $ way <|> x11
 
-bindings
-    :: (Layouted vs ws, ListLike vs ws, FocusCore vs ws, IsString ws, WSTag ws)
-    => WlrModifier -> [(([WlrModifier], Keysym), KeyBinding vs ws)]
+bindings :: (Layouted vs ws, ListLike vs ws, FocusCore vs ws, IsString ws, WSTag ws)
+         => WlrModifier -> [(([WlrModifier], Keysym), KeyBinding vs ws)]
 bindings modi =
     [ (([modi], keysym_k), moveUp)
     , (([modi], keysym_j), moveDown)
@@ -132,7 +131,7 @@ bindings modi =
     , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
     , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
-    , (([modi], keysym_Right), sendMessage NextLayout)
+    , (([modi], keysym_space), sendMessage NextLayout)
 
     , (([modi], keysym_Return), spawn "alacritty")
     , (([modi], keysym_d), spawn "dmenu_run")
@@ -163,9 +162,9 @@ myConf modi = WayUserConf
     , wayUserConfInputAdd    = \ptr -> do
         liftIO $ setupTrackball ptr
         attachDevice ptr "seat0"
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket, getStartupBracket (spawn "alacritty")]
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket, getStartupBracket (spawn "alacritty"), envBracket [("PULSE_SERVER", "zelda.ongy")]]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
-    , wayUserConfPostHook    = [getScreenshooterBracket, envBracket [("PULSE_SERVER", "zelda.ongy")]]
+    , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
         { wayHooksVWSChange     = wsScaleHook <> (liftIO . hPrint stderr)
         , wayHooksOutputMapping = enterLeaveHook <> SM.mappingChangeEvt <> (liftIO . hPrint stderr)
