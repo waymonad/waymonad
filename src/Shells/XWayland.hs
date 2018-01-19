@@ -31,7 +31,7 @@ module Shells.XWayland
     )
 where
 
-import Control.Monad (void)
+import Control.Monad (void, forM_)
 import Control.Monad.IO.Class
 import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
@@ -188,26 +188,29 @@ handleXwaySurface
 handleXwaySurface xway ref surf = do
     let xwaySurf = XWaySurface xway surf
     logPutText loggerX11 Debug "New XWayland surface"
-    view <- createView xwaySurf
-    insertView view
 
-    liftIO $ do
-        modifyIORef ref $ M.insert (ptrToInt surf) view
-        activate xwaySurf True
+    parent <- liftIO $ X.getX11ParentSurfrace surf
+    case parent of
+        Nothing -> do
+            logPutText loggerX11 Trace "Creating an normal view"
+            view <- createView xwaySurf
+            liftIO $ modifyIORef ref $ M.insert (ptrToInt surf) view
+            insertView view
 
-    let signals = X.getX11SurfaceEvents surf
+            let signals = X.getX11SurfaceEvents surf
 
-    h1 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
-    h2 <- setSignalHandler (X.x11SurfaceEvtParent signals) $ const . liftIO $ (hPutStrLn stderr "Something set the parent")
-    h3 <- setSignalHandler (X.x11SurfaceEvtMove signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a move")
-    h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view surf
-    h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const (removeView view)
-    h6 <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleX11Map view
+            h1 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
+            h2 <- setSignalHandler (X.x11SurfaceEvtParent signals) $ const . liftIO $ (hPutStrLn stderr "Something set the parent")
+            h3 <- setSignalHandler (X.x11SurfaceEvtMove signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a move")
+            h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view surf
+            h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const (removeView view)
+            h6 <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleX11Map view
 
-    setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h2, h3, h4, h5, h6]
-    liftIO $ do
-        stPtr <- newStablePtr view
-        poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
+            setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h2, h3, h4, h5, h6]
+            liftIO $ do
+                stPtr <- newStablePtr view
+                poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
+        Just _ -> logPutText loggerX11 Trace "Surface has parent. Skipping view creation"
 
 
 instance ShellSurface XWaySurface where
@@ -235,7 +238,14 @@ instance ShellSurface XWaySurface where
     getID (XWaySurface _ surf) = ptrToInt surf
     getTitle = liftIO . X.getTitle . unXway
     getAppId = liftIO . X.getClass . unXway
-
+    -- renderAdditional :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> a -> m ()
+    renderAdditional fun (XWaySurface _ surf) = do
+        children <- liftIO $ X.getX11Children surf
+        WlrBox sx sy _ _  <- liftIO $ X.getX11SurfaceGeometry surf
+        forM_ children $ \child -> do
+            WlrBox cx cy cw ch <- liftIO $ X.getX11SurfaceGeometry child
+            doJust (liftIO $ X.xwaySurfaceGetSurface child) $ \wlrSurf ->
+                fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)
 
 overrideXRedirect :: Managehook vs a
 overrideXRedirect = do
@@ -246,7 +256,7 @@ overrideXRedirect = do
             override <- liftIO $ X.x11SurfaceOverrideRedirect surf
             if override
                 then do
-                    liftWay $ logPutText loggerX11 Info "Overriding a redirect"
+                    liftWay $ logPutText loggerX11 Info "Overriding a redirect."
                     liftWay $ doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \wlrSurf -> do
                         let events = getWlrSurfaceEvents wlrSurf
                         ch <- setSignalHandler (wlrSurfaceEvtCommit events) $ handleOverrideCommit view surf
