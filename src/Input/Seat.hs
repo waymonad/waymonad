@@ -41,6 +41,7 @@ import Foreign.Ptr (Ptr, nullPtr)
 
 import Graphics.Wayland.WlRoots.Input.Buttons (ButtonState)
 import Graphics.Wayland.WlRoots.Input.Pointer (AxisOrientation)
+import Graphics.Wayland.WlRoots.Input.Keyboard (getModifierPtr, getKeyboardKeys)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.Server
     ( DisplayServer
@@ -101,8 +102,11 @@ seatCreate dsp name reqDefault loadScale = liftIO $ do
 
 keyboardEnter' :: Seat -> Ptr WlrSurface -> View -> Way vs ws Bool
 keyboardEnter' seat surf view = do
+    keyboard <- liftIO $ R.getSeatKeyboard $ seatRoots seat
+    let modifiers = getModifierPtr keyboard
+    (keys, num) <- liftIO $ getKeyboardKeys keyboard
     prev <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
-    liftIO $ R.keyboardNotifyEnter (seatRoots seat) surf
+    liftIO $ R.keyboardNotifyEnter (seatRoots seat) surf keys num modifiers
     post <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
 
     if prev /= post || prev == surf

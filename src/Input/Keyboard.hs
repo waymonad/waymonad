@@ -45,6 +45,7 @@ import Graphics.Wayland.WlRoots.Input.Keyboard
     , getKeymap
 
     , getModifiers
+    , getModifierPtr
     )
 import Graphics.Wayland.WlRoots.Seat
     ( seatSetKeyboard
@@ -198,7 +199,8 @@ handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
 handleModifiers :: Keyboard -> Seat -> Ptr a -> Way vs b ()
 handleModifiers keyboard seat _ = liftIO $ do
     seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
-    keyboardNotifyModifiers (seatRoots seat)
+
+    keyboardNotifyModifiers (seatRoots seat) (getModifierPtr $ keyboardDevice keyboard)
 
 handleKeyboardAdd
     :: Seat
