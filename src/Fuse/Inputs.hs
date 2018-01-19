@@ -57,7 +57,9 @@ ensureWDevice ptr act = do
     devs <- liftIO . readIORef . inputDevices . compInput . wayCompositor =<< getState
     if ptr `S.member` devs
         then act
-        else pure $ Left eBADF
+        else do
+            liftIO $ hPutStrLn stderr "Couldn't ensure a device"
+            pure $ Left eBADF
 
 makeOptionDir :: LI.InputDevice -> LibinputOption -> (String, Entry vs ws)
 makeOptionDir dev opt =
@@ -118,7 +120,7 @@ makeInputDir ptr = do
     optDir <- makeOptionsDir ptr
     let optFun = maybe id (:) $ fmap ("options",) optDir
 
-    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList (optFun deviceType ++ sibDir))
+    pure (filter (/= '/') $ T.unpack name, DirEntry $ simpleDir $ M.fromList (optFun deviceType ++ sibDir))
 
 
 enumerateInputs :: (FocusCore vs a, WSTag a) => Way vs a (Map String (Entry vs a))
