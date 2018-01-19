@@ -34,7 +34,7 @@ import Control.Monad (when, forM_, forM, filterM, unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, modifyIORef, readIORef, modifyIORef, writeIORef, newIORef)
 import Data.Map (Map)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, listToMaybe)
 import Data.Set (Set)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
@@ -76,7 +76,7 @@ import Input.Seat
 import Output (Output(..))
 import View (getViewClient)
 import ViewSet (WSTag, FocusCore)
-import Utility (doJust)
+import Utility (doJust, These (..))
 import WayUtil
 import Waymonad
 import Waymonad.Types (Compositor (..))
@@ -182,6 +182,9 @@ createSeat name = do
 
     seatRef <- wayBindingSeats <$> getState
     liftIO $ modifyIORef seatRef ((:) seat)
+    -- Attach to the first output, so things "just werk"TM
+    doJust (listToMaybe <$> getOutputs) $ \out -> 
+        setSeatOutput seat $ These out out
 
     withSeat (Just seat) $ do
         cursor  <- cursorCreate layout

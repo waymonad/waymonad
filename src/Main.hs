@@ -60,6 +60,7 @@ import Navigation2D
 import Protocols.GammaControl
 import Protocols.Screenshooter
 import Startup.Environment
+import Startup.Generic
 import Utility (doJust)
 import Utility.Spawn (spawn, manageSpawnOn)
 import View.Proxy (makeProxy)
@@ -160,7 +161,7 @@ myConf modi = WayUserConf
     , wayUserConfInputAdd    = \ptr -> do
         liftIO $ setupTrackball ptr
         attachDevice ptr "seat0"
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket]
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket, getStartupBracket (spawn "alacritty")]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket, envBracket [("PULSE_SERVER", "zelda.ongy")]]
     , wayUserConfCoreHooks   = WayHooks
