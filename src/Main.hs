@@ -86,6 +86,8 @@ import qualified Data.Text as T
 import Waymonad.Main
 import Config
 
+import Graphics.Wayland.WlRoots.Util
+
 setupTrackball :: Ptr InputDevice -> IO ()
 setupTrackball dev = doJust (getDeviceHandle dev) $ \handle -> do
     name <- getDeviceName dev
@@ -178,6 +180,7 @@ myConf modi = WayUserConf
 
 main :: IO ()
 main = do
+    setLogPrio Debug
     modi <- getModi
     confE <- loadConfig
     case confE of

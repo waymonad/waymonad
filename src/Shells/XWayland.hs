@@ -198,12 +198,13 @@ handleXwaySurface xway ref surf = do
     let signals = X.getX11SurfaceEvents surf
 
     h1 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
+    h2 <- setSignalHandler (X.x11SurfaceEvtParent signals) $ const . liftIO $ (hPutStrLn stderr "Something set the parent")
     h3 <- setSignalHandler (X.x11SurfaceEvtMove signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a move")
     h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view surf
     h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const (removeView view)
     h6 <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleX11Map view
 
-    setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h3, h4, h5, h6]
+    setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h2, h3, h4, h5, h6]
     liftIO $ do
         stPtr <- newStablePtr view
         poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
