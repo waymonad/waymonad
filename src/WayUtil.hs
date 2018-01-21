@@ -32,13 +32,15 @@ import Data.IORef (readIORef, modifyIORef)
 import Data.List (lookup, find)
 import Data.Maybe (fromJust, fromMaybe, listToMaybe, isJust)
 import Data.Tuple (swap)
+import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer, displayTerminate)
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
+import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Input.Seat (Seat (seatName), getPointerFocus)
 import Output (Output (..), getOutputId)
-import Utility (whenJust, doJust, These(..), getThis, getThat)
+import Utility (whenJust, doJust, These(..), getThis, getThat, ptrToInt)
 import View (View, closeView, getViewEventSurface)
 import ViewSet
     ( FocusCore (..)
@@ -216,11 +218,11 @@ viewsBelow (Point x y) views =
 
 viewBelow
     :: Point
+    -> Ptr WlrOutput
     -> Way vs a (Maybe (View, Int, Int))
-viewBelow point = do
-    ws <- getCurrentOutput
+viewBelow point output = do
     fullCache <- liftIO . readIORef . wayBindingCache =<< getState
-    case flip IM.lookup fullCache . getOutputId =<< ws of
+    case IM.lookup (ptrToInt output) fullCache of
         Nothing -> pure Nothing
         Just views -> do
             candidates <- liftIO $ viewsBelow point views

@@ -64,6 +64,7 @@ import Graphics.Wayland.WlRoots.Cursor
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( WlrOutputLayout
+    , layoutOutputGetOutput
     , layoutAtPos
     , layoutGetOutput
     , layoutOuputGetPosition
@@ -138,7 +139,7 @@ getCursorView layout cursor = do
                     (Point offX offY) <- liftIO $ layoutOuputGetPosition lout
                     let x = floor baseX - offX
                     let y = floor baseY - offY
-                    viewBelow (Point x y)
+                    viewBelow (Point x y) out
 
 updatePosition
     :: (FocusCore vs a, WSTag a)
