@@ -89,6 +89,7 @@ import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Focus (focusView, setWorkspace)
 import WayUtil.Current (getPointerWS, getPointerOutputS)
 
+-- FIXME: add a destroyCursor function
 data Cursor = Cursor
     { cursorRoots :: Ptr WlrCursor
     , cursorTokens :: [ListenerToken]

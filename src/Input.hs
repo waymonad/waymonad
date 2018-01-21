@@ -88,6 +88,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 
+-- FIXME: Add destroy function
 data SeatFoo = SeatFoo
     { fooXCursorManager :: Ptr WlrXCursorManager
     , fooCursor :: Cursor
