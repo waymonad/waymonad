@@ -33,7 +33,7 @@ import Graphics.Wayland.WlRoots.XCursorManager (WlrXCursorManager)
 import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.Signal (ListenerToken)
 
-import {-# SOURCE #-} Input.Cursor (Cursor)
+import Input.Cursor.Type (Cursor)
 import {-# SOURCE #-} Input.Seat (Seat)
 
 data SeatFoo = SeatFoo

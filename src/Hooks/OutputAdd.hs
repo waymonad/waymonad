@@ -32,7 +32,7 @@ import Data.List ((\\))
 import Output (Output)
 import Utility (These (..))
 import ViewSet (WSTag, FocusCore)
-import WayUtil (setSeatOutput)
+import WayUtil.Mapping (setSeatOutput)
 import WayUtil.Focus (setOutputWorkspace)
 import WayUtil.Timing
 import Waymonad (Way, WayBindingState (..), getState)

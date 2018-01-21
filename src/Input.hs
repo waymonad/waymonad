@@ -70,6 +70,7 @@ import Graphics.Wayland.WlRoots.Backend
 import Graphics.Wayland.Signal (ListenerToken)
 
 import Input.Cursor
+import Input.Cursor.Type
 import Input.Keyboard
 import Input.TabletPad
 import Input.Seat
@@ -78,6 +79,7 @@ import View (getViewClient)
 import ViewSet (WSTag, FocusCore)
 import Utility (doJust, These (..))
 import WayUtil
+import WayUtil.Mapping (setSeatOutput)
 import Waymonad
 import Waymonad.Types (Compositor (..))
 import WayUtil.Signal
@@ -187,6 +189,7 @@ createSeat name = do
             (T.unpack name)
             (xCursorSetImage xcursor "left_ptr" (cursorRoots $ unsafePerformIO $ readIORef cursorRef))
             (xCursorLoad xcursor)
+            (unsafePerformIO $ readIORef cursorRef)
 
     seatRef <- wayBindingSeats <$> getState
     liftIO $ modifyIORef seatRef ((:) seat)

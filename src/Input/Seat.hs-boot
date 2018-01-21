@@ -28,6 +28,7 @@ where
 import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (IORef)
 import Foreign.Ptr (Ptr)
+import Input.Cursor.Type
 
 import View (View)
 
@@ -40,6 +41,7 @@ data Seat = Seat
     , seatName           :: String
     , seatRequestDefault :: IO ()
     , seatLoadScale      :: Float -> IO ()
+    , seatCursor         :: Cursor
     }
 
 instance Show Seat

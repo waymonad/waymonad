@@ -21,11 +21,12 @@ Reach us at https://github.com/ongy/waymonad
 module Input.Cursor
 where
 
-import Foreign.Ptr (Ptr)
-import Graphics.Wayland.WlRoots.Cursor (WlrCursor)
-import Graphics.Wayland.Signal (ListenerToken)
+import Data.Word (Word32)
+import Input.Cursor.Type
+import ViewSet
+import Waymonad.Types
 
-data Cursor = Cursor
-    { cursorRoots :: Ptr WlrCursor
-    , cursorTokens :: [ListenerToken]
-    }
+updateFocus :: (FocusCore vs ws, WSTag ws)
+            => Cursor
+            -> Word32
+            -> Way vs ws ()

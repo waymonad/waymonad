@@ -99,7 +99,7 @@ import Graphics.Wayland.WlRoots.Surface
 
 import Waymonad (makeCallback2)
 import Waymonad.Types (Compositor (..))
-import Input.Seat (Seat(seatLoadScale))
+-- import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (doJust)
 import View
@@ -279,8 +279,8 @@ handleOutputAdd hook output = do
     liftIO $ modifyIORef current (out :)
 
     scale <- liftIO $ getOutputScale output
-    seats <- getSeats
-    liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
+--    seats <- getSeats
+--    liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
 
     hook out
     makeCallback2 frameHandler

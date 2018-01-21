@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2018  Markus Ongyerth
+Copyright (C) 2017  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,20 +18,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Hooks.FocusFollowPointer
+module Input.Cursor.Type
 where
 
-import Utility (These (..), doJust)
-import ViewSet (FocusCore, WSTag)
-import Waymonad.Types (SeatFocusChange (..), Way)
-import WayUtil.Mapping (setSeatOutput)
-import WayUtil.Focus (focusView)
-import WayUtil.Current (getPointerOutputS)
+import Data.IORef (IORef)
+import Foreign.Ptr (Ptr)
+import Graphics.Wayland.WlRoots.Cursor (WlrCursor)
+import Graphics.Wayland.Signal (ListenerToken)
 
-
-focusFollowPointer :: (WSTag ws, FocusCore vs ws) => SeatFocusChange -> Way vs ws ()
-focusFollowPointer (PointerFocusChange  seat _ (Just view)) =
-    doJust (getPointerOutputS seat) $ \output -> do
-        setSeatOutput seat (That output)
-        focusView view
-focusFollowPointer _ = pure ()
+data Cursor = Cursor
+    { cursorRoots :: Ptr WlrCursor
+    , cursorTokens :: [ListenerToken]
+    , cursorOutput :: IORef Int
+    }

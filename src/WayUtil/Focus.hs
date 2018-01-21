@@ -68,11 +68,11 @@ setOutputWorkspace ws current = do
             (wayBindingMapping state)
             ((:) (ws, current) . filter ((/=) current . snd))
 
-        hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
-        hook $ OutputMappingEvent current pre (Just ws)
-
         reLayout ws
         whenJust pre reLayout
+
+        hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
+        hook $ OutputMappingEvent current pre (Just ws)
 
 getWorkspaceOutputs :: Eq a => a -> Way vs a [Output]
 getWorkspaceOutputs ws = do

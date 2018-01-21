@@ -71,6 +71,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     )
 import Graphics.Wayland.Signal (ListenerToken)
 
+import Input.Cursor.Type
 import Output (outputFromWlr)
 import Utility (ptrToInt, doJust, These(..))
 import View (View)
@@ -78,23 +79,17 @@ import ViewSet (WSTag, FocusCore)
 import Waymonad
     ( Way
     , getSeat
+    , getState
     , floatBelow
     , WayLoggers (..)
     )
-import WayUtil
-    ( setSeatOutput
-    , viewBelow
-    )
-import WayUtil.Signal (setSignalHandler)
-import WayUtil.Log (logPutText, LogPriority (..))
-import WayUtil.Focus (focusView, setWorkspace)
+import Waymonad.Types
 import WayUtil.Current (getPointerWS, getPointerOutputS)
-
--- FIXME: add a destroyCursor function
-data Cursor = Cursor
-    { cursorRoots :: Ptr WlrCursor
-    , cursorTokens :: [ListenerToken]
-    }
+import WayUtil.Focus (focusView, setWorkspace)
+import WayUtil.Layout (viewBelow)
+import WayUtil.Log (logPutText, LogPriority (..))
+import WayUtil.Mapping (setSeatOutput)
+import WayUtil.Signal (setSignalHandler)
 
 cursorCreate :: (FocusCore vs a, WSTag a) => Ptr WlrOutputLayout -> Way vs a Cursor
 cursorCreate layout = do
@@ -115,6 +110,7 @@ cursorCreate layout = do
     pure Cursor
         { cursorRoots = cursor
         , cursorTokens = [tokb, tokm, toka, tokAxis, tokTAxis, tokTTip]
+        , cursorOutput = outref
         }
 
 getCursorView
@@ -167,6 +163,13 @@ updatePosition layout cursor outref time = do
         Just (view, baseX, baseY) -> do
             void $ pointerMotion seat view time (fromIntegral baseX) (fromIntegral baseY)
 
+updateFocus :: (FocusCore vs ws, WSTag ws)
+            => Cursor
+            -> Word32
+            -> Way vs ws ()
+updateFocus cursor time = do
+    Compositor { compLayout = layout } <- wayCompositor <$> getState
+    updatePosition layout (cursorRoots cursor) (cursorOutput cursor) time
 
 handleCursorMotion
     :: (FocusCore vs a, WSTag a)

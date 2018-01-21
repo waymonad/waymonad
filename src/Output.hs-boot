@@ -37,6 +37,7 @@ data Output = Output
     }
 
 instance Show Output
+instance Eq Output
 
 getOutputId :: Output -> Int
 

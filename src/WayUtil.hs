@@ -54,6 +54,7 @@ import ViewSet
 import WayUtil.Current (getCurrentOutput , getCurrentView , getCurrentWS)
 import WayUtil.Log (logPutText)
 import WayUtil.ViewSet
+import WayUtil.Mapping (setSeatOutput)
 import Waymonad
     ( Way
     , WayBindingState(..)
@@ -110,32 +111,6 @@ focusNextOut = doJust getSeat $ \seat -> doJust getCurrentOutput $ \current -> d
     possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
     let new = head . tail . dropWhile (/= current) $ cycle possibles
     setSeatOutput seat (That new)
-
--- This: Pointer Focus
--- That: Keyboard Focus
-setSeatOutput :: WSTag a => Seat -> These Output -> Way vs a ()
-setSeatOutput seat foci = do
-    state <- getState
-    current <- lookup seat <$> liftIO (readIORef (wayBindingCurrent state))
-    let curp = fst <$> current
-    let curk = snd <$> current
-
-    let newp = getThis foci <|> curp <|> getThat foci
-    let newk = getThat foci <|> curk <|> getThis foci
-
-    -- This is guaranteed by the These type. At least getThis or getThat
-    -- returns a Just value
-    let new = (fromJust newp, fromJust newk)
-
-    liftIO $ modifyIORef
-        (wayBindingCurrent state)
-        ((:) (seat, new) . filter ((/=) seat . fst))
-
-    hook <- wayHooksSeatOutput . wayCoreHooks <$> getState
-    when (newp /= curp) $ hook $ PointerOutputChange seat curp newp
-    when (newk /= curk) $ hook $ KeyboardOutputChange seat curk newk
-
-    runLog
 
 seatOutputEventLogger :: WSTag a => SeatOutputChange -> Way vs a ()
 seatOutputEventLogger (PointerOutputChange seat pre new) = do
@@ -201,40 +176,6 @@ getOutputKeyboards :: Output -> Way vs a [Seat]
 getOutputKeyboards out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . snd . snd) $ currents
-
-viewsBelow
-    :: Foldable t
-    => Point
-    -> t (View, WlrBox)
-    -> IO [(View, Int, Int)]
-viewsBelow (Point x y) views =
-    map (uncurry makeLocal) <$> filterM hasSurface (toList views)
-    where   makeLocal :: View -> WlrBox -> (View, Int, Int)
-            makeLocal view (WlrBox bx by _ _) =
-                (view, x - bx, y - by)
-            hasSurface :: (View, WlrBox) -> IO Bool
-            hasSurface (view, WlrBox bx by _ _) = isJust <$> getViewEventSurface view (fromIntegral (x - bx)) (fromIntegral (y - by))
-
-
-viewBelow
-    :: Point
-    -> Ptr WlrOutput
-    -> Way vs a (Maybe (View, Int, Int))
-viewBelow point output = do
-    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
-    case IM.lookup (ptrToInt output) fullCache of
-        Nothing -> pure Nothing
-        Just views -> do
-            candidates <- liftIO $ viewsBelow point views
-            seat <- getSeat
-            case seat of
-                Nothing ->  pure $ listToMaybe candidates
-                Just s -> do
-                    f <- getPointerFocus s
-                    case f of
-                        Nothing -> pure $ listToMaybe candidates
-                        Just focused -> 
-                            pure $ find (\(v, _, _) -> v == focused) candidates <|> listToMaybe candidates
 
 getDisplay :: Way vs a DisplayServer
 getDisplay = compDisplay . wayCompositor <$> getState

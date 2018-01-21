@@ -20,13 +20,17 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE LambdaCase #-}
 module Hooks.KeyboardFocus
+    ( handleKeyboardSwitch
+    , handlePointerSwitch
+    )
 where
 
-import Control.Monad (void)
+import Control.Monad (void, forM_)
 
-import Input.Seat (keyboardClear)
+import Input.Seat (keyboardClear, pointerClear, updatePointerFocus)
 import Utility (whenJust)
 import ViewSet (WSTag, FocusCore (..), getFirst)
+import WayUtil (getOutputPointers)
 import WayUtil.Focus
 import WayUtil.ViewSet (unsetFocus, setFocused, withViewSet)
 import Waymonad
@@ -62,3 +66,9 @@ handleKeyboardSwitch (KeyboardWSChange s pre cur) = do
                 -- Master exists, set as focused and start usual procedure
                 Just v -> focusWSView v s ws
 handleKeyboardSwitch _ = pure ()
+
+handlePointerSwitch :: (FocusCore vs ws, WSTag ws) => OutputMappingEvent ws -> Way vs ws ()
+handlePointerSwitch (OutputMappingEvent out _ cur) = do
+    pointers <- getOutputPointers out
+    mapM_  updatePointerFocus pointers
+handlePointerSwitch _ = pure ()

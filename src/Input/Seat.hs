@@ -29,6 +29,7 @@ module Input.Seat
     , getKeyboardFocus
     , keyboardClear
     , pointerAxis
+    , updatePointerFocus
     )
 where
 
@@ -50,6 +51,8 @@ import Graphics.Wayland.Server
     , seatCapabilityPointer
     )
 
+import {-# SOURCE #-} Input.Cursor
+import Input.Cursor.Type
 import Utility (doJust, whenJust)
 import View (View, getViewSurface, getViewEventSurface)
 import ViewSet (WSTag, FocusCore (..))
@@ -66,6 +69,7 @@ data Seat = Seat
     , seatName           :: String
     , seatRequestDefault :: IO ()
     , seatLoadScale      :: Float -> IO ()
+    , seatCursor         :: Cursor
     }
 
 instance Show Seat where
@@ -83,8 +87,9 @@ seatCreate
     -> String
     -> IO ()
     -> (Float -> IO ())
+    -> Cursor
     -> m Seat
-seatCreate dsp name reqDefault loadScale = liftIO $ do
+seatCreate dsp name reqDefault loadScale cursor = liftIO $ do
     roots    <- R.createSeat dsp name
     pointer  <- newIORef Nothing
     keyboard <- newIORef Nothing
@@ -98,6 +103,7 @@ seatCreate dsp name reqDefault loadScale = liftIO $ do
         , seatName           = name
         , seatRequestDefault = reqDefault
         , seatLoadScale      = loadScale
+        , seatCursor         = cursor
         }
 
 keyboardEnter' :: Seat -> Ptr WlrSurface -> View -> Way vs ws Bool
@@ -208,3 +214,7 @@ keyboardClear seat = do
             liftIO $ writeIORef (seatKeyboard seat) Nothing
             hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
             hook $ KeyboardFocusChange seat oldView Nothing
+
+updatePointerFocus :: (FocusCore vs ws, WSTag ws) => Seat -> Way vs ws ()
+updatePointerFocus seat = do
+    updateFocus (seatCursor seat) 0
