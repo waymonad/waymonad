@@ -39,14 +39,7 @@ import Data.Composition ((.:))
 import Data.IORef (newIORef, IORef, modifyIORef, readIORef, writeIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
-import Foreign.Ptr (Ptr, ptrToIntPtr)
-import Foreign.StablePtr
-    ( castPtrToStablePtr
-    , castStablePtrToPtr
-    , freeStablePtr
-    , newStablePtr
-    )
-import Foreign.Storable (Storable(..))
+import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
@@ -54,11 +47,11 @@ import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSiz
 
 
 import Managehook (insertView, removeView)
-import Utility (doJust)
+import Utility (doJust, ptrToInt)
 import View
 import ViewSet (WSTag, FocusCore)
 import WayUtil.Log (logPutText, LogPriority (..))
-import WayUtil.Signal (setSignalHandler)
+import WayUtil.Signal (setDestroyHandler)
 import Waymonad
 import Waymonad.Types
 
@@ -108,9 +101,6 @@ data XdgShell = XdgShell
     , xdgWlrootsShell :: Ptr R.WlrXdgShell
     }
 
-ptrToInt :: Num b => Ptr a -> b
-ptrToInt = fromIntegral . ptrToIntPtr
-
 newtype XdgSurface = XdgSurface { unXdg :: Ptr R.WlrXdgSurface }
 
 xdgShellCreate
@@ -143,10 +133,6 @@ handleXdgDestroy ref surf = do
     removeView view
     triggerViewDestroy view
 
-    liftIO $ do
-        sptr :: Ptr () <- peek (R.getXdgSurfaceDataPtr surf)
-        freeStablePtr $ castPtrToStablePtr sptr
-
 handleXdgSurface
     :: (FocusCore vs a, WSTag a)
     => MapRef
@@ -162,14 +148,10 @@ handleXdgSurface ref surf = do
 
         liftIO $ do
             modifyIORef ref $ M.insert (ptrToInt surf) view
-            activate xdgSurf True
             R.setMaximized surf True
 
         let signals = R.getXdgSurfaceEvents surf
-        destroyHandler <- setSignalHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref)
-        liftIO $ do
-            sptr <- newStablePtr destroyHandler
-            poke (R.getXdgSurfaceDataPtr surf) (castStablePtrToPtr sptr)
+        setDestroyHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref)
 
 
 renderPopups :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> Ptr R.WlrXdgSurface -> m ()
