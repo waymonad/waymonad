@@ -27,6 +27,7 @@ module Fuse.Outputs
 where
 
 import Control.Monad.IO.Class (liftIO)
+import Data.IORef (readIORef)
 import Data.Map (Map)
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
@@ -73,6 +74,7 @@ import Graphics.Wayland.WlRoots.Output
 import Graphics.Wayland.WlRoots.OutputLayout (moveOutput)
 
 import Output (Output(..), findMode, outputFromWlr)
+import Utility (ptrToInt)
 import ViewSet (WSTag (..))
 import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
@@ -81,9 +83,18 @@ import WayUtil.Focus (getOutputWorkspace)
 
 import Fuse.Common
 
+import qualified Data.IntMap as IM
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Read as R (rational, decimal)
+
+readLayout :: Output -> Way vs ws (Maybe Text)
+readLayout output = do
+    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
+    pure $ case IM.lookup (ptrToInt $ outputRoots output) fullCache of
+        Nothing -> Nothing
+        Just xs -> Just . T.pack $ show xs
+
 
 parsePosition :: Text -> Either String (Point, Text)
 parsePosition txt = do
@@ -233,10 +244,14 @@ makeOutputDir out = do
                         _ ->  pure $ Left eINVAL
             )
                    )
+    layout <- readLayout out
+    let layFile = case layout of
+            Nothing -> []
+            Just txt -> [("layout", FileEntry $ textFile (pure $ txt))]
 
     pure $ DirEntry $ simpleDir $ M.fromList $
         dpms: position: scale: transform:
-        guaranteed ++ modes ++ wsLink ++ catMaybes info
+        guaranteed ++ modes ++ wsLink ++ layFile ++ catMaybes info
 
 enumerateOuts :: WSTag a => Way vs a (Map String (Entry vs a))
 enumerateOuts = do
