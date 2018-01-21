@@ -220,7 +220,6 @@ handleCursorButton layout cursor event_ptr = do
                 (eventPointerButtonTime event) (eventPointerButtonButton event)
                 (eventPointerButtonState event)
             when (eventPointerButtonState event == ButtonPressed) $ do
-                setWorkspace =<< getPointerWS
                 old <- getKeyboardFocus seat
                 when (old /= Just view) $
                     doJust (getPointerOutputS seat) $ \output -> do
@@ -284,7 +283,6 @@ handleToolTip layout cursor event_ptr = do
             pointerButton seat view (fromIntegral x) (fromIntegral y)
                 (toolTipEvtTime event) 0x110 (tipStateToButtonState $ toolTipEvtState event)
             when (tipStateToButtonState (toolTipEvtState event) == ButtonPressed) $ do
-                setWorkspace =<< getPointerWS
                 old <- getKeyboardFocus seat
                 when (old /= Just view) $
                     doJust (getPointerOutputS seat) $ \output -> do
