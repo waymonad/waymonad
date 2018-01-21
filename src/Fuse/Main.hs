@@ -111,7 +111,7 @@ getFuseBracket = PreBracket (\dsp act -> do
     runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
     localDisplay <- liftIO $ getEnv "_WAYLAND_DISPLAY"
     let fuseDir = runtimeDir ++ "/waymonad/" ++ localDisplay
-    liftIO $ createDirectoryIfMissing False fuseDir
+    liftIO $ createDirectoryIfMissing True fuseDir
     evtLoop <- liftIO $ displayGetEventLoop dsp
     let register fd cb = eventLoopAddFd evtLoop fd clientStateReadable (\ _ _ -> cb >> pure False)
     pass <- unliftWay act
