@@ -162,7 +162,7 @@ myConf modi = WayUserConf
     , wayUserConfInputAdd    = \ptr -> do
         liftIO $ setupTrackball ptr
         attachDevice ptr "seat0"
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket, getStartupBracket (spawn "alacritty"), envBracket [("PULSE_SERVER", "zelda.ongy")]]
+    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket, getStartupBracket (spawn "redshift -m wayland"), envBracket [("PULSE_SERVER", "zelda.ongy")]]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
