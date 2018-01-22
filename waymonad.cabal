@@ -63,6 +63,7 @@ executable waymonad
   other-modules:        Fuse.Inputs
   other-modules:        Fuse.Main
   other-modules:        Fuse.Outputs
+  other-modules:        Fuse.Rts
   other-modules:        Fuse.Shells
   other-modules:        Fuse.Workspaces
 
