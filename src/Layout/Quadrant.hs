@@ -96,12 +96,7 @@ instance (Eq ws, FocusCore child ws) => FocusCore (QuadrantSet child ws) ws wher
                             in updateQuadrant TL set' (_insertView ws seat view)
             Nothing -> updateQuadrant TL set (_insertView ws seat view)
         _removeView ws view set = updateAll set (_removeView ws view)
-        getVSWorkspaces (QuadrantSet tl tr bl br _) =
-            let tlvs = getVSWorkspaces tl
-                trvs = getVSWorkspaces tr
-                blvs = getVSWorkspaces bl
-                brvs = getVSWorkspaces br
-             in nub $ tlvs <> trvs <> blvs <> brvs
+        removeGlobal v ws q = updateAll q (removeGlobal v ws)
         _getFocused set@(QuadrantSet tl tr bl br m) ws seat = case seat of
             Just s -> case M.lookup s m of
                 Just q -> withQuadrant q set (\vs -> _getFocused vs ws seat)

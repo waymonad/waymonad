@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Managehook
     ( Query
     , runQuery
@@ -33,10 +34,11 @@ module Managehook
     )
 where
 
-import Control.Monad (void, forM_)
+import Control.Monad (void)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
 import Input.Seat
+import Output (forOutput)
 import Utility (doJust)
 import View
 import ViewSet (WSTag)
@@ -45,8 +47,9 @@ import Waymonad.Types
 import Layout
 import ViewSet
 import WayUtil.Floating
-import WayUtil.Focus (focusView)
-import WayUtil.ViewSet (forceFocused)
+import WayUtil.Mapping (getOutputKeyboards)
+import WayUtil.Focus (focusView, getOutputWorkspace)
+import WayUtil.ViewSet (modifyViewSet, setFocused)
 import WayUtil.Current (getCurrentWS)
 
 import qualified WayUtil.ViewSet as VS
@@ -98,15 +101,14 @@ insertView v = do
     hook <- wayManagehook <$> getState
     runQuery v $ enactInsert . flip mappend InsertFocused =<< hook
 
-removeView
-    :: (FocusCore vs a, WSTag a)
-    => View
-    -> Way vs a ()
+removeView :: forall vs ws. (FocusCore vs ws, WSTag ws)
+           => View
+           -> Way vs ws ()
 removeView v = do
-    vs <- getViewSet
-    forM_ (getVSWorkspaces vs) $ \ws -> do
-        VS.removeView v ws
-        forceFocused
-        reLayout ws
-
+    modifyViewSet (removeGlobal v (error "removeGlobal Workspace argument should never be used" :: ws))
+    void . forOutput $ \ output -> do
+        doJust (getOutputWorkspace output) $ \ws -> do
+            seats <- getOutputKeyboards output
+            mapM_ (`setFocused` ws) seats
+            reLayout ws
     modifyFloating (S.delete v)

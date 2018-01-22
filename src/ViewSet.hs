@@ -111,8 +111,9 @@ class FocusCore vs ws where
     _removeView :: ws -> View -> vs -> vs
     -- | Get the layouted list for the layoutcache.
     getLayouted   :: vs -> ws -> WlrBox -> [(View, WlrBox)]
-    -- | Get the workspaces that are supported
-    getVSWorkspaces :: vs -> [ws]
+    -- | Remove a view from the ViewSet. The workspace argument should *not* be
+    -- used, it's simply to please the typechecker
+    removeGlobal :: View -> ws -> vs -> vs
 
 -- | Supplementary class to implement ViewSets that can behave like the XMonad
 -- ViewSet.

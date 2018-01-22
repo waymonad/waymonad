@@ -29,6 +29,7 @@ module Output
     , outputFromWlr
     , findMode
     , setOutputDirty
+    , forOutput
     )
 where
 
@@ -311,3 +312,9 @@ outputFromWlr ptr = do
 
 setOutputDirty :: MonadIO m => Output -> m ()
 setOutputDirty out = liftIO $ setOutputNeedsSwap (outputRoots out) True
+
+forOutput :: (Output -> Way vs ws a) -> Way vs ws [a]
+forOutput fun = do
+    current <- wayBindingOutputs <$> getState
+    outs <- liftIO $ readIORef current
+    mapM fun outs

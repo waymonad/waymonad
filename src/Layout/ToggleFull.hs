@@ -99,7 +99,7 @@ instance (Ord ws, FocusCore vs ws) => FocusCore (ToggleFull (Map ws) vs) ws wher
     _focusView ws seat view (ToggleFull s vs) = ToggleFull s (_focusView ws seat view vs)
     _insertView ws seat view (ToggleFull s vs) = ToggleFull s (_insertView ws seat view vs)
     _removeView ws view (ToggleFull s vs) = ToggleFull s (_removeView ws view vs)
-    getVSWorkspaces (ToggleFull _ vs) = getVSWorkspaces vs
+    removeGlobal v ws (ToggleFull s vs) = ToggleFull s $ removeGlobal v ws vs
     getLayouted t@(ToggleFull _ vs) ws box = if getState ws t
         then case _getFocused vs ws Nothing of
                 Nothing -> []

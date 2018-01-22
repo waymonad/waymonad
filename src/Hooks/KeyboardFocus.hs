@@ -30,13 +30,12 @@ import Control.Monad (void, forM_)
 import Input.Seat (keyboardClear, pointerClear, updatePointerFocus)
 import Utility (whenJust)
 import ViewSet (WSTag, FocusCore (..), getFirst)
-import WayUtil (getOutputPointers)
 import WayUtil.Focus
+import WayUtil.Mapping (getOutputPointers)
 import WayUtil.ViewSet (unsetFocus, setFocused, withViewSet)
 import Waymonad
 import Waymonad.Types
 
--- TODO: SANITIZE!!!!
 {- So the general idea here:
  - If we focus an empty workspace -> clear focus
  - If we focus a populated workspace:
@@ -47,6 +46,8 @@ import Waymonad.Types
 -- Do NOT asume this has the relevant seat as current seat.
 -- This may be triggered by another seat on the same output changing the
 -- output <-> seat mapping!
+
+-- IfCxt?
 handleKeyboardSwitch :: (FocusCore vs ws, WSTag ws) => SeatWSChange ws -> Way vs ws ()
 handleKeyboardSwitch (KeyboardWSChange s pre cur) = do
     whenJust pre $ unsetFocus s

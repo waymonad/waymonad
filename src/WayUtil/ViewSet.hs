@@ -57,6 +57,7 @@ import Waymonad
     , WayBindingState (..)
     )
 import WayUtil.Current
+import WayUtil.Mapping (getOutputKeyboards)
 
 import qualified Data.Set as S
 
@@ -91,11 +92,6 @@ getWSOutputs :: WSTag a => a -> Way vs a [Output]
 getWSOutputs ws = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     pure $ map snd $ filter ((==) ws . fst) mapping
--- TODO: Deduplicate with WayUtil (Recursive import :()
-getOutputKeyboards :: Output -> Way vs a [Seat]
-getOutputKeyboards out = do
-    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
-    pure . map fst . filter ((==) out . snd . snd) $ currents
 
 -- | This is a utility function that makes sure things are relayouted/focus is
 -- set appropriatly when the modified workspace is displayed

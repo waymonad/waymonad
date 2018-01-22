@@ -51,7 +51,6 @@ import Waymonad
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
 
--- TODO: This should be a Maybe, we aren't guaranteed outputs
 getPointerOutput :: Way vs a (Maybe Output)
 getPointerOutput = doJust getSeat getPointerOutputS
 
@@ -79,8 +78,7 @@ getCurrentWS = do
     let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) =<< output
     case ws of
         Just x -> pure x
--- TODO: Make this a better error message!
-        Nothing -> head . wayUserWorkspaces <$> getState
+        Nothing -> error "At least one workspace is requried" . wayUserWorkspaces <$> getState
 
 getPointerWS :: Way vs a a
 getPointerWS = do
@@ -89,8 +87,7 @@ getPointerWS = do
     let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) =<< output
     case ws of
         Just x -> pure x
--- TODO: Make this a better error message!
-        Nothing -> head . wayUserWorkspaces <$> getState
+        Nothing -> error "At least one workspace is requried" . wayUserWorkspaces <$> getState
 
 
 getCurrentView :: Way vs a (Maybe View)

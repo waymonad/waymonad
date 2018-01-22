@@ -99,7 +99,7 @@ instance WSTag a => FocusCore (ViewSet a) a where
         \(GenericLayout l) -> pureLayout l vs ws
     _insertView ws s v vs = M.adjust (addView s v) ws vs
     _removeView ws v vs = M.adjust (rmView v) ws vs
-    getVSWorkspaces = fmap fst . M.toList
+    removeGlobal v _ = fmap (rmView v)
 
 instance WSTag a => ListLike (ViewSet a) a where
     _asList vs ws = join . maybeToList $ fmap unZipper (wsViews =<< M.lookup ws vs)

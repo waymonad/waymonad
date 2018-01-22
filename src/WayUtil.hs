@@ -166,17 +166,6 @@ getOutputWS output =  do
 getOutputs :: Way vs a [Output]
 getOutputs = liftIO . readIORef . wayBindingOutputs =<< getState
 
-
-getOutputPointers :: Output -> Way vs a [Seat]
-getOutputPointers out = do
-    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
-    pure . map fst . filter ((==) out . fst . snd) $ currents
-
-getOutputKeyboards :: Output -> Way vs a [Seat]
-getOutputKeyboards out = do
-    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
-    pure . map fst . filter ((==) out . snd . snd) $ currents
-
 getDisplay :: Way vs a DisplayServer
 getDisplay = compDisplay . wayCompositor <$> getState
 

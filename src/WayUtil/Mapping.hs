@@ -20,6 +20,8 @@ Reach us at https://github.com/ongy/waymonad
 -}
 module WayUtil.Mapping
     ( setSeatOutput
+    , getOutputKeyboards
+    , getOutputPointers
     )
 where
 
@@ -67,3 +69,12 @@ setSeatOutput seat foci = do
 
     runLog
 
+getOutputKeyboards :: Output -> Way vs a [Seat]
+getOutputKeyboards out = do
+    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
+    pure . map fst . filter ((==) out . snd . snd) $ currents
+
+getOutputPointers :: Output -> Way vs a [Seat]
+getOutputPointers out = do
+    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
+    pure . map fst . filter ((==) out . fst . snd) $ currents
