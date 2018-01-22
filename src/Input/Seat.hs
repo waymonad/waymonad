@@ -30,6 +30,7 @@ module Input.Seat
     , keyboardClear
     , pointerAxis
     , updatePointerFocus
+    , seatDestroy
     )
 where
 
@@ -80,6 +81,10 @@ instance Eq Seat where
 
 instance Ord Seat where
     l `compare` r = seatRoots l `compare` seatRoots r
+
+seatDestroy :: Seat -> IO ()
+seatDestroy Seat {seatRoots = roots} =
+    R.destroySeat roots
 
 seatCreate
     :: MonadIO m

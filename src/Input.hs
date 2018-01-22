@@ -41,6 +41,7 @@ import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(peek))
 import System.IO.Unsafe (unsafePerformIO)
 
+import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
@@ -53,6 +54,7 @@ import Graphics.Wayland.WlRoots.XCursorManager
     , xCursorManagerCreate
     , xCursorSetImage
     , xCursorLoad
+    , xCursorManagerDestroy
     )
 import Graphics.Wayland.WlRoots.Cursor (setCursorSurface, detachInputDevice, attachInputDevice)
 import Graphics.Wayland.WlRoots.Output (getOutputScale)
@@ -100,6 +102,13 @@ data SeatFoo = SeatFoo
     , fooName    :: Text
     }
 
+destroySeatFoo :: SeatFoo -> Way vs ws ()
+destroySeatFoo SeatFoo {fooXCursorManager = xcursor, fooCursor = cursor, fooSeat = seat, fooImageToken = token} = liftIO $ do
+    removeListener token
+    xCursorManagerDestroy xcursor
+    seatDestroy seat
+    cursorDestroy cursor
+
 data Input = Input
     { inputDevices :: IORef (Set (Ptr InputDevice))
     , inputFooMap :: IORef (Map Text SeatFoo)
@@ -139,6 +148,7 @@ doDetach dev foo = do
         then do
             Compositor {compInput = input} <- wayCompositor <$> getState
             liftIO $ modifyIORef (inputFooMap input) (M.delete $ fooName foo)
+            destroySeatFoo foo
         else liftIO $ writeIORef (fooDevices foo) remaining
 
 

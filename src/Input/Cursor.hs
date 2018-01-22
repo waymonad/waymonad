@@ -61,6 +61,7 @@ import Graphics.Wayland.WlRoots.Cursor
     , mapToRegion
     , getCursorX
     , getCursorY
+    , destroyCursor
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( WlrOutputLayout
@@ -69,7 +70,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     , layoutGetOutput
     , layoutOuputGetPosition
     )
-import Graphics.Wayland.Signal (ListenerToken)
+import Graphics.Wayland.Signal (ListenerToken, removeListener)
 
 import Input.Cursor.Type
 import Output (outputFromWlr)
@@ -90,6 +91,11 @@ import WayUtil.Layout (viewBelow)
 import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Mapping (setSeatOutput)
 import WayUtil.Signal (setSignalHandler)
+
+cursorDestroy :: Cursor -> IO ()
+cursorDestroy Cursor { cursorRoots = roots, cursorTokens = tokens } = do
+    mapM_ removeListener tokens
+    destroyCursor roots
 
 cursorCreate :: (FocusCore vs a, WSTag a) => Ptr WlrOutputLayout -> Way vs a Cursor
 cursorCreate layout = do
