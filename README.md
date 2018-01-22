@@ -32,7 +32,15 @@ This currently only builds with the `new-build` feature of cabal-install. `stack
  * cd waymonad
  * cabal new-build
  
+ ### For unprivileged install:
+ * Configure wlroots with: `meson build --prefix=<your prefix>`
+ * ninja -C build install
+ * PKG_CONFIG_PATH=<your prefix>/lib/pkgconfig cabal new-build
+ 
+ ---
+ 
  * cabal new-haddock
+ 
  ^ this will generate about the only documentation there is for now. Sorry!
 -----
 
