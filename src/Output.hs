@@ -30,6 +30,7 @@ module Output
     , findMode
     , setOutputDirty
     , forOutput
+    , readTransform
     )
 where
 
@@ -46,7 +47,18 @@ import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Foreign.Storable (Storable(peek))
 import System.IO (stderr)
 
-import Graphics.Wayland.Server (callbackDone)
+import Graphics.Wayland.Server
+    ( OutputTransform
+    , outputTransformNormal
+    , outputTransform180
+    , outputTransform90
+    , outputTransform270
+    , outputTransformFlipped
+    , outputTransformFlipped_180
+    , outputTransformFlipped_90
+    , outputTransformFlipped_270
+    , callbackDone
+    )
 
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
@@ -100,7 +112,7 @@ import Graphics.Wayland.WlRoots.Surface
 
 import Waymonad (makeCallback2)
 import Waymonad.Types (Compositor (..))
--- import Input.Seat (Seat(seatLoadScale))
+import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (doJust)
 import View
@@ -280,8 +292,8 @@ handleOutputAdd hook output = do
     liftIO $ modifyIORef current (out :)
 
     scale <- liftIO $ getOutputScale output
---    seats <- getSeats
---    liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
+    seats <- getSeats
+    liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
 
     hook out
     makeCallback2 frameHandler
@@ -318,3 +330,15 @@ forOutput fun = do
     current <- wayBindingOutputs <$> getState
     outs <- liftIO $ readIORef current
     mapM fun outs
+
+readTransform :: Text -> Maybe OutputTransform
+readTransform "Normal" = Just outputTransformNormal
+readTransform "90" = Just outputTransform90
+readTransform "180" = Just outputTransform180
+readTransform "270" = Just outputTransform270
+readTransform "Flipped" = Just outputTransformFlipped
+readTransform "Flipped90" = Just outputTransformFlipped_90
+readTransform "Flipped180" = Just outputTransformFlipped_180
+readTransform "Flipped270" = Just outputTransformFlipped_270
+readTransform _ = Nothing
+

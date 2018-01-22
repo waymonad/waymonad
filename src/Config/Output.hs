@@ -28,6 +28,7 @@ where
 
 import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
+import Data.Functor.Alt ((<!>))
 import Config.Schema
 import Data.List (sortOn)
 import Data.Map (Map)
@@ -37,6 +38,18 @@ import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable
 
+import Graphics.Wayland.Server
+    ( OutputTransform
+    , outputTransformNormal
+    , outputTransform180
+    , outputTransform90
+    , outputTransform270
+    , outputTransformFlipped
+    , outputTransformFlipped_180
+    , outputTransformFlipped_90
+    , outputTransformFlipped_270
+    , callbackDone
+    )
 import Graphics.Wayland.WlRoots.Output
 import Graphics.Wayland.WlRoots.OutputLayout
 
@@ -56,6 +69,7 @@ data OutputConfig = OutputConfig
     , outPosition :: Maybe (Point Int)
     , outMode :: Maybe Mode
     , outScale :: Maybe Float
+    , outTransform :: Maybe OutputTransform
     } deriving (Eq, Show)
 
 data Mode = Mode
@@ -64,6 +78,16 @@ data Mode = Mode
     , modeCRefresh :: Word
     } deriving (Eq, Show)
 
+instance Spec OutputTransform where
+    valuesSpec = 
+        outputTransformNormal      <$ atomSpec "Normal"     <!>
+        outputTransform90          <$ atomSpec "90"         <!>
+        outputTransform180         <$ atomSpec "180"        <!>
+        outputTransform270         <$ atomSpec "270"        <!>
+        outputTransformFlipped     <$ atomSpec "Flipped"    <!>
+        outputTransformFlipped_90  <$ atomSpec "Flipped90"  <!>
+        outputTransformFlipped_180 <$ atomSpec "Flipped180" <!>
+        outputTransformFlipped_270 <$ atomSpec "Flipped270"
 
 instance Spec Mode where
     valuesSpec = sectionsSpec "mode" $ do
@@ -80,12 +104,14 @@ instance Spec OutputConfig where
         pos <- optSection "position" "The position of the output"
         mode <- optSection "mode" "The mode that should be set for this output"
         scale <- optSection "scale" "The output scale"
+        transform <- optSection "transform" "The output transformation"
 
         pure OutputConfig
             { outName = name
             , outPosition = pos
             , outMode = mode
             , outScale = fmap fromRational scale
+            , outTransform = transform
             }
 
 
@@ -133,12 +159,14 @@ configureOutput conf output = do
     layout <- compLayout . wayCompositor <$> getState
     let position = outPosition =<< conf
         confMode = outMode =<< conf
+        transform = outTransform =<< conf
     mode <- pickMode output confMode
 
     liftIO $ case position of
         Nothing -> addOutputAuto layout output
         Just (Point x y) -> addOutput layout output x y
 
+    liftIO $ whenJust transform (transformOutput output)
     liftIO $ whenJust mode (`setOutputMode` output)
     liftIO $ whenJust (outScale =<< conf) (setOutputScale output)
 
