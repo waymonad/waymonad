@@ -65,6 +65,26 @@ formatNS val
     | otherwise = sformat (int % "ns") val
 
 #ifdef __GLASGOW_HASKELL__
+formatLast :: IO Text
+formatLast = do
+    stats <- getRTSStats
+    let details = gc stats
+    pure $ T.unlines
+        [ sformat ("Generation: " % int) $ gcdetails_gen details
+        , sformat ("Allocated Bytes: " % stext) . formatBytes $ gcdetails_allocated_bytes details
+        , sformat ("Live: " % stext) . formatBytes $ gcdetails_live_bytes details
+        , sformat ("Slop bytes: " % stext) . formatBytes $ gcdetails_slop_bytes details
+        , sformat ("Mem in use: " % stext) . formatBytes $ gcdetails_mem_in_use_bytes details
+        , sformat ("Time: " % stext) . formatNS $ gcdetails_elapsed_ns details
+        ]
+
+getLast :: Way vs ws Text
+getLast = liftIO $ do
+    enabled <- getRTSStatsEnabled
+    if enabled
+        then formatLast
+        else pure "Start with `+RTS -t -RTS` to get detailed RTS statistics"
+
 formatStats :: IO Text
 formatStats = do
     stats <- getRTSStats
@@ -97,7 +117,8 @@ rtsDir = DirEntry $ simpleDir $ M.fromList
                                                          )
           )
 #ifdef __GLASGOW_HASKELL__
-        , ("stats", FileEntry $ textFile (getStats))
+        , ("stats", FileEntry $ textFile getStats)
+        , ("lastgc", FileEntry $ textFile getLast)
         , ("raw", FileEntry $ textFile . fmap (T.pack . show) $ liftIO getRTSStatsEnabled)
 #endif
         ]

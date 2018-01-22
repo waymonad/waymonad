@@ -162,14 +162,21 @@ myConf modi = WayUserConf
     , wayUserConfInputAdd    = \ptr -> do
         liftIO $ setupTrackball ptr
         attachDevice ptr "seat0"
-    , wayUserConfDisplayHook = [getFuseBracket, getGammaBracket, getFilterBracket filterUser, baseTimeBracket, getStartupBracket (spawn "redshift -m wayland"), envBracket [("PULSE_SERVER", "zelda.ongy")]]
+    , wayUserConfDisplayHook =
+        [ getFuseBracket
+        , getGammaBracket
+        , getFilterBracket filterUser
+        , baseTimeBracket
+        , getStartupBracket (spawn "redshift -m wayland")
+        , envBracket [("PULSE_SERVER", "zelda.ongy")]
+        ]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
-        { wayHooksVWSChange     = wsScaleHook <> (liftIO . hPrint stderr)
-        , wayHooksOutputMapping = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt <> (liftIO . hPrint stderr)
-          , wayHooksSeatWSChange  = SM.wsChangeLogHook <> handleKeyboardSwitch <> (liftIO . hPrint stderr)
-        , wayHooksSeatOutput = SM.outputChangeEvt <> (liftIO . hPrint stderr)
+        { wayHooksVWSChange       = wsScaleHook <> (liftIO . hPrint stderr)
+        , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt <> (liftIO . hPrint stderr)
+        , wayHooksSeatWSChange    = SM.wsChangeLogHook <> handleKeyboardSwitch <> (liftIO . hPrint stderr)
+        , wayHooksSeatOutput      = SM.outputChangeEvt <> (liftIO . hPrint stderr)
         , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
         }
     , wayUserConfShells = [Xdg.makeShell, XWay.makeShell]
