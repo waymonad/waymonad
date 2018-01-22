@@ -8,9 +8,22 @@ This brings problems for us, since xmonad will not work with the new architectur
 This project is intended to provide a wayland based desktop which shares the ideals and experience from xmonad.
 
 ## [WIP]: This is work in Progress.
-Currently more a place for me to write down thoughts and provide a platform to discuss them.
+### You may test this, but currently it's not nice to your battery!
+The [damage tracking PR](https://github.com/swaywm/wlroots/pull/571) currently being worked on for wlroots should fix this.
+Currently waymonad will render your entire desktop at the outputs framerate, even if nothing changed.
+
+### There's no bar/background application/quality of life
+
+Until `surface-layers` is in, these won't be implemented.
+I have no idea when that happens, so until then expect a rather barebones experience (I may implement background).
+
+### "Minor" things
+
+* I don't have a floating layer yet. Though override redirect (dmenu) works.
+* There is barely any documentation so unless you are familiar with Haskell (and preferably xmonad) this may be rather hard to get comfortable with.
 
 -----
+# "Install" (compile and execute locally):
 
 To test this, you need `wlroots` installed.
 This currently only builds with the `new-build` feature of cabal-install. `stack` is (not yet) supported.
@@ -19,10 +32,8 @@ This currently only builds with the `new-build` feature of cabal-install. `stack
  * cd waymonad
  * cabal new-build
  
- If the `xkbcommon` module fails with cryptic errors, try to create the `build` directory in `hsroots/haskell-xkbcommon/dist` and prevent your user from writing in there. My setup does it and that seems to work fine.
- 
- Or if you are on recent (I think 8.2.2) ghc, use the master, it uses TemplateHaskell and doesn't try to write in-tree during compilation.
-
+ * cabal new-haddock
+ ^ this will generate about the only documentation there is for now. Sorry!
 -----
 
 ### What this is NOT
@@ -37,21 +48,4 @@ This currently only builds with the `new-build` feature of cabal-install. `stack
 * predictable layouting
 * based on the compositor library [wlroots](https://github.com/SirCmpwn/wlroots)
 
----
-
-### Things I did by accident that are now a feature
-
-I was working on `view`/`greedyView` implementation and accidently mapped the same workspace to two outputs.
-That looked weird, so I implemented a logic that will give the layout a box centered the respective outputs with width and height being the minimum from all outputs the workspace is shown on.
-
-Now it's a feature!
-![Workspace on two outputs](https://i.imgur.com/FD53fWa.jpg)
-
-### Things I actually did as features
-* Windows will be centered into the layout box if they are too small
-    ![gnome-calculator centered](https://i.imgur.com/zHCA1aV.png)
-* Windows that don't want to get small enough, get forcefully scaled into position
-  
-  Also, `ProxyView` to display a window a second time, interactive but will not set sizes 
-    ![wayland terminal forcefully scaled](https://i.imgur.com/ak86ZVx.png)
 
