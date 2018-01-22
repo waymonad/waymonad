@@ -30,18 +30,17 @@ This currently only builds with the `new-build` feature of cabal-install. `stack
 
  * git clone --recursive https://github.com/ongy/waymonad
  * cd waymonad
- * cabal new-build
+ * `[PKG_CONFIG_PATH=/usr/local/lib/pkgconfig] cabal new-build`
  
  ### For unprivileged install:
  * Configure wlroots with: `meson build --prefix=<your prefix>`
  * ninja -C build install
- * PKG_CONFIG_PATH=<your prefix>/lib/pkgconfig cabal new-build
+ * `PKG_CONFIG_PATH=<your prefix>/lib/pkgconfig cabal new-build`
  
  ---
- 
+### For the little documentation there is for now: 
  * cabal new-haddock
- 
- ^ this will generate about the only documentation there is for now. Sorry!
+
 -----
 
 ### What this is NOT
