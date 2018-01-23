@@ -144,13 +144,14 @@ doDetach dev foo = do
         _ -> pure ()
     devs <- liftIO $ readIORef (fooDevices foo)
     let remaining = S.delete dev devs
-    if S.null remaining
-        then do
-            Compositor {compInput = input} <- wayCompositor <$> getState
-            liftIO $ modifyIORef (inputFooMap input) (M.delete $ fooName foo)
-            destroySeatFoo foo
-        else liftIO $ writeIORef (fooDevices foo) remaining
-
+    liftIO $ writeIORef (fooDevices foo) remaining
+--    if S.null remaining
+--        then do
+--            Compositor {compInput = input} <- wayCompositor <$> getState
+--            liftIO $ modifyIORef (inputFooMap input) (M.delete $ fooName foo)
+--            destroySeatFoo foo
+--        else liftIO $ writeIORef (fooDevices foo) remaining
+--
 
 detachDevice :: Ptr InputDevice -> Way vs a ()
 detachDevice dev = do

@@ -30,7 +30,7 @@ module WayUtil.Current
 where
 
 import Control.Monad.IO.Class (liftIO)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, fromMaybe)
 import Data.IORef (readIORef)
 import Data.Tuple (swap)
 
@@ -78,7 +78,7 @@ getCurrentWS = do
     let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) =<< output
     case ws of
         Just x -> pure x
-        Nothing -> error "At least one workspace is requried" . wayUserWorkspaces <$> getState
+        Nothing -> fromMaybe (error "At least one workspace is requried") . listToMaybe . wayUserWorkspaces <$> getState
 
 getPointerWS :: Way vs a a
 getPointerWS = do
@@ -87,7 +87,7 @@ getPointerWS = do
     let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) =<< output
     case ws of
         Just x -> pure x
-        Nothing -> error "At least one workspace is requried" . wayUserWorkspaces <$> getState
+        Nothing -> fromMaybe (error "At least one workspace is requried") . listToMaybe . wayUserWorkspaces <$> getState
 
 
 getCurrentView :: Way vs a (Maybe View)
