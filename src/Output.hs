@@ -72,6 +72,7 @@ module Output
     , readTransform
     , setPreferdMode
     , addOutputToWork
+    , removeOutputFromWork
     )
 where
 
@@ -80,7 +81,7 @@ import Control.Monad (forM_, forM, filterM, void, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (maximumBy, minimumBy)
 import Data.Function (on)
-import Data.IORef (readIORef, modifyIORef)
+import Data.IORef (IORef, writeIORef, newIORef, readIORef, modifyIORef)
 import Data.List ((\\), find)
 import Data.Text (Text)
 import Data.Word (Word32)
@@ -117,6 +118,8 @@ import Graphics.Wayland.WlRoots.Output
     , setOutputNeedsSwap
     , isOutputEnabled
     , setOutputMode
+    , outputEnable
+    , outputDisable
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( outputIntersects
@@ -181,8 +184,9 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 data Output = Output
-    { outputRoots :: Ptr WlrOutput
-    , outputName  :: Text
+    { outputRoots  :: Ptr WlrOutput
+    , outputName   :: Text
+    , outputActive :: IORef Bool
     }
 
 instance Show Output where
@@ -329,7 +333,8 @@ handleOutputAdd hook output = do
     name <- liftIO $ getOutputName output
 
     current <- wayBindingOutputs <$> getState
-    let out = Output output name
+    active <- liftIO $ newIORef False
+    let out = Output output name active
     liftIO $ modifyIORef current (out :)
 
     hook out
@@ -339,17 +344,17 @@ handleOutputAdd hook output = do
 handleOutputRemove
     :: Ptr WlrOutput
     -> Way vs a ()
-handleOutputRemove output = do
+handleOutputRemove output = doJust (outputFromWlr output) $ \out -> do
     state <- getState
-    name <- liftIO $ getOutputName output
-    let val = Output output name
-    liftIO $ do
-        modifyIORef (wayBindingMapping state) $  filter ((/=) val . snd)
-        modifyIORef (wayBindingOutputs state) $  \xs -> xs \\ [val]
+    removeOutputFromWork out
+    liftIO $ modifyIORef (wayBindingOutputs state) $  \xs -> xs \\ [out]
 
-        T.hPutStr stderr "Detached output: "
-        T.hPutStr stderr name
-        T.hPutStrLn stderr "."
+removeOutputFromWork :: Output -> Way vs ws ()
+removeOutputFromWork output = do
+    state <- getState
+    liftIO $ outputDisable (outputRoots output)
+    liftIO $ modifyIORef (wayBindingMapping state) $ filter ((/=) output . snd)
+    liftIO $ writeIORef (outputActive output) False
 
 getOutputId :: Output -> Int
 getOutputId = ptrToInt . outputRoots
@@ -397,5 +402,7 @@ addOutputToWork output position = do
     scale <- liftIO $ getOutputScale (outputRoots output)
     seats <- getSeats
     liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
+    liftIO $ writeIORef (outputActive output) True
+    liftIO $ outputEnable (outputRoots output)
 
     hook (OutputEvent output)

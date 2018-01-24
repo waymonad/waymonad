@@ -26,14 +26,16 @@ module Output
 where
 
 import Control.Monad.IO.Class (MonadIO)
+import Data.IORef (IORef)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 data Output = Output
-    { outputRoots :: Ptr WlrOutput
-    , outputName  :: Text
+    { outputRoots  :: Ptr WlrOutput
+    , outputName   :: Text
+    , outputActive :: IORef Bool
     }
 
 instance Show Output

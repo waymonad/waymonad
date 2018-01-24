@@ -61,7 +61,15 @@ import Graphics.Wayland.WlRoots.Output
     )
 import Graphics.Wayland.WlRoots.OutputLayout (moveOutput)
 
-import Output (Output(..), findMode, outputFromWlr, readTransform)
+import Output
+    ( Output(..)
+    , addOutputToWork
+    , findMode
+    , outputFromWlr
+    , readTransform
+    , removeOutputFromWork
+    , setPreferdMode
+    )
 import Utility (ptrToInt)
 import ViewSet (WSTag (..))
 import Waymonad (getState)
@@ -141,42 +149,13 @@ ensureWOutput out fun = do
     roots <- outputFromWlr $ outputRoots out
     maybe (pure $ Left eBADF) (const fun) roots
 
-
-makeOutputDir :: WSTag a => Output -> Way vs a (Entry vs a)
-makeOutputDir out = do
+makeActiveConf :: WSTag a => Output -> Way vs a [(String, Entry vs ws)]
+makeActiveConf out = do
     let guaranteed =
             [ ("width",  FileEntry $ textFile $ ensureOutput out $ liftIO (sformat int <$> getWidth  (outputRoots out)))
             , ("height", FileEntry $ textFile $ ensureOutput out $ liftIO (sformat int <$> getHeight (outputRoots out)))
             , ("effective", FileEntry $ textFile $ ensureOutput out $ liftIO (uncurry (sformat (int % "x" % int)) <$> effectiveResolution (outputRoots out)))
             ]
-
-    let handleMaybe :: Monad m => (m a -> b) -> m (Maybe a) -> m (Maybe b)
-        handleMaybe fun gen = do
-            val <- gen
-            case val of
-                Nothing -> pure Nothing
-                Just x -> pure $ Just $ fun $ pure x
-    info <- liftIO $ sequence
-            [ handleMaybe (("make", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getMake (outputRoots out)
-            , handleMaybe (("model", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getModel (outputRoots out)
-            , handleMaybe (("serial", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getSerial (outputRoots out)
-            ]
-
-    hm <- liftIO $ hasModes $ outputRoots out
-    let modes = if hm
-            then
-                [ ("modes", FileEntry $ textFile . ensureOutput out $ makeModesText out)
-                , ("mode", FileEntry $ textRWFile
-                    (ensureOutput out . liftIO $ maybe (pure "None") (fmap formatMode . peek) =<< getMode (outputRoots out))
-                    (\txt -> ensureWOutput out . liftIO $ do
-                        mode <- readMode out txt
-                        case mode of
-                            Just x -> Right <$> setOutputMode x (outputRoots out)
-                            Nothing -> pure $ Left eINVAL
-                    )
-                  )
-                ]
-            else []
 
     ws <- getOutputWorkspace out
     let wsLink = case ws of
@@ -210,7 +189,7 @@ makeOutputDir out = do
                             layout <- compLayout . wayCompositor <$> getState
                             liftIO $ moveOutput layout (outputRoots out) x y
             )
-                   )
+                )
 
     let dpms = ("dpms", FileEntry $ textRWFile
             (pure "Can't read enabled state yet"
@@ -220,15 +199,79 @@ makeOutputDir out = do
                         "disable" -> Right <$> outputDisable (outputRoots out)
                         _ ->  pure $ Left eINVAL
             )
-                   )
+                )
     layout <- readLayout out
     let layFile = case layout of
             Nothing -> []
             Just txt -> [("layout", FileEntry $ textFile (pure $ txt))]
+    let disable = ("disable", FileEntry $ textRWFile
+            (pure "Write anything into here to disable the output")
+            (\_ -> Right <$> removeOutputFromWork out)
+                  )
+    pure $ disable: dpms: position: scale: transform: guaranteed ++ wsLink ++ layFile
 
-    pure $ DirEntry $ simpleDir $ M.fromList $
-        dpms: position: scale: transform:
-        guaranteed ++ modes ++ wsLink ++ layFile ++ catMaybes info
+
+enableOutput :: Output -> Text -> Way vs ws (Either Errno ())
+enableOutput output txt = do
+    let (pos, modTxt) = T.breakOn ":" txt
+        posM = if T.null pos then Nothing else Just pos
+        modM = if T.null modTxt || modTxt == ":" then Nothing else Just (T.tail modTxt)
+        position = parsePosition <$> posM
+    mode <- liftIO $ case modM of
+        Just x -> Just <$> readMode output x
+        Nothing -> pure Nothing
+    let modeFun = case mode of
+            Nothing -> (>>) (liftIO $ setPreferdMode (outputRoots $ output))
+            Just (Just m) -> (>>) (liftIO $ setOutputMode m (outputRoots $ output))
+            Just Nothing -> const $ pure $ Left eINVAL
+    case position of
+        Nothing -> modeFun (addOutputToWork output Nothing >> pure (Right ()))
+        Just (Right (x, _)) -> modeFun (addOutputToWork output (Just x) >> pure (Right ()))
+        Just (Left _) -> pure $ Left eINVAL
+
+makeConfigs :: WSTag a => Output -> Way vs a [(String, Entry vs ws)]
+makeConfigs out = do
+    active <- liftIO $ readIORef (outputActive out)
+    if active
+        then makeActiveConf out
+        else pure [("enable", FileEntry $ textRWFile
+                (pure $ "Enable with position:mode. If either is left out, it will be defaulted (automatic positioning, or native mode respectivly")
+                (enableOutput out)
+                  )]
+
+makeOutputDir :: WSTag a => Output -> Way vs a (Entry vs a)
+makeOutputDir out = do
+    hm <- liftIO $ hasModes $ outputRoots out
+    let modes = if hm
+            then
+                [ ("modes", FileEntry $ textFile . ensureOutput out $ makeModesText out)
+                , ("mode", FileEntry $ textRWFile
+                    (ensureOutput out . liftIO $ maybe (pure "None") (fmap formatMode . peek) =<< getMode (outputRoots out))
+                    (\txt -> ensureWOutput out . liftIO $ do
+                        mode <- readMode out txt
+                        case mode of
+                            Just x -> Right <$> setOutputMode x (outputRoots out)
+                            Nothing -> pure $ Left eINVAL
+                    )
+                  )
+                ]
+            else []
+
+    let handleMaybe :: Monad m => (m a -> b) -> m (Maybe a) -> m (Maybe b)
+        handleMaybe fun gen = do
+            val <- gen
+            case val of
+                Nothing -> pure Nothing
+                Just x -> pure $ Just $ fun $ pure x
+    configs <- makeConfigs out
+
+    info <- liftIO $ sequence
+            [ handleMaybe (("make", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getMake (outputRoots out)
+            , handleMaybe (("model", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getModel (outputRoots out)
+            , handleMaybe (("serial", ) . FileEntry . textFile . ensureOutput out . liftIO) $ getSerial (outputRoots out)
+            ]
+
+    pure $ DirEntry $ simpleDir $ M.fromList $ configs ++ modes ++ catMaybes info
 
 enumerateOuts :: WSTag a => Way vs a (Map String (Entry vs a))
 enumerateOuts = do
