@@ -83,7 +83,9 @@ instance Ord Seat where
     l `compare` r = seatRoots l `compare` seatRoots r
 
 seatDestroy :: Seat -> IO ()
-seatDestroy Seat {seatRoots = roots} =
+seatDestroy Seat {seatRoots = roots} = do
+    R.pointerClearFocus roots
+    R.keyboardClearFocus roots
     R.destroySeat roots
 
 seatCreate
@@ -113,23 +115,26 @@ seatCreate dsp name reqDefault loadScale cursor = liftIO $ do
 
 keyboardEnter' :: Seat -> Ptr WlrSurface -> View -> Way vs ws Bool
 keyboardEnter' seat surf view = do
-    keyboard <- liftIO $ R.getSeatKeyboard $ seatRoots seat
-    let modifiers = getModifierPtr keyboard
-    (keys, num) <- liftIO $ getKeyboardKeys keyboard
-    prev <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
-    liftIO $ R.keyboardNotifyEnter (seatRoots seat) surf keys num modifiers
-    post <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
+    keyM <- liftIO $ R.getSeatKeyboard $ seatRoots seat
+    case keyM of
+        Nothing -> pure False
+        Just keyboard -> do
+            let modifiers = getModifierPtr keyboard
+            (keys, num) <- liftIO $ getKeyboardKeys keyboard
+            prev <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
+            liftIO $ R.keyboardNotifyEnter (seatRoots seat) surf keys num modifiers
+            post <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
 
-    if prev /= post || prev == surf
-       then do
-            oldView <- liftIO $ readIORef (seatKeyboard seat)
-            let changed = oldView /= Just view
-            when changed $ do
-                liftIO $ writeIORef (seatKeyboard seat) (Just view)
-                hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
-                hook $ KeyboardFocusChange seat oldView (Just view)
-            pure changed
-    else pure False
+            if prev /= post || prev == surf
+            then do
+                    oldView <- liftIO $ readIORef (seatKeyboard seat)
+                    let changed = oldView /= Just view
+                    when changed $ do
+                        liftIO $ writeIORef (seatKeyboard seat) (Just view)
+                        hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
+                        hook $ KeyboardFocusChange seat oldView (Just view)
+                    pure changed
+            else pure False
 
 keyboardEnter :: Seat -> View -> Way vs ws Bool
 keyboardEnter seat view = do
