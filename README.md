@@ -16,6 +16,8 @@ Currently waymonad will render your entire desktop at the outputs framerate, eve
 
 Until `surface-layers` is in, these won't be implemented.
 I have no idea when that happens, so until then expect a rather barebones experience (I may implement background/simple locking if it takes too long).
+If you need to lock your session: [vlock](https://linux.die.net/man/1/vlock) is the only current option I know about.
+This is a bit of a hassle (and not done automagically :/) but it works.
 
 ### "Minor" things
 
