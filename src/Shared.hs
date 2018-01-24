@@ -168,9 +168,10 @@ backendMain hooks display backend = do
     shells <- wayCoreShells <$> getState
     mapM_ startShell shells
     -- This dispatches the first events, e.g. output/input add signals
-    liftIO $ backendStart backend
-    liftIO $ setEnv "WAYLAND_DISPLAY" =<< getEnv "_WAYLAND_DISPLAY"
-    liftIO $ unsetEnv "_WAYLAND_DISPLAY"
+    liftIO $ do
+        backendStart backend
+        setEnv "WAYLAND_DISPLAY" =<< getEnv "_WAYLAND_DISPLAY"
+        unsetEnv "_WAYLAND_DISPLAY"
     -- Start the hooks that want to run *after* the backend got initialised and
     -- run the display
     foldBrackets (backendPostHook hooks) (const $ liftIO $ displayRun display) ()
@@ -194,6 +195,12 @@ displayMain :: (FocusCore vs a, WSTag a) => CompHooks vs a -> DisplayServer -> W
 displayMain hooks display = do
     let outAdd = Bracketed (liftIO . addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals . snd) (liftIO .  removeListener)
     let outRem = Bracketed (liftIO . addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals . snd) (liftIO .  removeListener)
+    liftIO $ do
+        dsp <- lookupEnv "WAYLAND_DISPLAY"
+        -- Prevent the idiotic defaulting behaviour of libwayland
+        case dsp of
+            Nothing -> setEnv "WAYLAND_DISPLAY" "What are you even doing?"
+            Just _ -> pure ()
     foldBrackets (outAdd: outRem: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< (liftIO $ backendAutocreate display)
 
 launchCompositor :: (FocusCore vs a, WSTag a) => CompHooks vs a -> Way vs a ()
