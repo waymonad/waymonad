@@ -12,10 +12,10 @@ This project is intended to provide a wayland based desktop which shares the ide
 The [damage tracking PR](https://github.com/swaywm/wlroots/pull/571) currently being worked on for wlroots should fix this.
 Currently waymonad will render your entire desktop at the outputs framerate, even if nothing changed.
 
-### There's no bar/background application/quality of life
+### There's no **screenlocker**/bar/background application/quality of life
 
 Until `surface-layers` is in, these won't be implemented.
-I have no idea when that happens, so until then expect a rather barebones experience (I may implement background).
+I have no idea when that happens, so until then expect a rather barebones experience (I may implement background/simple locking if it takes too long).
 
 ### "Minor" things
 
