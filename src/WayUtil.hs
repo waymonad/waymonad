@@ -95,6 +95,10 @@ sendTo ws = do
 sendMessage :: (FocusCore vs a, WSTag a, Layouted vs a, Message t) => t -> Way vs a ()
 sendMessage m = modifyCurrentWS $ \_ -> messageWS (SomeMessage m)
 
+sendMessageOn :: (FocusCore vs ws, WSTag ws, Layouted vs ws, Message t)
+              => ws -> t -> Way vs ws ()
+sendMessageOn ws m = modifyWS ws (messageWS (SomeMessage m))
+
 broadcastMessageOn :: (WSTag a, FocusCore vs a, Layouted vs a, Message t) => t -> a -> Way vs a ()
 broadcastMessageOn m ws = modifyWS ws (broadcastWS (SomeMessage m))
 

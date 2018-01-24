@@ -53,6 +53,7 @@ import Input (attachDevice)
 import Layout.Choose
 import Layout.Mirror (mkMirror, ToggleMirror (..))
 import Layout.Spiral
+import Layout.AvoidStruts
 import Layout.Tall (Tall (..))
 import Layout.ToggleFull (mkTFull, ToggleFullM (..))
 import Layout.TwoPane (TwoPane (..))
@@ -155,7 +156,7 @@ myEventHook = idleLog
 myConf :: WlrModifier -> WayUserConf (ViewSet Text) Text
 myConf modi = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout .  mkMirror . mkTFull $ (Tall ||| TwoPane ||| Spiral)
+    , wayUserConfLayouts     = sameLayout . avoidStruts . mkMirror . mkTFull $ (Tall ||| TwoPane ||| Spiral)
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings modi
@@ -175,7 +176,7 @@ myConf modi = WayUserConf
     , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
         { wayHooksVWSChange       = wsScaleHook <> (liftIO . hPrint stderr)
-        , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt <> (liftIO . hPrint stderr)
+        , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt <> constStrutHandler [("DVI-D-1", Struts 16 0 0 0)] <> (liftIO . hPrint stderr)
         , wayHooksSeatWSChange    = SM.wsChangeLogHook <> handleKeyboardSwitch <> (liftIO . hPrint stderr)
         , wayHooksSeatOutput      = SM.outputChangeEvt <> (liftIO . hPrint stderr)
         , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
