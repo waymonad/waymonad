@@ -175,12 +175,29 @@ handleKeyXkb bindings keyboard keycode = do
 
     pure $ or handled
 
-handleKeyEvent
-    :: Keyboard
-    -> Seat
-    -> BindingMap vs a
-    -> Ptr EventKey
-    -> Way vs a ()
+-- This handler is called for every key pressed on a keyboard.
+-- We dispatch keybinds from this handler.
+--
+-- To prevent weirdness that X had with keyboard layouts, this uses an approach
+-- with two checks.
+-- 1) Use xkb processed modifiers and keys.
+--    If [Win]+[Shift]+2 is pressed this will match:
+--       [Win]+@ on us layout
+--       [Win]+" on german layout
+--    Though other keys are generated here, e.g. the keys used for switching
+--    TTYs are bound as "Keysym_XF86Switch_VT_#" not [Alt]+[Shift]+[F#].
+-- 2) If the xkb version did not match any keybinds, match without xkb
+--    processing. With the same keys pressed as above this will match:
+--      [Win]+[Shift]+2 on all layouts and configurations.
+--    This allows to bind this for managing workspaces, and switch keyboard
+--    layouts without interfering with keybinds.
+-- If neither approach matches a keybind, the key-press is forwarded to the
+-- focused client.
+handleKeyEvent :: Keyboard
+               -> Seat
+               -> BindingMap vs a
+               -> Ptr EventKey
+               -> Way vs a ()
 handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
