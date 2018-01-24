@@ -64,7 +64,7 @@ formatNS val
     | val > 1e3 = sformat (int % "us") (val `div` 1e3)
     | otherwise = sformat (int % "ns") val
 
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 802
 formatLast :: IO Text
 formatLast = do
     stats <- getRTSStats
@@ -116,7 +116,7 @@ rtsDir = DirEntry $ simpleDir $ M.fromList
                 _ -> pure $ Left eINVAL
                                                          )
           )
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 802
         , ("stats", FileEntry $ textFile getStats)
         , ("lastgc", FileEntry $ textFile getLast)
         , ("raw", FileEntry $ textFile . fmap (T.pack . show) $ liftIO getRTSStatsEnabled)
