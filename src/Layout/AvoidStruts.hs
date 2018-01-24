@@ -55,7 +55,9 @@ data StrutAvoider l = StrutAvoider
     , avoiderChild  :: l
     }
 
-newtype StrutMessage = StrutMessage Struts deriving (Show, Message)
+newtype StrutMessage = StrutMessage Struts deriving (Show)
+
+instance Message StrutMessage
 
 instance LayoutClass l => LayoutClass (StrutAvoider l) where
     handleMessage s@(StrutAvoider st child) m = case getMessage m of
