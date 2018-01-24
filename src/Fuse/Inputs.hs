@@ -120,7 +120,15 @@ makeInputDir ptr = do
     optDir <- makeOptionsDir ptr
     let optFun = maybe id (:) $ fmap ("options",) optDir
 
-    pure (filter (/= '/') $ T.unpack name, DirEntry $ simpleDir $ M.fromList (optFun deviceType ++ sibDir))
+    liData <- doJust (liftIO $ getDeviceHandle ptr) $ \handle ->
+        pure
+            [ ("vendor", FileEntry $ textFile . fmap (T.pack . show) . liftIO $ LI.getDeviceVendor handle)
+            , ("product", FileEntry $ textFile . fmap (T.pack . show) . liftIO $ LI.getDeviceProduct handle)
+            , ("sysname", FileEntry $ textFile . liftIO $ LI.getDeviceSysname handle)
+            ]
+
+
+    pure (filter (/= '/') $ T.unpack name, DirEntry $ simpleDir $ M.fromList (optFun deviceType ++ sibDir ++ liData))
 
 
 enumerateInputs :: (FocusCore vs a, WSTag a) => Way vs a (Map String (Entry vs a))
