@@ -24,6 +24,8 @@ where
 
 import Config.Schema
 
+import qualified Graphics.Wayland.WlRoots.Box as R
+
 data Point a = Point
     { pointX :: a
     , pointY :: a
@@ -35,3 +37,6 @@ instance Spec a => Spec (Point a) where
         y <- reqSection "y" "The y position of the point"
 
         pure $ Point x y
+
+asRootsPoint :: Integral a => Point a -> R.Point
+asRootsPoint (Point x y) = R.Point (fromIntegral x) (fromIntegral y)

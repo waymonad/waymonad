@@ -48,17 +48,14 @@ import Graphics.Wayland.Server
     , outputTransformFlipped_180
     , outputTransformFlipped_90
     , outputTransformFlipped_270
-    , callbackDone
     )
 import Graphics.Wayland.WlRoots.Output
-import Graphics.Wayland.WlRoots.OutputLayout
 
-import Output (Output (..), setPreferdMode)
+import Output (Output (..), setPreferdMode, addOutputToWork)
 import Utility (whenJust)
-import Waymonad (getState)
 import Waymonad.Types
 
-import Config.Box (Point (..))
+import Config.Box (Point (..), asRootsPoint)
 import Waymonad.Main (WayUserConf (..))
 
 import qualified Data.Map as M
@@ -154,18 +151,13 @@ pickMode output (Just cfg) = liftIO $ do
 
 configureOutput
     :: OutputConfig
-    -> Ptr WlrOutput
+    -> Output
     -> Way vs a ()
-configureOutput conf output = do
-    layout <- compLayout . wayCompositor <$> getState
+configureOutput conf out@Output {outputRoots = output} = do
     let position = outPosition conf
         confMode = outMode conf
         transform = outTransform conf
     mode <- pickMode output confMode
-
-    liftIO $ case position of
-        Nothing -> addOutputAuto layout output
-        Just (Point x y) -> addOutput layout output x y
 
     liftIO $ whenJust transform (transformOutput output)
     case mode of
@@ -173,11 +165,13 @@ configureOutput conf output = do
         Nothing -> setPreferdMode output
     liftIO $ whenJust (outScale conf) (setOutputScale output)
 
+    addOutputToWork out (fmap asRootsPoint position)
+
 
 prependConfig :: Map Text OutputConfig -> (Output -> Way vs ws ()) -> (Output -> Way vs ws ())
 prependConfig configs others output =
     case M.lookup (outputName output) configs of
-        Just config -> configureOutput config (outputRoots output)
+        Just config -> configureOutput config output
         Nothing -> others output
 
 
