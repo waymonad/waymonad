@@ -22,6 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Shells.XdgShell
     ( xdgShellCreate
     , XdgShell
@@ -63,7 +64,7 @@ newtype XdgRef = XdgRef (IORef (Maybe XdgShell))
 
 type MapRef =  IORef (IntMap View)
 
-instance ShellClass XdgRef where
+instance (FocusCore vs ws, WSTag ws) =>  ShellClass XdgRef vs ws where
     activateShell (XdgRef ref) = do
         ret <- liftIO $ readIORef ref
         case ret of
@@ -84,7 +85,7 @@ instance ShellClass XdgRef where
         pure $ case ret of
             Just _ -> True
             Nothing -> False
-    getShellName _ = "XdgShell (v6)"
+    getShellName _ = pure $ "XdgShell (v6)"
     getShellViews (XdgRef ref) = liftIO $ do
         ret <- readIORef ref
         case ret of
@@ -93,7 +94,7 @@ instance ShellClass XdgRef where
                 surfMap <- readIORef surfRef
                 pure $ S.fromList $ M.elems surfMap
 
-makeShell :: IO WayShell
+makeShell :: (FocusCore vs ws, WSTag ws) => IO (WayShell vs ws)
 makeShell = WayShell . XdgRef <$> liftIO (newIORef Nothing)
 
 data XdgShell = XdgShell

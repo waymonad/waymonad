@@ -30,17 +30,17 @@ import View (View)
 import ViewSet (FocusCore, WSTag)
 import Waymonad.Types (Way, WayShell (..), ShellClass (..))
 
-startShell :: (FocusCore vs ws, WSTag ws) => WayShell -> Way vs ws ()
+startShell :: (FocusCore vs ws, WSTag ws) => WayShell vs ws -> Way vs ws ()
 startShell (WayShell shell) = activateShell shell
 
-stopShell :: (FocusCore vs ws, WSTag ws) => WayShell -> Way vs ws ()
+stopShell :: (FocusCore vs ws, WSTag ws) => WayShell vs ws -> Way vs ws ()
 stopShell (WayShell shell) = deactivateShell shell
 
-shellName :: WayShell -> Text
+shellName :: WayShell vs ws -> Way vs ws Text
 shellName (WayShell shell) = getShellName shell
 
-shellActive :: WayShell -> Way vs ws Bool
+shellActive :: WayShell vs ws -> Way vs ws Bool
 shellActive (WayShell shell) = isShellActive shell
 
-shellViews :: WayShell -> Way vs ws (Set View)
+shellViews :: WayShell vs ws -> Way vs ws (Set View)
 shellViews (WayShell shell) = getShellViews shell

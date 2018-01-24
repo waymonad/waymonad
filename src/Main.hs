@@ -182,7 +182,7 @@ myConf modi = WayUserConf
         , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
         , wayHooksNewOutput       = H.outputAddHook
         }
-    , wayUserConfShells = [Xdg.makeShell, XWay.makeShell]
+    , wayUserConfShells = [Xdg.makeShell, XWay.makeShellAct (spawn "monky | dzen2 -w 1280")]
     , wayUserConfLog = pure ()
     , wayUserConfOutputAdd = \out -> do
         setPreferdMode (outputRoots out)

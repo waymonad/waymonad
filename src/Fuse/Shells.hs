@@ -39,7 +39,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 
-makeViewFile :: WayShell -> Way vs a (Entry vs a)
+makeViewFile :: WayShell vs a -> Way vs a (Entry vs a)
 makeViewFile shell = do
     views <- shellViews shell
     tmp <- forM (S.toList views) $ \view -> do
@@ -50,7 +50,7 @@ makeViewFile shell = do
     let content = T.intercalate "\n" tmp
     pure $ FileEntry . textFile $ pure content
 
-makeShellDir :: (FocusCore vs a, WSTag a) => WayShell -> Way vs a (Entry vs a)
+makeShellDir :: (FocusCore vs a, WSTag a) => WayShell vs a -> Way vs a (Entry vs a)
 makeShellDir shell = do
     let active = ("state",  FileEntry $ textRWFile
                     (T.pack . show <$> shellActive shell)
@@ -70,7 +70,8 @@ enumerateShells = do
 
     fmap M.fromList . forM shells $ \shell -> do
         entry <- makeShellDir shell
-        pure (T.unpack $ shellName shell, entry)
+        name <- shellName shell
+        pure (T.unpack $ name, entry)
 
 shellsDir :: (FocusCore vs a, WSTag a) => Entry vs a
 shellsDir = DirEntry $ enumeratingDir enumerateShells

@@ -97,7 +97,7 @@ data WayUserConf vs ws = WayUserConf
     , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) ws] -- ^Hooks that require the backend for setup. Will have full Way state available.
     , wayUserConfPostHook    :: [Bracketed vs () ws] -- ^Hooks that run after the backend is started. Full Way monad available, and outputs/inputdevices should exist already.
     , wayUserConfCoreHooks   :: WayHooks vs ws -- ^The core events that will be emitted during the runtime of the compositor.
-    , wayUserConfShells      :: [IO WayShell] -- ^The shells that should be available. Will be registered and enabled on startup.
+    , wayUserConfShells      :: [IO (WayShell vs ws)] -- ^The shells that should be available. Will be registered and enabled on startup.
     , wayUserConfLog         :: Way vs ws () -- ^The log-function. This can be used to feed a statusbar or similar applications
     }
 

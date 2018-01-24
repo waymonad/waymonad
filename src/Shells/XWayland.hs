@@ -21,6 +21,9 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Shells.XWayland
     ( xwayShellCreate
     , XWayShell
@@ -28,6 +31,7 @@ module Shells.XWayland
 
     , XWayRef
     , makeShell
+    , makeShellAct
     )
 where
 
@@ -37,6 +41,7 @@ import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
+import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 import Foreign.StablePtr
     ( castPtrToStablePtr
@@ -72,35 +77,44 @@ import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 
-newtype XWayRef = XWayRef (IORef (Maybe XWayShell))
+data XWayRef vs ws = XWayRef
+    (IORef (Maybe XWayShell))
+    (Way vs ws ())
 
-makeShell :: IO WayShell
-makeShell = WayShell . XWayRef <$> newIORef Nothing
+makeShellAct :: (Typeable vs, Typeable ws, FocusCore vs ws, WSTag ws)
+             => Way vs ws () -> IO (WayShell vs ws)
+makeShellAct act = do
+    ref <- newIORef Nothing
+    pure $ WayShell $ XWayRef ref act
 
-instance ShellClass XWayRef where
-    activateShell (XWayRef ref) = do
+makeShell :: (Typeable vs, Typeable ws, FocusCore vs ws, WSTag ws)
+          => IO (WayShell vs ws)
+makeShell = makeShellAct (pure ())
+
+instance (Typeable vs, Typeable ws, FocusCore vs ws, WSTag ws) => ShellClass (XWayRef vs ws) vs ws where
+    activateShell (XWayRef ref act) = do
         ret <- liftIO $ readIORef ref
         case ret of
             Just _ -> pure ()
             Nothing -> do
                 dsp <- compDisplay . wayCompositor <$> getState
                 comp <- compCompositor . wayCompositor <$> getState
-                shell <- xwayShellCreate dsp comp
+                shell <- xwayShellCreate dsp comp act
                 liftIO $ writeIORef ref $ Just shell
-    deactivateShell (XWayRef ref) = do
+    deactivateShell (XWayRef ref _) = do
         ret <- liftIO $ readIORef ref
         case ret of
             Just XWayShell {xwayWlrootsShell = roots} -> liftIO $ do
                 X.xwaylandDestroy roots
                 writeIORef ref Nothing
             Nothing -> pure ()
-    isShellActive (XWayRef ref) = do
+    isShellActive (XWayRef ref _) = do
         ret <- liftIO $ readIORef ref
         pure $ case ret of
             Just _ -> True
             Nothing -> False
-    getShellName _ = "XWayland"
-    getShellViews (XWayRef ref) = liftIO $ do
+    getShellName _ = pure "XWayland"
+    getShellViews (XWayRef ref _) = liftIO $ do
         ret <- readIORef ref
         case ret of
             Nothing -> pure mempty
@@ -122,16 +136,18 @@ data XWaySurface = XWaySurface
     }
 
 
-xwayShellCreate
-    :: (FocusCore vs a, WSTag a)
-    => DisplayServer
-    -> Ptr WlrCompositor
-    -> Way vs a XWayShell
-xwayShellCreate display comp = do
+
+xwayShellCreate :: (FocusCore vs a, WSTag a)
+                => DisplayServer
+                -> Ptr WlrCompositor
+                -> Way vs a ()
+                -> Way vs a XWayShell
+xwayShellCreate display comp act = do
     surfaces <- liftIO $ newIORef mempty
     roots <- liftIO $ X.xwaylandCreate display comp
 
     setCallback (handleXwaySurface roots surfaces) (X.xwayBindNew roots)
+    setDestroyHandler (X.xwayReadEvent roots) (pure act)
 
     pure XWayShell
         { xwaySurfaceRef = surfaces

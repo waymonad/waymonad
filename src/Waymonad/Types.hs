@@ -23,6 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Waymonad.Types
     ( WayLoggers (..)
     , Compositor (..)
@@ -105,15 +106,15 @@ data Compositor = Compositor
 
 -- | A class all shells need to implement. This allows to load/unload them at
 -- runtime over IPC.
-class Typeable a => ShellClass a where
-    deactivateShell :: (FocusCore vs ws, WSTag ws) => a -> Way vs ws ()
-    activateShell   :: (FocusCore vs ws, WSTag ws) => a -> Way vs ws ()
+class Typeable a => ShellClass a vs ws where
+    deactivateShell :: a -> Way vs ws ()
+    activateShell   :: a -> Way vs ws ()
     isShellActive   :: a -> Way vs ws Bool
-    getShellName    :: a -> Text
+    getShellName    :: a -> Way vs ws Text
     getShellViews   :: a -> Way vs ws (Set View)
 
 -- | The wrapper type for ShellClass to allow a list of shells.
-data WayShell = forall a. ShellClass a => WayShell a
+data WayShell vs ws = forall a. ShellClass a vs ws => WayShell a
 
 -- | Core event emitted when a view enters or exists a workspace
 data ViewWSChange ws = WSEnter View ws | WSExit View ws deriving (Show)
@@ -192,7 +193,7 @@ data WayBindingState vs ws = WayBindingState
     , wayFloating        :: IORef (Set View) -- ^The set of views floated. This is currently effectivly overrideredirect only.
     , wayExtensibleState :: IORef StateMap -- The statemap for extensible state.
 
-    , wayCoreShells      :: [WayShell] -- ^The shells that are loaded for this compositor.
+                                                                                        , wayCoreShells      :: [WayShell vs ws] -- ^The shells that are loaded for this compositor.
     , wayLogFunction     :: LogFun vs ws -- ^The logfunction (call to feed statusbar)
     , wayKeybinds        :: BindingMap vs ws -- ^The default keybinds a keyboard should aquire
     , wayEventHook       :: SomeEvent -> Way vs ws () -- ^The event hooks that consume non-core events
