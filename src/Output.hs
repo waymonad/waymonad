@@ -87,7 +87,6 @@ import Data.Text (Text)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Foreign.Storable (Storable(peek))
-import System.IO (stderr)
 
 import Graphics.Wayland.Server
     ( OutputTransform
@@ -128,6 +127,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     , layoutGetOutput
     , addOutput
     , addOutputAuto
+    , removeOutput
     )
 import Graphics.Wayland.WlRoots.Render
     ( Renderer
@@ -181,7 +181,6 @@ import Waymonad
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as S
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 
 data Output = Output
     { outputRoots  :: Ptr WlrOutput
@@ -352,6 +351,8 @@ handleOutputRemove output = doJust (outputFromWlr output) $ \out -> do
 removeOutputFromWork :: Output -> Way vs ws ()
 removeOutputFromWork output = do
     state <- getState
+    let Compositor {compLayout = layout} = wayCompositor state
+    liftIO $ removeOutput layout $ outputRoots output
     liftIO $ outputDisable (outputRoots output)
     liftIO $ modifyIORef (wayBindingMapping state) $ filter ((/=) output . snd)
     liftIO $ writeIORef (outputActive output) False
