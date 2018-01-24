@@ -57,6 +57,7 @@ import Layout.Tall (Tall (..))
 import Layout.ToggleFull (mkTFull, ToggleFullM (..))
 import Layout.TwoPane (TwoPane (..))
 import Navigation2D
+import Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Protocols.GammaControl
 import Protocols.Screenshooter
 import Startup.Environment
@@ -178,10 +179,13 @@ myConf modi = WayUserConf
         , wayHooksSeatWSChange    = SM.wsChangeLogHook <> handleKeyboardSwitch <> (liftIO . hPrint stderr)
         , wayHooksSeatOutput      = SM.outputChangeEvt <> (liftIO . hPrint stderr)
         , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
+        , wayHooksNewOutput       = H.outputAddHook
         }
     , wayUserConfShells = [Xdg.makeShell, XWay.makeShell]
     , wayUserConfLog = pure ()
-    , wayUserConfOutputAdd = H.outputAddHook
+    , wayUserConfOutputAdd = \out -> do
+        setPreferdMode (outputRoots out)
+        addOutputToWork out Nothing
     }
 
 main :: IO ()

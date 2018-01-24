@@ -53,7 +53,7 @@ import Graphics.Wayland.Server
 import Graphics.Wayland.WlRoots.Output
 import Graphics.Wayland.WlRoots.OutputLayout
 
-import Output (Output (..))
+import Output (Output (..), setPreferdMode)
 import Utility (whenJust)
 import Waymonad (getState)
 import Waymonad.Types
@@ -151,15 +151,16 @@ pickMode output (Just cfg) = liftIO $ do
             resDist :: OutputMode -> Int -- We know it's the same ration, so be lazy here
             resDist mode = abs $ fromIntegral (modeWidth mode) - fromIntegral (modeCWidth cfg)
 
+
 configureOutput
-    :: Maybe OutputConfig
+    :: OutputConfig
     -> Ptr WlrOutput
     -> Way vs a ()
 configureOutput conf output = do
     layout <- compLayout . wayCompositor <$> getState
-    let position = outPosition =<< conf
-        confMode = outMode =<< conf
-        transform = outTransform =<< conf
+    let position = outPosition conf
+        confMode = outMode conf
+        transform = outTransform conf
     mode <- pickMode output confMode
 
     liftIO $ case position of
@@ -167,13 +168,18 @@ configureOutput conf output = do
         Just (Point x y) -> addOutput layout output x y
 
     liftIO $ whenJust transform (transformOutput output)
-    liftIO $ whenJust mode (`setOutputMode` output)
-    liftIO $ whenJust (outScale =<< conf) (setOutputScale output)
+    case mode of
+        Just m -> liftIO $ setOutputMode m output
+        Nothing -> setPreferdMode output
+    liftIO $ whenJust (outScale conf) (setOutputScale output)
+
 
 prependConfig :: Map Text OutputConfig -> (Output -> Way vs ws ()) -> (Output -> Way vs ws ())
-prependConfig configs others output = do
-    configureOutput (M.lookup (outputName output) configs) (outputRoots output)
-    others output
+prependConfig configs others output =
+    case M.lookup (outputName output) configs of
+        Just config -> configureOutput config (outputRoots output)
+        Nothing -> others output
+
 
 modifyOutputConfig :: Map Text OutputConfig -> WayUserConf vs ws -> WayUserConf vs ws
 modifyOutputConfig m conf = conf { wayUserConfOutputAdd = prependConfig m $ wayUserConfOutputAdd conf }

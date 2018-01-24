@@ -47,6 +47,7 @@ module Waymonad.Types
     , OutputMappingEvent (..)
     , SeatWSChange  (..)
     , SeatOutputChange (..)
+    , OutputEvent (..)
     , ShellClass (..)
     , WayShell (..)
     , SeatFocusChange (..)
@@ -165,13 +166,17 @@ data SeatFocusChange
     | KeyboardFocusChange Seat (Maybe View) (Maybe View)
     deriving (Eq, Show)
 
+-- | A newtype wrapper for 'Output'. To disambiguate Hook usage
+newtype OutputEvent = OutputEvent Output
+
 -- | The core hooks. This should be filled in by the user.
 data WayHooks vs ws = WayHooks
-    { wayHooksVWSChange        :: ViewWSChange ws -> Way vs ws ()
-    , wayHooksOutputMapping    :: OutputMappingEvent ws -> Way vs ws ()
-    , wayHooksSeatOutput       :: SeatOutputChange -> Way vs ws ()
-    , wayHooksSeatWSChange     :: SeatWSChange ws -> Way vs ws ()
-    , wayHooksSeatFocusChange  :: SeatFocusChange -> Way vs ws ()
+    { wayHooksVWSChange       :: ViewWSChange ws -> Way vs ws ()
+    , wayHooksOutputMapping   :: OutputMappingEvent ws -> Way vs ws ()
+    , wayHooksSeatOutput      :: SeatOutputChange -> Way vs ws ()
+    , wayHooksSeatWSChange    :: SeatWSChange ws -> Way vs ws ()
+    , wayHooksSeatFocusChange :: SeatFocusChange -> Way vs ws ()
+    , wayHooksNewOutput       :: OutputEvent -> Way vs ws ()
     }
 
 -- | The main state/config of the compositor. This is the struct provided by

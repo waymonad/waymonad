@@ -36,6 +36,7 @@ import WayUtil.Mapping (setSeatOutput)
 import WayUtil.Focus (setOutputWorkspace)
 import WayUtil.Timing
 import Waymonad (Way, WayBindingState (..), getState)
+import Waymonad.Types (OutputEvent (..))
 
 attachFreeWS :: (FocusCore vs a, WSTag a) => Output -> Way vs a ()
 attachFreeWS out = do
@@ -56,8 +57,8 @@ attachFreeSeats out = do
     mapM_ (`setSeatOutput` These out out) free
 
 
-outputAddHook :: (FocusCore vs a, WSTag a) => Output -> Way vs a ()
-outputAddHook out = do
+outputAddHook :: (FocusCore vs a, WSTag a) => OutputEvent -> Way vs a ()
+outputAddHook (OutputEvent out) = do
     time :: Word <- getSeconds <$> getBasedTime
     when (time < 300) $ do
         attachFreeWS out

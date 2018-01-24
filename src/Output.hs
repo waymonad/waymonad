@@ -21,6 +21,45 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
+{-|
+Module      : Output
+Description : The output type for Waymonad
+Maintainer  : ongy
+Stability   : testing
+Portability : Linux
+
+This is the core for outputs. Most modules will probably not use this,
+unless they want to do something with the lifecycle of an output, rather than
+workspace or layout management.
+
+With that said, the intended lifecycle of an output:
+
+1. An output is plugged in/created
+2. The output is configured
+3. The output is added to the layout/workarea
+4. The output can be configured over IPC
+5. The output is removed from the layout/workarea
+6. The output disappears
+
+The 5th step here may actually be caused by the 6th step.
+Unplugging or destroying the output will trigger the transition from 4 over 5 to 6.
+
+Steps 1 and 2 should be handled immediatly.
+Adding the output to the (Waymoand) globals, to expose it over IPC, happens automatically.
+Configuration of the output should be handled by the user. The hook in the main entry is
+@wayUserConfOutputAdd@ in 'Waymonad.Main.WayUserConf'.
+
+This now set up 'Output' should then be added to the workarea. This will then emit the core hook
+@wayHooksSeatNewOutput@ in 'Waymonad.Types.WayHooks' which is responsible for setting up workspace
+mappings or similar shenanigans.
+
+At this point the output is set up and usable by the user and applications.
+
+It can still be configured over IPC, though currently no events for this exist.
+
+When it's unplugged the core will clean up any traces of it.
+There is currently no core event for it, though that may change.
+-}
 module Output
     ( handleOutputAdd
     , handleOutputRemove
@@ -31,6 +70,8 @@ module Output
     , setOutputDirty
     , forOutput
     , readTransform
+    , setPreferdMode
+    , addOutputToWork
     )
 where
 
@@ -75,13 +116,15 @@ import Graphics.Wayland.WlRoots.Output
 --    , getOutputNeedsSwap
     , setOutputNeedsSwap
     , isOutputEnabled
---    , outputDisable
+    , setOutputMode
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( outputIntersects
 -- TODO: I think wlroots made this simpler
     , layoutOuputGetPosition
     , layoutGetOutput
+    , addOutput
+    , addOutputAuto
     )
 import Graphics.Wayland.WlRoots.Render
     ( Renderer
@@ -111,7 +154,7 @@ import Graphics.Wayland.WlRoots.Surface
     )
 
 import Waymonad (makeCallback2)
-import Waymonad.Types (Compositor (..))
+import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..))
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (doJust)
@@ -285,15 +328,9 @@ handleOutputAdd
 handleOutputAdd hook output = do
     name <- liftIO $ getOutputName output
 
---    liftIO $ outputDisable output
-
     current <- wayBindingOutputs <$> getState
     let out = Output output name
     liftIO $ modifyIORef current (out :)
-
-    scale <- liftIO $ getOutputScale output
-    seats <- getSeats
-    liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
 
     hook out
     makeCallback2 frameHandler
@@ -342,3 +379,23 @@ readTransform "Flipped180" = Just outputTransformFlipped_180
 readTransform "Flipped270" = Just outputTransformFlipped_270
 readTransform _ = Nothing
 
+setPreferdMode :: MonadIO m => Ptr WlrOutput -> m ()
+setPreferdMode output = liftIO $ do
+    modes <- getModes output
+    case modes of
+        [] -> pure ()
+        _ -> setOutputMode (last modes) output
+
+addOutputToWork :: Output -> Maybe Point -> Way vs ws ()
+addOutputToWork output position = do
+    Compositor {compLayout = layout} <- wayCompositor <$> getState
+    liftIO $ case position of
+        Nothing -> addOutputAuto layout $ outputRoots output
+        Just (Point x y) -> addOutput layout (outputRoots output) x y
+    WayHooks {wayHooksNewOutput = hook} <- wayCoreHooks <$> getState
+
+    scale <- liftIO $ getOutputScale (outputRoots output)
+    seats <- getSeats
+    liftIO $ forM_ seats $ \seat -> seatLoadScale seat scale
+
+    hook (OutputEvent output)
