@@ -22,13 +22,19 @@ Reach us at https://github.com/ongy/waymonad
 module Hooks.KeyboardFocus
     ( handleKeyboardSwitch
     , handlePointerSwitch
+    , handleKeyboardPull
     )
 where
 
-import Control.Monad (void, forM_)
+import Control.Monad (void)
+import Control.Monad.IO.Class (liftIO)
 
-import Input.Seat (keyboardClear, pointerClear, updatePointerFocus)
-import Utility (whenJust)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..))
+import Graphics.Wayland.WlRoots.OutputLayout (getOutputLayoutExtends)
+
+import Input.Seat (keyboardClear, updatePointerFocus, setPointerPosition)
+import Output (getOutputBox)
+import Utility (whenJust, doJust)
 import ViewSet (WSTag, FocusCore (..), getFirst)
 import WayUtil.Focus
 import WayUtil.Mapping (getOutputPointers)
@@ -69,7 +75,18 @@ handleKeyboardSwitch (KeyboardWSChange s pre cur) = do
 handleKeyboardSwitch _ = pure ()
 
 handlePointerSwitch :: (FocusCore vs ws, WSTag ws) => OutputMappingEvent ws -> Way vs ws ()
-handlePointerSwitch (OutputMappingEvent out _ cur) = do
+handlePointerSwitch (OutputMappingEvent out _ _) = do
     pointers <- getOutputPointers out
     mapM_  updatePointerFocus pointers
-handlePointerSwitch _ = pure ()
+
+handleKeyboardPull :: (FocusCore vs ws, WSTag ws)
+                   => SeatOutputChange -> Way vs ws ()
+handleKeyboardPull (KeyboardOutputChange s _ cur) = whenJust cur $ \out -> do
+    doJust (getOutputBox out) $ \(WlrBox x y w h) -> do
+        Compositor {compLayout = layout} <- wayCompositor <$> getState
+        WlrBox _ _ lw lh <- liftIO $ getOutputLayoutExtends layout
+        let cx = fromIntegral (x + w `div` 2)
+            cy = fromIntegral (y + h `div` 2)
+        let pos = (cx / fromIntegral lw, cy / fromIntegral lh)
+        setPointerPosition s pos
+handleKeyboardPull _ = pure ()

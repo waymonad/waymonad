@@ -177,6 +177,17 @@ updateFocus cursor time = do
     Compositor { compLayout = layout } <- wayCompositor <$> getState
     updatePosition layout (cursorRoots cursor) (cursorOutput cursor) time
 
+forcePosition :: (FocusCore vs ws, WSTag ws)
+              => Cursor
+              -> (Double, Double)
+              -> Word32
+              -> Way vs ws ()
+forcePosition cursor (x, y) time = do
+    Compositor { compLayout = layout } <- wayCompositor <$> getState
+    liftIO $ warpCursorAbs (cursorRoots cursor) Nothing (Just x) (Just y)
+    updatePosition layout (cursorRoots cursor) (cursorOutput cursor) time
+
+
 handleCursorMotion
     :: (FocusCore vs a, WSTag a)
     => Ptr WlrOutputLayout

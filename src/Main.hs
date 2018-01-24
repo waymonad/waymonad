@@ -178,7 +178,7 @@ myConf modi = WayUserConf
         { wayHooksVWSChange       = wsScaleHook <> (liftIO . hPrint stderr)
         , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt <> constStrutHandler [("DVI-D-1", Struts 16 0 0 0)] <> (liftIO . hPrint stderr)
         , wayHooksSeatWSChange    = SM.wsChangeLogHook <> handleKeyboardSwitch <> (liftIO . hPrint stderr)
-        , wayHooksSeatOutput      = SM.outputChangeEvt <> (liftIO . hPrint stderr)
+        , wayHooksSeatOutput      = SM.outputChangeEvt {-<> handleKeyboardPull-} <> (liftIO . hPrint stderr)
         , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
         , wayHooksNewOutput       = H.outputAddHook
         }

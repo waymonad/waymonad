@@ -21,6 +21,8 @@ Reach us at https://github.com/ongy/waymonad
 module Input.Cursor
 where
 
+import Graphics.Wayland.WlRoots.Box (Point)
+
 import Data.Word (Word32)
 import Input.Cursor.Type
 import ViewSet
@@ -30,3 +32,9 @@ updateFocus :: (FocusCore vs ws, WSTag ws)
             => Cursor
             -> Word32
             -> Way vs ws ()
+
+forcePosition :: (FocusCore vs ws, WSTag ws)
+              => Cursor
+              -> (Double, Double)
+              -> Word32
+              -> Way vs ws ()

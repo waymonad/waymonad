@@ -31,6 +31,7 @@ module Input.Seat
     , pointerAxis
     , updatePointerFocus
     , seatDestroy
+    , setPointerPosition
     )
 where
 
@@ -41,6 +42,7 @@ import Data.Maybe (isJust)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 
+import Graphics.Wayland.WlRoots.Box (Point)
 import Graphics.Wayland.WlRoots.Input.Buttons (ButtonState)
 import Graphics.Wayland.WlRoots.Input.Pointer (AxisOrientation)
 import Graphics.Wayland.WlRoots.Input.Keyboard (getModifierPtr, getKeyboardKeys)
@@ -226,5 +228,7 @@ keyboardClear seat = do
             hook $ KeyboardFocusChange seat oldView Nothing
 
 updatePointerFocus :: (FocusCore vs ws, WSTag ws) => Seat -> Way vs ws ()
-updatePointerFocus seat = do
-    updateFocus (seatCursor seat) 0
+updatePointerFocus seat = updateFocus (seatCursor seat) 0
+
+setPointerPosition :: (FocusCore vs ws, WSTag ws) => Seat -> (Double, Double) -> Way vs ws ()
+setPointerPosition seat p = forcePosition (seatCursor seat) p 0

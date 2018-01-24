@@ -73,6 +73,7 @@ module Output
     , setPreferdMode
     , addOutputToWork
     , removeOutputFromWork
+    , getOutputBox
     )
 where
 
@@ -119,6 +120,8 @@ import Graphics.Wayland.WlRoots.Output
     , setOutputMode
     , outputEnable
     , outputDisable
+    , getWidth
+    , getHeight
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( outputIntersects
@@ -407,3 +410,12 @@ addOutputToWork output position = do
     liftIO $ outputEnable (outputRoots output)
 
     hook (OutputEvent output)
+
+getOutputBox :: Output -> Way vs ws (Maybe WlrBox)
+getOutputBox Output { outputRoots = output } = do
+    Compositor {compLayout = layout} <- wayCompositor <$> getState
+    (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput layout output)
+    width <- liftIO $ getWidth output
+    height <- liftIO $ getHeight output
+    pure $ Just $ WlrBox ox oy (fromIntegral width) (fromIntegral height)
+

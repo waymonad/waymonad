@@ -205,10 +205,8 @@ createSeat name = do
     seatRef <- wayBindingSeats <$> getState
     liftIO $ modifyIORef seatRef ((:) seat)
     -- Attach to the first output, so things "just werk"TM
-    doJust (listToMaybe <$> getOutputs) $ \out -> 
-        setSeatOutput seat $ These out out
 
-    withSeat (Just seat) $ do
+    ret <- withSeat (Just seat) $ do
         cursor  <- cursorCreate layout
         liftIO $ writeIORef cursorRef cursor
         liftIO $ xCursorSetImage xcursor "left_ptr" (cursorRoots cursor)
@@ -224,6 +222,11 @@ createSeat name = do
             , fooDevices = devs
             , fooName = name
             }
+
+    doJust (listToMaybe <$> getOutputs) $ \out -> 
+        setSeatOutput seat $ These out out
+
+    pure ret
 
 getOrCreateSeat
     :: (FocusCore vs a, WSTag a)
