@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2017  Markus Ongyerth
+Copyright (C) 2018  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,21 +18,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Input.Cursor
+module WayUtil.Pointer
 where
 
-import Data.Word (Word32)
-import Input.Cursor.Type
+import Control.Monad.IO.Class (liftIO)
+
+import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
+import Graphics.Wayland.WlRoots.OutputLayout (getOutputLayoutExtends)
+
+import Input.Seat (setPointerPosition, Seat)
+import Utility (doJust)
 import ViewSet
+import Waymonad (getSeat, getState)
 import Waymonad.Types
 
-updateFocus :: (FocusCore vs ws, WSTag ws)
-            => Cursor
-            -> Word32
-            -> Way vs ws ()
 
-forcePosition :: (FocusCore vs ws, WSTag ws)
-              => Cursor
-              -> (Double, Double)
-              -> Word32
-              -> Way vs ws ()
+sendPointerTo :: (FocusCore vs ws, WSTag ws) => Point -> Way vs ws ()
+sendPointerTo p = doJust getSeat $ sendSeatTo p
+
+sendSeatTo :: (FocusCore vs ws, WSTag ws) => Point -> Seat -> Way vs ws ()
+sendSeatTo (Point dx dy) seat = do
+    Compositor {compLayout = layout} <- wayCompositor <$> getState
+    WlrBox _ _ lw lh <- liftIO $ getOutputLayoutExtends layout
+    let pos = (fromIntegral dx / fromIntegral lw, fromIntegral dy / fromIntegral lh)
+    setPointerPosition seat pos

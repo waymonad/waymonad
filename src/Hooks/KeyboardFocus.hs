@@ -27,18 +27,21 @@ module Hooks.KeyboardFocus
 where
 
 import Control.Monad (void)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Maybe (MaybeT (..))
+import Data.Maybe (fromMaybe)
 
-import Graphics.Wayland.WlRoots.Box (WlrBox (..))
-import Graphics.Wayland.WlRoots.OutputLayout (getOutputLayoutExtends)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 
-import Input.Seat (keyboardClear, updatePointerFocus, setPointerPosition)
+import Input.Seat (keyboardClear, updatePointerFocus)
 import Output (getOutputBox)
 import Utility (whenJust, doJust)
 import ViewSet (WSTag, FocusCore (..), getFirst)
+import WayUtil (getOutputWS)
 import WayUtil.Focus
+import WayUtil.Pointer
+import WayUtil.Layout (getViewPosition)
 import WayUtil.Mapping (getOutputPointers)
-import WayUtil.ViewSet (unsetFocus, setFocused, withViewSet)
+import WayUtil.ViewSet (unsetFocus, setFocused, withViewSet, getFocused)
 import Waymonad
 import Waymonad.Types
 
@@ -82,11 +85,12 @@ handlePointerSwitch (OutputMappingEvent out _ _) = do
 handleKeyboardPull :: (FocusCore vs ws, WSTag ws)
                    => SeatOutputChange -> Way vs ws ()
 handleKeyboardPull (KeyboardOutputChange s _ cur) = whenJust cur $ \out -> do
-    doJust (getOutputBox out) $ \(WlrBox x y w h) -> do
-        Compositor {compLayout = layout} <- wayCompositor <$> getState
-        WlrBox _ _ lw lh <- liftIO $ getOutputLayoutExtends layout
-        let cx = fromIntegral (x + w `div` 2)
-            cy = fromIntegral (y + h `div` 2)
-        let pos = (cx / fromIntegral lw, cy / fromIntegral lh)
-        setPointerPosition s pos
+    doJust (getOutputBox out) $ \ob@(WlrBox ox oy _ _) -> do
+        box <- runMaybeT $ do
+            ws <- MaybeT $ getOutputWS out
+            view <- MaybeT $ getFocused s ws
+            WlrBox vx vy vw vh <- MaybeT $ getViewPosition view out
+            pure $ WlrBox (vx + ox) (vy + oy) vw vh
+        let (WlrBox x y w h) = fromMaybe ob box
+        sendSeatTo (Point (x + w `div` 2) (y + h `div` 2)) s
 handleKeyboardPull _ = pure ()

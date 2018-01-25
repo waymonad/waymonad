@@ -127,6 +127,7 @@ executable waymonad
   other-modules:        WayUtil.Layout
   other-modules:        WayUtil.Log
   other-modules:        WayUtil.Mapping
+  other-modules:        WayUtil.Pointer
   other-modules:        WayUtil.Signal
   other-modules:        WayUtil.Timing
   other-modules:        WayUtil.View

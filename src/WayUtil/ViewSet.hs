@@ -34,6 +34,7 @@ module WayUtil.ViewSet
     , withViewSet
     , getWorkspaceViews
     , modifyWS
+    , getFocused
     )
 where
 
@@ -87,6 +88,8 @@ unsetFocus :: FocusCore vs a => Seat -> a -> Way vs a ()
 unsetFocus seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $
     \v -> activateView v False
 
+getFocused :: FocusCore vs ws => Seat -> ws -> Way vs ws (Maybe View)
+getFocused seat ws = withViewSet (\_ vs ->  _getFocused vs ws $ Just seat)
 
 getWSOutputs :: WSTag a => a -> Way vs a [Output]
 getWSOutputs ws = do

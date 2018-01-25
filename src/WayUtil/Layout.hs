@@ -26,26 +26,28 @@ import Control.Monad (filterM)
 import Control.Monad.IO.Class (liftIO)
 import Data.Foldable (toList)
 import Data.IORef (readIORef)
-import Data.List (find)
+import Data.List (find, lookup)
 import Data.Maybe (listToMaybe, isJust)
 import Foreign.Ptr (Ptr)
+import Control.Monad.Trans.Maybe (MaybeT (..))
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
+import Output (Output (Output, outputRoots), getOutputBox)
 import Utility (ptrToInt)
 import View (View, getViewEventSurface)
 import Waymonad (getSeat, getState)
 import Waymonad.Types
+import WayUtil (getOutputs)
 import {-# SOURCE #-} Input.Seat (getPointerFocus)
 
 import qualified Data.IntMap as IM
 
-viewsBelow
-    :: Foldable t
-    => Point
-    -> t (View, WlrBox)
-    -> IO [(View, Int, Int)]
+viewsBelow :: Foldable t
+           => Point
+           -> t (View, WlrBox)
+           -> IO [(View, Int, Int)]
 viewsBelow (Point x y) views =
     map (uncurry makeLocal) <$> filterM hasSurface (toList views)
     where   makeLocal :: View -> WlrBox -> (View, Int, Int)
@@ -55,10 +57,9 @@ viewsBelow (Point x y) views =
             hasSurface (view, WlrBox bx by _ _) = isJust <$> getViewEventSurface view (fromIntegral (x - bx)) (fromIntegral (y - by))
 
 
-viewBelow
-    :: Point
-    -> Ptr WlrOutput
-    -> Way vs a (Maybe (View, Int, Int))
+viewBelow :: Point
+          -> Ptr WlrOutput
+          -> Way vs a (Maybe (View, Int, Int))
 viewBelow point output = do
     fullCache <- liftIO . readIORef . wayBindingCache =<< getState
     case IM.lookup (ptrToInt output) fullCache of
@@ -75,3 +76,22 @@ viewBelow point output = do
                         Just focused -> 
                             pure $ find (\(v, _, _) -> v == focused) candidates <|> listToMaybe candidates
 
+
+-- | Get the position of the given View on the provided Output.
+getViewPosition :: View -> Output -> Way vs ws (Maybe WlrBox)
+getViewPosition view Output {outputRoots = output} = do
+    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
+    case IM.lookup (ptrToInt output) fullCache of
+        Nothing -> pure Nothing
+        Just views -> pure $ lookup view views
+
+-- | Get a views position in global layout space
+getViewBox :: View -> Way vs ws (Maybe WlrBox)
+getViewBox view = do
+    outs <- getOutputs
+    let mapped = map (\out -> do
+            WlrBox px py pw ph <- MaybeT $ getViewPosition view out
+            WlrBox ox oy _ _ <- MaybeT $ getOutputBox out
+            pure (WlrBox (px + ox) (py + oy) pw ph)
+                     ) outs
+    runMaybeT $ foldr (<|>) (MaybeT $ pure Nothing) mapped
