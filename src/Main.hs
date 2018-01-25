@@ -148,7 +148,7 @@ bindings modi =
     , (([modi], keysym_c), doJust getCurrentView makeProxy)
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)
     , (([modi, Shift], keysym_e), closeCompositor)
-    ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws)]) (zip wsSyms workspaces)
+    ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws), (([modi, Ctrl], sym), copyView ws)]) (zip wsSyms workspaces)
 
 myEventHook :: (FocusCore vs a, WSTag a) => SomeEvent -> Way vs a ()
 myEventHook = idleLog
@@ -176,13 +176,13 @@ myConf modi = WayUserConf
     , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
         { wayHooksVWSChange       = wsScaleHook <> (liftIO . hPrint stderr)
-        , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt <> constStrutHandler [("DVI-D-1", Struts 16 0 0 0)] <> (liftIO . hPrint stderr)
+        , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt <> constStrutHandler [("DVI-D-1", Struts 20 0 0 0)] <> (liftIO . hPrint stderr)
         , wayHooksSeatWSChange    = SM.wsChangeLogHook <> handleKeyboardSwitch <> (liftIO . hPrint stderr)
         , wayHooksSeatOutput      = SM.outputChangeEvt {-<> handleKeyboardPull-} <> (liftIO . hPrint stderr)
         , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
         , wayHooksNewOutput       = H.outputAddHook
         }
-    , wayUserConfShells = [Xdg.makeShell, XWay.makeShellAct (spawn "monky | dzen2 -w 1280")]
+    , wayUserConfShells = [Xdg.makeShell, XWay.makeShellAct (spawn "monky | dzen2 -x 1280 -w 1280")]
     , wayUserConfLog = pure ()
     , wayUserConfOutputAdd = \out -> do
         setPreferdMode (outputRoots out)

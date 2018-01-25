@@ -77,6 +77,7 @@ import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 
+
 data XWayRef vs ws = XWayRef
     (IORef (Maybe XWayShell))
     (Way vs ws ())
@@ -205,7 +206,7 @@ handleXwaySurface xway ref surf = do
     let xwaySurf = XWaySurface xway surf
     logPutText loggerX11 Debug "New XWayland surface"
 
-    parent <- liftIO $ X.getX11ParentSurfrace surf
+    parent <- liftIO $ doJust (X.getX11ParentSurfrace surf) X.xwaySurfaceGetSurface
     case parent of
         Nothing -> do
             logPutText loggerX11 Trace "Creating an normal view"
@@ -254,14 +255,19 @@ instance ShellSurface XWaySurface where
     getID (XWaySurface _ surf) = ptrToInt surf
     getTitle = liftIO . X.getTitle . unXway
     getAppId = liftIO . X.getClass . unXway
-    -- renderAdditional :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> a -> m ()
-    renderAdditional fun (XWaySurface _ surf) = do
-        children <- liftIO $ X.getX11Children surf
-        WlrBox sx sy _ _  <- liftIO $ X.getX11SurfaceGeometry surf
-        forM_ children $ \child -> do
-            WlrBox cx cy cw ch <- liftIO $ X.getX11SurfaceGeometry child
-            doJust (liftIO $ X.xwaySurfaceGetSurface child) $ \wlrSurf ->
-                fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)
+    renderAdditional fun (XWaySurface _ surf) = renderChildren fun surf
+
+renderChildren :: MonadIO m
+               => (Ptr WlrSurface -> WlrBox -> m ()) -> Ptr X.X11Surface -> m ()
+renderChildren fun surf = do
+    children <- liftIO $ X.getX11Children surf
+    WlrBox sx sy _ _  <- liftIO $ X.getX11SurfaceGeometry surf
+    forM_ children $ \child -> do
+        liftIO $ hPutStrLn stderr $ "Render child at: " ++ show child
+        WlrBox cx cy cw ch <- liftIO $ X.getX11SurfaceGeometry child
+        doJust (liftIO $ X.xwaySurfaceGetSurface child) $ \wlrSurf ->
+            fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)
+        renderChildren fun child
 
 overrideXRedirect :: Managehook vs a
 overrideXRedirect = do
