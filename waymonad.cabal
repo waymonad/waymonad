@@ -106,6 +106,7 @@ executable waymonad
   other-modules:        Protocols.GammaControl
   other-modules:        Protocols.Screenshooter
 
+  other-modules:        Shells.WlShell
   other-modules:        Shells.XWayland
   other-modules:        Shells.XdgShell
 

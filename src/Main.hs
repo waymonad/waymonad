@@ -81,6 +81,7 @@ import qualified Hooks.OutputAdd as H
 import qualified Hooks.SeatMapping as SM
 import qualified Shells.XWayland as XWay
 import qualified Shells.XdgShell as Xdg
+import qualified Shells.WlShell as Wl
 import qualified System.InputDevice as LI
 import qualified View.Multi as Multi
 import qualified Data.Text as T
@@ -170,7 +171,15 @@ myConf modi = WayUserConf
         , getFilterBracket filterUser
         , baseTimeBracket
         , getStartupBracket (spawn "redshift -m wayland")
-        , envBracket [("PULSE_SERVER", "zelda.ongy")]
+        , envBracket [ ("PULSE_SERVER", "zelda.ongy")
+                     -- crashes in
+                     -- assert with qb for me 
+                     -- , ("QT_QPA_PLATFORM", "wayland-egl")
+                     -- breaks firefox (on arch) :/
+                     --, ("GDK_BACKEND", "wayland")
+                     , ("SDL_VIDEODRIVER", "wayland")
+                     , ("CLUTTER_BACKEND", "wayland")
+                     ]
         ]
     , wayUserConfBackendHook = [getIdleBracket 3e5]
     , wayUserConfPostHook    = [getScreenshooterBracket]
@@ -182,7 +191,7 @@ myConf modi = WayUserConf
         , wayHooksSeatFocusChange = focusFollowPointer <> (liftIO . hPrint stderr)
         , wayHooksNewOutput       = H.outputAddHook
         }
-    , wayUserConfShells = [Xdg.makeShell, XWay.makeShellAct (spawn "monky | dzen2 -x 1280 -w 1280")]
+    , wayUserConfShells = [Xdg.makeShell, Wl.makeShell, XWay.makeShellAct (spawn "monky | dzen2 -x 1280 -w 1280")]
     , wayUserConfLog = pure ()
     , wayUserConfOutputAdd = \out -> do
         setPreferdMode (outputRoots out)

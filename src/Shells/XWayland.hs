@@ -227,7 +227,7 @@ handleXwaySurface xway ref surf = do
             liftIO $ do
                 stPtr <- newStablePtr view
                 poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
-        Just _ -> logPutText loggerX11 Trace "Surface has parent. Skipping view creation"
+        Just _ -> logPutText loggerX11 Trace "Surface has (real) parent. Skipping view creation"
 
 
 instance ShellSurface XWaySurface where
