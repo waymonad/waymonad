@@ -39,7 +39,7 @@ import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
 import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.Server (DisplayServer, clientDestroy)
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
@@ -201,7 +201,9 @@ getWlEventSurface surf x y =
 
 
 instance ShellSurface WlSurface where
-    -- close = liftIO . R.sendClose . unWl
+    close surf = liftIO $ do
+        client <- R.getClient $ unWl surf
+        clientDestroy client
     getSurface = liftIO . R.wlShellSurfaceGetSurface . unWl
     getSize = liftIO . getBoundingBox . unWl
     resize (WlSurface surf) width height =
