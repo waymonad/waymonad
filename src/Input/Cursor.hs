@@ -72,6 +72,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     )
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
 
+import Hooks.FocusFollowPointer (pointerPullFocus)
 import Input.Cursor.Type
 import Output (outputFromWlr)
 import Utility (ptrToInt, doJust, These(..))
@@ -242,9 +243,7 @@ handleCursorButton layout cursor event_ptr = do
             when (eventPointerButtonState event == ButtonPressed) $ do
                 old <- getKeyboardFocus seat
                 when (old /= Just view) $
-                    doJust (getPointerOutputS seat) $ \output -> do
-                        setSeatOutput seat (That output)
-                        focusView view
+                    pointerPullFocus seat view
 
 handleCursorAxis
     :: Ptr WlrEventPointerAxis
@@ -304,7 +303,4 @@ handleToolTip layout cursor event_ptr = do
                 (toolTipEvtTime event) 0x110 (tipStateToButtonState $ toolTipEvtState event)
             when (tipStateToButtonState (toolTipEvtState event) == ButtonPressed) $ do
                 old <- getKeyboardFocus seat
-                when (old /= Just view) $
-                    doJust (getPointerOutputS seat) $ \output -> do
-                        setSeatOutput seat (That output)
-                        focusView view
+                when (old /= Just view) $ pointerPullFocus seat view

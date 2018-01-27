@@ -180,6 +180,7 @@ createView surf = liftIO $ do
             pure [destroyHandler, commitHandler]
 
     dirty <- newIORef True
+    focus <- newIORef Nothing
     let ret = View
             { viewSurface = surf
             , viewBox = global

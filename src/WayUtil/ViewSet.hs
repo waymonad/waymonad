@@ -40,7 +40,7 @@ where
 
 import Control.Monad (void, unless)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef, readIORef)
+import Data.IORef (modifyIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.List (nub)
 
