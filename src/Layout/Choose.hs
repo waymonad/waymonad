@@ -50,6 +50,7 @@ data NextLayout = FirstLayout | NextLayout | NoWrap deriving (Eq, Show)
 
 instance Message NextLayout
 
+
 handle :: LayoutClass l => NextLayout -> l -> Maybe l
 handle m l = handleMessage l (SomeMessage m)
 

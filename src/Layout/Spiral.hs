@@ -29,34 +29,38 @@ import Data.Text (Text)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
+import Layout.Ratio
 import ViewSet
 
 
-data Spiral = Spiral
+data Spiral = Spiral Double
 
-doLayout :: Int -> WlrBox -> [c] -> [(c, WlrBox)]
-doLayout _ _ [] = []
-doLayout _ b [x] = [(x, b)]
-doLayout 0 b@WlrBox{boxWidth = width, boxX = x} (z:zs) =
-    let used = floor $ fromIntegral width * (0.618 :: Double)
-     in (z, b {boxWidth = used}) : doLayout 1 b {boxWidth = width - used, boxX = x + used} zs
-doLayout 1 b@WlrBox{boxHeight = height, boxY = y} (z:zs) =
-    let used = floor $ fromIntegral height * (0.618 :: Double)
-     in (z, b {boxHeight = used}) : doLayout 2 b {boxHeight = height - used, boxY = y + used} zs
-doLayout 2 b@WlrBox{boxWidth = width, boxX = x} (z:zs) =
-    let used = floor $ fromIntegral width * (0.618 :: Double)
-     in (z, b {boxWidth = used, boxX = x + width - used}) : doLayout 3 b {boxWidth = width - used} zs
-doLayout _ b@WlrBox{boxHeight = height, boxY = y} (z:zs) =
-    let used = floor $ fromIntegral height * (0.618 :: Double)
-     in (z, b {boxHeight = used, boxY = y + height - used}) : doLayout 0 b {boxHeight = height - used} zs
+doLayout :: Spiral -> Int -> WlrBox -> [c] -> [(c, WlrBox)]
+doLayout _ _ _ [] = []
+doLayout _ _ b [x] = [(x, b)]
+doLayout s@(Spiral r) 0 b@WlrBox{boxWidth = width, boxX = x} (z:zs) =
+    let used = floor $ fromIntegral width * r
+     in (z, b {boxWidth = used}) : doLayout s 1 b {boxWidth = width - used, boxX = x + used} zs
+doLayout s@(Spiral r) 1 b@WlrBox{boxHeight = height, boxY = y} (z:zs) =
+    let used = floor $ fromIntegral height * r
+     in (z, b {boxHeight = used}) : doLayout s 2 b {boxHeight = height - used, boxY = y + used} zs
+doLayout s@(Spiral r) 2 b@WlrBox{boxWidth = width, boxX = x} (z:zs) =
+    let used = floor $ fromIntegral width * r
+     in (z, b {boxWidth = used, boxX = x + width - used}) : doLayout s 3 b {boxWidth = width - used} zs
+doLayout s@(Spiral r) _ b@WlrBox{boxHeight = height, boxY = y} (z:zs) =
+    let used = floor $ fromIntegral height * r
+     in (z, b {boxHeight = used, boxY = y + height - used}) : doLayout s 0 b {boxHeight = height - used} zs
 
 instance LayoutClass Spiral where
     handleMessage :: Spiral -> SomeMessage -> Maybe Spiral
-    handleMessage _ _ = Nothing
+    handleMessage (Spiral val) m = case getMessage m of
+        Just (IncreaseRatio x) -> Just . Spiral $ min 1 $ val + x
+        Just (DecreaseRatio x) -> Just . Spiral $ max 0 $ val - x
+        _ -> Nothing
     broadcastMessage :: Spiral -> SomeMessage -> Maybe Spiral
     broadcastMessage = handleMessage
     description :: Spiral -> Text
     description _ = "Spiral"
 
 instance ListLike vs ws => GenericLayoutClass Spiral vs ws where
-    pureLayout _ vs ws box = doLayout 0 box $ snd `fmap` _asList vs ws
+    pureLayout s vs ws box = doLayout s 0 box $ snd `fmap` _asList vs ws

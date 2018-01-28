@@ -22,31 +22,40 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE LambdaCase #-}
 module Layout.Tall
 where
 
 import Graphics.Wayland.WlRoots.Box (WlrBox(..))
 
+import Layout.Ratio
 import ViewSet
 
-data Tall = Tall
+data Tall = Tall Double
 
 instance LayoutClass Tall where
     description _ = "Tall"
-    handleMessage _ _ = Nothing
-    broadcastMessage _ _ = Nothing
+    handleMessage (Tall val) m = case getMessage m of
+        Just (IncreaseRatio x) -> Just . Tall $ val + x
+        Just (DecreaseRatio x) -> Just . Tall $ val - x
+        _ -> Nothing
+    broadcastMessage (Tall val) m = case getMessage m of
+        Just (IncreaseRatio x) -> Just . Tall $ val + x
+        Just (DecreaseRatio x) -> Just . Tall $ val - x
+        _ -> Nothing
 
 instance ListLike vs ws => GenericLayoutClass Tall vs ws where
-    pureLayout _ vs ws box = case snd `fmap` _asList vs ws of
+    pureLayout (Tall ratio) vs ws box = case snd `fmap` _asList vs ws of
         [x] -> [(x, box)]
         (x:xs)->
-            let width = boxWidth box `div` 2
+            let unclipped = floor $ fromIntegral (boxWidth box) * ratio
+                width = min (boxWidth box - 10) . max 10 $ unclipped
                 master = (x, box { boxWidth = width  })
                 slaves = zip xs [0 ..]
                 num = length xs
                 height = boxHeight box `div` num
                 ibox i = box
-                    { boxWidth = width
+                    { boxWidth = boxWidth box - width
                     , boxX = boxX box + width
                     , boxHeight = height
                     , boxY = boxY box + i * height

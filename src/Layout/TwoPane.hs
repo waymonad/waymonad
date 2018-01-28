@@ -27,22 +27,30 @@ where
 
 import Graphics.Wayland.WlRoots.Box (WlrBox(..))
 
+import Layout.Ratio
 import ViewSet
 
 import qualified Data.Set as S
 
-data TwoPane = TwoPane
+data TwoPane = TwoPane Double
 
 instance LayoutClass TwoPane where
     description _ = "TwoPane"
-    handleMessage _ _ = Nothing
-    broadcastMessage _ _ = Nothing
+    handleMessage (TwoPane val) m = case getMessage m of
+        Just (IncreaseRatio x) -> Just . TwoPane $ val + x
+        Just (DecreaseRatio x) -> Just . TwoPane $ val - x
+        _ -> Nothing
+    broadcastMessage (TwoPane val) m = case getMessage m of
+        Just (IncreaseRatio x) -> Just . TwoPane $ val + x
+        Just (DecreaseRatio x) -> Just . TwoPane $ val - x
+        _ -> Nothing
 
 instance ListLike vs ws => GenericLayoutClass TwoPane vs ws where
-    pureLayout _ vs ws box = case _asList vs ws of
+    pureLayout (TwoPane ratio) vs ws box = case _asList vs ws of
         [x] -> [(snd x, box)]
         (x:ys@(y:_))->
-            let width = boxWidth box `div` 2
+            let unclipped = floor $ fromIntegral (boxWidth box) * ratio
+                width = min (boxWidth box) $ max 0 unclipped
                 focused = snd <$> filter (not . S.null . fst) ys
                 xFocused = not . S.null . fst $ x
                 master = if xFocused || length focused < 2 then snd x else head focused
