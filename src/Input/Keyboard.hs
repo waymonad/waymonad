@@ -231,6 +231,12 @@ handleKeyboardAdd seat dev ptr = do
     let signals = getKeySignals ptr
     bindings <- wayKeybinds <$> getState
 
+    let keys = M.keys bindings
+        klines = map (\(modifiers, sym) -> (show $ fieldToModifiers modifiers) ++ ":" ++ keysymName (Keysym sym)) keys
+        logLine = unlines klines
+
+    logPutStr loggerKeybinds Trace $ "Loading keyboard with keybinds:\n" ++ logLine
+
     liftIO $ do
         (Just cxt) <- newContext defaultFlags
         (Just keymap) <- newKeymapFromNamesI cxt noPrefs
