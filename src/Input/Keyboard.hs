@@ -46,6 +46,7 @@ import Graphics.Wayland.WlRoots.Input.Keyboard
 
     , getModifiers
     , getModifierPtr
+    , fieldToModifiers
     )
 import Graphics.Wayland.WlRoots.Seat
     ( seatSetKeyboard
@@ -75,12 +76,13 @@ import Waymonad.Types
     , WayBindingState (wayCompositor, wayKeybinds)
     )
 import WayUtil.Signal (setSignalHandler)
-import WayUtil.Log (logPutText, LogPriority (..))
+import WayUtil.Log (logPutText, logPutStr, LogPriority (..))
 
 import Text.XkbCommon.Context
 import Text.XkbCommon.KeyboardState
 import Text.XkbCommon.KeycodeList
 import Text.XkbCommon.Keymap
+import Text.XkbCommon.Keysym
 import Text.XkbCommon.KeysymPatterns
 import Text.XkbCommon.Types
 
@@ -110,6 +112,7 @@ handleKeyPress
     -> Keysym
     -> Way vs a Bool
 handleKeyPress bindings modifiers sym@(Keysym key) = do
+    logPutStr loggerKeybinds Trace $ "Checking for keybind: " ++ (show $ fieldToModifiers modifiers) ++ ":" ++ keysymName sym
     backend <- compBackend . wayCompositor <$> getState
     case sym of
         -- Would be cooler if this wasn't a listing of VTs (probably TH)
