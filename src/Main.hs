@@ -199,6 +199,7 @@ myConf modi = WayUserConf
     , wayUserConfOutputAdd = \out -> do
         setPreferdMode (outputRoots out)
         addOutputToWork out Nothing
+    , wayUserconfLoggers = Nothing
     }
 
 main :: IO ()

@@ -28,6 +28,7 @@ import System.IO
 
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
+import Data.Maybe (fromMaybe)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Foreign.Ptr (Ptr)
 import System.IO.Unsafe (unsafePerformIO)
@@ -99,6 +100,7 @@ data WayUserConf vs ws = WayUserConf
     , wayUserConfCoreHooks   :: WayHooks vs ws -- ^The core events that will be emitted during the runtime of the compositor.
     , wayUserConfShells      :: [IO (WayShell vs ws)] -- ^The shells that should be available. Will be registered and enabled on startup.
     , wayUserConfLog         :: Way vs ws () -- ^The log-function. This can be used to feed a statusbar or similar applications
+    , wayUserconfLoggers     :: Maybe WayLoggers
     }
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
@@ -157,12 +159,12 @@ wayUserMain conf = do
             , loggerWS = Logger Warn "Workspaces"
             , loggerFocus = Logger Warn "Focus"
             , loggerXdg = Logger Warn "Xdg_Shell"
-            , loggerX11 = Logger Trace "XWayland"
+            , loggerX11 = Logger Warn "XWayland"
             , loggerKeybinds = Logger Warn "Keybindings"
             , loggerSpawner = Logger Warn "Spawner"
             , loggerLayout = Logger Warn "Layout"
             , loggerRender = Logger Warn "Frame"
             }
 
-    runWay Nothing state loggers (wayUserRealMain conf compRef)
+    runWay Nothing state (fromMaybe loggers $ wayUserconfLoggers conf) (wayUserRealMain conf compRef)
 

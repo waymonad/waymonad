@@ -24,15 +24,17 @@ Reach us at https://github.com/ongy/waymonad
 module Config.Logger
     ( prioritySpec
     , loggerSpec
+    , modifyLoggerConfig
     )
 where
 
 import Config.Schema
 import Data.Functor.Alt ((<!>))
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
-
 import Waymonad.Types.Logger (LogPriority(..), WayLoggers (..), Logger (..))
+import Waymonad.Main
 
 prioritySpec :: ValueSpecs LogPriority
 prioritySpec =
@@ -46,7 +48,7 @@ instance Spec LogPriority where
     valuesSpec = prioritySpec
 
 loggerSection :: Text -> Text -> SectionSpecs Logger
-loggerSection name desc = flip Logger name <$> reqSection name desc
+loggerSection name desc = flip Logger name . fromMaybe Warn <$> optSection name desc
 
 loggerSpec :: ValueSpecs WayLoggers
 loggerSpec = sectionsSpec "loggers" (WayLoggers
@@ -63,3 +65,8 @@ loggerSpec = sectionsSpec "loggers" (WayLoggers
 
 instance Spec WayLoggers where
     valuesSpec = loggerSpec
+
+modifyLoggerConfig :: Maybe WayLoggers -> WayUserConf vs ws -> WayUserConf vs ws
+modifyLoggerConfig Nothing conf = conf
+modifyLoggerConfig (Just loggers) conf =
+    conf { wayUserconfLoggers = Just loggers }

@@ -45,7 +45,7 @@ import Waymonad.Types.Logger (WayLoggers)
 import Waymonad.Main (WayUserConf (..))
 
 import Config.Output
-import Config.Logger ()
+import Config.Logger
 
 import qualified Data.Map as M
 
@@ -93,4 +93,6 @@ loadConfig = liftIO $ do
     liftIO $ catches (Right <$> loadValueFromFile waySpec path) [ioHandler, schemaHandler, parseHandler]
 
 modifyConfig :: WayConfig -> WayUserConf ws vs -> WayUserConf ws vs
-modifyConfig WayConfig {configOutputs = outputs} = modifyOutputConfig outputs
+modifyConfig WayConfig {configOutputs = outputs, configLoggers = loggers} =
+    modifyLoggerConfig loggers .
+    modifyOutputConfig outputs
