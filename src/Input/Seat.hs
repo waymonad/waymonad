@@ -57,32 +57,14 @@ import Graphics.Wayland.Server
 import {-# SOURCE #-} Input.Cursor
 import Input.Cursor.Type
 import Utility (doJust, whenJust)
-import View (View, getViewSurface, getViewEventSurface)
+import View (getViewSurface, getViewEventSurface)
 import ViewSet (WSTag, FocusCore (..))
 import Waymonad (getState)
 import Waymonad.Types
+import Waymonad.Types.Core
 import WayUtil.Current (getCurrentWS)
 
 import qualified Graphics.Wayland.WlRoots.Seat as R
-
-data Seat = Seat
-    { seatRoots          :: Ptr R.WlrSeat
-    , seatPointer        :: IORef (Maybe View)
-    , seatKeyboard       :: IORef (Maybe View)
-    , seatName           :: String
-    , seatRequestDefault :: IO ()
-    , seatLoadScale      :: Float -> IO ()
-    , seatCursor         :: Cursor
-    }
-
-instance Show Seat where
-    show = seatName
-
-instance Eq Seat where
-    l == r = seatRoots l == seatRoots r
-
-instance Ord Seat where
-    l `compare` r = seatRoots l `compare` seatRoots r
 
 seatDestroy :: Seat -> IO ()
 seatDestroy Seat {seatRoots = roots} = do

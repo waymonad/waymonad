@@ -53,6 +53,9 @@ module View
 
     , viewSetClean
     , viewIsDirty
+    , setViewFocus
+    , doFocusView
+    , unsetViewFocus
     )
 where
 
@@ -76,49 +79,9 @@ import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, getWlrS
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
 
 import Utility (doJust)
+import Waymonad.Types.Core (View (..), ShellSurface (..), Seat)
 
 import qualified Data.IntMap as IM
-
-class Typeable a => ShellSurface a where
-    getSurface :: MonadIO m => a -> m (Maybe (Ptr WlrSurface))
-    getSize :: MonadIO m => a -> m (Double, Double)
-    resize :: MonadIO m => a -> Word32 -> Word32 -> m ()
-    activate :: MonadIO m => a -> Bool -> m ()
-    close :: MonadIO m => a -> m ()
-    renderAdditional :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> a -> m ()
-    renderAdditional _ _ = pure ()
-    getEventSurface :: MonadIO m => a -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
-    setPosition :: MonadIO m => a -> Double -> Double -> m ()
-    setPosition _ _ _ = pure ()
-    getID :: a -> Int
-    getTitle :: MonadIO m => a -> m (Maybe Text)
-    getAppId :: MonadIO m => a -> m (Maybe Text)
-
-    setViewHidden :: MonadIO m => a -> m ()
-    setViewHidden _ = pure ()
-    setViewVisible :: MonadIO m => a -> m ()
-    setViewVisible _ = pure ()
-
-data View = forall a. ShellSurface a => View
-    { viewSurface  :: a
-    , viewBox      :: IORef WlrBox
-    , viewPosition :: IORef WlrBox
-    , viewScaling  :: IORef Float
-    , viewDestroy  :: IORef (IntMap (View -> IO ()))
-    , viewResize   :: IORef (IntMap (View -> IO ()))
-    , viewID       :: Int
-    , viewTokens   :: [ListenerToken]
-    , viewDirty    :: IORef Bool
-    }
-
-instance Show View where
-    show v = show $ getViewID v
-
-instance Ord View where
-    compare left right = compare (getViewID left) (getViewID right)
-
-instance Eq View where
-    left == right = getViewID left == getViewID right
 
 getViewSize :: MonadIO m => View -> m (Double, Double)
 getViewSize View {viewSurface=surf} = getSize surf
@@ -191,9 +154,23 @@ createView surf = liftIO $ do
             , viewID = idVal
             , viewTokens = tokens
             , viewDirty = dirty
+            , viewFocus = focus
             }
     writeIORef viewRef ret
     pure ret
+
+setViewFocus :: MonadIO m => View -> (Seat -> View -> IO ()) -> m ()
+setViewFocus v fun = liftIO $ writeIORef (viewFocus v) (Just fun)
+
+unsetViewFocus :: MonadIO m => View -> m ()
+unsetViewFocus v = liftIO $ writeIORef (viewFocus v) Nothing
+
+doFocusView :: MonadIO m => View -> Seat -> m ()
+doFocusView view seat = liftIO $ do
+    fun <- readIORef (viewFocus view)
+    case fun of
+        Just act -> act seat view
+        Nothing -> pure ()
 
 closeView :: MonadIO m => View -> m ()
 closeView View {viewSurface=surf} = close surf

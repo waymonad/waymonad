@@ -29,23 +29,26 @@ module WayUtil.Floating
     )
 where
 
-import Control.Monad (when)
+import Control.Monad (when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Set (Set)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
+import Input.Seat (Seat, keyboardEnter)
 import Utility (doJust)
-import View (View, moveView, resizeView)
+import View (View, moveView, resizeView, setViewFocus, unsetViewFocus)
 import ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
     , WayBindingState (..)
     , getState
+    , makeCallback2
+    , getSeat
     )
-import WayUtil.Current (getCurrentBox, getCurrentView)
-import WayUtil.ViewSet (modifyFocusedWS)
+import WayUtil.Current (getCurrentBox, getCurrentView, getCurrentWS)
+import WayUtil.ViewSet (modifyFocusedWS, insertView)
 
 import qualified Data.Set as S
 
@@ -58,18 +61,26 @@ getFloats = liftIO . readIORef . wayFloating =<< getState
 isFloating :: View -> Way vs a Bool
 isFloating v = S.member v <$> getFloats
 
+
+focusFloating :: Seat -> View -> Way vs ws ()
+focusFloating seat view = void $ keyboardEnter seat view
+
 setFloating :: View -> WlrBox -> Way vs a ()
 setFloating view (WlrBox x y width height) = do
     moveView view (fromIntegral x) (fromIntegral y)
     resizeView view (fromIntegral width) (fromIntegral height)
+    setViewFocus view =<< makeCallback2 focusFloating
     modifyFloating $ S.insert view
 
 unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
 unsetFloating view = do
     floats <- isFloating view
     when floats $ do
+        unsetViewFocus view
         modifyFloating $ S.delete view
-        modifyFocusedWS (\s ws vs -> _insertView ws (Just s) view vs)
+        ws <- getCurrentWS
+        seat <- getSeat
+        insertView view ws seat
 
 toggleFloat :: (WSTag a, FocusCore vs a) => WlrBox ->  Way vs a ()
 toggleFloat box = doJust getCurrentView $ \view -> do

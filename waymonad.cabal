@@ -138,6 +138,7 @@ executable waymonad
   other-modules:        Waymonad.Main
   other-modules:        Waymonad.Shells
   other-modules:        Waymonad.Types
+  other-modules:        Waymonad.Types.Core
   other-modules:        Waymonad.Types.Logger
   other-modules:        Waymonad.Extensible
 

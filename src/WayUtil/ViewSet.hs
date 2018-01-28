@@ -47,8 +47,8 @@ import Data.List (nub)
 import Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
 import Layout (reLayout)
 import Output (Output)
-import Utility (whenJust, doJust)
-import View (View, activateView)
+import Utility (whenJust, doJust, These (..))
+import View (View, activateView, setViewFocus, unsetViewFocus)
 import ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
@@ -56,9 +56,10 @@ import Waymonad
     , getState
     , getSeat
     , WayBindingState (..)
+    , makeCallback2
     )
 import WayUtil.Current
-import WayUtil.Mapping (getOutputKeyboards)
+import WayUtil.Mapping (getOutputKeyboards, setSeatOutput)
 
 import qualified Data.Set as S
 
@@ -156,12 +157,20 @@ getWorkspaces = wayUserWorkspaces <$> getState
 getWorkspaceViews :: FocusCore vs a => a -> Way vs a [View]
 getWorkspaceViews ws = withViewSet (\_ vs -> fmap snd . S.toList $ _getViews vs ws)
 
+setViewsetFocus :: (WSTag ws, FocusCore vs ws)
+                => Seat -> View -> Way vs ws ()
+setViewsetFocus seat view = doJust (getPointerOutputS seat) $ \output -> do
+    setSeatOutput seat (That output)
+    modifyCurrentWS $ \_ ws vs -> _focusView ws seat view vs
+
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
 insertView v ws s = do
     whenJust s (`unsetFocus` ws)
+    setViewFocus v =<< makeCallback2 setViewsetFocus
     modifyWS ws (\ws' -> _insertView ws' s v)
 
 removeView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()
 removeView v ws = do
     activateView v False
+    unsetViewFocus v
     modifyWS ws (\ws' -> _removeView ws' v)

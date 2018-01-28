@@ -82,7 +82,6 @@ import {-# SOURCE #-} Input (Input)
 import {-# SOURCE #-} Input.Seat (Seat)
 import {-# SOURCE #-} Output (Output)
 import View (View)
-import ViewSet (FocusCore, WSTag)
 import Waymonad.Extensible (StateMap)
 
 import Waymonad.Types.Logger

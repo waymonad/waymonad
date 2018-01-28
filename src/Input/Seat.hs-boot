@@ -19,34 +19,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 module Input.Seat
-    ( Seat (seatRoots, seatName, seatLoadScale)
+    ( Seat (..)
     , getPointerFocus
     , getKeyboardFocus
     )
 where
 
 import Control.Monad.IO.Class (MonadIO)
-import Data.IORef (IORef)
-import Foreign.Ptr (Ptr)
-import Input.Cursor.Type
-
-import View (View)
-
-import qualified Graphics.Wayland.WlRoots.Seat as R
-
-data Seat = Seat
-    { seatRoots          :: Ptr R.WlrSeat
-    , seatPointer        :: IORef (Maybe View)
-    , seatKeyboard       :: IORef (Maybe View)
-    , seatName           :: String
-    , seatRequestDefault :: IO ()
-    , seatLoadScale      :: Float -> IO ()
-    , seatCursor         :: Cursor
-    }
-
-instance Show Seat
-instance Eq Seat
-instance Ord Seat
+import Waymonad.Types.Core (Seat, View)
 
 getPointerFocus :: MonadIO m => Seat -> m (Maybe View)
 getKeyboardFocus :: MonadIO m => Seat -> m (Maybe View)
