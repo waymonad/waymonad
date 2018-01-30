@@ -166,7 +166,7 @@ import Graphics.Wayland.WlRoots.Surface
 
 import Layout (layoutOutput)
 import Waymonad (makeCallback2)
-import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..))
+import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), SSDPrio (..), Output (..))
 import WayUtil.Signal
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
@@ -188,7 +188,8 @@ import Waymonad
     , getState
     , getSeats
     )
-import Waymonad.Types
+import WayUtil.SSD
+
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as S
@@ -243,8 +244,9 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
 
-outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> View -> WlrBox -> IO (IO ())
-outputHandleView comp secs output view box = doJust (getViewSurface view) $ \surface -> do
+outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> (View, SSDPrio, WlrBox) -> IO (IO ())
+outputHandleView comp secs output (view, prio, obox) = doJust (getViewSurface view) $ \surface -> do
+    let box = getDecoBox True prio obox
     viewSetClean view
     scale <- viewGetScale view
     local <- viewGetLocal view
@@ -270,7 +272,7 @@ handleLayers _ _ _ [] = pure ()
 handleLayers comp secs output (l:ls) = do
     handleLayers comp secs output ls
     views <- readIORef l
-    overs <- mapM (uncurry $ outputHandleView comp secs output)  $ map (\(x, _, y) -> (x, y))views
+    overs <- mapM (outputHandleView comp secs output) views
     sequence_ overs
 
 frameHandler :: WSTag a

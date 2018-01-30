@@ -40,21 +40,25 @@ import View (View, getViewEventSurface)
 import Waymonad (getSeat, getState)
 import Waymonad.Types
 import WayUtil (getOutputs)
+import WayUtil.SSD
 import {-# SOURCE #-} Input.Seat (getPointerFocus)
 
 import qualified Data.IntMap as IM
-
+-- getDecoPoint
 viewsBelow :: Foldable t
            => Point
            -> t (View, SSDPrio, WlrBox)
            -> IO [(View, Int, Int)]
 viewsBelow (Point x y) views =
-    map (uncurry makeLocal) <$> filterM hasSurface (map (\(l, _, r) -> (l, r)) $ toList views)
-    where   makeLocal :: View -> WlrBox -> (View, Int, Int)
-            makeLocal view (WlrBox bx by _ _) =
-                (view, x - bx, y - by)
-            hasSurface :: (View, WlrBox) -> IO Bool
-            hasSurface (view, WlrBox bx by _ _) = isJust <$> getViewEventSurface view (fromIntegral (x - bx)) (fromIntegral (y - by))
+    map makeLocal <$> filterM hasSurface (toList views)
+    where   makeLocal :: (View, SSDPrio, WlrBox) -> (View, Int, Int)
+            makeLocal (view, prio, (WlrBox bx by _ _)) =
+                let Point lx ly = getDecoPoint True prio $ Point (x - bx) (y - by)
+                 in (view, lx, ly)
+            hasSurface :: (View, SSDPrio, WlrBox) -> IO Bool
+            hasSurface (view, prio, WlrBox bx by _ _) = 
+                let Point lx ly = getDecoPoint True prio $ Point (x - bx) (y - by)
+                 in isJust <$> getViewEventSurface view (fromIntegral lx) (fromIntegral ly)
 
 
 viewBelow :: Point
@@ -77,6 +81,7 @@ viewBelow point output = do
     runMaybeT (foldr1 (<|>) ret)
 
 
+-- TODO: Should this be pre or post layouting? :|
 -- | Get the position of the given View on the provided Output.
 getViewPosition :: View -> Output -> Way vs ws (Maybe WlrBox)
 getViewPosition view Output {outputLayout = layers} = do

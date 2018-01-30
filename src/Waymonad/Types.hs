@@ -277,7 +277,7 @@ data ServerSideDecoration = forall vs ws. SSD
     { -- | Transform a Point inside the view to the actual offset of the surface.
       -- This allows the decorations to deal with moving the view in the
       -- assigned box.
-      ssdGetPoint :: Point -> Maybe Point
+      ssdGetPoint :: Point -> Point
       -- | Get the actual box the view should be told it gets.
       -- The focus etc. will still use the outer one, but this is given to the
       -- view and will be used for forced scaling and told to the client.

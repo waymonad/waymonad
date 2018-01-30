@@ -132,6 +132,7 @@ executable waymonad
   other-modules:        WayUtil.Mapping
   other-modules:        WayUtil.Pointer
   other-modules:        WayUtil.Signal
+  other-modules:        WayUtil.SSD
   other-modules:        WayUtil.Timing
   other-modules:        WayUtil.View
   other-modules:        WayUtil.ViewSet

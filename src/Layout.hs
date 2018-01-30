@@ -40,8 +40,9 @@ import Output.Core (setOutputDirty, getOutputId)
 import View (setViewBox)
 import ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
-import Waymonad.Types (LogPriority(Debug), SSDPrio (..), Output (..))
+import Waymonad.Types (LogPriority(Debug), SSDPrio (..), ServerSideDecoration (..), Output (..))
 import WayUtil.Log (logPutText)
+import WayUtil.SSD
 
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
@@ -82,22 +83,24 @@ reLayout ws = do
 
     boxes <- getLayoutBoxes ws
     mapM_ (setOutputDirty . fst) boxes
+    let sillyDeco = SSD (\(Point x y) -> Point (x - 10) (y - 10)) (\(WlrBox x y w h) -> WlrBox (x + 10) (y + 10) (w - 20) (h - 20)) (\_ _ -> pure ())
 
     forM_ boxes $ \(out, box) -> do
-        let layout = getLayouted wstate ws box
+        let layout = map (\(x, y) -> (x, NoSSD {-ForcedSSD sillyDeco-}, y)) $ getLayouted wstate ws box
         Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
 
         let cacheRef = (M.!) (outputLayers out) "main"
-        liftIO $ writeIORef cacheRef $ map (\(x, y) -> (x, NoSSD, y)) layout
+        liftIO $ writeIORef cacheRef layout
 
-        mapM_ (\(v, (WlrBox bx by w h)) -> setViewBox v (WlrBox (bx + ox) (by + oy) w h)) layout
+        mapM_ (\(v, prio, b) -> 
+            let WlrBox bx by w h = getDecoBox True prio b in setViewBox v (WlrBox (bx + ox) (by + oy) w h)) layout
         logPutText loggerLayout Debug $
             "Set the layout for "
             `T.append` getName ws
             `T.append` "  on "
             `T.append` outputName out
             `T.append` " to: "
-            `T.append` T.pack (show $ map snd layout)
+            `T.append` T.pack (show layout)
 
 layoutOutput :: (FocusCore vs ws, WSTag ws) => Output -> Way vs ws ()
 layoutOutput output = do
@@ -106,4 +109,3 @@ layoutOutput output = do
     case ws of
         Just x -> reLayout x
         Nothing -> pure ()
-
