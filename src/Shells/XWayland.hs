@@ -77,10 +77,16 @@ import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 
+import System.IO
 
 data XWayRef vs ws = XWayRef
     (IORef (Maybe XWayShell))
     (Way vs ws ())
+
+attachSeat :: Ptr X.XWayland -> Way vs ws ()
+attachSeat roots = doJust getSeat $ \seat -> liftIO $ do
+    hPutStrLn stderr "Setting the X seat"
+    liftIO $ X.setXWaylandSeat roots (seatRoots seat)
 
 makeShellAct :: (Typeable vs, Typeable ws, FocusCore vs ws, WSTag ws)
              => Way vs ws () -> IO (WayShell vs ws)
@@ -148,7 +154,7 @@ xwayShellCreate display comp act = do
     roots <- liftIO $ X.xwaylandCreate display comp
 
     setCallback (handleXwaySurface roots surfaces) (X.xwayBindNew roots)
-    setDestroyHandler (X.xwayReadEvent roots) (pure act)
+    setDestroyHandler (X.xwayReadEvent roots) (pure (attachSeat roots >> act))
 
     pure XWayShell
         { xwaySurfaceRef = surfaces

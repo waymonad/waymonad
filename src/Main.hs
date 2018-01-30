@@ -175,9 +175,7 @@ myConf modi = WayUserConf
         , baseTimeBracket
         , getStartupBracket (spawn "redshift -m wayland")
         , envBracket [ ("PULSE_SERVER", "zelda.ongy")
-                     -- crashes in
-                     -- assert with qb for me 
-                     -- , ("QT_QPA_PLATFORM", "wayland-egl")
+                     , ("QT_QPA_PLATFORM", "wayland-egl")
                      -- breaks firefox (on arch) :/
                      --, ("GDK_BACKEND", "wayland")
                      , ("SDL_VIDEODRIVER", "wayland")
