@@ -78,7 +78,7 @@ module Output
     )
 where
 
-import Control.Exception (bracket_)
+import UnliftIO.Exception (bracket_)
 import Control.Monad (forM_, forM, filterM, void, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (maximumBy, minimumBy)
@@ -165,7 +165,7 @@ import Graphics.Wayland.WlRoots.Surface
     )
 
 import Layout (layoutOutput)
-import Waymonad (makeCallback2)
+import Waymonad (makeCallback2, unliftWay)
 import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), SSDPrio (..), Output (..))
 import WayUtil.Signal
 import Input.Seat (Seat(seatLoadScale))
@@ -178,8 +178,6 @@ import View
     , getViewBox
     , viewGetScale
     , viewGetLocal
---    , viewIsDirty
-    , viewSetClean
     )
 import ViewSet (WSTag (..), FocusCore)
 import Waymonad
@@ -198,11 +196,11 @@ import qualified Data.Text as T
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
 
-renderOn :: Ptr WlrOutput -> Ptr Renderer -> IO a -> IO a
+renderOn :: Ptr WlrOutput -> Ptr Renderer -> Way vs ws a -> Way vs ws a
 renderOn output rend act = bracket_
-    (makeOutputCurrent output)
-    (swapOutputBuffers output)
-    (doRender rend output act)
+    (liftIO $ makeOutputCurrent output)
+    (liftIO $ swapOutputBuffers output)
+    (liftIO . doRender rend output =<< unliftWay act)
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output surface scaleFactor box = do
@@ -244,14 +242,14 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
 
-outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> (View, SSDPrio, WlrBox) -> IO (IO ())
+outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
 outputHandleView comp secs output (view, prio, obox) = doJust (getViewSurface view) $ \surface -> do
     let box = getDecoBox True prio obox
-    viewSetClean view
-    scale <- viewGetScale view
-    local <- viewGetLocal view
+    scale <- liftIO $ viewGetScale view
+    local <- liftIO $ viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
-    outputHandleSurface comp secs output surface scale lBox
+    renderDeco True prio output obox box
+    liftIO $ outputHandleSurface comp secs output surface scale lBox
     pure $ renderViewAdditional (\v b ->
         void $ outputHandleSurface
             comp
@@ -267,13 +265,13 @@ outputHandleView comp secs output (view, prio, obox) = doJust (getViewSurface vi
         )
         view
 
-handleLayers :: Compositor -> Double -> Ptr WlrOutput -> [IORef [(View, SSDPrio, WlrBox)]] -> IO ()
+handleLayers :: Compositor -> Double -> Ptr WlrOutput -> [IORef [(View, SSDPrio, WlrBox)]] -> Way vs ws ()
 handleLayers _ _ _ [] = pure ()
 handleLayers comp secs output (l:ls) = do
     handleLayers comp secs output ls
-    views <- readIORef l
+    views <- liftIO $ readIORef l
     overs <- mapM (outputHandleView comp secs output) views
-    sequence_ overs
+    liftIO $ sequence_ overs
 
 frameHandler :: WSTag a
              => Double -> Output -> Way vs a ()
@@ -281,7 +279,7 @@ frameHandler secs Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
     when enabled $ do
         comp <- wayCompositor <$> getState
-        liftIO $ renderOn output (compRenderer comp) $
+        renderOn output (compRenderer comp) $
             handleLayers comp secs output layers
 
 findMode :: MonadIO m

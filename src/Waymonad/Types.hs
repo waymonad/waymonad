@@ -273,7 +273,7 @@ instance MonadUnliftIO (Way vs a) where
 
 -- | Datatype for ServerSideDecorations. This will be associated with views by
 -- the layouting when views are placed in the layout cache.
-data ServerSideDecoration = forall vs ws. SSD
+data ServerSideDecoration = SSD
     { -- | Transform a Point inside the view to the actual offset of the surface.
       -- This allows the decorations to deal with moving the view in the
       -- assigned box.
@@ -288,7 +288,7 @@ data ServerSideDecoration = forall vs ws. SSD
 
         *WARNING:* Expect this type to change once I'm more familiar with what we want in scope for rendering stuff
       -}
-    , ssdDraw     :: WlrBox -> WlrBox -> Way vs ws ()
+    , ssdDraw     :: forall vs ws. Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
     }
 
 data SSDPrio

@@ -83,7 +83,7 @@ reLayout ws = do
 
     boxes <- getLayoutBoxes ws
     mapM_ (setOutputDirty . fst) boxes
-    let sillyDeco = SSD (\(Point x y) -> Point (x - 10) (y - 10)) (\(WlrBox x y w h) -> WlrBox (x + 10) (y + 10) (w - 20) (h - 20)) (\_ _ -> pure ())
+    let sillyDeco = SSD (\(Point x y) -> Point (x - 10) (y - 10)) (\(WlrBox x y w h) -> WlrBox (x + 10) (y + 10) (w - 20) (h - 20)) (simpleQuad)
 
     forM_ boxes $ \(out, box) -> do
         let layout = map (\(x, y) -> (x, NoSSD {-ForcedSSD sillyDeco-}, y)) $ getLayouted wstate ws box

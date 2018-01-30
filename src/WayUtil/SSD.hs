@@ -21,8 +21,19 @@ Reach us at https://github.com/ongy/waymonad
 module WayUtil.SSD
 where
 
-import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
+import Control.Monad.IO.Class (liftIO)
+import Foreign.Ptr
 
+import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
+import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
+import Graphics.Wayland.WlRoots.Render.Color (colorWhite)
+import Graphics.Wayland.WlRoots.Render (renderColoredQuad)
+import Graphics.Wayland.WlRoots.Output
+    ( WlrOutput
+    , getTransMatrix
+    , getOutputTransform
+    )
+import Waymonad (getState)
 import Waymonad.Types
 
 -- data SSDPrio vs ws
@@ -46,3 +57,17 @@ getDecoPoint _    (ForcedSSD SSD {ssdGetPoint = fun}) p = fun p
 getDecoPoint True (SuggestedSSD SSD {ssdGetPoint = fun}) p = fun p
 getDecoPoint _    _ p = p
 
+renderDeco :: Bool -> SSDPrio -> Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
+renderDeco _    (ForcedSSD SSD {ssdDraw = fun}) = fun
+renderDeco True (SuggestedSSD SSD {ssdDraw = fun}) = fun
+-- This is a bit silly, but that way we don't have to explicitly name the boxes
+-- above
+renderDeco _    _ = \_ _ _ -> pure ()
+
+simpleQuad :: Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
+simpleQuad out box _ = do
+    Compositor {compRenderer = renderer} <- wayCompositor <$> getState
+    liftIO $ withMatrix $ \mat -> do
+        transform <- getOutputTransform out
+        matrixProjectBox mat box transform 0 $ getTransMatrix out
+        renderColoredQuad renderer colorWhite mat
