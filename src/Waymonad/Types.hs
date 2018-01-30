@@ -24,6 +24,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 module Waymonad.Types
     ( WayLoggers (..)
     , Compositor (..)
@@ -50,6 +51,10 @@ module Waymonad.Types
     , ShellClass (..)
     , WayShell (..)
     , SeatFocusChange (..)
+
+    , ServerSideDecoration (..)
+    , SSDPrio (..)
+    , Output (..)
     )
 where
 
@@ -70,19 +75,21 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer)
 
 import Graphics.Wayland.WlRoots.Backend (Backend)
-import Graphics.Wayland.WlRoots.Box (WlrBox)
+import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 import Graphics.Wayland.WlRoots.DeviceManager (WlrDeviceManager)
+import Graphics.Wayland.WlRoots.Output (WlrOutput)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Render (Renderer)
 
 import {-# SOURCE #-} Input (Input)
 import {-# SOURCE #-} Input.Seat (Seat)
-import {-# SOURCE #-} Output (Output)
 import View (View)
 import Waymonad.Extensible (StateMap)
 
 import Waymonad.Types.Logger
+
+import qualified Data.Text as T
 
 -- | The class used for generic non-core events.
 class Typeable e => EventClass e
@@ -263,3 +270,51 @@ instance MonadUnliftIO (Way vs a) where
     askUnliftIO = do
         state <- ask
         pure $ UnliftIO $ \act -> runWay state act
+
+-- | Datatype for ServerSideDecorations. This will be associated with views by
+-- the layouting when views are placed in the layout cache.
+data ServerSideDecoration = forall vs ws. SSD
+    { -- | Transform a Point inside the view to the actual offset of the surface.
+      -- This allows the decorations to deal with moving the view in the
+      -- assigned box.
+      ssdGetPoint :: Point -> Maybe Point
+      -- | Get the actual box the view should be told it gets.
+      -- The focus etc. will still use the outer one, but this is given to the
+      -- view and will be used for forced scaling and told to the client.
+    , ssdGetBox   :: WlrBox -> WlrBox
+      {- | Draw the actual decorations
+         The first box are the layout box. The second is the actual size the
+         view uses (i.e. [scaled &] centered
+
+        *WARNING:* Expect this type to change once I'm more familiar with what we want in scope for rendering stuff
+      -}
+    , ssdDraw     :: WlrBox -> WlrBox -> Way vs ws ()
+    }
+
+data SSDPrio
+    = ForcedSSD ServerSideDecoration
+    | SuggestedSSD ServerSideDecoration
+    | NoSSD
+
+instance Show SSDPrio where
+    show (ForcedSSD _) = "Forced"
+    show (SuggestedSSD _) = "Suggested"
+    show NoSSD = "None"
+
+
+data Output = Output
+    { outputRoots  :: Ptr WlrOutput
+    , outputName   :: Text
+    , outputActive :: IORef Bool
+    , outputLayout :: [IORef [(View, SSDPrio, WlrBox)]]
+    , outputLayers :: Map Text (IORef [(View, SSDPrio, WlrBox)])
+    }
+
+instance Show Output where
+    show Output {outputName = name} = T.unpack name
+
+instance Eq Output where
+    Output {outputRoots = left} == Output {outputRoots = right} = left == right
+
+instance Ord Output where
+    Output {outputRoots = left} `compare` Output {outputRoots = right} = left `compare` right

@@ -43,7 +43,7 @@ import qualified Data.IntMap as IM
 moveLeft :: (FocusCore vs ws, WSTag ws) => Way vs ws ()
 moveLeft = doJust getCurrentOutput $ \output ->
     doJust getCurrentView $ \view -> do
-        ws <- liftIO $ readIORef $ (M.!) (outputLayers output) "main"
+        ws <- map (\(l, _, r) -> (l, r)) <$> (liftIO $ readIORef $ (M.!) (outputLayers output) "main")
         whenJust (lookup view ws) $ \(WlrBox cx cy _ ch) -> do
                 let candidates = filter (\(_, WlrBox x _ w _) -> abs (x + w - cx) < 5) ws
                     metric (_, (WlrBox _ y _ h)) = min (cy + ch) (y + h) - max cy y
@@ -53,7 +53,7 @@ moveLeft = doJust getCurrentOutput $ \output ->
 moveRight :: (FocusCore vs ws, WSTag ws) => Way vs ws ()
 moveRight = doJust getCurrentOutput $ \output ->
     doJust getCurrentView $ \view -> do
-        ws <- liftIO $ readIORef $ (M.!) (outputLayers output) "main"
+        ws <- map (\(l, _, r) -> (l, r)) <$> (liftIO $ readIORef $ (M.!) (outputLayers output) "main")
         whenJust (lookup view ws) $ \(WlrBox cx cy cw ch) -> do
                 let candidates = filter (\(_, WlrBox x _ _ _) -> abs (x - cx - cw) < 5) ws
                     metric (_, (WlrBox _ y _ h)) = min (cy + ch) (y + h) - max cy y
@@ -63,7 +63,7 @@ moveRight = doJust getCurrentOutput $ \output ->
 moveUp :: (FocusCore vs ws, WSTag ws) => Way vs ws ()
 moveUp = doJust getCurrentOutput $ \output ->
     doJust getCurrentView $ \view -> do
-        ws <- liftIO $ readIORef $ (M.!) (outputLayers output) "main"
+        ws <- map (\(l, _, r) -> (l, r)) <$> (liftIO $ readIORef $ (M.!) (outputLayers output) "main")
         whenJust (lookup view ws) $ \(WlrBox cx cy cw _) -> do
                 let candidates = filter (\(_, WlrBox _ y _ h) -> abs (y + h - cy) < 5) ws
                     metric (_, (WlrBox x _ w _)) = min (cx + cw) (x + w) - max cx x
@@ -73,8 +73,8 @@ moveUp = doJust getCurrentOutput $ \output ->
 moveDown :: (FocusCore vs ws, WSTag ws) => Way vs ws ()
 moveDown = doJust getCurrentOutput $ \output ->
     doJust getCurrentView $ \view -> do
-        ws <- liftIO $ readIORef $ (M.!) (outputLayers output) "main"
-        whenJust (lookup view ws) $ \(WlrBox cx cy cw ch) -> do
+        ws <- map (\(l, _, r) -> (l, r)) <$> (liftIO $ readIORef $ (M.!) (outputLayers output) "main")
+        whenJust (lookup view  ws) $ \(WlrBox cx cy cw ch) -> do
                 let candidates = filter (\(_, WlrBox _ y _ _) -> abs (y - ch - cy) < 5) ws
                     metric (_, (WlrBox x _ w _)) = min (cx + cw) (x + w) - max cx x
                     sorted = sortOn (negate . metric) candidates

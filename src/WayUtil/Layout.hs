@@ -46,10 +46,10 @@ import qualified Data.IntMap as IM
 
 viewsBelow :: Foldable t
            => Point
-           -> t (View, WlrBox)
+           -> t (View, SSDPrio, WlrBox)
            -> IO [(View, Int, Int)]
 viewsBelow (Point x y) views =
-    map (uncurry makeLocal) <$> filterM hasSurface (toList views)
+    map (uncurry makeLocal) <$> filterM hasSurface (map (\(l, _, r) -> (l, r)) $ toList views)
     where   makeLocal :: View -> WlrBox -> (View, Int, Int)
             makeLocal view (WlrBox bx by _ _) =
                 (view, x - bx, y - by)
@@ -82,7 +82,7 @@ getViewPosition :: View -> Output -> Way vs ws (Maybe WlrBox)
 getViewPosition view Output {outputLayout = layers} = do
     let ret = flip fmap layers $ \layer -> MaybeT $ do
             views <- readIORef layer
-            pure $ lookup view views
+            pure $ lookup view $ map (\(l, _, r) -> (l, r)) views
     liftIO $ runMaybeT (foldr1 (<|>) ret)
 
 -- | Get a views position in global layout space

@@ -36,11 +36,11 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import {-# SOURCE #-} Output (Output (..), getOutputId, setOutputDirty)
+import Output.Core (setOutputDirty, getOutputId)
 import View (setViewBox)
 import ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
-import Waymonad.Types (LogPriority(Debug))
+import Waymonad.Types (LogPriority(Debug), SSDPrio (..), Output (..))
 import WayUtil.Log (logPutText)
 
 import qualified Data.Map.Strict as M
@@ -88,7 +88,7 @@ reLayout ws = do
         Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
 
         let cacheRef = (M.!) (outputLayers out) "main"
-        liftIO $ writeIORef cacheRef layout
+        liftIO $ writeIORef cacheRef $ map (\(x, y) -> (x, NoSSD, y)) layout
 
         mapM_ (\(v, (WlrBox bx by w h)) -> setViewBox v (WlrBox (bx + ox) (by + oy) w h)) layout
         logPutText loggerLayout Debug $

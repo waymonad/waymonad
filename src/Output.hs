@@ -188,27 +188,11 @@ import Waymonad
     , getState
     , getSeats
     )
+import Waymonad.Types
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as S
 import qualified Data.Text as T
-
-data Output = Output
-    { outputRoots  :: Ptr WlrOutput
-    , outputName   :: Text
-    , outputActive :: IORef Bool
-    , outputLayout :: [IORef [(View, WlrBox)]]
-    , outputLayers :: Map Text (IORef [(View, WlrBox)])
-    }
-
-instance Show Output where
-    show Output {outputName = name} = T.unpack name
-
-instance Eq Output where
-    Output {outputRoots = left} == Output {outputRoots = right} = left == right
-
-instance Ord Output where
-    Output {outputRoots = left} `compare` Output {outputRoots = right} = left `compare` right
 
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
@@ -281,12 +265,12 @@ outputHandleView comp secs output view box = doJust (getViewSurface view) $ \sur
         )
         view
 
-handleLayers :: Compositor -> Double -> Ptr WlrOutput -> [IORef [(View, WlrBox)]] -> IO ()
+handleLayers :: Compositor -> Double -> Ptr WlrOutput -> [IORef [(View, SSDPrio, WlrBox)]] -> IO ()
 handleLayers _ _ _ [] = pure ()
 handleLayers comp secs output (l:ls) = do
     handleLayers comp secs output ls
     views <- readIORef l
-    overs <- mapM (uncurry $ outputHandleView comp secs output) views
+    overs <- mapM (uncurry $ outputHandleView comp secs output)  $ map (\(x, _, y) -> (x, y))views
     sequence_ overs
 
 frameHandler :: WSTag a

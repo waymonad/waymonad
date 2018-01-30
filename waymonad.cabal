@@ -103,6 +103,7 @@ executable waymonad
   other-modules:        Managehook
   other-modules:        Navigation2D
   other-modules:        Output
+  other-modules:        Output.Core
 
   other-modules:        Protocols.GammaControl
   other-modules:        Protocols.Screenshooter
