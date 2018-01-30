@@ -67,6 +67,7 @@ class Typeable a => ShellSurface a where
     setViewHidden _ = pure ()
     setViewVisible :: MonadIO m => a -> m ()
     setViewVisible _ = pure ()
+    hasCSD         :: MonadIO m => a -> m Bool
 
 data View = forall a. ShellSurface a => View
     { viewSurface  :: a

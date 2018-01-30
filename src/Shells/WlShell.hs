@@ -214,3 +214,4 @@ instance ShellSurface WlSurface where
     getID = ptrToInt . R.unWlrSurf . unWl
     getTitle = liftIO . R.getTitle . unWl
     getAppId = liftIO . R.getClass . unWl
+    hasCSD _ = pure True

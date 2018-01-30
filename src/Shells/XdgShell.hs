@@ -237,3 +237,4 @@ instance ShellSurface XdgSurface where
     getID = ptrToInt . unXdg
     getTitle = liftIO . R.getTitle . unXdg
     getAppId = liftIO . R.getAppId . unXdg
+    hasCSD _ = pure True

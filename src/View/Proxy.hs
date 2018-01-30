@@ -82,4 +82,4 @@ instance ShellSurface ProxiedView where
     getTitle = getViewTitle . unProxy
     getAppId :: MonadIO m => ProxiedView -> m (Maybe Text)
     getAppId = getViewAppId . unProxy
-
+    hasCSD = viewHasCSD . unProxy

@@ -36,7 +36,7 @@ import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Output (Output (..), getOutputBox)
 import Utility (ptrToInt)
-import View (View, getViewEventSurface)
+import View (View, getViewEventSurface, viewHasCSD)
 import Waymonad (getSeat, getState)
 import Waymonad.Types
 import WayUtil (getOutputs)
@@ -44,21 +44,20 @@ import WayUtil.SSD
 import {-# SOURCE #-} Input.Seat (getPointerFocus)
 
 import qualified Data.IntMap as IM
--- getDecoPoint
 viewsBelow :: Foldable t
            => Point
            -> t (View, SSDPrio, WlrBox)
            -> IO [(View, Int, Int)]
 viewsBelow (Point x y) views =
-    map makeLocal <$> filterM hasSurface (toList views)
-    where   makeLocal :: (View, SSDPrio, WlrBox) -> (View, Int, Int)
-            makeLocal (view, prio, (WlrBox bx by _ _)) =
-                let Point lx ly = getDecoPoint True prio $ Point (x - bx) (y - by)
-                 in (view, lx, ly)
-            hasSurface :: (View, SSDPrio, WlrBox) -> IO Bool
-            hasSurface (view, prio, WlrBox bx by _ _) = 
-                let Point lx ly = getDecoPoint True prio $ Point (x - bx) (y - by)
-                 in isJust <$> getViewEventSurface view (fromIntegral lx) (fromIntegral ly)
+    filterM hasSurface =<< mapM makeLocal (toList views)
+    where   makeLocal :: (View, SSDPrio, WlrBox) -> IO (View, Int, Int)
+            makeLocal (view, prio, (WlrBox bx by _ _)) = do
+                hasCSD <- viewHasCSD view
+                let Point lx ly = getDecoPoint hasCSD prio $ Point (x - bx) (y - by)
+                pure (view, lx, ly)
+            hasSurface :: (View, Int, Int) -> IO Bool
+            hasSurface (view, lx, ly) = 
+                isJust <$> getViewEventSurface view (fromIntegral lx) (fromIntegral ly)
 
 
 viewBelow :: Point

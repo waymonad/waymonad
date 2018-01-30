@@ -41,18 +41,18 @@ import qualified Data.Set as S
 
 getDecoBox :: Bool -> SSDPrio -> WlrBox -> WlrBox
 getDecoBox _    (ForcedSSD SSD {ssdGetBox = fun}) box = fun box
-getDecoBox True (SuggestedSSD SSD {ssdGetBox = fun}) box = fun box
+getDecoBox False (SuggestedSSD SSD {ssdGetBox = fun}) box = fun box
 getDecoBox _    _ box = box
 
 
 getDecoPoint :: Bool -> SSDPrio -> Point -> Point
 getDecoPoint _    (ForcedSSD SSD {ssdGetPoint = fun}) p = fun p
-getDecoPoint True (SuggestedSSD SSD {ssdGetPoint = fun}) p = fun p
+getDecoPoint False (SuggestedSSD SSD {ssdGetPoint = fun}) p = fun p
 getDecoPoint _    _ p = p
 
 renderDeco :: Bool -> SSDPrio -> Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
 renderDeco _    (ForcedSSD SSD {ssdDraw = fun}) = fun
-renderDeco True (SuggestedSSD SSD {ssdDraw = fun}) = fun
+renderDeco False (SuggestedSSD SSD {ssdDraw = fun}) = fun
 -- This is a bit silly, but that way we don't have to explicitly name the boxes
 -- above
 renderDeco _    _ = \_ _ _ -> pure ()
@@ -69,4 +69,4 @@ sillyDeco :: Ord a => Int -> Set a -> SSDPrio
 sillyDeco val s = SuggestedSSD $ SSD
     (\(Point x y) -> Point (x - val) (y - val))
     (\(WlrBox x y w h) -> WlrBox (x + val) (y + val) (w - val * 2) (h - val * 2))
-    (simpleQuad $ if S.null s then Color 0 1 0 1 else Color 1 0 0 1)
+    (simpleQuad $ if S.null s then Color 0.5 0 0 1 else Color 0 1 0 1)

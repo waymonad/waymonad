@@ -37,7 +37,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
 import Output.Core (setOutputDirty, getOutputId)
-import View (setViewBox)
+import View (setViewBox, viewHasCSD)
 import ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
 import Waymonad.Types (LogPriority(Debug), SSDPrio (..), ServerSideDecoration (..), Output (..))
@@ -91,8 +91,10 @@ reLayout ws = do
         let cacheRef = (M.!) (outputLayers out) "main"
         liftIO $ writeIORef cacheRef layout
 
-        mapM_ (\(v, prio, b) -> 
-            let WlrBox bx by w h = getDecoBox True prio b in setViewBox v (WlrBox (bx + ox) (by + oy) w h)) layout
+        forM_  layout $ \(v, prio, b) -> do
+            hasCSD <- viewHasCSD v
+            let WlrBox bx by w h = getDecoBox hasCSD prio b
+            setViewBox v (WlrBox (bx + ox) (by + oy) w h)
         logPutText loggerLayout Debug $
             "Set the layout for "
             `T.append` getName ws

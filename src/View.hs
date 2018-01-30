@@ -56,6 +56,7 @@ module View
     , setViewFocus
     , doFocusView
     , unsetViewFocus
+    , viewHasCSD
     )
 where
 
@@ -293,3 +294,6 @@ viewIsDirty = liftIO . readIORef . viewDirty
 
 viewSetClean :: MonadIO m => View -> m ()
 viewSetClean = liftIO . flip writeIORef False . viewDirty
+
+viewHasCSD :: MonadIO m => View -> m Bool
+viewHasCSD View {viewSurface=surf} = hasCSD surf

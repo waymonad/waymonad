@@ -178,6 +178,7 @@ import View
     , getViewBox
     , viewGetScale
     , viewGetLocal
+    , viewHasCSD
     )
 import ViewSet (WSTag (..), FocusCore)
 import Waymonad
@@ -244,11 +245,12 @@ outputHandleSurface comp secs output surface scaleFactor box = do
 
 outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
 outputHandleView comp secs output (view, prio, obox) = doJust (getViewSurface view) $ \surface -> do
-    let box = getDecoBox True prio obox
+    hasCSD <- viewHasCSD view
+    let box = getDecoBox hasCSD prio obox
     scale <- liftIO $ viewGetScale view
     local <- liftIO $ viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
-    renderDeco True prio output obox box
+    renderDeco hasCSD prio output obox box
     liftIO $ outputHandleSurface comp secs output surface scale lBox
     pure $ renderViewAdditional (\v b ->
         void $ outputHandleSurface

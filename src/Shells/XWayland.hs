@@ -262,6 +262,7 @@ instance ShellSurface XWaySurface where
     getTitle = liftIO . X.getTitle . unXway
     getAppId = liftIO . X.getClass . unXway
     renderAdditional fun (XWaySurface _ surf) = renderChildren fun surf
+    hasCSD _ = pure False
 
 renderChildren :: MonadIO m
                => (Ptr WlrSurface -> WlrBox -> m ()) -> Ptr X.X11Surface -> m ()
