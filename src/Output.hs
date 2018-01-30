@@ -295,7 +295,7 @@ frameHandler secs output = do
             case viewsM of
                 Nothing -> pure ()
                 Just wsViews -> do
-                    overs <- mapM (uncurry $ outputHandleView comp secs output) $ map (\(x, _, y) -> (x, y)) wsViews
+                    overs <- mapM (uncurry $ outputHandleView comp secs output) wsViews
                     sequence_ overs
             forM_ floats $ \view -> do
                 (WlrBox x y w h) <- getViewBox view
