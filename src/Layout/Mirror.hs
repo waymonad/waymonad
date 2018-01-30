@@ -66,7 +66,7 @@ instance LayoutClass l => LayoutClass (Mirror l) where
 instance GenericLayoutClass l vs ws => GenericLayoutClass (Mirror l) vs ws where
     pureLayout (Mirror False l) vs ws box = pureLayout l vs ws box
     pureLayout (Mirror True l) vs ws box =
-        fmap mirrorBox <$> pureLayout l vs ws (mirrorBox box)
+        (\(v, d, b) -> (v, d, mirrorBox b)) <$> pureLayout l vs ws (mirrorBox box)
 
 mirrorBox :: WlrBox -> WlrBox
 mirrorBox (WlrBox x y w h) = WlrBox y x h w

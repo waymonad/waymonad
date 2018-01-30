@@ -25,9 +25,8 @@ Reach us at https://github.com/ongy/waymonad
 module Layout.TwoPane
 where
 
-import Graphics.Wayland.WlRoots.Box (WlrBox(..))
-
 import Layout.Ratio
+import Layout.Tall
 import ViewSet
 
 import qualified Data.Set as S
@@ -47,16 +46,14 @@ instance LayoutClass TwoPane where
 
 instance ListLike vs ws => GenericLayoutClass TwoPane vs ws where
     pureLayout (TwoPane ratio) vs ws box = case _asList vs ws of
-        [x] -> [(snd x, box)]
         (x:ys@(y:_))->
-            let unclipped = floor $ fromIntegral (boxWidth box) * ratio
-                width = min (boxWidth box) $ max 0 unclipped
-                focused = snd <$> filter (not . S.null . fst) ys
+            let focused = filter (not . S.null . fst) ys
                 xFocused = not . S.null . fst $ x
-                master = if xFocused || length focused < 2 then snd x else head focused
+                master = if xFocused || length focused < 2 then x else head focused
                 secondary = case focused of
-                                [] -> snd y
+                                [] -> y
                                 (z:[]) -> z
                                 (z:z2:_) -> if xFocused then z else z2
-             in [(master, box { boxWidth = width }), (secondary, box { boxX = boxX box + width, boxWidth = boxWidth box - width })]
-        [] -> []
+
+             in layoutTall ratio box [master, secondary]
+        zs -> layoutTall ratio box zs

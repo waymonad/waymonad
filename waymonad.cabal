@@ -148,7 +148,7 @@ executable waymonad
 
   other-modules:        XMonad.ViewSet
 
-  other-modules:        Layout.Quadrant
+  -- other-modules:        Layout.Quadrant
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:    EmptyDataDecls, NumDecimals, ScopedTypeVariables, OverloadedStrings, LambdaCase, ExistentialQuantification, StandaloneDeriving, TupleSections, InstanceSigs, GeneralizedNewtypeDeriving, FlexibleContexts, FlexibleInstances
   

@@ -22,11 +22,12 @@ module WayUtil.SSD
 where
 
 import Control.Monad.IO.Class (liftIO)
+import Data.Set (Set)
 import Foreign.Ptr
 
-import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
-import Graphics.Wayland.WlRoots.Render.Color (colorWhite)
+import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Render (renderColoredQuad)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
@@ -36,15 +37,7 @@ import Graphics.Wayland.WlRoots.Output
 import Waymonad (getState)
 import Waymonad.Types
 
--- data SSDPrio vs ws
---     = ForcedSSD (ServerSideDecoration vs ws)
---     | SuggestedSSD (ServerSideDecoration vs ws)
---     | NoSSD
-
--- data ServerSideDecoration vs ws = SSD
---       ssdGetPoint :: Point -> Maybe Point
---     , ssdGetBox   :: WlrBox -> WlrBox
---     , ssdDraw     :: WlrBox -> WlrBox -> Way vs ws ()
+import qualified Data.Set as S
 
 getDecoBox :: Bool -> SSDPrio -> WlrBox -> WlrBox
 getDecoBox _    (ForcedSSD SSD {ssdGetBox = fun}) box = fun box
@@ -64,10 +57,16 @@ renderDeco True (SuggestedSSD SSD {ssdDraw = fun}) = fun
 -- above
 renderDeco _    _ = \_ _ _ -> pure ()
 
-simpleQuad :: Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
-simpleQuad out box _ = do
+simpleQuad :: Color -> Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
+simpleQuad color out box _ = do
     Compositor {compRenderer = renderer} <- wayCompositor <$> getState
     liftIO $ withMatrix $ \mat -> do
         transform <- getOutputTransform out
         matrixProjectBox mat box transform 0 $ getTransMatrix out
-        renderColoredQuad renderer colorWhite mat
+        renderColoredQuad renderer color mat
+
+sillyDeco :: Ord a => Int -> Set a -> SSDPrio
+sillyDeco val s = SuggestedSSD $ SSD
+    (\(Point x y) -> Point (x - val) (y - val))
+    (\(WlrBox x y w h) -> WlrBox (x + val) (y + val) (w - val * 2) (h - val * 2))
+    (simpleQuad $ if S.null s then Color 0 1 0 1 else Color 1 0 0 1)
