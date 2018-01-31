@@ -33,6 +33,7 @@ import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
     , getTransMatrix
     , getOutputTransform
+    , getOutputScale
     )
 import Waymonad (getState)
 import Waymonad.Types
@@ -58,9 +59,12 @@ renderDeco False (SuggestedSSD SSD {ssdDraw = fun}) = fun
 renderDeco _    _ = \_ _ _ -> pure ()
 
 simpleQuad :: Color -> Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
-simpleQuad color out box _ = do
+simpleQuad color out (WlrBox x y w h) _ = do
     Compositor {compRenderer = renderer} <- wayCompositor <$> getState
     liftIO $ withMatrix $ \mat -> do
+        scale <- getOutputScale out
+        let multi z = floor $ fromIntegral z * scale
+            box = WlrBox (multi x) (multi y) (multi w) (multi h)
         transform <- getOutputTransform out
         matrixProjectBox mat box transform 0 $ getTransMatrix out
         renderColoredQuad renderer color mat
