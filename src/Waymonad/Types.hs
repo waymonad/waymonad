@@ -188,10 +188,12 @@ data WayBindingState vs ws = WayBindingState
     , wayBindingOutputs  :: IORef [Output] -- ^The total list of existing outputs. May be enabled or disable.
     , wayBindingSeats    :: IORef [Seat] -- ^The seats that currently exist. Probably a singleton for most situations
     , wayFloating        :: IORef (Set View) -- ^The set of views floated. This is currently effectivly overrideredirect only.
-    , wayExtensibleState :: IORef StateMap -- The statemap for extensible state.
+    , wayExtensibleState :: IORef StateMap -- ^The statemap for extensible state.
     , wayCurrentKeybinds :: IORef (BindingMap vs ws)
+    -- ^Current keybinds. This is local to actions in keybinds. Changing this
+    -- only makes a difference for the *current* keyboard.
 
-    , wayCurrentSeat     :: Maybe Seat
+    , wayCurrentSeat     :: Maybe Seat -- ^Current seat. This is local to actions triggered by a seat. Will be Nothing if no seat can be associated.
 
     , wayCoreShells      :: [WayShell vs ws] -- ^The shells that are loaded for this compositor.
     , wayLogFunction     :: LogFun vs ws -- ^The logfunction (call to feed statusbar)
