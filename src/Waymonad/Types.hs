@@ -296,13 +296,12 @@ data ServerSideDecoration = SSD
 data SSDPrio
     = ForcedSSD ServerSideDecoration
     | SuggestedSSD ServerSideDecoration
-    | NoSSD
+    | NoSSD (Set Seat)
 
 instance Show SSDPrio where
     show (ForcedSSD _) = "Forced"
     show (SuggestedSSD _) = "Suggested"
-    show NoSSD = "None"
-
+    show (NoSSD _) = "None"
 
 data Output = Output
     { outputRoots  :: Ptr WlrOutput

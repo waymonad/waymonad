@@ -34,25 +34,24 @@ import Layout.Ratio
 import ViewSet
 import Waymonad.Types
 import Waymonad.Types.Core (Seat)
-import WayUtil.SSD
 
 data Spiral = Spiral Double
 
 doLayout :: Spiral -> Int -> WlrBox -> [(Set Seat, c)] -> [(c, SSDPrio, WlrBox)]
 doLayout _ _ _ [] = []
-doLayout _ _ b [(f, x)] = [(x, sillyDeco 2 f, b)]
+doLayout _ _ b [(f, x)] = [(x, NoSSD f, b)]
 doLayout s@(Spiral r) 0 b@WlrBox{boxWidth = width, boxX = x} ((f, z):zs) =
     let used = floor $ fromIntegral width * r
-     in (z, sillyDeco 2 f, b {boxWidth = used}) : doLayout s 1 b {boxWidth = width - used, boxX = x + used} zs
+     in (z, NoSSD f, b {boxWidth = used}) : doLayout s 1 b {boxWidth = width - used, boxX = x + used} zs
 doLayout s@(Spiral r) 1 b@WlrBox{boxHeight = height, boxY = y} ((f, z):zs) =
     let used = floor $ fromIntegral height * r
-     in (z, sillyDeco 2 f, b {boxHeight = used}) : doLayout s 2 b {boxHeight = height - used, boxY = y + used} zs
+     in (z, NoSSD f, b {boxHeight = used}) : doLayout s 2 b {boxHeight = height - used, boxY = y + used} zs
 doLayout s@(Spiral r) 2 b@WlrBox{boxWidth = width, boxX = x} ((f, z):zs) =
     let used = floor $ fromIntegral width * r
-     in (z, sillyDeco 2 f, b {boxWidth = used, boxX = x + width - used}) : doLayout s 3 b {boxWidth = width - used} zs
+     in (z, NoSSD f, b {boxWidth = used, boxX = x + width - used}) : doLayout s 3 b {boxWidth = width - used} zs
 doLayout s@(Spiral r) _ b@WlrBox{boxHeight = height, boxY = y} ((f, z):zs) =
     let used = floor $ fromIntegral height * r
-     in (z, sillyDeco 2 f, b {boxHeight = used, boxY = y + height - used}) : doLayout s 0 b {boxHeight = height - used} zs
+     in (z, NoSSD f, b {boxHeight = used, boxY = y + height - used}) : doLayout s 0 b {boxHeight = height - used} zs
 
 instance LayoutClass Spiral where
     handleMessage :: Spiral -> SomeMessage -> Maybe Spiral

@@ -58,7 +58,7 @@ instance ListLike vs ws => GenericLayoutClass Tall vs ws where
         layoutTall ratio box (_asList vs ws)
 
 layoutTall :: Double -> WlrBox -> [(Set Seat, View)] -> [(View, SSDPrio, WlrBox)]
-layoutTall _ box [(_, x)] = [(x, NoSSD, box)]
+layoutTall _ box [(s, x)] = [(x, NoSSD s, box)]
 layoutTall ratio box (x:xs) =
     let unclipped = floor $ fromIntegral (boxWidth box) * ratio
         width = min (boxWidth box - 10) . max 10 $ unclipped
@@ -72,5 +72,5 @@ layoutTall ratio box (x:xs) =
             , boxHeight = height
             , boxY = boxY box + i * height
             }
-    in master : map (\((s, v), i) -> (v, sillyDeco 2 s, ibox i)) slaves
+    in master : map (\((s, v), i) -> (v, NoSSD s, ibox i)) slaves
 layoutTall _ _ _ = []

@@ -40,4 +40,4 @@ instance LayoutClass Full where
 instance FocusCore vs ws => GenericLayoutClass Full vs ws where
     pureLayout _ vs ws box = case _getFocused vs ws Nothing <|> getFirst vs ws of
         Nothing -> []
-        Just v -> [(v, NoSSD, box)]
+        Just v -> [(v, NoSSD mempty, box)]

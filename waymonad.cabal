@@ -88,12 +88,13 @@ executable waymonad
   other-modules:        Hooks.ScaleHook
 
   other-modules:        Layout
-  other-modules:        Layout.Ratio
   other-modules:        Layout.AvoidStruts
+  other-modules:        Layout.Choose
   other-modules:        Layout.Full
   other-modules:        Layout.Mirror
+  other-modules:        Layout.Ratio
+  other-modules:        Layout.SmartBorders
   other-modules:        Layout.Spiral
-  other-modules:        Layout.Choose
   other-modules:        Layout.Tall
   other-modules:        Layout.ToggleFull
   other-modules:        Layout.TwoPane

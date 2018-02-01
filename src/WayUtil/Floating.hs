@@ -96,7 +96,7 @@ setFloating view pos@(WlrBox x y width height) = do
             doJust (traceShowId <$> getOutputBox output) $ \(WlrBox ox oy _ _) -> do
                 let viewBox = WlrBox (x - ox) (y - oy) width height
                 let ref = (M.!) (outputLayers output) "floating"
-                liftIO $ modifyIORef ref ((view, NoSSD, viewBox):)
+                liftIO $ modifyIORef ref ((view, NoSSD mempty, viewBox):)
 
 
 unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
