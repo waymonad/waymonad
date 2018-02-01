@@ -24,12 +24,14 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TupleSections #-}
 module Layout
     ( reLayout
+    , layoutOutput
     )
 where
 
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
+import Data.Tuple (swap)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
@@ -71,10 +73,8 @@ getLayoutBoxes ws = do
 
 
 -- | update the layout cache for the given workspace.
-reLayout
-    :: forall vs a. (WSTag a, FocusCore vs a)
-    => a
-    -> Way vs a ()
+reLayout :: forall vs a. (WSTag a, FocusCore vs a)
+         => a -> Way vs a ()
 reLayout ws = do
     state <- getState
     wstate <- liftIO . readIORef . wayBindingState $ state
@@ -97,3 +97,12 @@ reLayout ws = do
             `T.append` outputName out
             `T.append` " to: "
             `T.append` T.pack (show $ map snd layout)
+
+layoutOutput :: (FocusCore vs ws, WSTag ws) => Output -> Way vs ws ()
+layoutOutput output = do
+    mapping <- liftIO . readIORef . wayBindingMapping =<< getState
+    let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) $ output
+    case ws of
+        Just x -> reLayout x
+        Nothing -> pure ()
+

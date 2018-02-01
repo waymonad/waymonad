@@ -89,6 +89,7 @@ import Data.Word (Word32)
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Foreign.Storable (Storable(peek))
 
+import Graphics.Wayland.Signal
 import Graphics.Wayland.Server
     ( OutputTransform
     , outputTransformNormal
@@ -122,6 +123,8 @@ import Graphics.Wayland.WlRoots.Output
     , outputDisable
     , getWidth
     , getHeight
+    , OutputSignals (..)
+    , getOutputSignals
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( outputIntersects
@@ -159,8 +162,10 @@ import Graphics.Wayland.WlRoots.Surface
     --, surfaceHasDamage
     )
 
+import Layout (layoutOutput)
 import Waymonad (makeCallback2)
 import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..))
+import WayUtil.Signal
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (doJust)
@@ -174,7 +179,7 @@ import View
 --    , viewIsDirty
     , viewSetClean
     )
-import ViewSet (WSTag (..))
+import ViewSet (WSTag (..), FocusCore)
 import Waymonad
     ( Way
     , WayBindingState (..)
@@ -327,7 +332,7 @@ findMode output width height refresh = liftIO $ do
         xs -> Just . snd . fun $ xs
 
 handleOutputAdd
-    :: WSTag ws
+    :: (WSTag ws, FocusCore vs ws)
     => (Output -> Way vs ws ())
     -> Ptr WlrOutput
     -> Way vs ws FrameHandler
@@ -339,9 +344,15 @@ handleOutputAdd hook output = do
     let out = Output output name active
     liftIO $ modifyIORef current (out :)
 
+    let signals = getOutputSignals output
+    modeH <- setSignalHandler (outSignalMode signals) (const $ layoutOutput out)
+    scaleH <- setSignalHandler (outSignalScale signals) (const $ layoutOutput out)
+    transformH <- setSignalHandler (outSignalTransform signals) (const $ layoutOutput out)
+
+    setDestroyHandler (outSignalDestroy signals) (const $ liftIO $ mapM_ removeListener [modeH, scaleH, transformH])
+
     hook out
     makeCallback2 frameHandler
-
 
 handleOutputRemove
     :: Ptr WlrOutput
