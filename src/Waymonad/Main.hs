@@ -131,28 +131,9 @@ wayUserMain conf = do
     seats <- newIORef []
     extensible <- newIORef mempty
     floats <- newIORef mempty
+    currentMap <- newIORef mempty
     compRef <- newIORef $ error "Tried to access compositor to early"
     shells <- sequence $ wayUserConfShells conf
-
-    let state = WayBindingState
-            { wayBindingCache = layoutRef
-            , wayBindingState = stateRef
-            , wayBindingCurrent = currentRef
-            , wayBindingMapping = mapRef
-            , wayBindingOutputs = outputs
-            , wayBindingSeats = seats
-            , wayLogFunction = wayUserConfLog conf
-            , wayExtensibleState = extensible
-            , wayFloating = floats
-            , wayEventHook = wayUserConfEventHook conf
-            , wayUserWorkspaces = wayUserConfWorkspaces conf
-            , wayCompositor = unsafePerformIO (readIORef compRef)
-            , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
-            , wayManagehook = wayUserConfManagehook conf
-            , wayCoreHooks = wayUserConfCoreHooks conf
-            , wayCoreShells = shells
-            }
-
 
     let loggers = WayLoggers
             { loggerOutput = Logger Warn "Output"
@@ -166,5 +147,27 @@ wayUserMain conf = do
             , loggerRender = Logger Warn "Frame"
             }
 
-    runWay Nothing state (fromMaybe loggers $ wayUserconfLoggers conf) (wayUserRealMain conf compRef)
+    let state = WayBindingState
+            { wayBindingCache = layoutRef
+            , wayBindingState = stateRef
+            , wayBindingCurrent = currentRef
+            , wayBindingMapping = mapRef
+            , wayBindingOutputs = outputs
+            , wayBindingSeats = seats
+            , wayLogFunction = wayUserConfLog conf
+            , wayExtensibleState = extensible
+            , wayFloating = floats
+            , wayCurrentSeat = Nothing
+            , wayCurrentKeybinds = currentMap
+            , wayEventHook = wayUserConfEventHook conf
+            , wayUserWorkspaces = wayUserConfWorkspaces conf
+            , wayCompositor = unsafePerformIO (readIORef compRef)
+            , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
+            , wayManagehook = wayUserConfManagehook conf
+            , wayCoreHooks = wayUserConfCoreHooks conf
+            , wayCoreShells = shells
+            , wayLoggers = (fromMaybe loggers $ wayUserconfLoggers conf)
+            }
 
+
+    runWay state (wayUserRealMain conf compRef)

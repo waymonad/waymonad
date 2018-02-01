@@ -40,7 +40,7 @@ import Graphics.Wayland.Server
 import Shared (Bracketed (..))
 import ViewSet (WSTag, FocusCore)
 import WayUtil (closeCompositor)
-import Waymonad (getSeat, getState, getLoggers, runWay, makeCallback, unliftWay)
+import Waymonad (getState, runWay, makeCallback, unliftWay)
 import Waymonad.Types (Way)
 
 import Fuse.Common
@@ -63,20 +63,18 @@ closeFile = FileEntry $ bytestringRWFile
 
 fuseOps :: DirHandle vs a -> Way vs a (FuseOperations (FileHandle vs a))
 fuseOps dir = do
-    seat <- getSeat
     state <- getState
-    loggers <- getLoggers
 
     let fileReadCB path FileHandle {fileRead = fun} bc off =
-            runWay seat state loggers $ fun path bc off
+            runWay state $ fun path bc off
     let fileWriteCB path FileHandle {fileWrite = fun} bs off =
-            runWay seat state loggers $ fun path bs off
-    let fileFlushCB path file = runWay seat state loggers $ fileFlush file path
-    let fileReleaseCB path file = runWay seat state loggers $ fileRelease file path
-    let fileSetSizeCB _ _ = runWay seat state loggers $ pure eOK
+            runWay state $ fun path bs off
+    let fileFlushCB path file = runWay state $ fileFlush file path
+    let fileReleaseCB path file = runWay state $ fileRelease file path
+    let fileSetSizeCB _ _ = runWay state $ pure eOK
 
     dirReadCB <- makeCallback (dirRead dir)
-    let openFileCB path mode flags = runWay seat state loggers $ dirOpenFile dir path mode flags
+    let openFileCB path mode flags = runWay state $ dirOpenFile dir path mode flags
     statCB <- makeCallback (dirGetStat dir)
 
     readLinkCB <- makeCallback (dirReadSym dir)

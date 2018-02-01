@@ -127,16 +127,14 @@ sendEvent :: EventClass e => e -> Way vs a ()
 sendEvent e = flip wayEventHook (SomeEvent e) =<< getState
 
 getLoggers :: Way vs a WayLoggers
-getLoggers = Way $ lift getLoggers'
-    where   getLoggers' :: WayBinding vs a WayLoggers
-            getLoggers' = WayBinding $ lift ask
+getLoggers = wayLoggers <$> getState
 
 getState :: Way vs a (WayBindingState vs a)
-getState = Way $ lift ask
+getState = ask
 
 getSeat :: Way vs a (Maybe Seat)
 getSeat = do
-    current <- ask
+    current <- wayCurrentSeat <$> getState
     case current of
         Just _ -> pure current
         Nothing -> do
@@ -150,17 +148,13 @@ getViewSet = liftIO . readIORef . wayBindingState =<< getState
 
 unliftWay :: Way vs a b -> Way vs a (IO b)
 unliftWay act = do
-    seat <- getSeat
     state <- getState
-    loggers <- getLoggers
-    pure $ runWay seat state loggers  act
+    pure $ runWay state act
 
 makeCallback :: (c -> Way vs a b) -> Way vs a (c -> IO b)
 makeCallback act = do
-    seat <- getSeat
     state <- getState
-    loggers <- getLoggers
-    pure $ runWay seat state loggers . act
+    pure $ runWay state . act
 
 makeCallback2 :: (c -> d -> Way vs a b) -> Way vs a (c -> d -> IO b)
 makeCallback2 act = curry <$> makeCallback (uncurry act)
@@ -172,7 +166,7 @@ setCallback act fun = do
 
 
 withSeat :: Maybe Seat -> Way vs a b -> Way vs a b
-withSeat seat (Way m) = Way $ local (const seat) m
+withSeat seat (Way m) = Way $ local (\s -> s {wayCurrentSeat = seat}) m
 
 getSeats :: Way vs a [Seat]
 getSeats = liftIO . readIORef . wayBindingSeats =<< getState

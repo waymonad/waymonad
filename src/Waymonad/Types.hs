@@ -29,8 +29,6 @@ module Waymonad.Types
     , Compositor (..)
     , WayBindingState (..)
     , Way (..)
-    , WayBinding (..)
-    , WayLogging (..)
     , SomeEvent (..)
     , EventClass
     , Logger (..)
@@ -191,8 +189,11 @@ data WayBindingState vs ws = WayBindingState
     , wayBindingSeats    :: IORef [Seat] -- ^The seats that currently exist. Probably a singleton for most situations
     , wayFloating        :: IORef (Set View) -- ^The set of views floated. This is currently effectivly overrideredirect only.
     , wayExtensibleState :: IORef StateMap -- The statemap for extensible state.
+    , wayCurrentKeybinds :: IORef (BindingMap vs ws)
 
-                                                                                        , wayCoreShells      :: [WayShell vs ws] -- ^The shells that are loaded for this compositor.
+    , wayCurrentSeat     :: Maybe Seat
+
+    , wayCoreShells      :: [WayShell vs ws] -- ^The shells that are loaded for this compositor.
     , wayLogFunction     :: LogFun vs ws -- ^The logfunction (call to feed statusbar)
     , wayKeybinds        :: BindingMap vs ws -- ^The default keybinds a keyboard should aquire
     , wayEventHook       :: SomeEvent -> Way vs ws () -- ^The event hooks that consume non-core events
@@ -200,23 +201,19 @@ data WayBindingState vs ws = WayBindingState
     , wayCompositor      :: Compositor -- ^The core wlroots struct pointers
     , wayManagehook      :: Managehook vs ws -- ^The Managehook
     , wayCoreHooks       :: WayHooks vs ws -- ^The core hooks to consume core events
+
+    , wayLoggers         :: WayLoggers
     }
 
-newtype WayLogging a = WayLogging (ReaderT WayLoggers IO a)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader WayLoggers)
-
-newtype WayBinding vs a b = WayBinding (ReaderT (WayBindingState vs a) WayLogging b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState vs a))
+-- | The Monad the compositor lives in. This allows access to all the required
+-- state.
+newtype Way vs ws b = Way (ReaderT (WayBindingState vs ws) IO b)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState vs ws))
 
 type KeyBinding vs a = Way vs a ()
 type BindingMap vs a = Map (Word32, Int) (KeyBinding vs a)
 
 type LogFun vs a = Way vs a ()
-
--- | The Monad the compositor lives in. This allows access to all the required
--- state.
-newtype Way vs a b = Way (ReaderT (Maybe Seat) (WayBinding vs a) b)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader (Maybe Seat))
 
 instance Monoid a => Monoid (Way vs b a) where
     mempty = pure mempty
@@ -259,19 +256,10 @@ instance Monoid (InsertAction vs a) where
 type Managehook vs a = Query vs a (InsertAction vs a)
 
 
-runWayLogging :: MonadIO m => WayLoggers -> WayLogging a -> m a
-runWayLogging val (WayLogging act) = liftIO $ runReaderT act val
-
-runWayBinding :: MonadIO m => WayLoggers -> WayBindingState vs a -> WayBinding vs a b -> m b
-runWayBinding logger val (WayBinding act) =
-    liftIO $ runWayLogging logger $ runReaderT act val
-
-runWay :: MonadIO m => Maybe Seat -> WayBindingState vs a -> WayLoggers -> Way vs a b -> m b
-runWay seat state logger (Way m) = liftIO $ runWayBinding logger state $ runReaderT m seat
+runWay :: MonadIO m => WayBindingState vs a -> Way vs a b -> m b
+runWay state (Way m) = liftIO $ runReaderT m state
 
 instance MonadUnliftIO (Way vs a) where
     askUnliftIO = do
-        seat <- ask
-        state <- Way $ lift ask
-        loggers <- Way $ lift $ WayBinding $ lift ask
-        pure $ UnliftIO $ \act -> runWay seat state loggers  act
+        state <- ask
+        pure $ UnliftIO $ \act -> runWay state act

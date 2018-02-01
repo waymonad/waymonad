@@ -23,7 +23,9 @@ module Input.Keyboard
 where
 
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (MonadReader(..), local)
 import Data.Bits ((.&.), complement)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
@@ -67,13 +69,14 @@ import Input.Seat
 import Waymonad
     ( BindingMap
     , withSeat
-    , Way
+    , WayBindingState (..)
     , WayLoggers (..)
     , getState
     )
 import Waymonad.Types
     ( Compositor (compBackend)
     , WayBindingState (wayCompositor, wayKeybinds)
+    , Way (..)
     )
 import WayUtil.Signal (setSignalHandler)
 import WayUtil.Log (logPutText, logPutStr, LogPriority (..))
@@ -88,9 +91,10 @@ import Text.XkbCommon.Types
 
 import qualified Data.Map as M
 
-data Keyboard = Keyboard
+data Keyboard vs ws = Keyboard
     { keyboardDevice :: Ptr WlrKeyboard
     , keyboardIDevice :: Ptr InputDevice
+    , keyboardBindings :: IORef (BindingMap vs ws)
     }
 
 keyStateToDirection :: KeyState -> Direction
@@ -136,14 +140,14 @@ handleKeyPress bindings modifiers sym@(Keysym key) = do
                     pure True
 
 
-tellClient :: Seat -> Keyboard -> EventKey -> IO ()
+tellClient :: Seat -> Keyboard vs ws -> EventKey -> IO ()
 tellClient seat keyboard event = do
     seatSetKeyboard   (seatRoots seat) $ keyboardIDevice keyboard
     keyboardNotifyKey (seatRoots seat) (timeSec event) (keyCode event) (state event)
 
 handleKeySimple
     :: BindingMap vs a
-    -> Keyboard
+    -> Keyboard vs a
     -> CKeycode
     -> Way vs a Bool
 handleKeySimple bindings keyboard keycode = do
@@ -161,7 +165,7 @@ handleKeySimple bindings keyboard keycode = do
 
 handleKeyXkb
     :: BindingMap vs a
-    -> Keyboard
+    -> Keyboard vs a
     -> CKeycode
     -> Way vs a Bool
 handleKeyXkb bindings keyboard keycode = do
@@ -196,12 +200,12 @@ handleKeyXkb bindings keyboard keycode = do
 --    layouts without interfering with keybinds.
 -- If neither approach matches a keybind, the key-press is forwarded to the
 -- focused client.
-handleKeyEvent :: Keyboard
+handleKeyEvent :: Keyboard vs ws
                -> Seat
-               -> BindingMap vs a
                -> Ptr EventKey
-               -> Way vs a ()
-handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
+               -> Way vs ws ()
+handleKeyEvent keyboard seat ptr = withSeat (Just seat) $ do
+    bindings <- liftIO . readIORef $ keyboardBindings keyboard
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
 
@@ -216,11 +220,22 @@ handleKeyEvent keyboard seat bindings ptr = withSeat (Just seat) $ do
 
     liftIO . unless handled $ tellClient seat keyboard event
 
-handleModifiers :: Keyboard -> Seat -> Ptr a -> Way vs b ()
+handleModifiers :: Keyboard vs ws -> Seat -> Ptr a -> Way vs ws ()
 handleModifiers keyboard seat _ = liftIO $ do
     seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
 
     keyboardNotifyModifiers (seatRoots seat) (getModifierPtr $ keyboardDevice keyboard)
+
+setSubMap :: BindingMap vs ws -> Way vs ws ()
+setSubMap subMap = do
+    ref <- wayCurrentKeybinds <$> getState
+    liftIO $ writeIORef ref subMap
+
+resetSubMap :: Way vs ws ()
+resetSubMap = setSubMap =<< (wayKeybinds <$> getState)
+
+withBindingRef :: IORef (BindingMap vs ws) -> Way vs ws a -> Way vs ws a
+withBindingRef ref (Way act) = Way $ local (\s -> s {wayCurrentKeybinds = ref}) act
 
 handleKeyboardAdd
     :: Seat
@@ -242,11 +257,13 @@ handleKeyboardAdd seat dev ptr = do
         (Just keymap) <- newKeymapFromNamesI cxt noPrefs
         setKeymap ptr keymap
 
-    let keyboard = Keyboard ptr dev
+    mapRef <- liftIO $ newIORef bindings
+
+    let keyboard = Keyboard ptr dev mapRef
 
     kh <- setSignalHandler
         (keySignalKey signals)
-        (handleKeyEvent keyboard seat bindings)
+        (handleKeyEvent keyboard seat)
     mh <- setSignalHandler
         (keySignalModifiers signals)
         (handleModifiers keyboard seat)
