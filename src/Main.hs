@@ -50,6 +50,7 @@ import Hooks.KeyboardFocus
 import Hooks.ScaleHook
 import IdleManager
 import Input (attachDevice)
+import Input.Keyboard (setSubMap, resetSubMap, getSubMap)
 import Layout.Choose
 import Layout.Mirror (mkMirror, ToggleMirror (..))
 import Layout.Spiral
@@ -75,8 +76,10 @@ import WayUtil.Timing
 import WayUtil.View
 import WayUtil.ViewSet (modifyFocusedWS)
 import Waymonad (Way, KeyBinding)
-import Waymonad.Types (SomeEvent, WayHooks (..))
+import Waymonad.Types (SomeEvent, WayHooks (..), BindingMap)
 import XMonad.ViewSet (ViewSet, sameLayout)
+
+import qualified Data.Map as M
 
 import qualified Hooks.OutputAdd as H
 import qualified Hooks.SeatMapping as SM
@@ -117,6 +120,18 @@ wsSyms =
 workspaces :: IsString a => [a]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "video"]
 
+makeListNavigation :: (ListLike vs ws, FocusCore vs ws, WSTag ws)
+                   => WlrModifier -> Way vs ws (BindingMap vs ws)
+makeListNavigation modi = do
+    let listNav = makeBindingMap
+            [ (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
+            , (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft )
+            , (([], keysym_Escape), resetSubMap)
+            ]
+    current <- getSubMap
+    pure (M.union listNav current)
+
+
 -- Use Logo as modifier when standalone, but Alt when started as child
 getModi :: IO WlrModifier
 getModi = do
@@ -133,6 +148,7 @@ bindings modi =
     , (([modi], keysym_l), moveRight)
     , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
     , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
+    , (([modi, Shift], keysym_h), setSubMap =<< makeListNavigation modi)
     , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_space), sendMessage NextLayout)

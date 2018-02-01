@@ -226,8 +226,18 @@ handleModifiers keyboard seat _ = liftIO $ do
 
     keyboardNotifyModifiers (seatRoots seat) (getModifierPtr $ keyboardDevice keyboard)
 
+getSubMap :: Way vs ws (BindingMap vs ws)
+getSubMap =  do
+    ref <- wayCurrentKeybinds <$> getState
+    liftIO $ readIORef ref
+
 setSubMap :: BindingMap vs ws -> Way vs ws ()
 setSubMap subMap = do
+    let keys = M.keys subMap
+        klines = map (\(modifiers, sym) -> (show $ fieldToModifiers modifiers) ++ ":" ++ keysymName (Keysym sym)) keys
+        logLine = unlines klines
+
+    logPutStr loggerKeybinds Trace $ "Loading submap with keybinds:\n" ++ logLine
     ref <- wayCurrentKeybinds <$> getState
     liftIO $ writeIORef ref subMap
 
@@ -259,18 +269,19 @@ handleKeyboardAdd seat dev ptr = do
 
     mapRef <- liftIO $ newIORef bindings
 
-    let keyboard = Keyboard ptr dev mapRef
+    withBindingRef mapRef $ do
+        let keyboard = Keyboard ptr dev mapRef
 
-    kh <- setSignalHandler
-        (keySignalKey signals)
-        (handleKeyEvent keyboard seat)
-    mh <- setSignalHandler
-        (keySignalModifiers signals)
-        (handleModifiers keyboard seat)
+        kh <- setSignalHandler
+            (keySignalKey signals)
+            (handleKeyEvent keyboard seat)
+        mh <- setSignalHandler
+            (keySignalModifiers signals)
+            (handleModifiers keyboard seat)
 
-    liftIO $ do
-        sptr <- newStablePtr (kh, mh)
-        poke (getKeyDataPtr ptr) (castStablePtrToPtr sptr)
+        liftIO $ do
+            sptr <- newStablePtr (kh, mh)
+            poke (getKeyDataPtr ptr) (castStablePtrToPtr sptr)
 
 
 detachKeyboard :: Ptr WlrKeyboard -> IO ()
