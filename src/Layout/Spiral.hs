@@ -33,11 +33,12 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Layout.Ratio
 import ViewSet
 import Waymonad.Types
+import Waymonad.Types.Core (Seat)
 import WayUtil.SSD
 
 data Spiral = Spiral Double
 
-doLayout :: Ord a => Spiral -> Int -> WlrBox -> [(Set a, c)] -> [(c, SSDPrio, WlrBox)]
+doLayout :: Spiral -> Int -> WlrBox -> [(Set Seat, c)] -> [(c, SSDPrio, WlrBox)]
 doLayout _ _ _ [] = []
 doLayout _ _ b [(f, x)] = [(x, sillyDeco 2 f, b)]
 doLayout s@(Spiral r) 0 b@WlrBox{boxWidth = width, boxX = x} ((f, z):zs) =

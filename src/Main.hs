@@ -40,6 +40,7 @@ import Text.XkbCommon.KeysymList
 import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
 import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..))
+import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 
 import Data.String (IsString)
 import Fuse.Main
@@ -214,6 +215,8 @@ myConf modi = WayUserConf
         setPreferdMode (outputRoots out)
         addOutputToWork out Nothing
     , wayUserconfLoggers = Nothing
+    , wayUserconfColor = Color 0.5 0 0 1
+    , wayUserconfColors = mempty
     }
 
 main :: IO ()

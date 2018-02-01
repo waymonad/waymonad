@@ -37,6 +37,7 @@ import Graphics.Wayland.WlRoots.Output
     )
 import Waymonad (getState)
 import Waymonad.Types
+import Waymonad.Types.Core (Seat (..))
 
 import qualified Data.Set as S
 
@@ -58,9 +59,10 @@ renderDeco False (SuggestedSSD SSD {ssdDraw = fun}) = fun
 -- above
 renderDeco _    _ = \_ _ _ -> pure ()
 
-simpleQuad :: Color -> Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
-simpleQuad color out (WlrBox x y w h) _ = do
+simpleQuad :: Way vs ws Color -> Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
+simpleQuad getCol out (WlrBox x y w h) _ = do
     Compositor {compRenderer = renderer} <- wayCompositor <$> getState
+    color <- getCol
     liftIO $ withMatrix $ \mat -> do
         scale <- getOutputScale out
         let multi z = floor $ fromIntegral z * scale
@@ -69,8 +71,11 @@ simpleQuad color out (WlrBox x y w h) _ = do
         matrixProjectBox mat box transform 0 $ getTransMatrix out
         renderColoredQuad renderer color mat
 
-sillyDeco :: Ord a => Int -> Set a -> SSDPrio
+
+
+sillyDeco :: Int -> Set Seat -> SSDPrio
 sillyDeco val s = SuggestedSSD $ SSD
     (\(Point x y) -> Point (x - val) (y - val))
     (\(WlrBox x y w h) -> WlrBox (x + val) (y + val) (w - val * 2) (h - val * 2))
-    (simpleQuad $ if S.null s then Color 0.5 0 0 1 else Color 0 1 0 1)
+    (simpleQuad $ if S.null s then (wayDefaultColor <$> getState) else pure (seatColor $ S.elemAt 0 s))
+

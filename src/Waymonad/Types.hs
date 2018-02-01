@@ -81,6 +81,7 @@ import Graphics.Wayland.WlRoots.DeviceManager (WlrDeviceManager)
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Render (Renderer)
+import Graphics.Wayland.WlRoots.Render.Color (Color)
 
 import {-# SOURCE #-} Input (Input)
 import {-# SOURCE #-} Input.Seat (Seat)
@@ -208,8 +209,9 @@ data WayBindingState vs ws = WayBindingState
     , wayCompositor      :: Compositor -- ^The core wlroots struct pointers
     , wayManagehook      :: Managehook vs ws -- ^The Managehook
     , wayCoreHooks       :: WayHooks vs ws -- ^The core hooks to consume core events
-
     , wayLoggers         :: WayLoggers
+    , wayDefaultColor    :: Color -- ^The color for unfocused windows
+    , waySeatColors      :: Map Text Color
     }
 
 -- | The Monad the compositor lives in. This allows access to all the required

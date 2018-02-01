@@ -194,8 +194,7 @@ createSeat name = do
     loadCurrentScales xcursor
 
     cursorRef <- liftIO $ newIORef $ error $ "Something tried to access the cursor for seat " ++ T.unpack name ++ " to early"
-    seat  <- liftIO $
-        seatCreate
+    seat <- seatCreate
             display
             (T.unpack name)
             (xCursorSetImage xcursor "left_ptr" (cursorRoots $ unsafePerformIO $ readIORef cursorRef))

@@ -38,11 +38,12 @@ where
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef, modifyIORef)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromMaybe)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 
 import Graphics.Wayland.WlRoots.Box (Point)
+import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Input.Buttons (ButtonState)
 import Graphics.Wayland.WlRoots.Input.Pointer (AxisOrientation)
 import Graphics.Wayland.WlRoots.Input.Keyboard (getModifierPtr, getKeyboardKeys)
@@ -64,6 +65,8 @@ import Waymonad.Types
 import Waymonad.Types.Core
 import WayUtil.Current (getCurrentWS)
 
+import qualified Data.Map as M
+import qualified Data.Text as T
 import qualified Graphics.Wayland.WlRoots.Seat as R
 
 seatDestroy :: Seat -> IO ()
@@ -73,20 +76,19 @@ seatDestroy Seat {seatRoots = roots} = do
     R.destroySeat roots
 
 seatCreate
-    :: MonadIO m
-    => DisplayServer
+    :: DisplayServer
     -> String
     -> IO ()
     -> (Float -> IO ())
     -> Cursor
-    -> m Seat
-seatCreate dsp name reqDefault loadScale cursor = liftIO $ do
-    roots    <- R.createSeat dsp name
-    pointer  <- newIORef Nothing
-    keyboard <- newIORef Nothing
+    -> Way vs ws Seat
+seatCreate dsp name reqDefault loadScale cursor = do
+    roots    <- liftIO $ R.createSeat dsp name
+    pointer  <- liftIO $ newIORef Nothing
+    keyboard <- liftIO $ newIORef Nothing
 
-    R.setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
-
+    liftIO $ R.setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
+    cMap <- waySeatColors <$> getState
     pure Seat
         { seatRoots          = roots
         , seatPointer        = pointer
@@ -95,6 +97,7 @@ seatCreate dsp name reqDefault loadScale cursor = liftIO $ do
         , seatRequestDefault = reqDefault
         , seatLoadScale      = loadScale
         , seatCursor         = cursor
+        , seatColor          = fromMaybe (Color 0 1 0 1) $ M.lookup (T.pack name) cMap
         }
 
 keyboardEnter' :: Seat -> Ptr WlrSurface -> View -> Way vs ws Bool
