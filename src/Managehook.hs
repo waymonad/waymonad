@@ -34,11 +34,13 @@ module Managehook
     )
 where
 
-import Control.Monad (void)
+import Control.Monad (void, forM_)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
+import Data.IORef (modifyIORef)
 
 import Input.Seat
-import Output (forOutput)
+import Output (Output (outputLayout), forOutput)
 import Utility (doJust)
 import View
 import ViewSet (WSTag)
@@ -46,6 +48,7 @@ import Waymonad
 import Waymonad.Types
 import Layout
 import ViewSet
+import WayUtil (getOutputs)
 import WayUtil.Floating
 import WayUtil.Mapping (getOutputKeyboards)
 import WayUtil.Focus (focusView, getOutputWorkspace)
@@ -65,10 +68,8 @@ withView act = liftWay . act =<< ask
 runQuery :: View -> Query vs a b -> Way vs a b
 runQuery v (Query m) = runReaderT m v
 
-enactInsert
-    :: (FocusCore vs a, WSTag a)
-    => InsertAction vs a
-    -> Query vs a ()
+enactInsert :: (FocusCore vs a, WSTag a)
+            => InsertAction vs a -> Query vs a ()
 enactInsert act = do
     view <- ask
     hook <- wayHooksVWSChange . wayCoreHooks <$> liftWay getState
@@ -93,22 +94,22 @@ enactInsert act = do
 query :: Query vs a View
 query = ask
 
-insertView
-    :: (FocusCore vs a, WSTag a)
-    => View
-    -> Way vs a ()
+insertView :: (FocusCore vs a, WSTag a)
+           => View -> Way vs a ()
 insertView v = do
     hook <- wayManagehook <$> getState
     runQuery v $ enactInsert . flip mappend InsertFocused =<< hook
 
 removeView :: forall vs ws. (FocusCore vs ws, WSTag ws)
-           => View
-           -> Way vs ws ()
+           => View -> Way vs ws ()
 removeView v = do
     modifyViewSet (removeGlobal v (error "removeGlobal Workspace argument should never be used" :: ws))
-    void . forOutput $ \ output -> do
-        doJust (getOutputWorkspace output) $ \ws -> do
-            seats <- getOutputKeyboards output
-            mapM_ (`setFocused` ws) seats
-            reLayout ws
+    void . forOutput $ \ output -> doJust (getOutputWorkspace output) $ \ws -> do
+        seats <- getOutputKeyboards output
+        mapM_ (`setFocused` ws) seats
+        reLayout ws
+    outputs <- getOutputs
+    liftIO $ forM_ outputs $ \output ->
+        forM_ (outputLayout output) $ \layer ->
+            modifyIORef layer (filter ((/=) v . fst))
     modifyFloating (S.delete v)

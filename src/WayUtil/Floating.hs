@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE OverloadedStrings #-}
 module WayUtil.Floating
     ( centerFloat
     , toggleFloat
@@ -29,7 +30,7 @@ module WayUtil.Floating
     )
 where
 
-import Control.Monad (when, void)
+import Control.Monad (when, void, forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Set (Set)
@@ -37,6 +38,7 @@ import Data.Set (Set)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Input.Seat (Seat, keyboardEnter)
+import Output
 import Utility (doJust)
 import View (View, moveView, resizeView, setViewFocus, unsetViewFocus)
 import ViewSet (WSTag, FocusCore (..))
@@ -47,16 +49,29 @@ import Waymonad
     , makeCallback2
     , getSeat
     )
+import Waymonad.Extensible
+import WayUtil (modifyEState, getEState, getOutputs)
 import WayUtil.Current (getCurrentBox, getCurrentView, getCurrentWS)
 import WayUtil.ViewSet (modifyFocusedWS, insertView)
 
 import qualified Data.Set as S
+import qualified Data.Map as M
+
+import Debug.Trace
+
+newtype FSet = FSet {unFS:: Set View}
+
+instance ExtensionClass FSet where
+    initialValue = FSet mempty
+
 
 modifyFloating :: (Set View -> Set View) -> Way vs a ()
-modifyFloating fun = liftIO . flip modifyIORef fun . wayFloating =<< getState
+modifyFloating fun = modifyEState (FSet . fun . unFS)
+
 
 getFloats :: Way vs a (Set View)
-getFloats = liftIO . readIORef . wayFloating =<< getState
+getFloats = unFS <$> getEState
+
 
 isFloating :: View -> Way vs a Bool
 isFloating v = S.member v <$> getFloats
@@ -65,12 +80,23 @@ isFloating v = S.member v <$> getFloats
 focusFloating :: Seat -> View -> Way vs ws ()
 focusFloating seat view = void $ keyboardEnter seat view
 
+
 setFloating :: View -> WlrBox -> Way vs a ()
-setFloating view (WlrBox x y width height) = do
+setFloating view pos@(WlrBox x y width height) = do
     moveView view (fromIntegral x) (fromIntegral y)
     resizeView view (fromIntegral width) (fromIntegral height)
     setViewFocus view =<< makeCallback2 focusFloating
     modifyFloating $ S.insert view
+
+    outputs <- getOutputs
+    forM_ outputs $ \output -> do
+        intersects <- intersectsOutput (traceShowId output) pos
+        when intersects $ do
+            doJust (traceShowId <$> getOutputBox output) $ \(WlrBox ox oy _ _) -> do
+                let viewBox = WlrBox (x - ox) (y - oy) width height
+                let ref = (M.!) (outputLayers output) "floating"
+                liftIO $ modifyIORef ref ((view, viewBox):)
+
 
 unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
 unsetFloating view = do
@@ -81,6 +107,12 @@ unsetFloating view = do
         ws <- getCurrentWS
         seat <- getSeat
         insertView view ws seat
+
+        outputs <- getOutputs
+        forM_ outputs $ \output -> do
+            let ref = (M.!) (outputLayers output) "floating"
+            liftIO $ modifyIORef ref (filter ((/=) view . fst))
+
 
 toggleFloat :: (WSTag a, FocusCore vs a) => WlrBox ->  Way vs a ()
 toggleFloat box = doJust getCurrentView $ \view -> do

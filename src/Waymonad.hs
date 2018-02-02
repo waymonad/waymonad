@@ -26,8 +26,6 @@ module Waymonad
     ( get
     , modify
 
-    , floatBelow
-
     , KeyBinding
     , BindingMap
     , LogFun
@@ -88,37 +86,6 @@ modify :: (MonadReader (IORef a) m, MonadIO m) => (a -> a) -> m ()
 modify fun = do
     ref <- ask
     liftIO $ modifyIORef ref fun
-
-floatsBelow
-    :: Point
-    -> Way vs a [(View, Double, Double)]
-floatsBelow (Point x y) = do
-    views <- liftIO . fmap S.toList . readIORef . wayFloating =<< getState
-    candidates <- liftIO $ forM views $
-        \view -> unsafeInterleaveIO $ do
-            WlrBox vx vy _ _ <- getViewBox view
-            doJust (getViewEventSurface view (fromIntegral $ x - vx) (fromIntegral $ y - vy)) $ \_ ->
-                pure $ Just (view, (fromIntegral $ x - vx), (fromIntegral $ y - vy))
-
-    pure $ foldMap maybeToList candidates
-
-floatBelow
-    :: Point
-    -> Way vs a (Maybe (View, Double, Double))
-floatBelow p = do
-    floats <- floatsBelow p
-    seat <- getSeat
-
-    -- TODO: Prettify this =.=
-    case seat of
-        Nothing -> pure $ listToMaybe floats
-        Just s -> do
-            focused <- getPointerFocus s
-            case focused of
-                Nothing -> pure $ listToMaybe floats
-                Just f ->
-                    pure $ find (\(v, _, _) -> v == f) floats <|> listToMaybe floats
-
 
 getEvent :: EventClass e => SomeEvent -> Maybe e
 getEvent (SomeEvent e) = cast e

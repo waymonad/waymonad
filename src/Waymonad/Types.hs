@@ -181,13 +181,11 @@ data WayHooks vs ws = WayHooks
 -- the 'Way' monad as ReaderT.
 data WayBindingState vs ws = WayBindingState
     { wayBindingState    :: IORef vs -- ^The ViewSet.
-    , wayBindingCache    :: IORef (IntMap [(View, WlrBox)]) -- ^The layout cache. This is set from the layouts and consumed by outputs and input handling.
     -- Left Pointer, Right Keyboard
     , wayBindingCurrent  :: IORef [(Seat, (Output, Output))] -- ^The mapping from seat to currently focused outputs. (Pointer, Keyboard)
     , wayBindingMapping  :: IORef [(ws, Output)] -- ^The mapping which output currently displays which viewset. (1 Workspace <> N outputs)
     , wayBindingOutputs  :: IORef [Output] -- ^The total list of existing outputs. May be enabled or disable.
     , wayBindingSeats    :: IORef [Seat] -- ^The seats that currently exist. Probably a singleton for most situations
-    , wayFloating        :: IORef (Set View) -- ^The set of views floated. This is currently effectivly overrideredirect only.
     , wayExtensibleState :: IORef StateMap -- ^The statemap for extensible state.
     , wayCurrentKeybinds :: IORef (BindingMap vs ws)
     -- ^Current keybinds. This is local to actions in keybinds. Changing this

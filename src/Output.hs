@@ -74,6 +74,7 @@ module Output
     , addOutputToWork
     , removeOutputFromWork
     , getOutputBox
+    , intersectsOutput
     )
 where
 
@@ -84,6 +85,7 @@ import Data.Foldable (maximumBy, minimumBy)
 import Data.Function (on)
 import Data.IORef (IORef, writeIORef, newIORef, readIORef, modifyIORef)
 import Data.List ((\\), find)
+import Data.Map (Map)
 import Data.Text (Text)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, ptrToIntPtr)
@@ -186,6 +188,7 @@ import Waymonad
     , getState
     , getSeats
     )
+import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -194,6 +197,8 @@ data Output = Output
     { outputRoots  :: Ptr WlrOutput
     , outputName   :: Text
     , outputActive :: IORef Bool
+    , outputLayout :: [IORef [(View, WlrBox)]]
+    , outputLayers :: Map Text (IORef [(View, WlrBox)])
     }
 
 instance Show Output where
@@ -276,46 +281,27 @@ outputHandleView comp secs output view box = doJust (getViewSurface view) $ \sur
         )
         view
 
+handleLayers :: Compositor -> Double -> Ptr WlrOutput -> [IORef [(View, WlrBox)]] -> IO ()
+handleLayers _ _ _ [] = pure ()
+handleLayers comp secs output (l:ls) = do
+    handleLayers comp secs output ls
+    views <- readIORef l
+    overs <- mapM (uncurry $ outputHandleView comp secs output) views
+    sequence_ overs
 
-frameHandler
-    :: WSTag a
-    => Double
-    -> Ptr WlrOutput
-    -> Way vs a ()
-frameHandler secs output = do
+frameHandler :: WSTag a
+             => Double -> Output -> Way vs a ()
+frameHandler secs Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
     when enabled $ do
         comp <- wayCompositor <$> getState
-        (Point ox oy) <- liftIO (layoutOuputGetPosition =<< layoutGetOutput (compLayout comp) output)
-        viewsM <- IM.lookup (ptrToInt output) <$> (liftIO . readIORef . wayBindingCache =<< getState)
-        floats <- filterM (intersects $ compLayout comp) . S.toList =<< (liftIO . readIORef . wayFloating =<< getState)
+        liftIO $ renderOn output (compRenderer comp) $
+            handleLayers comp secs output layers
 
-    --    needsRedraw <- liftIO $ mapM (\v -> getViewSurface v >>= (\case
-    --        Nothing -> pure mempty
-    --        Just surf -> Any <$> surfaceHasDamage surf)) (fmap fst $ join $ maybeToList viewsM)
-        {-needsRedraw <- mapM (fmap Any . viewIsDirty) (fmap fst $ join $ maybeToList viewsM)
-        needsSwap <- liftIO $ getOutputNeedsSwap output
-        when (getAny (foldr (<>) mempty needsRedraw) || needsSwap) $-}
-        liftIO $ renderOn output (compRenderer comp) $ do
-            case viewsM of
-                Nothing -> pure ()
-                Just wsViews -> do
-                    overs <- mapM (uncurry $ outputHandleView comp secs output) wsViews
-                    sequence_ overs
-            forM_ floats $ \view -> do
-                (WlrBox x y w h) <- getViewBox view
-                let box = WlrBox (x - ox) (y - oy) w h
-                outputHandleView comp secs output view box
-
-    where  intersects layout view = liftIO (outputIntersects layout output =<< getViewBox view)
-
-findMode
-    :: MonadIO m
-    => Ptr WlrOutput
-    -> Word32
-    -> Word32
-    -> Maybe Word32
-    -> m (Maybe (Ptr OutputMode))
+findMode :: MonadIO m
+         => Ptr WlrOutput -> Word32
+         -> Word32 -> Maybe Word32
+         -> m (Maybe (Ptr OutputMode))
 findMode output width height refresh = liftIO $ do
     modes <- getModes output
     paired <- forM modes $ \x -> do
@@ -331,17 +317,22 @@ findMode output width height refresh = liftIO $ do
         [] -> Nothing
         xs -> Just . snd . fun $ xs
 
-handleOutputAdd
-    :: (WSTag ws, FocusCore vs ws)
-    => (Output -> Way vs ws ())
-    -> Ptr WlrOutput
-    -> Way vs ws FrameHandler
+handleOutputAdd :: (WSTag ws, FocusCore vs ws)
+                => (Output -> Way vs ws ())
+                -> Ptr WlrOutput
+                -> Way vs ws FrameHandler
 handleOutputAdd hook output = do
     name <- liftIO $ getOutputName output
 
     current <- wayBindingOutputs <$> getState
     active <- liftIO $ newIORef False
-    let out = Output output name active
+
+    mainLayer <- liftIO $ newIORef []
+    floatLayer <- liftIO $ newIORef []
+    overrideLayer <- liftIO $ newIORef []
+    let layers = [overrideLayer, floatLayer, mainLayer]
+        layerMap = M.fromList [("override", overrideLayer), ("floating", floatLayer), ("main", mainLayer)]
+    let out = Output output name active layers layerMap
     liftIO $ modifyIORef current (out :)
 
     let signals = getOutputSignals output
@@ -352,7 +343,7 @@ handleOutputAdd hook output = do
     setDestroyHandler (outSignalDestroy signals) (const $ liftIO $ mapM_ removeListener [modeH, scaleH, transformH])
 
     hook out
-    makeCallback2 frameHandler
+    makeCallback2 (\t _ ->  frameHandler t out)
 
 handleOutputRemove
     :: Ptr WlrOutput
@@ -430,3 +421,7 @@ getOutputBox Output { outputRoots = output } = do
     height <- liftIO $ getHeight output
     pure $ Just $ WlrBox ox oy (fromIntegral width) (fromIntegral height)
 
+intersectsOutput :: Output -> WlrBox -> Way vs ws Bool
+intersectsOutput Output {outputRoots = out} box = do
+    Compositor {compLayout = layout} <- wayCompositor <$> getState
+    liftIO $ outputIntersects layout out box

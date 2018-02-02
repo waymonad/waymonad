@@ -81,7 +81,6 @@ import Waymonad
     ( Way
     , getSeat
     , getState
-    , floatBelow
     , WayLoggers (..)
     )
 import Waymonad.Types
@@ -126,22 +125,18 @@ getCursorView
 getCursorView layout cursor = do
     baseX <- liftIO  $ getCursorX cursor
     baseY <- liftIO  $ getCursorY cursor
-    -- TODO: Pretty this up. probably with unsafeInterleaveIO
-    floatM <- floatBelow (Point (floor baseX) (floor baseY))
-    case floatM of
-        Just (v, x, y) -> pure $ Just (v, floor x, floor y)
+
+    outputM <- liftIO $ layoutAtPos layout baseX baseY
+    case outputM of
         Nothing -> do
-            outputM <- liftIO $ layoutAtPos layout baseX baseY
-            case outputM of
-                Nothing -> do
-                    logPutText loggerFocus Warn "Couldn't determine a current output"
-                    pure Nothing
-                Just out -> do
-                    lout <- liftIO $ layoutGetOutput layout out
-                    (Point offX offY) <- liftIO $ layoutOuputGetPosition lout
-                    let x = floor baseX - offX
-                    let y = floor baseY - offY
-                    viewBelow (Point x y) out
+            logPutText loggerFocus Warn "Couldn't determine a current output"
+            pure Nothing
+        Just out -> do
+            lout <- liftIO $ layoutGetOutput layout out
+            (Point offX offY) <- liftIO $ layoutOuputGetPosition lout
+            let x = floor baseX - offX
+            let y = floor baseY - offY
+            doJust (outputFromWlr out) $ viewBelow (Point x y)
 
 updatePosition
     :: (FocusCore vs a, WSTag a)

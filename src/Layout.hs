@@ -30,7 +30,7 @@ where
 
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef, readIORef)
+import Data.IORef (writeIORef, readIORef)
 import Data.Tuple (swap)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
@@ -43,6 +43,7 @@ import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
 import Waymonad.Types (LogPriority(Debug))
 import WayUtil.Log (logPutText)
 
+import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Text as T
 
@@ -78,7 +79,6 @@ reLayout :: forall vs a. (WSTag a, FocusCore vs a)
 reLayout ws = do
     state <- getState
     wstate <- liftIO . readIORef . wayBindingState $ state
-    let cacheRef = wayBindingCache state
 
     boxes <- getLayoutBoxes ws
     mapM_ (setOutputDirty . fst) boxes
@@ -87,7 +87,8 @@ reLayout ws = do
         let layout = getLayouted wstate ws box
         Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
 
-        liftIO $ modifyIORef cacheRef $ IM.insert (getOutputId out) layout
+        let cacheRef = (M.!) (outputLayers out) "main"
+        liftIO $ writeIORef cacheRef layout
 
         mapM_ (\(v, (WlrBox bx by w h)) -> setViewBox v (WlrBox (bx + ox) (by + oy) w h)) layout
         logPutText loggerLayout Debug $

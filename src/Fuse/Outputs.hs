@@ -45,7 +45,6 @@ import Graphics.Wayland.WlRoots.Output
     , hasModes
     , OutputMode (..)
     , getOutputTransform
-    -- TODO: This should probably be done in the main loop
     , transformOutput
     , getOutputScale
     , getOutputBox
@@ -70,7 +69,6 @@ import Output
     , removeOutputFromWork
     , setPreferdMode
     )
-import Utility (ptrToInt)
 import ViewSet (WSTag (..))
 import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
@@ -79,17 +77,16 @@ import WayUtil.Focus (getOutputWorkspace)
 
 import Fuse.Common
 
-import qualified Data.IntMap as IM
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Read as R (rational, decimal)
 
 readLayout :: Output -> Way vs ws (Maybe Text)
-readLayout output = do
-    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
-    pure $ case IM.lookup (ptrToInt $ outputRoots output) fullCache of
-        Nothing -> Nothing
-        Just xs -> Just . T.pack $ show xs
+readLayout output = pure Nothing
+--    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
+--    pure $ case IM.lookup (ptrToInt $ outputRoots output) fullCache of
+--        Nothing -> Nothing
+--        Just xs -> Just . T.pack $ show xs
 
 
 parsePosition :: Text -> Either String (Point, Text)

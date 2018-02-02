@@ -34,7 +34,7 @@ import Control.Monad.Trans.Maybe (MaybeT (..))
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
-import Output (Output (Output, outputRoots), getOutputBox)
+import Output (Output (..), getOutputBox)
 import Utility (ptrToInt)
 import View (View, getViewEventSurface)
 import Waymonad (getSeat, getState)
@@ -58,13 +58,12 @@ viewsBelow (Point x y) views =
 
 
 viewBelow :: Point
-          -> Ptr WlrOutput
+          -> Output
           -> Way vs a (Maybe (View, Int, Int))
 viewBelow point output = do
-    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
-    case IM.lookup (ptrToInt output) fullCache of
-        Nothing -> pure Nothing
-        Just views -> do
+    let layers = outputLayout output
+    let ret = flip fmap layers $ \layer -> MaybeT $ do
+            views <- liftIO $ readIORef layer
             candidates <- liftIO $ viewsBelow point views
             seat <- getSeat
             case seat of
@@ -73,17 +72,18 @@ viewBelow point output = do
                     f <- getPointerFocus s
                     case f of
                         Nothing -> pure $ listToMaybe candidates
-                        Just focused -> 
+                        Just focused ->
                             pure $ find (\(v, _, _) -> v == focused) candidates <|> listToMaybe candidates
+    runMaybeT (foldr1 (<|>) ret)
 
 
 -- | Get the position of the given View on the provided Output.
 getViewPosition :: View -> Output -> Way vs ws (Maybe WlrBox)
-getViewPosition view Output {outputRoots = output} = do
-    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
-    case IM.lookup (ptrToInt output) fullCache of
-        Nothing -> pure Nothing
-        Just views -> pure $ lookup view views
+getViewPosition view Output {outputLayout = layers} = do
+    let ret = flip fmap layers $ \layer -> MaybeT $ do
+            views <- readIORef layer
+            pure $ lookup view views
+    liftIO $ runMaybeT (foldr1 (<|>) ret)
 
 -- | Get a views position in global layout space
 getViewBox :: View -> Way vs ws (Maybe WlrBox)

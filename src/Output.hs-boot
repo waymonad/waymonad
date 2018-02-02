@@ -27,15 +27,21 @@ where
 
 import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (IORef)
+import Data.Map (Map)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 
+import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
+
+import View (View) 
 
 data Output = Output
     { outputRoots  :: Ptr WlrOutput
     , outputName   :: Text
     , outputActive :: IORef Bool
+    , outputLayout :: [IORef [(View, WlrBox)]]
+    , outputLayers :: Map Text (IORef [(View, WlrBox)])
     }
 
 instance Show Output
