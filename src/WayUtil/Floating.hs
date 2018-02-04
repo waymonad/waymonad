@@ -40,7 +40,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Input.Seat (Seat, keyboardEnter)
 import Output
 import Utility (doJust)
-import View (View, moveView, resizeView, setViewFocus, unsetViewFocus)
+import View (View, moveView, resizeView, setViewFocus, unsetViewFocus, activateView)
 import ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
@@ -78,7 +78,9 @@ isFloating v = S.member v <$> getFloats
 
 
 focusFloating :: Seat -> View -> Way vs ws ()
-focusFloating seat view = void $ keyboardEnter seat view
+focusFloating seat view = do
+    activateView view True
+    void $ keyboardEnter seat view
 
 
 setFloating :: View -> WlrBox -> Way vs a ()
