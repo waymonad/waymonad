@@ -103,6 +103,7 @@ insertView v = do
 removeView :: forall vs ws. (FocusCore vs ws, WSTag ws)
            => View -> Way vs ws ()
 removeView v = do
+    -- TODO: This is ugly and inefficient :(
     modifyViewSet (removeGlobal v (error "removeGlobal Workspace argument should never be used" :: ws))
     void . forOutput $ \ output -> doJust (getOutputWorkspace output) $ \ws -> do
         seats <- getOutputKeyboards output
