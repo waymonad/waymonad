@@ -36,7 +36,7 @@ import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Waymonad.Output (Output (..), getOutputBox)
 import Utility (ptrToInt)
-import View (View, getViewEventSurface, viewHasCSD)
+import Waymonad.View (View, getViewEventSurface, viewHasCSD)
 import Waymonad (getSeat, getState)
 import Waymonad.Types
 import WayUtil (getOutputs)

@@ -20,7 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module View
+module Waymonad.View
     ( ShellSurface (..)
     , View (..)
     , getViewSize

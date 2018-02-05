@@ -49,10 +49,9 @@ import Data.Maybe (fromMaybe, maybeToList)
 import Data.Monoid ((<>))
 import Data.Set (Set)
 
-import Waymonad.Input.Seat (Seat)
 import Utility (whenJust)
-import View (View)
 import Waymonad.ViewSet
+import Waymonad.Types.Core (Seat, View)
 
 import qualified Data.Set as S
 import qualified Data.Map as M

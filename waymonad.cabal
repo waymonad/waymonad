@@ -116,7 +116,7 @@ library
   exposed-modules:        Shared
   exposed-modules:        Utility
   exposed-modules:        Waymonad.Actions.Spawn
-  exposed-modules:        View
+  exposed-modules:        Waymonad.View
   exposed-modules:        Waymonad.Shells.Pseudo.Proxy
   exposed-modules:        Waymonad.Shells.Pseudo.Multi
   exposed-modules:        Waymonad.ViewSet

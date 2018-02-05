@@ -31,12 +31,11 @@ import Data.Set (Set)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
 import Graphics.Wayland.WlRoots.Render.Color (colorWhite, colorBlack)
 
-import Waymonad.Input.Seat (Seat)
 import Waymonad.Layout.Ratio
-import View (View)
 import Waymonad.ViewSet
 import WayUtil.SSD
 import Waymonad.Types (SSDPrio (..), ServerSideDecoration (..))
+import Waymonad.Types.Core (Seat, View)
 
 import qualified Data.Set as S
 

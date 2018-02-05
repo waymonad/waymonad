@@ -30,7 +30,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 
-import View (getViewTitle, getViewAppId)
+import Waymonad.View (getViewTitle, getViewAppId)
 import Waymonad.ViewSet (WSTag (..){-, LayoutClass (..), GenericLayout (..)-}, FocusCore)
 import Waymonad.Types (Way, Output (outputName))
 import WayUtil.Focus (getWorkspaceOutputs)

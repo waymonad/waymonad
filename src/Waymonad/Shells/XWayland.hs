@@ -61,7 +61,7 @@ import Graphics.Wayland.WlRoots.Surface (WlrSurface, WlrSurfaceEvents (..), getW
 import Waymonad.Input.Seat
 import Waymonad.Managehook
 import Utility
-import View
+import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
 import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Signal (setSignalHandler, setDestroyHandler)

@@ -29,7 +29,7 @@ import Data.Maybe (fromMaybe)
 import Foreign.C.Error (eINVAL)
 
 import Fuse.Common
-import View (getViewTitle, getViewAppId)
+import Waymonad.View (getViewTitle, getViewAppId)
 import Waymonad.ViewSet (FocusCore, WSTag)
 import Waymonad
 import Waymonad.Types

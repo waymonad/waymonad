@@ -35,7 +35,7 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 
-import View
+import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad (Way, makeCallback)
 import Waymonad.Managehook (insertView, removeView)

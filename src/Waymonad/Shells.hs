@@ -26,7 +26,7 @@ where
 import Data.Set (Set)
 import Data.Text (Text)
 
-import View (View)
+import Waymonad.View (View)
 import Waymonad.ViewSet (FocusCore, WSTag)
 import Waymonad.Types (Way, WayShell (..), ShellClass (..))
 

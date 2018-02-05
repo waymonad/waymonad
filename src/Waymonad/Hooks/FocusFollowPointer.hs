@@ -26,7 +26,7 @@ import Control.Monad (void)
 
 import Waymonad.Input.Seat (Seat, keyboardEnter)
 import Utility (These (..), doJust)
-import View (View, doFocusView)
+import Waymonad.View (View, doFocusView)
 import Waymonad.ViewSet (FocusCore, WSTag)
 import WayUtil.Current (getPointerOutputS)
 import WayUtil.Focus (focusView)

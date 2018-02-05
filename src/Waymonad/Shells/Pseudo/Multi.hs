@@ -39,7 +39,7 @@ import Waymonad.Types (Way)
 import qualified Data.IntMap as IM
 import qualified Data.Set as S
 
-import View
+import Waymonad.View
     ( View
     , ShellSurface (..)
     , getViewSurface

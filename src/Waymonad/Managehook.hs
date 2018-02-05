@@ -42,10 +42,10 @@ import Data.IORef (modifyIORef)
 import Waymonad.Input.Seat
 import Waymonad.Output (Output (outputLayout), forOutput)
 import Utility (doJust)
-import View
 import Waymonad
-import Waymonad.Types
 import Waymonad.Layout
+import Waymonad.Types
+import Waymonad.View
 import Waymonad.ViewSet
 import WayUtil (getOutputs)
 import WayUtil.Floating

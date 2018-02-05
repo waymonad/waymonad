@@ -47,7 +47,7 @@ import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSiz
 
 import Waymonad.Managehook (insertView, removeView)
 import Utility (doJust, ptrToInt)
-import View
+import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
 import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Signal (setDestroyHandler)

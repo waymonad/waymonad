@@ -76,7 +76,7 @@ import Waymonad.Input.Cursor.Type
 import Waymonad.Input.Keyboard
 import Waymonad.Input.TabletPad
 import Waymonad.Input.Seat
-import View (getViewClient)
+import Waymonad.View (getViewClient)
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Utility (doJust, These (..))
 import WayUtil

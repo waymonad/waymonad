@@ -42,7 +42,7 @@ import Waymonad.Input.Seat (Seat)
 import Waymonad.Layout (reLayout)
 import Waymonad.Output (Output (..))
 import Utility (whenJust, doJust)
-import View (View)
+import Waymonad.View (View)
 import Waymonad.ViewSet (WSTag, FocusCore (..), ListLike (..))
 import Waymonad
     ( Way

@@ -40,9 +40,8 @@ import Data.Text (Text)
 import Data.Typeable
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 
-import {-# SOURCE #-} Waymonad.Input.Seat (Seat)
-import View (View)
 import Waymonad.Types (SSDPrio)
+import Waymonad.Types.Core
 
 import qualified Data.Set as S
 import qualified Data.Text as T

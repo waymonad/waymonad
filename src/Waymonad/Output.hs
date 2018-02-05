@@ -171,7 +171,7 @@ import WayUtil.Signal
 import Waymonad.Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (doJust)
-import View
+import Waymonad.View
     ( View
     , getViewSurface
     , renderViewAdditional
