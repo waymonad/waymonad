@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Hooks.FocusFollowPointer
+module Waymonad.Hooks.FocusFollowPointer
 where
 
 import Control.Monad (void)

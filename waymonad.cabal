@@ -77,12 +77,12 @@ library
   exposed-modules:        Waymonad.Input.Seat
   exposed-modules:        Waymonad.Input.TabletPad
 
-  exposed-modules:        Hooks.EnterLeave
-  exposed-modules:        Hooks.FocusFollowPointer
-  exposed-modules:        Hooks.KeyboardFocus
-  exposed-modules:        Hooks.OutputAdd
-  exposed-modules:        Hooks.SeatMapping
-  exposed-modules:        Hooks.ScaleHook
+  exposed-modules:        Waymonad.Hooks.EnterLeave
+  exposed-modules:        Waymonad.Hooks.FocusFollowPointer
+  exposed-modules:        Waymonad.Hooks.KeyboardFocus
+  exposed-modules:        Waymonad.Hooks.OutputAdd
+  exposed-modules:        Waymonad.Hooks.SeatMapping
+  exposed-modules:        Waymonad.Hooks.ScaleHook
 
   exposed-modules:        Waymonad.Layout
   exposed-modules:        Waymonad.Layout.AvoidStruts

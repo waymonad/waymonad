@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Hooks.OutputAdd
+module Waymonad.Hooks.OutputAdd
     ( outputAddHook
     )
 where
