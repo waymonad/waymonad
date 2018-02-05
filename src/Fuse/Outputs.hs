@@ -72,8 +72,8 @@ import Waymonad.Output
 import Waymonad.ViewSet (WSTag (..))
 import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
-import WayUtil (getOutputs)
-import WayUtil.Focus (getOutputWorkspace)
+import Waymonad.Utility (getOutputs)
+import Waymonad.Utility.Focus (getOutputWorkspace)
 
 import Fuse.Common
 

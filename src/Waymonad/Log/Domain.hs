@@ -55,7 +55,7 @@ import Network.Socket.ByteString (sendAll)
 import Waymonad.View (getViewTitle)
 import Waymonad.ViewSet (WSTag (..))
 import Waymonad
-import WayUtil.Current (getCurrentView)
+import Waymonad.Utility.Current (getCurrentView)
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E

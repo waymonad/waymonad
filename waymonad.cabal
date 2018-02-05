@@ -99,7 +99,7 @@ library
   exposed-modules:        Waymonad.Log.Domain
 
   exposed-modules:        Waymonad.Managehook
-  exposed-modules:        Navigation2D
+  exposed-modules:        Waymonad.Navigation2D
   exposed-modules:        Waymonad.Output
   exposed-modules:        Waymonad.Output.Core
 
@@ -114,26 +114,27 @@ library
   exposed-modules:        Waymonad.Actions.Startup.Generic
 
   exposed-modules:        Waymonad.Start
-  exposed-modules:        Utility
+  exposed-modules:        Waymonad.Utility.Base
   exposed-modules:        Waymonad.Actions.Spawn
   exposed-modules:        Waymonad.View
   exposed-modules:        Waymonad.Shells.Pseudo.Proxy
   exposed-modules:        Waymonad.Shells.Pseudo.Multi
   exposed-modules:        Waymonad.ViewSet
 
-  exposed-modules:        WayUtil
-  exposed-modules:        WayUtil.Current
-  exposed-modules:        WayUtil.Floating
-  exposed-modules:        WayUtil.Focus
-  exposed-modules:        WayUtil.Layout
-  exposed-modules:        WayUtil.Log
-  exposed-modules:        WayUtil.Mapping
-  exposed-modules:        WayUtil.Pointer
-  exposed-modules:        WayUtil.Signal
-  exposed-modules:        WayUtil.SSD
-  exposed-modules:        WayUtil.Timing
-  exposed-modules:        WayUtil.View
-  exposed-modules:        WayUtil.ViewSet
+  exposed-modules:        Waymonad.Utility
+  exposed-modules:        Waymonad.Utility.Extensible
+  exposed-modules:        Waymonad.Utility.Current
+  exposed-modules:        Waymonad.Utility.Floating
+  exposed-modules:        Waymonad.Utility.Focus
+  exposed-modules:        Waymonad.Utility.Layout
+  exposed-modules:        Waymonad.Utility.Log
+  exposed-modules:        Waymonad.Utility.Mapping
+  exposed-modules:        Waymonad.Utility.Pointer
+  exposed-modules:        Waymonad.Utility.Signal
+  exposed-modules:        Waymonad.Utility.SSD
+  exposed-modules:        Waymonad.Utility.Timing
+  exposed-modules:        Waymonad.Utility.View
+  exposed-modules:        Waymonad.Utility.ViewSet
 
   exposed-modules:        Waymonad
   exposed-modules:        Waymonad.Main

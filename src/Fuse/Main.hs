@@ -39,7 +39,7 @@ import Graphics.Wayland.Server
 
 import Waymonad.Start (Bracketed (..))
 import Waymonad.ViewSet (WSTag, FocusCore)
-import WayUtil (closeCompositor)
+import Waymonad.Utility (closeCompositor)
 import Waymonad (getState, runWay, makeCallback, unliftWay)
 import Waymonad.Types (Way)
 

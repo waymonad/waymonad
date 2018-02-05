@@ -55,7 +55,7 @@ import Waymonad.Start (Bracketed (..))
 import Waymonad (makeCallback2)
 import Waymonad.Types (Way)
 import Waymonad.Extensible (ExtensionClass (..))
-import WayUtil (modifyEState, getEState)
+import Waymonad.Utility.Extensible (modifyEState, getEState)
 
 import qualified Data.Map as M
 

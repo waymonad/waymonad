@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module WayUtil.Floating
+module Waymonad.Utility.Floating
     ( centerFloat
     , toggleFloat
     , isFloating
@@ -39,7 +39,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Waymonad.Input.Seat (Seat, keyboardEnter)
 import Waymonad.Output
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.View (View, moveView, resizeView, setViewFocus, unsetViewFocus, activateView)
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
@@ -51,9 +51,10 @@ import Waymonad
     )
 import Waymonad.Types (SSDPrio (NoSSD))
 import Waymonad.Extensible
-import WayUtil (modifyEState, getEState, getOutputs)
-import WayUtil.Current (getCurrentBox, getCurrentView, getCurrentWS)
-import WayUtil.ViewSet (modifyFocusedWS, insertView)
+import Waymonad.Utility (getOutputs)
+import Waymonad.Utility.Extensible (modifyEState, getEState)
+import Waymonad.Utility.Current (getCurrentBox, getCurrentView, getCurrentWS)
+import Waymonad.Utility.ViewSet (modifyFocusedWS, insertView)
 
 import qualified Data.Set as S
 import qualified Data.Map as M

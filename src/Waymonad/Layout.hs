@@ -41,8 +41,8 @@ import Waymonad.View (setViewBox, viewHasCSD)
 import Waymonad.ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
 import Waymonad.Types (LogPriority(Debug), SSDPrio (..), ServerSideDecoration (..), Output (..))
-import WayUtil.Log (logPutText)
-import WayUtil.SSD
+import Waymonad.Utility.Log (logPutText)
+import Waymonad.Utility.SSD
 
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM

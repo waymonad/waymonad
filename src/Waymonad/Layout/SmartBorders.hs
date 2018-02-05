@@ -12,7 +12,7 @@ import Formatting
 
 import Waymonad.ViewSet
 import Waymonad.Types
-import WayUtil.SSD
+import Waymonad.Utility.SSD
 
 import qualified Data.Text as T
 

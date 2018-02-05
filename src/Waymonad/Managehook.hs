@@ -41,20 +41,20 @@ import Data.IORef (modifyIORef)
 
 import Waymonad.Input.Seat
 import Waymonad.Output (Output (outputLayout), forOutput)
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad
 import Waymonad.Layout
 import Waymonad.Types
 import Waymonad.View
 import Waymonad.ViewSet
-import WayUtil (getOutputs)
-import WayUtil.Floating
-import WayUtil.Mapping (getOutputKeyboards)
-import WayUtil.Focus (focusView, getOutputWorkspace)
-import WayUtil.ViewSet (modifyViewSet, setFocused)
-import WayUtil.Current (getCurrentWS)
+import Waymonad.Utility (getOutputs)
+import Waymonad.Utility.Floating
+import Waymonad.Utility.Mapping (getOutputKeyboards)
+import Waymonad.Utility.Focus (focusView, getOutputWorkspace)
+import Waymonad.Utility.ViewSet (modifyViewSet, setFocused)
+import Waymonad.Utility.Current (getCurrentWS)
 
-import qualified WayUtil.ViewSet as VS
+import qualified Waymonad.Utility.ViewSet as VS
 
 import qualified Data.Set as S
 

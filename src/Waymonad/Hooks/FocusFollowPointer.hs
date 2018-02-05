@@ -25,13 +25,13 @@ import Control.Monad (void)
 
 
 import Waymonad.Input.Seat (Seat, keyboardEnter)
-import Utility (These (..), doJust)
+import Waymonad.Utility.Base (These (..), doJust)
 import Waymonad.View (View, doFocusView)
 import Waymonad.ViewSet (FocusCore, WSTag)
-import WayUtil.Current (getPointerOutputS)
-import WayUtil.Focus (focusView)
-import WayUtil.Mapping (setSeatOutput)
-import WayUtil.Floating (isFloating)
+import Waymonad.Utility.Current (getPointerOutputS)
+import Waymonad.Utility.Focus (focusView)
+import Waymonad.Utility.Mapping (setSeatOutput)
+import Waymonad.Utility.Floating (isFloating)
 import Waymonad.Types (SeatFocusChange (..), Way)
 
 focusFollowPointer :: (WSTag ws, FocusCore vs ws) => SeatFocusChange -> Way vs ws ()

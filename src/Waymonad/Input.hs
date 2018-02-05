@@ -78,12 +78,12 @@ import Waymonad.Input.TabletPad
 import Waymonad.Input.Seat
 import Waymonad.View (getViewClient)
 import Waymonad.ViewSet (WSTag, FocusCore)
-import Utility (doJust, These (..))
-import WayUtil
-import WayUtil.Mapping (setSeatOutput)
+import Waymonad.Utility.Base (doJust, These (..))
+import Waymonad.Utility
+import Waymonad.Utility.Mapping (setSeatOutput)
 import Waymonad
 import Waymonad.Types (Compositor (..), Output (..))
-import WayUtil.Signal
+import Waymonad.Utility.Signal
 
 import qualified System.InputDevice as LI
 

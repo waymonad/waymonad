@@ -33,7 +33,7 @@ import Graphics.Wayland.WlRoots.Render.Color (colorWhite, colorBlack)
 
 import Waymonad.Layout.Ratio
 import Waymonad.ViewSet
-import WayUtil.SSD
+import Waymonad.Utility.SSD
 import Waymonad.Types (SSDPrio (..), ServerSideDecoration (..))
 import Waymonad.Types.Core (Seat, View)
 

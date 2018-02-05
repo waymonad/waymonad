@@ -78,8 +78,8 @@ import Waymonad.Types
     , WayBindingState (wayCompositor, wayKeybinds)
     , Way (..)
     )
-import WayUtil.Signal (setSignalHandler)
-import WayUtil.Log (logPutText, logPutStr, LogPriority (..))
+import Waymonad.Utility.Signal (setSignalHandler)
+import Waymonad.Utility.Log (logPutText, logPutStr, LogPriority (..))
 
 import Text.XkbCommon.Context
 import Text.XkbCommon.KeyboardState

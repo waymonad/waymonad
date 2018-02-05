@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module WayUtil.Pointer
+module Waymonad.Utility.Pointer
 where
 
 import Control.Monad.IO.Class (liftIO)
@@ -26,7 +26,7 @@ import Control.Monad.IO.Class (liftIO)
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 import Graphics.Wayland.WlRoots.OutputLayout (getOutputLayoutExtends)
 
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet
 import Waymonad (getSeat, getState)
 import Waymonad.Input.Seat (setPointerPosition, Seat)

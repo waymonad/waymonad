@@ -19,13 +19,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-|
-Module      : WayUtil.View
+Module      : Waymonad.Utility.View
 Description : Provides functions to modify the mapping from output to workspace
 Maintainer  : ongy
 Stability   : testing
 Portability : Linux
 -}
-module WayUtil.View
+module Waymonad.Utility.View
     ( view
     , greedyView
     , copyView
@@ -36,11 +36,11 @@ import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad (Way, getState, WayBindingState(wayBindingMapping))
-import WayUtil.Current (getCurrentOutput, getCurrentWS)
-import WayUtil.Focus (setOutputWorkspace)
+import Waymonad.Utility.Current (getCurrentOutput, getCurrentWS)
+import Waymonad.Utility.Focus (setOutputWorkspace)
 
 -- | Change the displayed workspace on the current output to the argument. Will
 -- do nothing if it's displayed on another output.

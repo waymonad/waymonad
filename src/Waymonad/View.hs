@@ -79,7 +79,7 @@ import Graphics.Wayland.Server (Client)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, getWlrSurfaceEvents, WlrSurfaceEvents (..))
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
 
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.Types.Core (View (..), ShellSurface (..), Seat)
 
 import qualified Data.IntMap as IM

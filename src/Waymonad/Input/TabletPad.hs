@@ -56,7 +56,7 @@ import Text.XkbCommon.KeycodeList
 
 import Waymonad.Input.Seat
 import Waymonad.ViewSet (WSTag)
-import WayUtil.Signal (setSignalHandler)
+import Waymonad.Utility.Signal (setSignalHandler)
 import Waymonad.Types (Way)
 import Text.XkbCommon.InternalTypes (CKeycode)
 

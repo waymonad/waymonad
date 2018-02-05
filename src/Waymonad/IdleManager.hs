@@ -47,12 +47,12 @@ import Graphics.Wayland.WlRoots.Input.Pointer (WlrPointer, PointerEvents (..), p
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard, KeyboardSignals (..), getKeySignals)
 
 import Waymonad.Start (Bracketed (..))
-import Utility (whenJust)
+import Waymonad.Utility.Base (whenJust)
 import Waymonad (unliftWay, sendEvent, getEvent)
 import Waymonad.Extensible (ExtensionClass (..))
 import Waymonad.Types (Way, EventClass, SomeEvent)
-import WayUtil (getEState, setEState)
-import WayUtil.Signal (setSignalHandler, setDestroyHandler)
+import Waymonad.Utility.Extensible (getEState, setEState)
+import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
 
 newtype Idle = Idle Bool deriving (Eq, Show)
 

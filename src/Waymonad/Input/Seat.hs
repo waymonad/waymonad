@@ -57,13 +57,13 @@ import Graphics.Wayland.Server
 
 import {-# SOURCE #-} Waymonad.Input.Cursor
 import Waymonad.Input.Cursor.Type
-import Utility (doJust, whenJust)
+import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.View (getViewSurface, getViewEventSurface)
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad (getState)
 import Waymonad.Types
 import Waymonad.Types.Core
-import WayUtil.Current (getCurrentWS)
+import Waymonad.Utility.Current (getCurrentWS)
 
 import qualified Data.Map as M
 import qualified Data.Text as T

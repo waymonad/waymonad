@@ -30,9 +30,9 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
 import Waymonad.Output (Output(outputName))
-import Utility (whenJust)
+import Waymonad.Utility.Base (whenJust)
 import Waymonad.ViewSet
-import WayUtil (sendMessageOn)
+import Waymonad.Utility (sendMessageOn)
 import Waymonad.Types
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))

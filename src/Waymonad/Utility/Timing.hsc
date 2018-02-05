@@ -22,7 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-|
-Module      : WayUtil.Timing
+Module      : Waymonad.Utility.Timing
 Description : Base module to provide timing for other modules
 Maintainer  : ongy
 Stability   : testing
@@ -42,7 +42,7 @@ A common usage in other code would be:
 >    else -- otherwise --
 
 -}
-module WayUtil.Timing
+module Waymonad.Utility.Timing
     ( Time
     , getTime
     , setBaseTime
@@ -66,7 +66,7 @@ import Graphics.Wayland.Server (DisplayServer)
 import Waymonad.Start (Bracketed (..))
 import Waymonad
 import Waymonad.Extensible
-import WayUtil
+import Waymonad.Utility.Extensible
 
 foreign import ccall "clock_gettime" c_gettime :: CInt -> Ptr time -> IO CInt
 

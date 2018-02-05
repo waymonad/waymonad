@@ -34,11 +34,11 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceSendEnter
     )
 
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.View (View, getViewSurface)
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad.Types (ViewWSChange (..))
-import WayUtil.Focus (getWorkspaceOutputs)
+import Waymonad.Utility.Focus (getWorkspaceOutputs)
 import Waymonad (Way)
 import Waymonad.Output (Output (..))
 

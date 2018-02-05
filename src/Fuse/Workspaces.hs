@@ -33,8 +33,8 @@ import Data.Maybe (fromMaybe)
 import Waymonad.View (getViewTitle, getViewAppId)
 import Waymonad.ViewSet (WSTag (..){-, LayoutClass (..), GenericLayout (..)-}, FocusCore)
 import Waymonad.Types (Way, Output (outputName))
-import WayUtil.Focus (getWorkspaceOutputs)
-import WayUtil.ViewSet (getWorkspaces, getWorkspaceViews)
+import Waymonad.Utility.Focus (getWorkspaceOutputs)
+import Waymonad.Utility.ViewSet (getWorkspaces, getWorkspaceViews)
 
 import Fuse.Common
 

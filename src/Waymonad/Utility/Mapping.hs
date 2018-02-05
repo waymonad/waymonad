@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module WayUtil.Mapping
+module Waymonad.Utility.Mapping
     ( setSeatOutput
     , getOutputKeyboards
     , getOutputPointers
@@ -31,7 +31,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
 
-import Utility (These (..), getThis, getThat)
+import Waymonad.Utility.Base (These (..), getThis, getThat)
 import Waymonad.ViewSet (WSTag)
 import Waymonad (getState)
 import Waymonad.Types

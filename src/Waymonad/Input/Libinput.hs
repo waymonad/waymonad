@@ -29,7 +29,7 @@ import Data.Text (Text)
 
 import System.InputDevice
 
-import Utility (showT, readT)
+import Waymonad.Utility.Base (showT, readT)
 
 data LibinputOption = LibinputOption
     { optionName    :: Text

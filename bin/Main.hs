@@ -61,22 +61,22 @@ import Waymonad.Layout.Tall (Tall (..))
 import Waymonad.Layout.ToggleFull (mkTFull, ToggleFullM (..))
 import Waymonad.Layout.TwoPane (TwoPane (..))
 import Waymonad.Layout.Ratio
-import Navigation2D
+import Waymonad.Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.GammaControl
 import Waymonad.Protocols.Screenshooter
 import Waymonad.Actions.Startup.Environment
 import Waymonad.Actions.Startup.Generic
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.Actions.Spawn (spawn, manageSpawnOn)
 import Waymonad.Shells.Pseudo.Proxy (makeProxy)
 import Waymonad.ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
-import WayUtil (sendMessage, focusNextOut, sendTo, killCurrent, closeCompositor)
-import WayUtil.Current (getCurrentView)
-import WayUtil.Floating (centerFloat)
-import WayUtil.Timing
-import WayUtil.View
-import WayUtil.ViewSet (modifyFocusedWS)
+import Waymonad.Utility (sendMessage, focusNextOut, sendTo, killCurrent, closeCompositor)
+import Waymonad.Utility.Current (getCurrentView)
+import Waymonad.Utility.Floating (centerFloat)
+import Waymonad.Utility.Timing
+import Waymonad.Utility.View
+import Waymonad.Utility.ViewSet (modifyFocusedWS)
 import Waymonad (Way, KeyBinding)
 import Waymonad.Types (SomeEvent, WayHooks (..), BindingMap)
 import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)

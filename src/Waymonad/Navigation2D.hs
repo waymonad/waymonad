@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module Navigation2D
+module Waymonad.Navigation2D
 where
 
 import Control.Monad.IO.Class (liftIO)
@@ -30,12 +30,12 @@ import Data.Maybe (listToMaybe)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Waymonad.Output (getOutputId, Output (outputLayers))
-import Utility (doJust, whenJust)
+import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.ViewSet
 import Waymonad (getState)
 import Waymonad.Types
-import WayUtil.Current (getCurrentOutput, getCurrentView)
-import WayUtil.Focus (focusView)
+import Waymonad.Utility.Current (getCurrentOutput, getCurrentView)
+import Waymonad.Utility.Focus (focusView)
 
 import qualified Data.Map as M
 import qualified Data.IntMap as IM

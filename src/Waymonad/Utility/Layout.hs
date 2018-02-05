@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module WayUtil.Layout
+module Waymonad.Utility.Layout
 where
 
 import Control.Applicative ((<|>))
@@ -35,12 +35,12 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Waymonad.Output (Output (..), getOutputBox)
-import Utility (ptrToInt)
+import Waymonad.Utility.Base (ptrToInt)
 import Waymonad.View (View, getViewEventSurface, viewHasCSD)
 import Waymonad (getSeat, getState)
 import Waymonad.Types
-import WayUtil (getOutputs)
-import WayUtil.SSD
+import Waymonad.Utility (getOutputs)
+import Waymonad.Utility.SSD
 import {-# SOURCE #-} Waymonad.Input.Seat (getPointerFocus)
 
 import qualified Data.IntMap as IM

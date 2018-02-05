@@ -32,7 +32,7 @@ import System.Posix.Files
 
 import System.Fuse
 
-import Utility (firstDir)
+import Waymonad.Utility.Base (firstDir)
 import Waymonad.Types (Way)
 
 import qualified Data.Map as M

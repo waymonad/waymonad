@@ -167,10 +167,10 @@ import Graphics.Wayland.WlRoots.Surface
 import Waymonad.Layout (layoutOutput)
 import Waymonad (makeCallback2, unliftWay)
 import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), SSDPrio (..), Output (..))
-import WayUtil.Signal
+import Waymonad.Utility.Signal
 import Waymonad.Input.Seat (Seat(seatLoadScale))
 import Waymonad.Start (FrameHandler)
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.View
     ( View
     , getViewSurface
@@ -187,7 +187,7 @@ import Waymonad
     , getState
     , getSeats
     )
-import WayUtil.SSD
+import Waymonad.Utility.SSD
 
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM

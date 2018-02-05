@@ -52,7 +52,7 @@ import Graphics.Wayland.Server
 import Graphics.Wayland.WlRoots.Output
 
 import Waymonad.Output (setPreferdMode, addOutputToWork)
-import Utility (whenJust)
+import Waymonad.Utility.Base (whenJust)
 import Waymonad.Types
 
 import Config.Box (Point (..), asRootsPoint)

@@ -30,11 +30,11 @@ import Data.IORef (readIORef)
 import Data.List ((\\))
 
 import Waymonad.Output (Output)
-import Utility (These (..))
+import Waymonad.Utility.Base (These (..))
 import Waymonad.ViewSet (WSTag, FocusCore)
-import WayUtil.Mapping (setSeatOutput)
-import WayUtil.Focus (setOutputWorkspace)
-import WayUtil.Timing
+import Waymonad.Utility.Mapping (setSeatOutput)
+import Waymonad.Utility.Focus (setOutputWorkspace)
+import Waymonad.Utility.Timing
 import Waymonad (Way, WayBindingState (..), getState)
 import Waymonad.Types (OutputEvent (..))
 

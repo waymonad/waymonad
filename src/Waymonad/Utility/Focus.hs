@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module WayUtil.Focus
+module Waymonad.Utility.Focus
     ( setWorkspace
     , setOutputWorkspace
     , focusView
@@ -41,7 +41,7 @@ import Data.Tuple (swap)
 import Waymonad.Input.Seat (Seat)
 import Waymonad.Layout (reLayout)
 import Waymonad.Output (Output (..))
-import Utility (whenJust, doJust)
+import Waymonad.Utility.Base (whenJust, doJust)
 import Waymonad.View (View)
 import Waymonad.ViewSet (WSTag, FocusCore (..), ListLike (..))
 import Waymonad
@@ -51,9 +51,9 @@ import Waymonad
     , WayLoggers (..)
     )
 import Waymonad.Types
-import WayUtil.Current (getCurrentOutput)
-import WayUtil.ViewSet (modifyCurrentWS, modifyViewSet, withCurrentWS)
-import WayUtil.Log (logPutText, LogPriority(..))
+import Waymonad.Utility.Current (getCurrentOutput)
+import Waymonad.Utility.ViewSet (modifyCurrentWS, modifyViewSet, withCurrentWS)
+import Waymonad.Utility.Log (logPutText, LogPriority(..))
 
 setOutputWorkspace :: (FocusCore vs a, WSTag a) => a -> Output -> Way vs a ()
 setOutputWorkspace ws current = do

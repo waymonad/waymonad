@@ -32,9 +32,9 @@ import Waymonad.Output (Output)
 import Waymonad.ViewSet (WSTag)
 import Waymonad (getState)
 import Waymonad.Types
-import WayUtil
-import WayUtil.Mapping (getOutputKeyboards, getOutputPointers)
-import WayUtil.Log
+import Waymonad.Utility
+import Waymonad.Utility.Mapping (getOutputKeyboards, getOutputPointers)
+import Waymonad.Utility.Log
 
 checkOutput
     :: WSTag a

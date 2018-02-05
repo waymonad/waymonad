@@ -74,7 +74,7 @@ import Graphics.Wayland.Signal (ListenerToken, removeListener)
 
 import Waymonad.Input.Cursor.Type
 import Waymonad.Output (outputFromWlr)
-import Utility (ptrToInt, doJust, These(..))
+import Waymonad.Utility.Base (ptrToInt, doJust, These(..))
 import Waymonad.View (View, doFocusView)
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad
@@ -84,12 +84,12 @@ import Waymonad
     , WayLoggers (..)
     )
 import Waymonad.Types
-import WayUtil.Current (getPointerWS, getPointerOutputS)
-import WayUtil.Focus (focusView, setWorkspace)
-import WayUtil.Layout (viewBelow)
-import WayUtil.Log (logPutText, LogPriority (..))
-import WayUtil.Mapping (setSeatOutput)
-import WayUtil.Signal (setSignalHandler)
+import Waymonad.Utility.Current (getPointerWS, getPointerOutputS)
+import Waymonad.Utility.Focus (focusView, setWorkspace)
+import Waymonad.Utility.Layout (viewBelow)
+import Waymonad.Utility.Log (logPutText, LogPriority (..))
+import Waymonad.Utility.Mapping (setSeatOutput)
+import Waymonad.Utility.Signal (setSignalHandler)
 
 cursorDestroy :: Cursor -> IO ()
 cursorDestroy Cursor { cursorRoots = roots, cursorTokens = tokens } = do

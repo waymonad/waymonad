@@ -20,7 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-module WayUtil.ViewSet
+module Waymonad.Utility.ViewSet
     ( modifyViewSet
     , setFocused
     , forceFocused
@@ -46,7 +46,7 @@ import Data.List (nub)
 
 import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
 import Waymonad.Layout (reLayout)
-import Utility (whenJust, doJust, These (..))
+import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View (View, activateView, setViewFocus, unsetViewFocus)
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
@@ -58,8 +58,8 @@ import Waymonad
     , makeCallback2
     )
 import Waymonad.Types (Output)
-import WayUtil.Current
-import WayUtil.Mapping (getOutputKeyboards, setSeatOutput)
+import Waymonad.Utility.Current
+import Waymonad.Utility.Mapping (getOutputKeyboards, setSeatOutput)
 
 import qualified Data.Set as S
 

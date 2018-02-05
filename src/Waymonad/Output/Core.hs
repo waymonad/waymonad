@@ -5,7 +5,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 
 import Graphics.Wayland.WlRoots.Output (setOutputNeedsSwap)
 
-import Utility (ptrToInt)
+import Waymonad.Utility.Base (ptrToInt)
 import Waymonad.Types (Output (..))
 
 setOutputDirty :: MonadIO m => Output -> m ()

@@ -49,7 +49,7 @@ import Data.Maybe (fromMaybe, maybeToList)
 import Data.Monoid ((<>))
 import Data.Set (Set)
 
-import Utility (whenJust)
+import Waymonad.Utility.Base (whenJust)
 import Waymonad.ViewSet
 import Waymonad.Types.Core (Seat, View)
 

@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module WayUtil.Current
+module Waymonad.Utility.Current
     ( getPointerOutput
     , getPointerOutputS
     , getCurrentOutput
@@ -39,7 +39,7 @@ import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
 import {-# SOURCE #-} Waymonad.Input.Seat (Seat, getKeyboardFocus)
 import Waymonad.Output.Core (getOutputId)
-import Utility (doJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.View (View)
 import Waymonad
     ( Way

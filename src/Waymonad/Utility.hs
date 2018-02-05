@@ -21,7 +21,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module WayUtil
+module Waymonad.Utility
 where
 
 import Control.Applicative ((<|>))
@@ -40,7 +40,7 @@ import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Waymonad.Input.Seat (Seat (seatName), getPointerFocus)
 import Waymonad.Output (Output (..), getOutputId)
-import Utility (whenJust, doJust, These(..), getThis, getThat, ptrToInt)
+import Waymonad.Utility.Base (whenJust, doJust, These(..), getThis, getThat, ptrToInt)
 import Waymonad.View (View, closeView, getViewEventSurface)
 import Waymonad.ViewSet
     ( FocusCore (..)
@@ -51,10 +51,10 @@ import Waymonad.ViewSet
     , broadcastWS
     , messageWS
     )
-import WayUtil.Current (getCurrentOutput , getCurrentView , getCurrentWS)
-import WayUtil.Log (logPutText)
-import WayUtil.ViewSet
-import WayUtil.Mapping (setSeatOutput)
+import Waymonad.Utility.Current (getCurrentOutput , getCurrentView , getCurrentWS)
+import Waymonad.Utility.Log (logPutText)
+import Waymonad.Utility.ViewSet
+import Waymonad.Utility.Mapping (setSeatOutput)
 import Waymonad
     ( Way
     , WayBindingState(..)
@@ -139,23 +139,6 @@ seatOutputEventLogger (KeyboardOutputChange seat pre new) = do
         fromMaybe "None" pName `T.append`
         " to " `T.append`
         fromMaybe "None" nName
-
-modifyStateRef :: (StateMap -> StateMap) -> Way vs a ()
-modifyStateRef fun = do
-    ref <- wayExtensibleState <$> getState
-    liftIO $ modifyIORef ref fun
-
-modifyEState :: ExtensionClass a => (a -> a) -> Way vs b ()
-modifyEState = modifyStateRef . modifyValue
-
-setEState :: ExtensionClass a => a -> Way vs b ()
-setEState = modifyStateRef . setValue
-
-getEState :: ExtensionClass a => Way vs b a
-getEState = do
-    state <- liftIO . readIORef . wayExtensibleState =<< getState
-    pure $ getValue state
-
 
 killCurrent :: WSTag a => Way vs a ()
 killCurrent = do

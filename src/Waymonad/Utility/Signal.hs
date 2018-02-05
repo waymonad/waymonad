@@ -19,13 +19,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-|
-Module      : WayUtil.Signal
+Module      : Waymonad.Utility.Signal
 Description : Utility functions to attach to wayland signals. Probably useless for endusers
 Maintainer  : ongy
 Stability   : testing
 Portability : Linux
 -}
-module WayUtil.Signal
+module Waymonad.Utility.Signal
     ( setSignalHandler
     , setDestroyHandler
     )
