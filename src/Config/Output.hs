@@ -51,7 +51,7 @@ import Graphics.Wayland.Server
     )
 import Graphics.Wayland.WlRoots.Output
 
-import Output (Output (..), setPreferdMode, addOutputToWork)
+import Waymonad.Output (setPreferdMode, addOutputToWork)
 import Utility (whenJust)
 import Waymonad.Types
 

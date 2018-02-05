@@ -34,7 +34,7 @@ import Control.Monad.Trans.Maybe (MaybeT (..))
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
-import Output (Output (..), getOutputBox)
+import Waymonad.Output (Output (..), getOutputBox)
 import Utility (ptrToInt)
 import View (View, getViewEventSurface, viewHasCSD)
 import Waymonad (getSeat, getState)

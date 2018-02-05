@@ -76,14 +76,13 @@ import Waymonad.Input.Cursor.Type
 import Waymonad.Input.Keyboard
 import Waymonad.Input.TabletPad
 import Waymonad.Input.Seat
-import Output (Output(..))
 import View (getViewClient)
 import ViewSet (WSTag, FocusCore)
 import Utility (doJust, These (..))
 import WayUtil
 import WayUtil.Mapping (setSeatOutput)
 import Waymonad
-import Waymonad.Types (Compositor (..))
+import Waymonad.Types (Compositor (..), Output (..))
 import WayUtil.Signal
 
 import qualified System.InputDevice as LI

@@ -38,7 +38,7 @@ import Data.Set (Set)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Waymonad.Input.Seat (Seat, keyboardEnter)
-import Output
+import Waymonad.Output
 import Utility (doJust)
 import View (View, moveView, resizeView, setViewFocus, unsetViewFocus, activateView)
 import ViewSet (WSTag, FocusCore (..))

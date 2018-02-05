@@ -29,7 +29,7 @@ import Data.Maybe (listToMaybe)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
-import Output (getOutputId, Output (outputLayers))
+import Waymonad.Output (getOutputId, Output (outputLayers))
 import Utility (doJust, whenJust)
 import ViewSet
 import Waymonad (getState)

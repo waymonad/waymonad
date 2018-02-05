@@ -28,12 +28,11 @@ import Control.Monad.IO.Class (liftIO)
 
 import Graphics.Wayland.WlRoots.Surface (surfaceSendLeave, surfaceSendEnter)
 
-import Output (Output (..))
 import Utility (whenJust, doJust)
 import View (getViewSurface)
 import ViewSet (WSTag, FocusCore (..))
 import WayUtil.Focus (OutputMappingEvent (..))
-import Waymonad.Types (Way)
+import Waymonad.Types (Way, Output (..))
 import WayUtil.ViewSet (withViewSet)
 
 import qualified Data.Set as S

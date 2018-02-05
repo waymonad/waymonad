@@ -60,7 +60,7 @@ import Graphics.Wayland.WlRoots.Output
     )
 import Graphics.Wayland.WlRoots.OutputLayout (moveOutput)
 
-import Output
+import Waymonad.Output
     ( Output(..)
     , addOutputToWork
     , findMode

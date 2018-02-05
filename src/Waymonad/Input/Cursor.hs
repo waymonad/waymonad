@@ -73,7 +73,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
 
 import Waymonad.Input.Cursor.Type
-import Output (outputFromWlr)
+import Waymonad.Output (outputFromWlr)
 import Utility (ptrToInt, doJust, These(..))
 import View (View, doFocusView)
 import ViewSet (WSTag, FocusCore)

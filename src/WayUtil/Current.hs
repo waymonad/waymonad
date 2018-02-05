@@ -38,7 +38,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
 import {-# SOURCE #-} Waymonad.Input.Seat (Seat, getKeyboardFocus)
-import Output.Core (getOutputId)
+import Waymonad.Output.Core (getOutputId)
 import Utility (doJust)
 import View (View)
 import Waymonad

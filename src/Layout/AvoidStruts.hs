@@ -29,7 +29,7 @@ import Data.List (lookup)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
-import Output (Output(outputName))
+import Waymonad.Output (Output(outputName))
 import Utility (whenJust)
 import ViewSet
 import WayUtil (sendMessageOn)

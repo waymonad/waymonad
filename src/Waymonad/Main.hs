@@ -47,7 +47,7 @@ import Graphics.Wayland.WlRoots.Render.Color (Color)
 import Text.XkbCommon.InternalTypes (Keysym(..))
 
 import Waymonad.Input (inputCreate)
-import Output (Output, handleOutputAdd, handleOutputRemove)
+import Waymonad.Output (Output, handleOutputAdd, handleOutputRemove)
 import Shared
 import ViewSet
 import Waymonad (makeCallback)

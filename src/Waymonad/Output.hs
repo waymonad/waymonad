@@ -60,7 +60,7 @@ It can still be configured over IPC, though currently no events for this exist.
 When it's unplugged the core will clean up any traces of it.
 There is currently no core event for it, though that may change.
 -}
-module Output
+module Waymonad.Output
     ( handleOutputAdd
     , handleOutputRemove
     , Output (..)

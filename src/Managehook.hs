@@ -40,7 +40,7 @@ import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 import Data.IORef (modifyIORef)
 
 import Waymonad.Input.Seat
-import Output (Output (outputLayout), forOutput)
+import Waymonad.Output (Output (outputLayout), forOutput)
 import Utility (doJust)
 import View
 import ViewSet (WSTag)

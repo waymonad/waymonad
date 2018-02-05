@@ -62,7 +62,7 @@ import Layout.ToggleFull (mkTFull, ToggleFullM (..))
 import Layout.TwoPane (TwoPane (..))
 import Layout.Ratio
 import Navigation2D
-import Output (Output (outputRoots), addOutputToWork, setPreferdMode)
+import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Protocols.GammaControl
 import Protocols.Screenshooter
 import Startup.Environment

@@ -29,7 +29,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 import Data.List ((\\))
 
-import Output (Output)
+import Waymonad.Output (Output)
 import Utility (These (..))
 import ViewSet (WSTag, FocusCore)
 import WayUtil.Mapping (setSeatOutput)

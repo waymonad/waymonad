@@ -40,7 +40,7 @@ import ViewSet (WSTag, FocusCore)
 import Waymonad.Types (ViewWSChange (..))
 import WayUtil.Focus (getWorkspaceOutputs)
 import Waymonad (Way)
-import Output (Output (..))
+import Waymonad.Output (Output (..))
 
 enactEvent :: WSTag a => (View -> Output -> Way vs a ()) -> View -> a -> Way vs a ()
 enactEvent fun view ws = do

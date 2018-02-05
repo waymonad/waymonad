@@ -46,7 +46,6 @@ import Data.List (nub)
 
 import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
 import Layout (reLayout)
-import Output (Output)
 import Utility (whenJust, doJust, These (..))
 import View (View, activateView, setViewFocus, unsetViewFocus)
 import ViewSet (WSTag, FocusCore (..))
@@ -58,6 +57,7 @@ import Waymonad
     , WayBindingState (..)
     , makeCallback2
     )
+import Waymonad.Types (Output)
 import WayUtil.Current
 import WayUtil.Mapping (getOutputKeyboards, setSeatOutput)
 

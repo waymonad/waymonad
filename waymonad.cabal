@@ -101,8 +101,8 @@ library
 
   exposed-modules:        Managehook
   exposed-modules:        Navigation2D
-  exposed-modules:        Output
-  exposed-modules:        Output.Core
+  exposed-modules:        Waymonad.Output
+  exposed-modules:        Waymonad.Output.Core
 
   exposed-modules:        Protocols.GammaControl
   exposed-modules:        Protocols.Screenshooter

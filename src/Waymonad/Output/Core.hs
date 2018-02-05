@@ -1,4 +1,4 @@
-module Output.Core
+module Waymonad.Output.Core
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)

@@ -36,7 +36,7 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import Output.Core (setOutputDirty, getOutputId)
+import Waymonad.Output.Core (setOutputDirty, getOutputId)
 import View (setViewBox, viewHasCSD)
 import ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
