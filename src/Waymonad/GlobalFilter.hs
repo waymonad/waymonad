@@ -51,7 +51,7 @@ import System.Posix.User (getEffectiveUserID)
 import Graphics.Wayland.Server (DisplayServer, Client (..), clientGetCredentials)
 import Graphics.Wayland.Global (WlGlobal, setGlobalFilter)
 
-import Shared (Bracketed (..))
+import Waymonad.Start (Bracketed (..))
 import Waymonad (makeCallback2)
 import Waymonad.Types (Way)
 import Waymonad.Extensible (ExtensionClass (..))

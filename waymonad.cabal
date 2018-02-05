@@ -113,7 +113,7 @@ library
   exposed-modules:        Waymonad.Actions.Startup.Environment
   exposed-modules:        Waymonad.Actions.Startup.Generic
 
-  exposed-modules:        Shared
+  exposed-modules:        Waymonad.Start
   exposed-modules:        Utility
   exposed-modules:        Waymonad.Actions.Spawn
   exposed-modules:        Waymonad.View

@@ -46,7 +46,7 @@ import Graphics.Wayland.WlRoots.Input (InputDevice, inputDeviceType, getDestroyS
 import Graphics.Wayland.WlRoots.Input.Pointer (WlrPointer, PointerEvents (..), pointerGetEvents)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard, KeyboardSignals (..), getKeySignals)
 
-import Shared (Bracketed (..))
+import Waymonad.Start (Bracketed (..))
 import Utility (whenJust)
 import Waymonad (unliftWay, sendEvent, getEvent)
 import Waymonad.Extensible (ExtensionClass (..))

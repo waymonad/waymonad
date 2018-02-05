@@ -35,7 +35,7 @@ import Control.Monad.IO.Class (liftIO)
 
 import Graphics.Wayland.Server (DisplayServer, eventLoopAddIdle, displayGetEventLoop)
 
-import Shared (Bracketed (..))
+import Waymonad.Start (Bracketed (..))
 import Waymonad (unliftWay)
 import Waymonad.Types (Way)
 

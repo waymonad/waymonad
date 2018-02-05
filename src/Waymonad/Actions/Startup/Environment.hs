@@ -33,7 +33,7 @@ import System.Environment (setEnv)
 
 import Graphics.Wayland.Server (DisplayServer)
 
-import Shared (Bracketed (..))
+import Waymonad.Start (Bracketed (..))
 
 {- | Set environment variables on startup.
 

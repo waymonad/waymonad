@@ -23,7 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE Rank2Types #-}
-module Shared
+module Waymonad.Start
     ( launchCompositor
     , CompHooks (..)
     , ignoreHooks

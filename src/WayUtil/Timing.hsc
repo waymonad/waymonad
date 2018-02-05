@@ -63,7 +63,7 @@ import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer)
 
-import Shared (Bracketed (..))
+import Waymonad.Start (Bracketed (..))
 import Waymonad
 import Waymonad.Extensible
 import WayUtil
