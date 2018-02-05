@@ -110,12 +110,12 @@ library
   exposed-modules:        Waymonad.Shells.XWayland
   exposed-modules:        Waymonad.Shells.XdgShell
 
-  exposed-modules:        Startup.Environment
-  exposed-modules:        Startup.Generic
+  exposed-modules:        Waymonad.Actions.Startup.Environment
+  exposed-modules:        Waymonad.Actions.Startup.Generic
 
   exposed-modules:        Shared
   exposed-modules:        Utility
-  exposed-modules:        Utility.Spawn
+  exposed-modules:        Waymonad.Actions.Spawn
   exposed-modules:        View
   exposed-modules:        Waymonad.Shells.Pseudo.Proxy
   exposed-modules:        Waymonad.Shells.Pseudo.Multi

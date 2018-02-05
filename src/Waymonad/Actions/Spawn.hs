@@ -31,7 +31,7 @@ Portability : Linux
 WARNING: The interesting things here only work with wayland clients.
 XWayland clients won't be detected properly.
 -}
-module Utility.Spawn
+module Waymonad.Actions.Spawn
     ( spawn
 
     , spawnNamed

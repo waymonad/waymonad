@@ -65,10 +65,10 @@ import Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.GammaControl
 import Waymonad.Protocols.Screenshooter
-import Startup.Environment
-import Startup.Generic
+import Waymonad.Actions.Startup.Environment
+import Waymonad.Actions.Startup.Generic
 import Utility (doJust)
-import Utility.Spawn (spawn, manageSpawnOn)
+import Waymonad.Actions.Spawn (spawn, manageSpawnOn)
 import Waymonad.Shells.Pseudo.Proxy (makeProxy)
 import Waymonad.ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
 import WayUtil (sendMessage, focusNextOut, sendTo, killCurrent, closeCompositor)

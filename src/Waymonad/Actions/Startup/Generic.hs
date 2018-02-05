@@ -19,31 +19,35 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-|
-Module      : Startup.Environment
-Description : Allows to set environment variables on startup.
+Module      : Startup.Generic
+Description : Allows to run any Way action when the compositor is done starting up
 Maintainer  : ongy
 Stability   : testing
 Portability : Linux
 -}
-module Startup.Environment
+module Waymonad.Actions.Startup.Generic
+    ( getStartupBracket
+    )
 where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
-import System.Environment (setEnv)
 
-import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.Server (DisplayServer, eventLoopAddIdle, displayGetEventLoop)
 
 import Shared (Bracketed (..))
+import Waymonad (unliftWay)
+import Waymonad.Types (Way)
 
-{- | Set environment variables on startup.
-
-This happens early enough to be used by wlroots/backend stuff.
+{- | Run a Way action when the compositor is started up.
 
 @
-    envBracket [(\"PULSE_SERVER\", "zelda.ongy")]
+    getStartupBracket (spawn "alacritty")
 @
 -}
-envBracket :: [(String, String)] -> Bracketed vs DisplayServer ws
-envBracket xs = Bracketed
-    (\_ -> liftIO (mapM_ (uncurry setEnv) xs))
-    (\_ -> pure ())
+getStartupBracket :: Way vs a () -> Bracketed vs DisplayServer a
+getStartupBracket act = Bracketed (\dsp -> do
+        evtLoop <- liftIO $ displayGetEventLoop dsp
+        cb <- unliftWay act
+        void . liftIO $ eventLoopAddIdle evtLoop cb
+    ) (const $ pure ())
