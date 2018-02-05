@@ -24,16 +24,25 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 module Waymonad.Layout.SmartBorders
+    ( SmartBorders (..)
+    , SetBorderWidth (..)
+    , mkSmartBorders
+    , mkVSSmartBorders
+    , liftSmartBorders
+    )
 where
 
-import Data.Functor.Identity
+import Data.Map (Map)
+import Data.Maybe (fromMaybe)
 import Formatting
 
 import Waymonad.ViewSet
 import Waymonad.Types
 import Waymonad.Utility.SSD
 
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 
 data SetBorderWidth = SetBorderWidth Int deriving (Eq, Show)
@@ -41,28 +50,72 @@ data SetBorderWidth = SetBorderWidth Int deriving (Eq, Show)
 instance Message SetBorderWidth
 
 data SmartBorders c l = SmartBorders
-    { smartBorderWidth :: c Int
+    { smartBorderWidth :: c
     , smartBorderChild :: l
     }
 
-mkSmartBorders :: Int -> l -> SmartBorders Identity l
-mkSmartBorders = SmartBorders . Identity
+mkSmartBorders :: Int -> l -> SmartBorders Int l
+mkSmartBorders = SmartBorders
 
-instance LayoutClass l => LayoutClass (SmartBorders Identity l) where
+mkVSSmartBorders :: Ord ws => Int -> l -> SmartBorders (Int, Map ws Int) l
+mkVSSmartBorders = SmartBorders . (, mempty)
+
+
+instance LayoutClass l => LayoutClass (SmartBorders Int l) where
     handleMessage (SmartBorders state l) m = case getMessage m of
-        (Just (SetBorderWidth w)) -> Just $ SmartBorders (Identity w) l
+        (Just (SetBorderWidth w)) -> Just $ SmartBorders w l
         Nothing -> SmartBorders state <$> handleMessage l m
     broadcastMessage (SmartBorders state l) m = case getMessage m of
-        (Just (SetBorderWidth w)) -> Just $ SmartBorders (Identity w) l
+        (Just (SetBorderWidth w)) -> Just $ SmartBorders w l
         Nothing -> SmartBorders state <$> broadcastMessage l m
     description (SmartBorders _ l) = "SmartBorders(" `T.append` description l `T.append` ")"
-    currentDesc (SmartBorders (Identity v) l) = sformat ("SmartBorders[" % int % "]" % stext) v (currentDesc l)
+    currentDesc (SmartBorders v l) = sformat ("SmartBorders[" % int % "]" % stext) v (currentDesc l)
 
-instance (GenericLayoutClass l vs ws) => GenericLayoutClass (SmartBorders Identity l) vs ws where
-    pureLayout (SmartBorders (Identity w) l) vs ws box = case pureLayout l vs ws box of
+instance (GenericLayoutClass l vs ws) => GenericLayoutClass (SmartBorders Int l) vs ws where
+    pureLayout (SmartBorders w l) vs ws box = applyBorders w $ pureLayout l vs ws box
 
-        [] -> []
-        [x] -> [x]
-        xs -> flip fmap xs (\case
-            (v, NoSSD s, b) -> (v, sillyDeco w s, b)
-            x -> x)
+
+applyBorders :: Int -> [(l, SSDPrio, r)] -> [(l, SSDPrio, r)]
+applyBorders _ [] = []
+applyBorders _ [x]= [x]
+applyBorders w xs = flip fmap xs (\case
+    (v, NoSSD s, b) -> (v, sillyDeco w s, b)
+    x -> x)
+
+-- | Get the state for the current workspace
+getState :: Ord ws => ws -> SmartBorders (Int, Map ws Int) vs -> Int
+getState ws (SmartBorders (d, m) _) = fromMaybe d $ M.lookup ws m
+
+-- | Lift a (non-generic) action on the ViewSet into the 'SmartBorders wrapped
+-- one
+liftSmartBorders :: (vs -> vs) -> SmartBorders c vs -> SmartBorders c vs
+liftSmartBorders fun (SmartBorders state vs) = SmartBorders state (fun vs)
+
+instance (Ord ws, FocusCore vs ws) => FocusCore (SmartBorders (Int, Map ws Int) vs) ws where
+    _getFocused (SmartBorders _ vs) ws seat = _getFocused vs ws seat
+    _getViews (SmartBorders _ vs) ws = _getViews vs ws
+    _focusView ws seat view (SmartBorders s vs) = SmartBorders s (_focusView ws seat view vs)
+    _insertView ws seat view (SmartBorders s vs) = SmartBorders s (_insertView ws seat view vs)
+    _removeView ws view (SmartBorders s vs) = SmartBorders s (_removeView ws view vs)
+    removeGlobal v ws (SmartBorders s vs) = SmartBorders s $ removeGlobal v ws vs
+    getLayouted t@(SmartBorders _ vs) ws box =
+        applyBorders (getState ws t) $ getLayouted vs ws box
+
+instance ListLike vs ws => ListLike (SmartBorders c vs) ws where
+    _asList (SmartBorders _ vs) ws = _asList vs ws
+    _moveFocusLeft ws seat (SmartBorders s vs) = SmartBorders s (_moveFocusLeft ws seat vs)
+    _moveFocusRight ws seat (SmartBorders s vs) = SmartBorders s (_moveFocusRight ws seat vs)
+    _moveFocusedLeft ws seat (SmartBorders s vs) = SmartBorders s (_moveFocusedLeft ws seat vs)
+    _moveFocusedRight ws seat (SmartBorders s vs) = SmartBorders s (_moveFocusedRight ws seat vs)
+
+instance (Layouted vs ws, Ord ws) => Layouted (SmartBorders (Int, Map ws Int) vs) ws where
+    messageWS message ws (SmartBorders state vs) = case getMessage message of
+        (Just (SetBorderWidth v)) -> SmartBorders ((fmap $ M.insert ws v) $ state) vs
+        Nothing -> SmartBorders state (messageWS message ws vs)
+    broadcastWS message ws (SmartBorders state vs) = case getMessage message of
+        (Just (SetBorderWidth v)) -> SmartBorders ((fmap $ M.insert ws v) $ state) vs
+        Nothing -> SmartBorders state (broadcastWS message ws vs)
+    broadcastVS message ws (SmartBorders state vs) = case getMessage message of
+        (Just (SetBorderWidth v)) -> SmartBorders (v, mempty) vs
+        Nothing -> SmartBorders state (broadcastVS message ws vs)
+    getLayout (SmartBorders _ vs) ws = getLayout vs ws
