@@ -7,6 +7,7 @@
 module Layout.SmartBorders
 where
 
+import Data.Functor.Identity
 import Formatting
 
 import ViewSet
@@ -15,28 +16,30 @@ import WayUtil.SSD
 
 import qualified Data.Text as T
 
-data SmartBorders l = SmartBorders Int l
+data SetBorderWidth = SetBorderWidth Int deriving (Eq, Show)
 
-mkSmartBorders :: Int -> l -> SmartBorders l
-mkSmartBorders = SmartBorders
+instance Message SetBorderWidth
 
-instance LayoutClass l => LayoutClass (SmartBorders l) where
-    handleMessage (SmartBorders state l) m = SmartBorders state <$> handleMessage l m
---        case getMessage m of
---        (Just ToggleFullM) -> Just $ ToggleFull (fmap not state) l
---        (Just SetFull) -> Just $ ToggleFull (Identity True) l
---        (Just UnsetFull) -> Just $ ToggleFull (Identity False) l
---        Nothing -> ToggleFull state <$> handleMessage l m
-    broadcastMessage (SmartBorders state l) m = SmartBorders state <$> broadcastMessage l m
---        (Just ToggleFullM) -> Just $ ToggleFull (fmap not state) l
---        (Just SetFull) -> Just $ ToggleFull (Identity True) l
---        (Just UnsetFull) -> Just $ ToggleFull (Identity False) l
---        Nothing -> ToggleFull state <$> broadcastMessage l m
+data SmartBorders c l = SmartBorders
+    { smartBorderWidth :: c Int
+    , smartBorderChild :: l
+    }
+
+mkSmartBorders :: Int -> l -> SmartBorders Identity l
+mkSmartBorders = SmartBorders . Identity
+
+instance LayoutClass l => LayoutClass (SmartBorders Identity l) where
+    handleMessage (SmartBorders state l) m = case getMessage m of
+        (Just (SetBorderWidth w)) -> Just $ SmartBorders (Identity w) l
+        Nothing -> SmartBorders state <$> handleMessage l m
+    broadcastMessage (SmartBorders state l) m = case getMessage m of
+        (Just (SetBorderWidth w)) -> Just $ SmartBorders (Identity w) l
+        Nothing -> SmartBorders state <$> broadcastMessage l m
     description (SmartBorders _ l) = "SmartBorders(" `T.append` description l `T.append` ")"
-    currentDesc (SmartBorders v l) = sformat ("SmartBorders[" % int % "]" % stext) v (currentDesc l)
+    currentDesc (SmartBorders (Identity v) l) = sformat ("SmartBorders[" % int % "]" % stext) v (currentDesc l)
 
-instance (GenericLayoutClass l vs ws) => GenericLayoutClass (SmartBorders l) vs ws where
-    pureLayout (SmartBorders w l) vs ws box = case pureLayout l vs ws box of
+instance (GenericLayoutClass l vs ws) => GenericLayoutClass (SmartBorders Identity l) vs ws where
+    pureLayout (SmartBorders (Identity w) l) vs ws box = case pureLayout l vs ws box of
 
         [] -> []
         [x] -> [x]
