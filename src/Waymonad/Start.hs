@@ -44,6 +44,7 @@ import Foreign.StablePtr
     , castStablePtrToPtr
     , freeStablePtr
     , castPtrToStablePtr
+    , deRefStablePtr
     )
 import Data.IORef (IORef, readIORef, newIORef, writeIORef)
 import Graphics.Wayland.WlRoots.Backend
@@ -155,8 +156,10 @@ handleOutputAdd hooks output = do
 
 handleOutputRemove :: CompHooks vs a -> Ptr WlrOutput -> IO ()
 handleOutputRemove hooks output = do
-    sptr :: Ptr () <- peek (getDataPtr output)
-    freeStablePtr $ castPtrToStablePtr sptr
+    ptr :: Ptr () <- peek (getDataPtr output)
+    let sptr =  castPtrToStablePtr ptr
+    removeListener =<< deRefStablePtr sptr
+    freeStablePtr sptr
     outputRemoveHook hooks output
 
 foreign import ccall "wl_display_add_socket_auto" c_add_socket_auto :: Ptr DisplayServer -> IO (Ptr CChar)
