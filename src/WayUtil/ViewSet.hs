@@ -44,7 +44,7 @@ import Data.IORef (modifyIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.List (nub)
 
-import Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
+import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
 import Layout (reLayout)
 import Output (Output)
 import Utility (whenJust, doJust, These (..))

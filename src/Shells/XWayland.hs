@@ -58,7 +58,7 @@ import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, WlrSurfaceEvents (..), getWlrSurfaceEvents)
 
-import Input.Seat
+import Waymonad.Input.Seat
 import Managehook
 import Utility
 import View

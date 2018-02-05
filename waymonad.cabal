@@ -70,13 +70,13 @@ library
   exposed-modules:        IdleManager
   exposed-modules:        InjectRunner
 
-  exposed-modules:        Input
-  exposed-modules:        Input.Cursor
-  exposed-modules:        Input.Cursor.Type
-  exposed-modules:        Input.Keyboard
-  exposed-modules:        Input.Libinput
-  exposed-modules:        Input.Seat
-  exposed-modules:        Input.TabletPad
+  exposed-modules:        Waymonad.Input
+  exposed-modules:        Waymonad.Input.Cursor
+  exposed-modules:        Waymonad.Input.Cursor.Type
+  exposed-modules:        Waymonad.Input.Keyboard
+  exposed-modules:        Waymonad.Input.Libinput
+  exposed-modules:        Waymonad.Input.Seat
+  exposed-modules:        Waymonad.Input.TabletPad
 
   exposed-modules:        Hooks.EnterLeave
   exposed-modules:        Hooks.FocusFollowPointer

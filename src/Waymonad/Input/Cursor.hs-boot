@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2018  Markus Ongyerth
+Copyright (C) 2017  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,15 +18,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Input.Seat
-    ( Seat
-    , getPointerFocus
-    , getKeyboardFocus
-    )
+module Waymonad.Input.Cursor
 where
 
-import Control.Monad.IO.Class (MonadIO)
-import Waymonad.Types.Core (Seat, View)
+import Data.Word (Word32)
 
-getPointerFocus :: MonadIO m => Seat -> m (Maybe View)
-getKeyboardFocus :: MonadIO m => Seat -> m (Maybe View)
+import ViewSet
+import Waymonad.Input.Cursor.Type
+import Waymonad.Types
+
+updateFocus :: (FocusCore vs ws, WSTag ws)
+            => Cursor
+            -> Word32
+            -> Way vs ws ()
+
+forcePosition :: (FocusCore vs ws, WSTag ws)
+              => Cursor
+              -> (Double, Double)
+              -> Word32
+              -> Way vs ws ()

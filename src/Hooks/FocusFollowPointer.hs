@@ -24,7 +24,7 @@ where
 import Control.Monad (void)
 
 
-import Input.Seat (Seat, keyboardEnter)
+import Waymonad.Input.Seat (Seat, keyboardEnter)
 import Utility (These (..), doJust)
 import View (View, doFocusView)
 import ViewSet (FocusCore, WSTag)

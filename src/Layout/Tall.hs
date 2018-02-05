@@ -31,7 +31,7 @@ import Data.Set (Set)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
 import Graphics.Wayland.WlRoots.Render.Color (colorWhite, colorBlack)
 
-import Input.Seat (Seat)
+import Waymonad.Input.Seat (Seat)
 import Layout.Ratio
 import View (View)
 import ViewSet

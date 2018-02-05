@@ -70,7 +70,7 @@ import Data.Typeable (cast)
 
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 
-import {-# SOURCE #-} Input.Seat (Seat, getPointerFocus)
+import {-# SOURCE #-} Waymonad.Input.Seat (Seat, getPointerFocus)
 import Utility (doJust)
 import View (View, getViewEventSurface, getViewBox)
 import Waymonad.Types

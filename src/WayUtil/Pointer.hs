@@ -26,10 +26,10 @@ import Control.Monad.IO.Class (liftIO)
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 import Graphics.Wayland.WlRoots.OutputLayout (getOutputLayoutExtends)
 
-import Input.Seat (setPointerPosition, Seat)
 import Utility (doJust)
 import ViewSet
 import Waymonad (getSeat, getState)
+import Waymonad.Input.Seat (setPointerPosition, Seat)
 import Waymonad.Types
 
 

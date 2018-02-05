@@ -41,7 +41,7 @@ import Waymonad (getSeat, getState)
 import Waymonad.Types
 import WayUtil (getOutputs)
 import WayUtil.SSD
-import {-# SOURCE #-} Input.Seat (getPointerFocus)
+import {-# SOURCE #-} Waymonad.Input.Seat (getPointerFocus)
 
 import qualified Data.IntMap as IM
 viewsBelow :: Foldable t

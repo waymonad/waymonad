@@ -18,21 +18,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Input.Cursor
+module Waymonad.Input.Cursor.Type
 where
 
-import Data.Word (Word32)
-import Input.Cursor.Type
-import ViewSet
-import Waymonad.Types
+import Data.IORef (IORef)
+import Foreign.Ptr (Ptr)
+import Graphics.Wayland.WlRoots.Cursor (WlrCursor)
+import Graphics.Wayland.Signal (ListenerToken)
 
-updateFocus :: (FocusCore vs ws, WSTag ws)
-            => Cursor
-            -> Word32
-            -> Way vs ws ()
-
-forcePosition :: (FocusCore vs ws, WSTag ws)
-              => Cursor
-              -> (Double, Double)
-              -> Word32
-              -> Way vs ws ()
+data Cursor = Cursor
+    { cursorRoots :: Ptr WlrCursor
+    , cursorTokens :: [ListenerToken]
+    , cursorOutput :: IORef Int
+    }

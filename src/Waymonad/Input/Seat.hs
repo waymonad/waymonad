@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Input.Seat
+module Waymonad.Input.Seat
     ( Seat (seatRoots, seatName, seatLoadScale)
     , seatCreate
     , keyboardEnter
@@ -55,8 +55,8 @@ import Graphics.Wayland.Server
     , seatCapabilityPointer
     )
 
-import {-# SOURCE #-} Input.Cursor
-import Input.Cursor.Type
+import {-# SOURCE #-} Waymonad.Input.Cursor
+import Waymonad.Input.Cursor.Type
 import Utility (doJust, whenJust)
 import View (getViewSurface, getViewEventSurface)
 import ViewSet (WSTag, FocusCore (..))

@@ -37,7 +37,7 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
-import {-# SOURCE #-} Input.Seat (Seat, getKeyboardFocus)
+import {-# SOURCE #-} Waymonad.Input.Seat (Seat, getKeyboardFocus)
 import Output.Core (getOutputId)
 import Utility (doJust)
 import View (View)

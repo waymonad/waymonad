@@ -38,7 +38,7 @@ import Graphics.Wayland.Server (DisplayServer, displayTerminate)
 import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
-import Input.Seat (Seat (seatName), getPointerFocus)
+import Waymonad.Input.Seat (Seat (seatName), getPointerFocus)
 import Output (Output (..), getOutputId)
 import Utility (whenJust, doJust, These(..), getThis, getThat, ptrToInt)
 import View (View, closeView, getViewEventSurface)

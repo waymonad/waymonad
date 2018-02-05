@@ -38,7 +38,7 @@ import Data.List (lookup, find)
 import Data.Maybe (listToMaybe)
 import Data.Tuple (swap)
 
-import Input.Seat (Seat)
+import Waymonad.Input.Seat (Seat)
 import Layout (reLayout)
 import Output (Output (..))
 import Utility (whenJust, doJust)

@@ -18,16 +18,33 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Input.Cursor.Type
+module Waymonad.Input
+    ( Input (..)
+    )
 where
 
 import Data.IORef (IORef)
+import Data.Map (Map)
+import Data.Set (Set)
+import Data.Text (Text)
 import Foreign.Ptr (Ptr)
-import Graphics.Wayland.WlRoots.Cursor (WlrCursor)
+
+import Graphics.Wayland.WlRoots.XCursorManager (WlrXCursorManager)
+import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.Signal (ListenerToken)
 
-data Cursor = Cursor
-    { cursorRoots :: Ptr WlrCursor
-    , cursorTokens :: [ListenerToken]
-    , cursorOutput :: IORef Int
+import Waymonad.Input.Cursor.Type (Cursor)
+import {-# SOURCE #-} Waymonad.Input.Seat (Seat)
+
+data SeatFoo = SeatFoo
+    { fooXCursorManager :: Ptr WlrXCursorManager
+    , fooCursor :: Cursor
+    , fooSeat :: Seat
+    , fooImageToken :: ListenerToken
+    }
+
+data Input = Input
+    { inputDevices :: IORef (Set (Ptr InputDevice))
+    , inputFooMap :: IORef (Map Text SeatFoo)
+    , inputAddToken :: [ListenerToken]
     }

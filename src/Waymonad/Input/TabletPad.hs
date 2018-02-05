@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Input.TabletPad
+module Waymonad.Input.TabletPad
 where
 
 import System.IO
@@ -54,7 +54,7 @@ import Graphics.Wayland.WlRoots.Input.TabletPad
 import Graphics.Wayland.WlRoots.Seat (keyboardNotifyKey)
 import Text.XkbCommon.KeycodeList
 
-import Input.Seat
+import Waymonad.Input.Seat
 import ViewSet (WSTag)
 import WayUtil.Signal (setSignalHandler)
 import Waymonad.Types (Way)

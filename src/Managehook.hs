@@ -39,7 +39,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 import Data.IORef (modifyIORef)
 
-import Input.Seat
+import Waymonad.Input.Seat
 import Output (Output (outputLayout), forOutput)
 import Utility (doJust)
 import View

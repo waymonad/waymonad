@@ -50,8 +50,8 @@ import Hooks.FocusFollowPointer
 import Hooks.KeyboardFocus
 import Hooks.ScaleHook
 import IdleManager
-import Input (attachDevice)
-import Input.Keyboard (setSubMap, resetSubMap, getSubMap)
+import Waymonad.Input (attachDevice)
+import Waymonad.Input.Keyboard (setSubMap, resetSubMap, getSubMap)
 import Layout.SmartBorders
 import Layout.Choose
 import Layout.Mirror (mkMirror, ToggleMirror (..))

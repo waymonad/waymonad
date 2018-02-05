@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module Input
+module Waymonad.Input
     ( Input (..)
     -- This is only really exported for IPC
     , SeatFoo (..)
@@ -71,11 +71,11 @@ import Graphics.Wayland.WlRoots.Backend
     )
 import Graphics.Wayland.Signal (ListenerToken)
 
-import Input.Cursor
-import Input.Cursor.Type
-import Input.Keyboard
-import Input.TabletPad
-import Input.Seat
+import Waymonad.Input.Cursor
+import Waymonad.Input.Cursor.Type
+import Waymonad.Input.Keyboard
+import Waymonad.Input.TabletPad
+import Waymonad.Input.Seat
 import Output (Output(..))
 import View (getViewClient)
 import ViewSet (WSTag, FocusCore)

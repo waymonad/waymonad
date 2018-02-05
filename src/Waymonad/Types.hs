@@ -83,8 +83,8 @@ import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
 import Graphics.Wayland.WlRoots.Render (Renderer)
 import Graphics.Wayland.WlRoots.Render.Color (Color)
 
-import {-# SOURCE #-} Input (Input)
-import {-# SOURCE #-} Input.Seat (Seat)
+import {-# SOURCE #-} Waymonad.Input (Input)
+import {-# SOURCE #-} Waymonad.Input.Seat (Seat)
 import View (View)
 import Waymonad.Extensible (StateMap)
 

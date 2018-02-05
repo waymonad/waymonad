@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module Input.Cursor
+module Waymonad.Input.Cursor
 where
 
 import Control.Monad (when, void)
@@ -43,7 +43,7 @@ import Graphics.Wayland.WlRoots.Input.TabletTool
     , ToolTipEvent (..)
     , tipStateToButtonState
     )
-import Input.Seat
+import Waymonad.Input.Seat
     ( pointerMotion
     , pointerClear
     , pointerAxis
@@ -72,7 +72,7 @@ import Graphics.Wayland.WlRoots.OutputLayout
     )
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
 
-import Input.Cursor.Type
+import Waymonad.Input.Cursor.Type
 import Output (outputFromWlr)
 import Utility (ptrToInt, doJust, These(..))
 import View (View, doFocusView)

@@ -168,7 +168,7 @@ import Layout (layoutOutput)
 import Waymonad (makeCallback2, unliftWay)
 import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), SSDPrio (..), Output (..))
 import WayUtil.Signal
-import Input.Seat (Seat(seatLoadScale))
+import Waymonad.Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
 import Utility (doJust)
 import View

@@ -30,7 +30,7 @@ import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
-import Input.Cursor.Type
+import Waymonad.Input.Cursor.Type
 
 import Graphics.Wayland.Signal (ListenerToken)
 import Graphics.Wayland.WlRoots.Box (WlrBox)

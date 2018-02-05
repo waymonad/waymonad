@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
-module Input.Keyboard
+module Waymonad.Input.Keyboard
 where
 
 import Control.Monad.IO.Class (liftIO)
@@ -65,7 +65,7 @@ import Foreign.StablePtr
     )
 import Control.Monad (forM, when, unless)
 
-import Input.Seat
+import Waymonad.Input.Seat
 import Waymonad
     ( BindingMap
     , withSeat
