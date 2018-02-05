@@ -60,57 +60,70 @@ newtype Zipper a b = Zipper { unZipper :: [(Set a, b)] }
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | Internal Workspace representation for the 'ViewSet'
-data Workspace a = Workspace
-    { wsLayout :: GenericLayout (ViewSet a) a
+data Workspace ws = Workspace
+    { wsLayout :: GenericLayout (ViewSet ws) ws
     , wsViews :: Maybe (Zipper Seat View)
     } deriving (Show)
 
 -- | The ViewSet type that resembles the XMonad ViewSet. Doesn't use zippers to
 -- allow multiseat.
-type ViewSet a = Map a (Workspace a)
+data ViewSet ws = ViewSet
+    { _viewSetActive :: Map ws (Workspace ws)
+    , _viewSetLayout :: GenericLayout (ViewSet ws) ws
+    }
+
+adjustWS :: Ord ws
+         => (Workspace ws -> Workspace ws) -> ws -> ViewSet ws -> ViewSet ws
+adjustWS fun ws (ViewSet m l) = ViewSet (M.adjust fun ws m) l
+
+mapVS :: Ord ws => (Workspace ws -> Workspace ws) -> ViewSet ws -> ViewSet ws
+mapVS fun (ViewSet m l) = ViewSet (fun `fmap` m) l
 
 instance Ord a => Layouted (ViewSet a) a where
-    getLayout vs ws = case wsLayout <$> M.lookup ws vs of
+    getLayout (ViewSet vs _) ws = case wsLayout <$> M.lookup ws vs of
         Nothing -> Nothing
         Just (GenericLayout l) -> Just (Layout l)
-    broadcastWS m = M.adjust modify
+    broadcastWS m = adjustWS modify
         where modify w@(Workspace (GenericLayout l) z) = case broadcastMessage l  m of
                 Nothing -> w
                 Just nl -> Workspace (GenericLayout nl) z
-    messageWS m = M.adjust modify
+    messageWS m = adjustWS modify
         where modify w@(Workspace (GenericLayout l) z) = case handleMessage l  m of
                 Nothing -> w
                 Just nl -> Workspace (GenericLayout nl) z
-    broadcastVS m _ = fmap modify
+    broadcastVS m _ = mapVS modify
         where modify w@(Workspace (GenericLayout l) z) = case broadcastMessage l  m of
                 Nothing -> w
                 Just nl -> Workspace (GenericLayout nl) z
 
 instance WSTag a => FocusCore (ViewSet a) a where
-    _getFocused vs ws (Just s) = getFocused s =<< M.lookup ws vs
-    _getFocused vs ws Nothing = getFirstFocused =<< M.lookup ws vs
-    _focusView ws s v = M.adjust (setFocused v s) ws
-    _getViews vs ws = fromMaybe mempty $ do
+    _getFocused (ViewSet vs _) ws (Just s) = getFocused s =<< M.lookup ws vs
+    _getFocused (ViewSet vs _) ws Nothing = getFirstFocused =<< M.lookup ws vs
+    _focusView ws s v = adjustWS (setFocused v s) ws
+    _getViews (ViewSet vs _) ws = fromMaybe mempty $ do
         Workspace _ z <- M.lookup ws vs
         Zipper xs <- z
         pure $ S.fromList xs
-    getLayouted vs ws = whenJust (wsLayout <$> M.lookup ws vs) $
+    getLayouted vs@(ViewSet m _) ws = whenJust (wsLayout <$> M.lookup ws m) $
         \(GenericLayout l) -> pureLayout l vs ws
-    _insertView ws s v vs = M.adjust (addView s v) ws vs
-    _removeView ws v vs = M.adjust (rmView v) ws vs
-    removeGlobal v _ = fmap (rmView v)
+    _insertView ws s v (ViewSet m l) =
+        let empty = Workspace l Nothing
+         in ViewSet (M.alter (Just .  addView s v . fromMaybe empty) ws m) l
+    _removeView ws v vs = adjustWS (rmView v) ws vs
+    removeGlobal v _ = mapVS (rmView v)
 
 instance WSTag a => ListLike (ViewSet a) a where
-    _asList vs ws = join . maybeToList $ fmap unZipper (wsViews =<< M.lookup ws vs)
-    _moveFocusLeft ws s vs = M.adjust (moveLeft s) ws vs
-    _moveFocusRight ws s vs = M.adjust (moveRight s) ws vs
-    _moveFocusedLeft ws s vs  = M.adjust (moveViewLeft s) ws vs
-    _moveFocusedRight ws s vs = M.adjust (moveViewRight s) ws vs
+    _asList (ViewSet vs _) ws =
+        join . maybeToList $ fmap unZipper (wsViews =<< M.lookup ws vs)
+    _moveFocusLeft ws s vs    = adjustWS (moveLeft s) ws vs
+    _moveFocusRight ws s vs   = adjustWS (moveRight s) ws vs
+    _moveFocusedLeft ws s vs  = adjustWS (moveViewLeft s) ws vs
+    _moveFocusedRight ws s vs = adjustWS (moveViewRight s) ws vs
 
 -- | Create a 'ViewSet' that uses the same layout on all workspace
-sameLayout :: (WSTag a, GenericLayoutClass l (ViewSet a) a)
-           => l -> [a] -> M.Map a (Workspace a)
-sameLayout l = M.fromList . map (, Workspace (GenericLayout (l)) Nothing)
+sameLayout :: (WSTag ws, GenericLayoutClass l (ViewSet ws) ws)
+           => l -> ViewSet ws
+sameLayout l = ViewSet mempty (GenericLayout l)
 
 setFocused :: View -> Seat -> Workspace a -> Workspace a
 setFocused v t (Workspace l z) =

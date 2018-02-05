@@ -90,7 +90,7 @@ makeCompositor inputAdd display backend = do
 -- access to the compositor functionality.
 data WayUserConf vs ws = WayUserConf
     { wayUserConfWorkspaces  :: [ws] -- ^List of workspaces. Used mainly for IPC
-    , wayUserConfLayouts     :: [ws] -> vs -- ^Create the initial viewset from the list of userworkspaces
+    , wayUserConfLayouts     :: vs -- ^The initial ViewSet
     , wayUserConfManagehook  :: Managehook vs ws -- ^The Managehook. This is called when a new window is created and has to be managed. Can be used to override the destination.
     , wayUserConfEventHook   :: SomeEvent -> Way vs ws () -- ^Dynamic events emitted by a non-core component.
     , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding vs ws)] -- ^Keybinds attached to every keyboard
@@ -128,7 +128,7 @@ wayUserRealMain conf compRef = do
 -- IORefs and static information from the 'WayUserConf' and start things up.
 wayUserMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IO ()
 wayUserMain conf = do
-    stateRef  <- newIORef $ wayUserConfLayouts conf $ wayUserConfWorkspaces conf
+    stateRef  <- newIORef $ wayUserConfLayouts conf
     mapRef <- newIORef []
     currentRef <- newIORef []
     outputs <- newIORef []
