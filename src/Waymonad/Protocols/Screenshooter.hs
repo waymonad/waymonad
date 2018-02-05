@@ -18,29 +18,29 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module InjectRunner
-    ( InjectChan
-    , Inject (..)
+{-# LANGUAGE OverloadedStrings #-}
+module Waymonad.Protocols.Screenshooter
+    ( getScreenshooterBracket
     )
 where
 
-import Control.Concurrent.STM.TChan (TChan)
+import Control.Monad.IO.Class (liftIO)
 import Foreign.Ptr (Ptr)
-import System.Posix.Types (Fd)
 
-import Graphics.Wayland.WlRoots.Box (Point)
-import Graphics.Wayland.WlRoots.Output (OutputMode)
+import Graphics.Wayland.WlRoots.Screenshooter
 
-import {-# SOURCE #-} Output (Output)
+import Shared (Bracketed (..))
+import Waymonad.GlobalFilter
+import Waymonad (getState)
+import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 
-data Inject
-    = ChangeMode Output (Ptr OutputMode)
-    | ChangeScale Output Float
-    | ChangePosition Output Point
+makeManager :: () -> Way vs a (Ptr WlrScreenshooter)
+makeManager _ = do
+    Compositor {compDisplay = display, compRenderer = renderer} <- wayCompositor <$> getState
+    ptr <- liftIO $ screenshooterCreate display renderer
+    registerGlobal "Screenshooter" =<< liftIO (getScreenshooterGlobal ptr)
+    pure ptr
 
+getScreenshooterBracket :: Bracketed vs () a
+getScreenshooterBracket = Bracketed makeManager (liftIO . screenshooterDestroy)
 
-data InjectChan = InjectChan
-    { injectChan  :: TChan Inject
-    , injectWrite :: Fd
-    , injectRead  :: Fd
-    }

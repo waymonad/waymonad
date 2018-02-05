@@ -68,7 +68,6 @@ library
   exposed-modules:        Waymonad.GlobalFilter
 
   exposed-modules:        Waymonad.IdleManager
-  exposed-modules:        InjectRunner
 
   exposed-modules:        Waymonad.Input
   exposed-modules:        Waymonad.Input.Cursor
@@ -104,8 +103,8 @@ library
   exposed-modules:        Waymonad.Output
   exposed-modules:        Waymonad.Output.Core
 
-  exposed-modules:        Protocols.GammaControl
-  exposed-modules:        Protocols.Screenshooter
+  exposed-modules:        Waymonad.Protocols.GammaControl
+  exposed-modules:        Waymonad.Protocols.Screenshooter
 
   exposed-modules:        Waymonad.Shells.WlShell
   exposed-modules:        Waymonad.Shells.XWayland

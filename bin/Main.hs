@@ -63,8 +63,8 @@ import Layout.TwoPane (TwoPane (..))
 import Layout.Ratio
 import Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
-import Protocols.GammaControl
-import Protocols.Screenshooter
+import Waymonad.Protocols.GammaControl
+import Waymonad.Protocols.Screenshooter
 import Startup.Environment
 import Startup.Generic
 import Utility (doJust)
