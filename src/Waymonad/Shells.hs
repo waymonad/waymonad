@@ -27,7 +27,7 @@ import Data.Set (Set)
 import Data.Text (Text)
 
 import View (View)
-import ViewSet (FocusCore, WSTag)
+import Waymonad.ViewSet (FocusCore, WSTag)
 import Waymonad.Types (Way, WayShell (..), ShellClass (..))
 
 startShell :: (FocusCore vs ws, WSTag ws) => WayShell vs ws -> Way vs ws ()

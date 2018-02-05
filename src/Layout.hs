@@ -38,7 +38,7 @@ import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
 import Waymonad.Output.Core (setOutputDirty, getOutputId)
 import View (setViewBox, viewHasCSD)
-import ViewSet (WSTag (..), FocusCore (..))
+import Waymonad.ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
 import Waymonad.Types (LogPriority(Debug), SSDPrio (..), ServerSideDecoration (..), Output (..))
 import WayUtil.Log (logPutText)

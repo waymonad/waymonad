@@ -29,7 +29,7 @@ where
 import Control.Monad (when, join, forM_)
 
 import Waymonad.Output (Output)
-import ViewSet (WSTag)
+import Waymonad.ViewSet (WSTag)
 import Waymonad (getState)
 import Waymonad.Types
 import WayUtil

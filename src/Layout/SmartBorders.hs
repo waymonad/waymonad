@@ -10,7 +10,7 @@ where
 import Data.Functor.Identity
 import Formatting
 
-import ViewSet
+import Waymonad.ViewSet
 import Waymonad.Types
 import WayUtil.SSD
 

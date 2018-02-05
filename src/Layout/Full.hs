@@ -26,7 +26,7 @@ module Layout.Full
 where
 
 import Control.Applicative ((<|>))
-import ViewSet
+import Waymonad.ViewSet
 
 import Waymonad.Types (SSDPrio (..))
 

@@ -49,7 +49,7 @@ import Text.XkbCommon.InternalTypes (Keysym(..))
 import Waymonad.Input (inputCreate)
 import Waymonad.Output (Output, handleOutputAdd, handleOutputRemove)
 import Shared
-import ViewSet
+import Waymonad.ViewSet
 import Waymonad (makeCallback)
 import Waymonad.Types
 

@@ -43,7 +43,7 @@ import Layout (reLayout)
 import Waymonad.Output (Output (..))
 import Utility (whenJust, doJust)
 import View (View)
-import ViewSet (WSTag, FocusCore (..), ListLike (..))
+import Waymonad.ViewSet (WSTag, FocusCore (..), ListLike (..))
 import Waymonad
     ( Way
     , getState

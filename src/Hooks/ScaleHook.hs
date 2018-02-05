@@ -36,7 +36,7 @@ import Graphics.Wayland.WlRoots.Surface
 
 import Utility (doJust)
 import View (View, getViewSurface)
-import ViewSet (WSTag, FocusCore)
+import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad.Types (ViewWSChange (..))
 import WayUtil.Focus (getWorkspaceOutputs)
 import Waymonad (Way)

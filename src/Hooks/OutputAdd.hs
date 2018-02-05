@@ -31,7 +31,7 @@ import Data.List ((\\))
 
 import Waymonad.Output (Output)
 import Utility (These (..))
-import ViewSet (WSTag, FocusCore)
+import Waymonad.ViewSet (WSTag, FocusCore)
 import WayUtil.Mapping (setSeatOutput)
 import WayUtil.Focus (setOutputWorkspace)
 import WayUtil.Timing

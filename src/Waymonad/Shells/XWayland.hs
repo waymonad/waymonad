@@ -62,7 +62,7 @@ import Waymonad.Input.Seat
 import Waymonad.Managehook
 import Utility
 import View
-import ViewSet (WSTag, FocusCore)
+import Waymonad.ViewSet (WSTag, FocusCore)
 import WayUtil.Log (logPutText, LogPriority (..))
 import WayUtil.Signal (setSignalHandler, setDestroyHandler)
 import Waymonad

@@ -30,7 +30,7 @@ import Graphics.Wayland.WlRoots.Surface (surfaceSendLeave, surfaceSendEnter)
 
 import Utility (whenJust, doJust)
 import View (getViewSurface)
-import ViewSet (WSTag, FocusCore (..))
+import Waymonad.ViewSet (WSTag, FocusCore (..))
 import WayUtil.Focus (OutputMappingEvent (..))
 import Waymonad.Types (Way, Output (..))
 import WayUtil.ViewSet (withViewSet)

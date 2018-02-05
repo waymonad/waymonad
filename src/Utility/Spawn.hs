@@ -73,7 +73,7 @@ import Graphics.Wayland.Server.Client (addDestroyListener)
 import Waymonad.Managehook (Managehook, query, liftWay, InsertAction (InsertInto))
 import Utility (whenJust, ptrToInt)
 import View (getViewClient)
-import ViewSet (WSTag)
+import Waymonad.ViewSet (WSTag)
 import Waymonad (Way, setCallback, WayLoggers(loggerSpawner))
 import Waymonad.Extensible (ExtensionClass (..))
 import WayUtil

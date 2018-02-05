@@ -55,7 +55,7 @@ import Graphics.Wayland.WlRoots.Seat (keyboardNotifyKey)
 import Text.XkbCommon.KeycodeList
 
 import Waymonad.Input.Seat
-import ViewSet (WSTag)
+import Waymonad.ViewSet (WSTag)
 import WayUtil.Signal (setSignalHandler)
 import Waymonad.Types (Way)
 import Text.XkbCommon.InternalTypes (CKeycode)

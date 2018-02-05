@@ -38,7 +38,7 @@ import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 
 import Layout.Full (Full (..))
-import ViewSet
+import Waymonad.ViewSet
 import Waymonad.Types (SSDPrio (..))
 
 import qualified Data.Map as M

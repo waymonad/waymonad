@@ -180,7 +180,7 @@ import View
     , viewGetLocal
     , viewHasCSD
     )
-import ViewSet (WSTag (..), FocusCore)
+import Waymonad.ViewSet (WSTag (..), FocusCore)
 import Waymonad
     ( Way
     , WayBindingState (..)

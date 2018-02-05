@@ -70,7 +70,7 @@ import Startup.Generic
 import Utility (doJust)
 import Utility.Spawn (spawn, manageSpawnOn)
 import Waymonad.Shells.Pseudo.Proxy (makeProxy)
-import ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
+import Waymonad.ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
 import WayUtil (sendMessage, focusNextOut, sendTo, killCurrent, closeCompositor)
 import WayUtil.Current (getCurrentView)
 import WayUtil.Floating (centerFloat)
@@ -79,7 +79,7 @@ import WayUtil.View
 import WayUtil.ViewSet (modifyFocusedWS)
 import Waymonad (Way, KeyBinding)
 import Waymonad.Types (SomeEvent, WayHooks (..), BindingMap)
-import XMonad.ViewSet (ViewSet, sameLayout)
+import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)
 
 import qualified Data.Map as M
 

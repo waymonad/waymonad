@@ -21,7 +21,7 @@ Reach us at https://github.com/ongy/waymonad
 module Layout.Ratio
 where
 
-import ViewSet (Message)
+import Waymonad.ViewSet (Message)
 
 -- | Share message type for Layouts that are based on some kind of ratio
 data ChangeRatio

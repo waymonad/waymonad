@@ -77,7 +77,7 @@ import Waymonad.Input.Keyboard
 import Waymonad.Input.TabletPad
 import Waymonad.Input.Seat
 import View (getViewClient)
-import ViewSet (WSTag, FocusCore)
+import Waymonad.ViewSet (WSTag, FocusCore)
 import Utility (doJust, These (..))
 import WayUtil
 import WayUtil.Mapping (setSeatOutput)

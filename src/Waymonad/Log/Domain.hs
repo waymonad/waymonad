@@ -53,7 +53,7 @@ import Network.Socket
 import Network.Socket.ByteString (sendAll)
 
 import View (getViewTitle)
-import ViewSet (WSTag (..))
+import Waymonad.ViewSet (WSTag (..))
 import Waymonad
 import WayUtil.Current (getCurrentView)
 

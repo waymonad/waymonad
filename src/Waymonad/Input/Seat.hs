@@ -59,7 +59,7 @@ import {-# SOURCE #-} Waymonad.Input.Cursor
 import Waymonad.Input.Cursor.Type
 import Utility (doJust, whenJust)
 import View (getViewSurface, getViewEventSurface)
-import ViewSet (WSTag, FocusCore (..))
+import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad (getState)
 import Waymonad.Types
 import Waymonad.Types.Core

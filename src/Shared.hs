@@ -72,7 +72,7 @@ import Text.XkbCommon.Types
 
 import Foreign.C.Types (CChar)
 import Foreign.C.String
-import ViewSet (FocusCore, WSTag)
+import Waymonad.ViewSet (FocusCore, WSTag)
 import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (wayCoreShells))
 import Waymonad.Shells (startShell, stopShell)

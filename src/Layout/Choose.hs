@@ -33,7 +33,7 @@ import Control.Applicative ((<|>))
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
-import ViewSet
+import Waymonad.ViewSet
 
 import qualified Data.Text as T
 

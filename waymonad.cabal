@@ -120,7 +120,7 @@ library
   exposed-modules:        View
   exposed-modules:        Waymonad.Shells.Pseudo.Proxy
   exposed-modules:        Waymonad.Shells.Pseudo.Multi
-  exposed-modules:        ViewSet
+  exposed-modules:        Waymonad.ViewSet
 
   exposed-modules:        WayUtil
   exposed-modules:        WayUtil.Current
@@ -145,7 +145,7 @@ library
   exposed-modules:        Waymonad.Extensible
 
 
-  exposed-modules:        XMonad.ViewSet
+  exposed-modules:        Waymonad.ViewSet.XMonad
 
   -- other-modules:        Layout.Quadrant
   -- LANGUAGE extensions used by modules in this package.

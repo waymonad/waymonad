@@ -27,7 +27,7 @@ import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
 import Graphics.Wayland.WlRoots.OutputLayout (getOutputLayoutExtends)
 
 import Utility (doJust)
-import ViewSet
+import Waymonad.ViewSet
 import Waymonad (getSeat, getState)
 import Waymonad.Input.Seat (setPointerPosition, Seat)
 import Waymonad.Types

@@ -31,7 +31,7 @@ import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 
 import View (getViewTitle, getViewAppId)
-import ViewSet (WSTag (..){-, LayoutClass (..), GenericLayout (..)-}, FocusCore)
+import Waymonad.ViewSet (WSTag (..){-, LayoutClass (..), GenericLayout (..)-}, FocusCore)
 import Waymonad.Types (Way, Output (outputName))
 import WayUtil.Focus (getWorkspaceOutputs)
 import WayUtil.ViewSet (getWorkspaces, getWorkspaceViews)

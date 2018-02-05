@@ -32,7 +32,7 @@ import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
 
 import Utility (These (..), getThis, getThat)
-import ViewSet (WSTag)
+import Waymonad.ViewSet (WSTag)
 import Waymonad (getState)
 import Waymonad.Types
 import {-# Source #-} Waymonad.Input.Seat (Seat)

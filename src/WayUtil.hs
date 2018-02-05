@@ -42,7 +42,7 @@ import Waymonad.Input.Seat (Seat (seatName), getPointerFocus)
 import Waymonad.Output (Output (..), getOutputId)
 import Utility (whenJust, doJust, These(..), getThis, getThat, ptrToInt)
 import View (View, closeView, getViewEventSurface)
-import ViewSet
+import Waymonad.ViewSet
     ( FocusCore (..)
     , Layouted (..)
     , Message

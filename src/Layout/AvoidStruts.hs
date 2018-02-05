@@ -31,7 +31,7 @@ import Data.Text (Text)
 
 import Waymonad.Output (Output(outputName))
 import Utility (whenJust)
-import ViewSet
+import Waymonad.ViewSet
 import WayUtil (sendMessageOn)
 import Waymonad.Types
 

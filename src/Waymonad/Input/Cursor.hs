@@ -76,7 +76,7 @@ import Waymonad.Input.Cursor.Type
 import Waymonad.Output (outputFromWlr)
 import Utility (ptrToInt, doJust, These(..))
 import View (View, doFocusView)
-import ViewSet (WSTag, FocusCore)
+import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad
     ( Way
     , getSeat

@@ -37,7 +37,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 
 import Utility (doJust)
-import ViewSet (WSTag, FocusCore)
+import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad (Way, getState, WayBindingState(wayBindingMapping))
 import WayUtil.Current (getCurrentOutput, getCurrentWS)
 import WayUtil.Focus (setOutputWorkspace)

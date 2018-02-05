@@ -27,7 +27,7 @@ where
 
 import Layout.Ratio
 import Layout.Tall
-import ViewSet
+import Waymonad.ViewSet
 
 import qualified Data.Set as S
 

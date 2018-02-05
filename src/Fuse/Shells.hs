@@ -30,7 +30,7 @@ import Foreign.C.Error (eINVAL)
 
 import Fuse.Common
 import View (getViewTitle, getViewAppId)
-import ViewSet (FocusCore, WSTag)
+import Waymonad.ViewSet (FocusCore, WSTag)
 import Waymonad
 import Waymonad.Types
 import Waymonad.Shells

@@ -31,7 +31,7 @@ This module provides the basic classes that should be implemented by ViewSet typ
 and used by any functions that work with the ViewSet to allow sharing most Layouts and
 interaction models between different internal representations.
 -}
-module ViewSet
+module Waymonad.ViewSet
 where
 
 import Data.Maybe (listToMaybe)

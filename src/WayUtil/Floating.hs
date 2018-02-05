@@ -41,7 +41,7 @@ import Waymonad.Input.Seat (Seat, keyboardEnter)
 import Waymonad.Output
 import Utility (doJust)
 import View (View, moveView, resizeView, setViewFocus, unsetViewFocus, activateView)
-import ViewSet (WSTag, FocusCore (..))
+import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
     , WayBindingState (..)

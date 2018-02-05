@@ -69,7 +69,7 @@ import Waymonad.Output
     , removeOutputFromWork
     , setPreferdMode
     )
-import ViewSet (WSTag (..))
+import Waymonad.ViewSet (WSTag (..))
 import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 import WayUtil (getOutputs)

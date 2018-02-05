@@ -35,7 +35,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Waymonad.Input.Seat (keyboardClear, updatePointerFocus)
 import Waymonad.Output (getOutputBox)
 import Utility (whenJust, doJust)
-import ViewSet (WSTag, FocusCore (..), getFirst)
+import Waymonad.ViewSet (WSTag, FocusCore (..), getFirst)
 import WayUtil (getOutputWS)
 import WayUtil.Focus
 import WayUtil.Pointer

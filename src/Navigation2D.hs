@@ -31,7 +31,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Waymonad.Output (getOutputId, Output (outputLayers))
 import Utility (doJust, whenJust)
-import ViewSet
+import Waymonad.ViewSet
 import Waymonad (getState)
 import Waymonad.Types
 import WayUtil.Current (getCurrentOutput, getCurrentView)

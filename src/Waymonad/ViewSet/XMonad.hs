@@ -35,7 +35,7 @@ Maintainer  : ongy
 Stability   : testing
 Portability : Linux
 -}
-module XMonad.ViewSet
+module Waymonad.ViewSet.XMonad
     ( ViewSet
     , Workspace (..)
     , sameLayout
@@ -52,7 +52,7 @@ import Data.Set (Set)
 import Waymonad.Input.Seat (Seat)
 import Utility (whenJust)
 import View (View)
-import ViewSet
+import Waymonad.ViewSet
 
 import qualified Data.Set as S
 import qualified Data.Map as M

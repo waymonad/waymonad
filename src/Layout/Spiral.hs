@@ -31,7 +31,7 @@ import Data.Text (Text)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Layout.Ratio
-import ViewSet
+import Waymonad.ViewSet
 import Waymonad.Types
 import Waymonad.Types.Core (Seat)
 

@@ -23,7 +23,7 @@ where
 
 import Data.Word (Word32)
 
-import ViewSet
+import Waymonad.ViewSet (FocusCore, WSTag)
 import Waymonad.Input.Cursor.Type
 import Waymonad.Types
 

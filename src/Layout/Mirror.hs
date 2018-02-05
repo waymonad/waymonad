@@ -34,7 +34,7 @@ import Data.Text (Text)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
-import ViewSet
+import Waymonad.ViewSet
 
 import qualified Data.Text as T
 

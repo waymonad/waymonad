@@ -43,11 +43,10 @@ import Waymonad.Input.Seat
 import Waymonad.Output (Output (outputLayout), forOutput)
 import Utility (doJust)
 import View
-import ViewSet (WSTag)
 import Waymonad
 import Waymonad.Types
 import Layout
-import ViewSet
+import Waymonad.ViewSet
 import WayUtil (getOutputs)
 import WayUtil.Floating
 import WayUtil.Mapping (getOutputKeyboards)

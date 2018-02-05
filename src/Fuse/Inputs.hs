@@ -41,7 +41,7 @@ import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName, inputDeviceTy
 import Waymonad.Input
 import Waymonad.Input.Libinput
 import Utility (doJust)
-import ViewSet (WSTag, FocusCore)
+import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad
 import Waymonad.Types (Compositor (compInput))
 

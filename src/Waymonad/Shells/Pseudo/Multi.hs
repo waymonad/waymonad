@@ -55,7 +55,7 @@ import View
     , closeView
     , viewHasCSD
     )
-import ViewSet (WSTag (..), FocusCore)
+import Waymonad.ViewSet (WSTag (..), FocusCore)
 import Waymonad.Managehook (insertView, removeView)
 import Waymonad (makeCallback)
 
