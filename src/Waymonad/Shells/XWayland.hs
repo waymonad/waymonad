@@ -77,8 +77,6 @@ import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 
-import System.IO
-
 data XWayRef vs ws = XWayRef
     (IORef (Maybe XWayShell))
     (Way vs ws ())
