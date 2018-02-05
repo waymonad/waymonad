@@ -38,7 +38,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Output (getOutputBox)
 
 import {-# SOURCE #-} Input.Seat (Seat, getKeyboardFocus)
-import {-# SOURCE #-} Output (Output (..), getOutputId)
+import Output.Core (getOutputId)
 import Utility (doJust)
 import View (View)
 import Waymonad
@@ -47,6 +47,7 @@ import Waymonad
     , getState
     , WayBindingState (..)
     )
+import Waymonad.Types (Output (..))
 
 import qualified Data.Map as M
 import qualified Data.IntMap as IM

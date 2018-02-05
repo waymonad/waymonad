@@ -28,6 +28,8 @@ where
 import Control.Applicative ((<|>))
 import ViewSet
 
+import Waymonad.Types (SSDPrio (..))
+
 data Full = Full
 
 instance LayoutClass Full where
@@ -38,4 +40,4 @@ instance LayoutClass Full where
 instance FocusCore vs ws => GenericLayoutClass Full vs ws where
     pureLayout _ vs ws box = case _getFocused vs ws Nothing <|> getFirst vs ws of
         Nothing -> []
-        Just v -> [(v, box)]
+        Just v -> [(v, NoSSD mempty, box)]

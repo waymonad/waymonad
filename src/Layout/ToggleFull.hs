@@ -39,6 +39,7 @@ import Data.Maybe (fromMaybe)
 
 import Layout.Full (Full (..))
 import ViewSet
+import Waymonad.Types (SSDPrio (..))
 
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -103,7 +104,7 @@ instance (Ord ws, FocusCore vs ws) => FocusCore (ToggleFull (Map ws) vs) ws wher
     getLayouted t@(ToggleFull _ vs) ws box = if getState ws t
         then case _getFocused vs ws Nothing of
                 Nothing -> []
-                Just v -> [(v, box)]
+                Just v -> [(v, NoSSD mempty, box)]
         else getLayouted vs ws box
 
 instance ListLike vs ws => ListLike (ToggleFull c vs) ws where

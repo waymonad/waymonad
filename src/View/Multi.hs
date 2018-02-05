@@ -53,6 +53,7 @@ import View
     , getViewInner
     , addViewDestroyListener
     , closeView
+    , viewHasCSD
     )
 import ViewSet (WSTag (..), FocusCore)
 import Managehook (insertView, removeView)
@@ -214,3 +215,4 @@ instance Typeable a => ShellSurface (SlaveView a) where
             ref = multiVisible multi
             val = slaveId self
          in liftIO $ modifyIORef ref (S.delete val)
+    hasCSD = viewHasCSD . multiMaster . slaveMulti

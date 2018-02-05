@@ -36,12 +36,13 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import {-# SOURCE #-} Output (Output (..), getOutputId, setOutputDirty)
-import View (setViewBox)
+import Output.Core (setOutputDirty, getOutputId)
+import View (setViewBox, viewHasCSD)
 import ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
-import Waymonad.Types (LogPriority(Debug))
+import Waymonad.Types (LogPriority(Debug), SSDPrio (..), ServerSideDecoration (..), Output (..))
 import WayUtil.Log (logPutText)
+import WayUtil.SSD
 
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
@@ -90,14 +91,17 @@ reLayout ws = do
         let cacheRef = (M.!) (outputLayers out) "main"
         liftIO $ writeIORef cacheRef layout
 
-        mapM_ (\(v, (WlrBox bx by w h)) -> setViewBox v (WlrBox (bx + ox) (by + oy) w h)) layout
+        forM_  layout $ \(v, prio, b) -> do
+            hasCSD <- viewHasCSD v
+            let WlrBox bx by w h = getDecoBox hasCSD prio b
+            setViewBox v (WlrBox (bx + ox) (by + oy) w h)
         logPutText loggerLayout Debug $
             "Set the layout for "
             `T.append` getName ws
             `T.append` "  on "
             `T.append` outputName out
             `T.append` " to: "
-            `T.append` T.pack (show $ map snd layout)
+            `T.append` T.pack (show layout)
 
 layoutOutput :: (FocusCore vs ws, WSTag ws) => Output -> Way vs ws ()
 layoutOutput output = do
@@ -106,4 +110,3 @@ layoutOutput output = do
     case ws of
         Just x -> reLayout x
         Nothing -> pure ()
-

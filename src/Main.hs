@@ -40,6 +40,7 @@ import Text.XkbCommon.KeysymList
 import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
 import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..))
+import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 
 import Data.String (IsString)
 import Fuse.Main
@@ -51,6 +52,7 @@ import Hooks.ScaleHook
 import IdleManager
 import Input (attachDevice)
 import Input.Keyboard (setSubMap, resetSubMap, getSubMap)
+import Layout.SmartBorders
 import Layout.Choose
 import Layout.Mirror (mkMirror, ToggleMirror (..))
 import Layout.Spiral
@@ -176,7 +178,7 @@ myEventHook = idleLog
 myConf :: WlrModifier -> WayUserConf (ViewSet Text) Text
 myConf modi = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout . avoidStruts . mkMirror . mkTFull $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
+    , wayUserConfLayouts     = sameLayout . avoidStruts . mkSmartBorders 2 . mkMirror . mkTFull $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
     , wayUserConfEventHook   = myEventHook
     , wayUserConfKeybinds    = bindings modi
@@ -214,6 +216,8 @@ myConf modi = WayUserConf
         setPreferdMode (outputRoots out)
         addOutputToWork out Nothing
     , wayUserconfLoggers = Nothing
+    , wayUserconfColor = Color 0.5 0 0 1
+    , wayUserconfColors = mempty
     }
 
 main :: IO ()

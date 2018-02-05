@@ -35,6 +35,7 @@ import Input.Cursor.Type
 import Graphics.Wayland.Signal (ListenerToken)
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
+import Graphics.Wayland.WlRoots.Render.Color (Color)
 
 import qualified Graphics.Wayland.WlRoots.Seat as R
 
@@ -46,6 +47,7 @@ data Seat = Seat
     , seatRequestDefault :: IO ()
     , seatLoadScale      :: Float -> IO ()
     , seatCursor         :: Cursor
+    , seatColor          :: Color
     }
 
 class Typeable a => ShellSurface a where
@@ -67,6 +69,7 @@ class Typeable a => ShellSurface a where
     setViewHidden _ = pure ()
     setViewVisible :: MonadIO m => a -> m ()
     setViewVisible _ = pure ()
+    hasCSD         :: MonadIO m => a -> m Bool
 
 data View = forall a. ShellSurface a => View
     { viewSurface  :: a

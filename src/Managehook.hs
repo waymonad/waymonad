@@ -112,5 +112,5 @@ removeView v = do
     outputs <- getOutputs
     liftIO $ forM_ outputs $ \output ->
         forM_ (outputLayout output) $ \layer ->
-            modifyIORef layer (filter ((/=) v . fst))
+            modifyIORef layer (filter (\(view, _, _) -> v /= view))
     modifyFloating (S.delete v)

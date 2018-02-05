@@ -26,10 +26,19 @@ Reach us at https://github.com/ongy/waymonad
 module Layout.Tall
 where
 
-import Graphics.Wayland.WlRoots.Box (WlrBox(..))
+import Data.Set (Set)
 
+import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
+import Graphics.Wayland.WlRoots.Render.Color (colorWhite, colorBlack)
+
+import Input.Seat (Seat)
 import Layout.Ratio
+import View (View)
 import ViewSet
+import WayUtil.SSD
+import Waymonad.Types (SSDPrio (..), ServerSideDecoration (..))
+
+import qualified Data.Set as S
 
 data Tall = Tall Double
 
@@ -45,20 +54,23 @@ instance LayoutClass Tall where
         _ -> Nothing
 
 instance ListLike vs ws => GenericLayoutClass Tall vs ws where
-    pureLayout (Tall ratio) vs ws box = case snd `fmap` _asList vs ws of
-        [x] -> [(x, box)]
-        (x:xs)->
-            let unclipped = floor $ fromIntegral (boxWidth box) * ratio
-                width = min (boxWidth box - 10) . max 10 $ unclipped
-                master = (x, box { boxWidth = width  })
-                slaves = zip xs [0 ..]
-                num = length xs
-                height = boxHeight box `div` num
-                ibox i = box
-                    { boxWidth = boxWidth box - width
-                    , boxX = boxX box + width
-                    , boxHeight = height
-                    , boxY = boxY box + i * height
-                    }
-             in master : map (fmap ibox) slaves
-        [] -> []
+    pureLayout (Tall ratio) vs ws box = 
+        layoutTall ratio box (_asList vs ws)
+
+layoutTall :: Double -> WlrBox -> [(Set Seat, View)] -> [(View, SSDPrio, WlrBox)]
+layoutTall _ box [(s, x)] = [(x, NoSSD s, box)]
+layoutTall ratio box (x:xs) =
+    let unclipped = floor $ fromIntegral (boxWidth box) * ratio
+        width = min (boxWidth box - 10) . max 10 $ unclipped
+        master = (snd x, sillyDeco 2 $ fst x, box { boxWidth = width  })
+        slaves = zip xs [0 ..]
+        num = length xs
+        height = boxHeight box `div` num
+        ibox i = box
+            { boxWidth = boxWidth box - width
+            , boxX = boxX box + width
+            , boxHeight = height
+            , boxY = boxY box + i * height
+            }
+    in master : map (\((s, v), i) -> (v, NoSSD s, ibox i)) slaves
+layoutTall _ _ _ = []

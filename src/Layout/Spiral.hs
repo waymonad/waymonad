@@ -25,31 +25,33 @@ Reach us at https://github.com/ongy/waymonad
 module Layout.Spiral
 where
 
+import Data.Set (Set)
 import Data.Text (Text)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import Layout.Ratio
 import ViewSet
-
+import Waymonad.Types
+import Waymonad.Types.Core (Seat)
 
 data Spiral = Spiral Double
 
-doLayout :: Spiral -> Int -> WlrBox -> [c] -> [(c, WlrBox)]
+doLayout :: Spiral -> Int -> WlrBox -> [(Set Seat, c)] -> [(c, SSDPrio, WlrBox)]
 doLayout _ _ _ [] = []
-doLayout _ _ b [x] = [(x, b)]
-doLayout s@(Spiral r) 0 b@WlrBox{boxWidth = width, boxX = x} (z:zs) =
+doLayout _ _ b [(f, x)] = [(x, NoSSD f, b)]
+doLayout s@(Spiral r) 0 b@WlrBox{boxWidth = width, boxX = x} ((f, z):zs) =
     let used = floor $ fromIntegral width * r
-     in (z, b {boxWidth = used}) : doLayout s 1 b {boxWidth = width - used, boxX = x + used} zs
-doLayout s@(Spiral r) 1 b@WlrBox{boxHeight = height, boxY = y} (z:zs) =
+     in (z, NoSSD f, b {boxWidth = used}) : doLayout s 1 b {boxWidth = width - used, boxX = x + used} zs
+doLayout s@(Spiral r) 1 b@WlrBox{boxHeight = height, boxY = y} ((f, z):zs) =
     let used = floor $ fromIntegral height * r
-     in (z, b {boxHeight = used}) : doLayout s 2 b {boxHeight = height - used, boxY = y + used} zs
-doLayout s@(Spiral r) 2 b@WlrBox{boxWidth = width, boxX = x} (z:zs) =
+     in (z, NoSSD f, b {boxHeight = used}) : doLayout s 2 b {boxHeight = height - used, boxY = y + used} zs
+doLayout s@(Spiral r) 2 b@WlrBox{boxWidth = width, boxX = x} ((f, z):zs) =
     let used = floor $ fromIntegral width * r
-     in (z, b {boxWidth = used, boxX = x + width - used}) : doLayout s 3 b {boxWidth = width - used} zs
-doLayout s@(Spiral r) _ b@WlrBox{boxHeight = height, boxY = y} (z:zs) =
+     in (z, NoSSD f, b {boxWidth = used, boxX = x + width - used}) : doLayout s 3 b {boxWidth = width - used} zs
+doLayout s@(Spiral r) _ b@WlrBox{boxHeight = height, boxY = y} ((f, z):zs) =
     let used = floor $ fromIntegral height * r
-     in (z, b {boxHeight = used, boxY = y + height - used}) : doLayout s 0 b {boxHeight = height - used} zs
+     in (z, NoSSD f, b {boxHeight = used, boxY = y + height - used}) : doLayout s 0 b {boxHeight = height - used} zs
 
 instance LayoutClass Spiral where
     handleMessage :: Spiral -> SomeMessage -> Maybe Spiral
@@ -63,4 +65,4 @@ instance LayoutClass Spiral where
     description _ = "Spiral"
 
 instance ListLike vs ws => GenericLayoutClass Spiral vs ws where
-    pureLayout s vs ws box = doLayout s 0 box $ snd `fmap` _asList vs ws
+    pureLayout s vs ws box = doLayout s 0 box $ _asList vs ws

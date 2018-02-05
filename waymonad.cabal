@@ -88,12 +88,13 @@ executable waymonad
   other-modules:        Hooks.ScaleHook
 
   other-modules:        Layout
-  other-modules:        Layout.Ratio
   other-modules:        Layout.AvoidStruts
+  other-modules:        Layout.Choose
   other-modules:        Layout.Full
   other-modules:        Layout.Mirror
+  other-modules:        Layout.Ratio
+  other-modules:        Layout.SmartBorders
   other-modules:        Layout.Spiral
-  other-modules:        Layout.Choose
   other-modules:        Layout.Tall
   other-modules:        Layout.ToggleFull
   other-modules:        Layout.TwoPane
@@ -103,6 +104,7 @@ executable waymonad
   other-modules:        Managehook
   other-modules:        Navigation2D
   other-modules:        Output
+  other-modules:        Output.Core
 
   other-modules:        Protocols.GammaControl
   other-modules:        Protocols.Screenshooter
@@ -131,6 +133,7 @@ executable waymonad
   other-modules:        WayUtil.Mapping
   other-modules:        WayUtil.Pointer
   other-modules:        WayUtil.Signal
+  other-modules:        WayUtil.SSD
   other-modules:        WayUtil.Timing
   other-modules:        WayUtil.View
   other-modules:        WayUtil.ViewSet
@@ -146,7 +149,7 @@ executable waymonad
 
   other-modules:        XMonad.ViewSet
 
-  other-modules:        Layout.Quadrant
+  -- other-modules:        Layout.Quadrant
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:    EmptyDataDecls, NumDecimals, ScopedTypeVariables, OverloadedStrings, LambdaCase, ExistentialQuantification, StandaloneDeriving, TupleSections, InstanceSigs, GeneralizedNewtypeDeriving, FlexibleContexts, FlexibleInstances
   

@@ -42,6 +42,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox)
 
 import {-# SOURCE #-} Input.Seat (Seat)
 import View (View)
+import Waymonad.Types (SSDPrio)
 
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -110,7 +111,7 @@ class FocusCore vs ws where
     -- | Remove the 'View' from the workspace
     _removeView :: ws -> View -> vs -> vs
     -- | Get the layouted list for the layoutcache.
-    getLayouted   :: vs -> ws -> WlrBox -> [(View, WlrBox)]
+    getLayouted   :: vs -> ws -> WlrBox -> [(View, SSDPrio, WlrBox)]
     -- | Remove a view from the ViewSet. The workspace argument should *not* be
     -- used, it's simply to please the typechecker
     removeGlobal :: View -> ws -> vs -> vs
@@ -146,7 +147,7 @@ class Layouted vs ws where
 class LayoutClass l => GenericLayoutClass l vs ws where
     -- | Get the current layout from the given layout state and the ViewSet for
     -- the Workspace.
-    pureLayout :: l -> vs -> ws -> WlrBox -> [(View, WlrBox)]
+    pureLayout :: l -> vs -> ws -> WlrBox -> [(View, SSDPrio, WlrBox)]
 
 -- | Wrapper type to store 'GenericLayoutClass'
 data GenericLayout vs ws = forall l. GenericLayoutClass l vs ws => GenericLayout l

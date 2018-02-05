@@ -49,6 +49,7 @@ import Waymonad
     , makeCallback2
     , getSeat
     )
+import Waymonad.Types (SSDPrio (NoSSD))
 import Waymonad.Extensible
 import WayUtil (modifyEState, getEState, getOutputs)
 import WayUtil.Current (getCurrentBox, getCurrentView, getCurrentWS)
@@ -97,7 +98,7 @@ setFloating view pos@(WlrBox x y width height) = do
             doJust (traceShowId <$> getOutputBox output) $ \(WlrBox ox oy _ _) -> do
                 let viewBox = WlrBox (x - ox) (y - oy) width height
                 let ref = (M.!) (outputLayers output) "floating"
-                liftIO $ modifyIORef ref ((view, viewBox):)
+                liftIO $ modifyIORef ref ((view, NoSSD mempty, viewBox):)
 
 
 unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
@@ -113,7 +114,7 @@ unsetFloating view = do
         outputs <- getOutputs
         forM_ outputs $ \output -> do
             let ref = (M.!) (outputLayers output) "floating"
-            liftIO $ modifyIORef ref (filter ((/=) view . fst))
+            liftIO $ modifyIORef ref (filter (\(v, _, _) -> view /= v))
 
 
 toggleFloat :: (WSTag a, FocusCore vs a) => WlrBox ->  Way vs a ()

@@ -29,6 +29,8 @@ import System.IO
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe)
+import Data.Map (Map)
+import Data.Text (Text)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Foreign.Ptr (Ptr)
 import System.IO.Unsafe (unsafePerformIO)
@@ -41,6 +43,7 @@ import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
 import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
+import Graphics.Wayland.WlRoots.Render.Color (Color)
 import Text.XkbCommon.InternalTypes (Keysym(..))
 
 import Input (inputCreate)
@@ -101,6 +104,8 @@ data WayUserConf vs ws = WayUserConf
     , wayUserConfShells      :: [IO (WayShell vs ws)] -- ^The shells that should be available. Will be registered and enabled on startup.
     , wayUserConfLog         :: Way vs ws () -- ^The log-function. This can be used to feed a statusbar or similar applications
     , wayUserconfLoggers     :: Maybe WayLoggers
+    , wayUserconfColor       :: Color
+    , wayUserconfColors      :: Map Text Color
     }
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
@@ -163,6 +168,8 @@ wayUserMain conf = do
             , wayCoreHooks = wayUserConfCoreHooks conf
             , wayCoreShells = shells
             , wayLoggers = (fromMaybe loggers $ wayUserconfLoggers conf)
+            , wayDefaultColor = wayUserconfColor conf
+            , waySeatColors  = wayUserconfColors conf
             }
 
 

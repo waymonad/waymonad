@@ -78,7 +78,7 @@ module Output
     )
 where
 
-import Control.Exception (bracket_)
+import UnliftIO.Exception (bracket_)
 import Control.Monad (forM_, forM, filterM, void, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (maximumBy, minimumBy)
@@ -165,8 +165,8 @@ import Graphics.Wayland.WlRoots.Surface
     )
 
 import Layout (layoutOutput)
-import Waymonad (makeCallback2)
-import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..))
+import Waymonad (makeCallback2, unliftWay)
+import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), SSDPrio (..), Output (..))
 import WayUtil.Signal
 import Input.Seat (Seat(seatLoadScale))
 import Shared (FrameHandler)
@@ -178,8 +178,7 @@ import View
     , getViewBox
     , viewGetScale
     , viewGetLocal
---    , viewIsDirty
-    , viewSetClean
+    , viewHasCSD
     )
 import ViewSet (WSTag (..), FocusCore)
 import Waymonad
@@ -188,36 +187,21 @@ import Waymonad
     , getState
     , getSeats
     )
+import WayUtil.SSD
+
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as S
 import qualified Data.Text as T
 
-data Output = Output
-    { outputRoots  :: Ptr WlrOutput
-    , outputName   :: Text
-    , outputActive :: IORef Bool
-    , outputLayout :: [IORef [(View, WlrBox)]]
-    , outputLayers :: Map Text (IORef [(View, WlrBox)])
-    }
-
-instance Show Output where
-    show Output {outputName = name} = T.unpack name
-
-instance Eq Output where
-    Output {outputRoots = left} == Output {outputRoots = right} = left == right
-
-instance Ord Output where
-    Output {outputRoots = left} `compare` Output {outputRoots = right} = left `compare` right
-
 ptrToInt :: Num b => Ptr a -> b
 ptrToInt = fromIntegral . ptrToIntPtr
 
-renderOn :: Ptr WlrOutput -> Ptr Renderer -> IO a -> IO a
+renderOn :: Ptr WlrOutput -> Ptr Renderer -> Way vs ws a -> Way vs ws a
 renderOn output rend act = bracket_
-    (makeOutputCurrent output)
-    (swapOutputBuffers output)
-    (doRender rend output act)
+    (liftIO $ makeOutputCurrent output)
+    (liftIO $ swapOutputBuffers output)
+    (liftIO . doRender rend output =<< unliftWay act)
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output surface scaleFactor box = do
@@ -259,13 +243,15 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
 
-outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> View -> WlrBox -> IO (IO ())
-outputHandleView comp secs output view box = doJust (getViewSurface view) $ \surface -> do
-    viewSetClean view
-    scale <- viewGetScale view
-    local <- viewGetLocal view
+outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
+outputHandleView comp secs output (view, prio, obox) = doJust (getViewSurface view) $ \surface -> do
+    hasCSD <- viewHasCSD view
+    let box = getDecoBox hasCSD prio obox
+    scale <- liftIO $ viewGetScale view
+    local <- liftIO $ viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
-    outputHandleSurface comp secs output surface scale lBox
+    renderDeco hasCSD prio output obox box
+    liftIO $ outputHandleSurface comp secs output surface scale lBox
     pure $ renderViewAdditional (\v b ->
         void $ outputHandleSurface
             comp
@@ -281,13 +267,13 @@ outputHandleView comp secs output view box = doJust (getViewSurface view) $ \sur
         )
         view
 
-handleLayers :: Compositor -> Double -> Ptr WlrOutput -> [IORef [(View, WlrBox)]] -> IO ()
+handleLayers :: Compositor -> Double -> Ptr WlrOutput -> [IORef [(View, SSDPrio, WlrBox)]] -> Way vs ws ()
 handleLayers _ _ _ [] = pure ()
 handleLayers comp secs output (l:ls) = do
     handleLayers comp secs output ls
-    views <- readIORef l
-    overs <- mapM (uncurry $ outputHandleView comp secs output) views
-    sequence_ overs
+    views <- liftIO $ readIORef l
+    overs <- mapM (outputHandleView comp secs output) views
+    liftIO $ sequence_ overs
 
 frameHandler :: WSTag a
              => Double -> Output -> Way vs a ()
@@ -295,7 +281,7 @@ frameHandler secs Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
     when enabled $ do
         comp <- wayCompositor <$> getState
-        liftIO $ renderOn output (compRenderer comp) $
+        renderOn output (compRenderer comp) $
             handleLayers comp secs output layers
 
 findMode :: MonadIO m

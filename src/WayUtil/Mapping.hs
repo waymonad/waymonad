@@ -36,7 +36,6 @@ import ViewSet (WSTag)
 import Waymonad (getState)
 import Waymonad.Types
 import {-# Source #-} Input.Seat (Seat)
-import {-# Source #-} Output (Output)
 
 runLog :: (WSTag a) => Way vs a ()
 runLog = do
