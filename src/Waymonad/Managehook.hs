@@ -34,7 +34,7 @@ module Waymonad.Managehook
     )
 where
 
-import Control.Monad (void)
+import Control.Monad (void, forM_, when)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
 import Waymonad.Input.Seat
@@ -92,4 +92,13 @@ insertView v = do
 
 removeView :: forall vs ws. (FocusCore vs ws, WSTag ws)
            => View -> Way vs ws ()
-removeView v = doRemoveView v
+removeView v = do
+    seats <- getSeats
+    forM_ seats $ \seat -> do
+        kFoc <- getKeyboardFocus seat
+        when (kFoc == Just v) $ keyboardClear seat
+        pFoc <- getPointerFocus seat
+        when (pFoc == Just v) $ pointerClear seat
+
+    doRemoveView v
+
