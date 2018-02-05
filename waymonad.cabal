@@ -104,6 +104,7 @@ library
   exposed-modules:        Waymonad.Output.Core
 
   exposed-modules:        Waymonad.Protocols.GammaControl
+  exposed-modules:        Waymonad.Protocols.PrimarySelection
   exposed-modules:        Waymonad.Protocols.Screenshooter
 
   exposed-modules:        Waymonad.Shells.WlShell
