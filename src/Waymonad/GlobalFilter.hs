@@ -31,7 +31,7 @@ This can then be used to filter the access clients get.
 These filters can be interesting for containerized clients/priviliged protocols.
 E.g. the screenshooter should not be available to every client, like the browser.
 -}
-module GlobalFilter
+module Waymonad.GlobalFilter
     ( registerGlobal
     , unregisterGlobal
     , getGlobalName

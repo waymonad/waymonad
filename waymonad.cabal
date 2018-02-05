@@ -65,9 +65,9 @@ library
   exposed-modules:        Fuse.Shells
   exposed-modules:        Fuse.Workspaces
 
-  exposed-modules:        GlobalFilter
+  exposed-modules:        Waymonad.GlobalFilter
 
-  exposed-modules:        IdleManager
+  exposed-modules:        Waymonad.IdleManager
   exposed-modules:        InjectRunner
 
   exposed-modules:        Waymonad.Input
@@ -107,9 +107,9 @@ library
   exposed-modules:        Protocols.GammaControl
   exposed-modules:        Protocols.Screenshooter
 
-  exposed-modules:        Shells.WlShell
-  exposed-modules:        Shells.XWayland
-  exposed-modules:        Shells.XdgShell
+  exposed-modules:        Waymonad.Shells.WlShell
+  exposed-modules:        Waymonad.Shells.XWayland
+  exposed-modules:        Waymonad.Shells.XdgShell
 
   exposed-modules:        Startup.Environment
   exposed-modules:        Startup.Generic

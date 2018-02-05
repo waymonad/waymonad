@@ -44,12 +44,12 @@ import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 
 import Data.String (IsString)
 import Fuse.Main
-import GlobalFilter
+import Waymonad.GlobalFilter
 import Hooks.EnterLeave (enterLeaveHook)
 import Hooks.FocusFollowPointer
 import Hooks.KeyboardFocus
 import Hooks.ScaleHook
-import IdleManager
+import Waymonad.IdleManager
 import Waymonad.Input (attachDevice)
 import Waymonad.Input.Keyboard (setSubMap, resetSubMap, getSubMap)
 import Layout.SmartBorders
@@ -85,9 +85,9 @@ import qualified Data.Map as M
 
 import qualified Hooks.OutputAdd as H
 import qualified Hooks.SeatMapping as SM
-import qualified Shells.XWayland as XWay
-import qualified Shells.XdgShell as Xdg
-import qualified Shells.WlShell as Wl
+import qualified Waymonad.Shells.XWayland as XWay
+import qualified Waymonad.Shells.XdgShell as Xdg
+import qualified Waymonad.Shells.WlShell as Wl
 import qualified System.InputDevice as LI
 import qualified View.Multi as Multi
 import qualified Data.Text as T

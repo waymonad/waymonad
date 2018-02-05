@@ -30,7 +30,7 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.WlRoots.Screenshooter
 
 import Shared (Bracketed (..))
-import GlobalFilter
+import Waymonad.GlobalFilter
 import Waymonad (getState)
 import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 

@@ -23,7 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Shells.WlShell
+module Waymonad.Shells.WlShell
     ( WlRef
     , makeShell
     )

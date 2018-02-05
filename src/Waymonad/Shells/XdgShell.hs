@@ -23,7 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Shells.XdgShell
+module Waymonad.Shells.XdgShell
     ( xdgShellCreate
     , XdgShell
 

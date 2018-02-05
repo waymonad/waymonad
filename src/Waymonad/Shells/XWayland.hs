@@ -24,7 +24,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Shells.XWayland
+module Waymonad.Shells.XWayland
     ( xwayShellCreate
     , XWayShell
     , overrideXRedirect

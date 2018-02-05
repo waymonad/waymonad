@@ -30,7 +30,7 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.WlRoots.GammaControl
 
-import GlobalFilter (registerGlobal)
+import Waymonad.GlobalFilter (registerGlobal)
 import Shared (Bracketed (..))
 import Waymonad.Types (Way)
 
