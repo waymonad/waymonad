@@ -71,7 +71,7 @@ import Waymonad.Utility.Base (doJust)
 import Waymonad.Actions.Spawn (spawn, manageSpawnOn)
 import Waymonad.Shells.Pseudo.Proxy (makeProxy)
 import Waymonad.ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
-import Waymonad.Utility (sendMessage, focusNextOut, sendTo, killCurrent, closeCompositor)
+import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
 import Waymonad.Utility.Current (getCurrentView)
 import Waymonad.Utility.Floating (centerFloat)
 import Waymonad.Utility.Timing
@@ -165,7 +165,7 @@ bindings modi =
     , (([modi, Shift], keysym_Right), spawn "mpc next")
 
     , (([modi], keysym_n), focusNextOut)
-    , (([modi], keysym_q), killCurrent)
+    , (([modi], keysym_q), closeCurrent)
     , (([modi], keysym_o), centerFloat)
     , (([modi], keysym_c), doJust getCurrentView makeProxy)
     , (([modi], keysym_a), doJust getCurrentView Multi.copyView)

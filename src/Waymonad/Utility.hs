@@ -140,8 +140,8 @@ seatOutputEventLogger (KeyboardOutputChange seat pre new) = do
         " to " `T.append`
         fromMaybe "None" nName
 
-killCurrent :: WSTag a => Way vs a ()
-killCurrent = do
+closeCurrent :: WSTag a => Way vs a ()
+closeCurrent = do
     view <- getCurrentView
     whenJust view closeView
 
