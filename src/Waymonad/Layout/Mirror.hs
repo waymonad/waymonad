@@ -23,7 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Layout.Mirror
+module Waymonad.Layout.Mirror
     ( ToggleMirror (..)
     , Mirror (..)
     , mkMirror

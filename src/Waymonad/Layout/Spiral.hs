@@ -22,7 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Layout.Spiral
+module Waymonad.Layout.Spiral
 where
 
 import Data.Set (Set)
@@ -30,7 +30,7 @@ import Data.Text (Text)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
-import Layout.Ratio
+import Waymonad.Layout.Ratio
 import Waymonad.ViewSet
 import Waymonad.Types
 import Waymonad.Types.Core (Seat)

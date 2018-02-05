@@ -45,7 +45,7 @@ import Data.Maybe (fromJust)
 import Data.List (nub)
 
 import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
-import Layout (reLayout)
+import Waymonad.Layout (reLayout)
 import Utility (whenJust, doJust, These (..))
 import View (View, activateView, setViewFocus, unsetViewFocus)
 import Waymonad.ViewSet (WSTag, FocusCore (..))

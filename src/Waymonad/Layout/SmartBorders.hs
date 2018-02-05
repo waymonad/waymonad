@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE LambdaCase #-}
-module Layout.SmartBorders
+module Waymonad.Layout.SmartBorders
 where
 
 import Data.Functor.Identity

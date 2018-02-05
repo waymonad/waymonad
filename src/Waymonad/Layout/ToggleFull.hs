@@ -30,14 +30,14 @@ Maintainer  : ongy
 Stability   : testing
 Portability : Linux
 -}
-module Layout.ToggleFull
+module Waymonad.Layout.ToggleFull
 where
 
 import Data.Functor.Identity
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 
-import Layout.Full (Full (..))
+import Waymonad.Layout.Full (Full (..))
 import Waymonad.ViewSet
 import Waymonad.Types (SSDPrio (..))
 

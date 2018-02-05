@@ -23,7 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE LambdaCase #-}
-module Layout.Tall
+module Waymonad.Layout.Tall
 where
 
 import Data.Set (Set)
@@ -32,7 +32,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
 import Graphics.Wayland.WlRoots.Render.Color (colorWhite, colorBlack)
 
 import Waymonad.Input.Seat (Seat)
-import Layout.Ratio
+import Waymonad.Layout.Ratio
 import View (View)
 import Waymonad.ViewSet
 import WayUtil.SSD

@@ -84,17 +84,17 @@ library
   exposed-modules:        Hooks.SeatMapping
   exposed-modules:        Hooks.ScaleHook
 
-  exposed-modules:        Layout
-  exposed-modules:        Layout.AvoidStruts
-  exposed-modules:        Layout.Choose
-  exposed-modules:        Layout.Full
-  exposed-modules:        Layout.Mirror
-  exposed-modules:        Layout.Ratio
-  exposed-modules:        Layout.SmartBorders
-  exposed-modules:        Layout.Spiral
-  exposed-modules:        Layout.Tall
-  exposed-modules:        Layout.ToggleFull
-  exposed-modules:        Layout.TwoPane
+  exposed-modules:        Waymonad.Layout
+  exposed-modules:        Waymonad.Layout.AvoidStruts
+  exposed-modules:        Waymonad.Layout.Choose
+  exposed-modules:        Waymonad.Layout.Full
+  exposed-modules:        Waymonad.Layout.Mirror
+  exposed-modules:        Waymonad.Layout.Ratio
+  exposed-modules:        Waymonad.Layout.SmartBorders
+  exposed-modules:        Waymonad.Layout.Spiral
+  exposed-modules:        Waymonad.Layout.Tall
+  exposed-modules:        Waymonad.Layout.ToggleFull
+  exposed-modules:        Waymonad.Layout.TwoPane
 
   exposed-modules:        Waymonad.Log.Domain
 

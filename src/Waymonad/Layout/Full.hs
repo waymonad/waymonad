@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2018  Markus Ongyerth
+Copyright (C) 2017  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -18,15 +18,26 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-module Layout.Ratio
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+module Waymonad.Layout.Full
 where
 
-import Waymonad.ViewSet (Message)
+import Control.Applicative ((<|>))
+import Waymonad.ViewSet
 
--- | Share message type for Layouts that are based on some kind of ratio
-data ChangeRatio
-    = IncreaseRatio Double -- ^Increase the ratio
-    | DecreaseRatio Double -- ^Decrease the ratio
-    deriving (Show, Eq)
+import Waymonad.Types (SSDPrio (..))
 
-instance Message ChangeRatio 
+data Full = Full
+
+instance LayoutClass Full where
+    description _ = "Full"
+    handleMessage _ _ = Nothing
+    broadcastMessage _ _ = Nothing
+
+instance FocusCore vs ws => GenericLayoutClass Full vs ws where
+    pureLayout _ vs ws box = case _getFocused vs ws Nothing <|> getFirst vs ws of
+        Nothing -> []
+        Just v -> [(v, NoSSD mempty, box)]

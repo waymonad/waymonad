@@ -52,15 +52,15 @@ import Hooks.ScaleHook
 import Waymonad.IdleManager
 import Waymonad.Input (attachDevice)
 import Waymonad.Input.Keyboard (setSubMap, resetSubMap, getSubMap)
-import Layout.SmartBorders
-import Layout.Choose
-import Layout.Mirror (mkMirror, ToggleMirror (..))
-import Layout.Spiral
-import Layout.AvoidStruts
-import Layout.Tall (Tall (..))
-import Layout.ToggleFull (mkTFull, ToggleFullM (..))
-import Layout.TwoPane (TwoPane (..))
-import Layout.Ratio
+import Waymonad.Layout.SmartBorders
+import Waymonad.Layout.Choose
+import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
+import Waymonad.Layout.Spiral
+import Waymonad.Layout.AvoidStruts
+import Waymonad.Layout.Tall (Tall (..))
+import Waymonad.Layout.ToggleFull (mkTFull, ToggleFullM (..))
+import Waymonad.Layout.TwoPane (TwoPane (..))
+import Waymonad.Layout.Ratio
 import Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.GammaControl

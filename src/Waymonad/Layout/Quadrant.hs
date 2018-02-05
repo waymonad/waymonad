@@ -20,7 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Layout.Quadrant
+module Waymonad.Layout.Quadrant
     ( QuadrantSet
     , setupQuadrant
     , sendToQ

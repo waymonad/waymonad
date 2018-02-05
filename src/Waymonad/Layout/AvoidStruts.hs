@@ -22,7 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Layout.AvoidStruts
+module Waymonad.Layout.AvoidStruts
 where
 
 import Data.List (lookup)

@@ -22,7 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Layout.Choose
+module Waymonad.Layout.Choose
     ( Choose
     , NextLayout (FirstLayout, NextLayout)
     , (|||)

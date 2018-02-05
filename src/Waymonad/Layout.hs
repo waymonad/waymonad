@@ -22,7 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-module Layout
+module Waymonad.Layout
     ( reLayout
     , layoutOutput
     )

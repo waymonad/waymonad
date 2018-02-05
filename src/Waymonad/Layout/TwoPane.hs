@@ -22,11 +22,11 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Layout.TwoPane
+module Waymonad.Layout.TwoPane
 where
 
-import Layout.Ratio
-import Layout.Tall
+import Waymonad.Layout.Ratio
+import Waymonad.Layout.Tall
 import Waymonad.ViewSet
 
 import qualified Data.Set as S

@@ -45,7 +45,7 @@ import Utility (doJust)
 import View
 import Waymonad
 import Waymonad.Types
-import Layout
+import Waymonad.Layout
 import Waymonad.ViewSet
 import WayUtil (getOutputs)
 import WayUtil.Floating

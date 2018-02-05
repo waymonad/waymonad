@@ -164,7 +164,7 @@ import Graphics.Wayland.WlRoots.Surface
     --, surfaceHasDamage
     )
 
-import Layout (layoutOutput)
+import Waymonad.Layout (layoutOutput)
 import Waymonad (makeCallback2, unliftWay)
 import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), SSDPrio (..), Output (..))
 import WayUtil.Signal
