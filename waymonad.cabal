@@ -49,105 +49,103 @@ extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
 
-executable waymonad
-  -- .hs or .lhs file containing the Main module.
-  main-is:             Main.hs
+library
   
   -- Modules included in this executable, other than Main.
-  other-modules:        Config
-  other-modules:        Config.Box
-  other-modules:        Config.Output
-  other-modules:        Config.Logger
+  exposed-modules:        Config
+  exposed-modules:        Config.Box
+  exposed-modules:        Config.Output
+  exposed-modules:        Config.Logger
 
-  other-modules:        Fuse.Common
-  other-modules:        Fuse.Inputs
-  other-modules:        Fuse.Main
-  other-modules:        Fuse.Outputs
-  other-modules:        Fuse.Rts
-  other-modules:        Fuse.Shells
-  other-modules:        Fuse.Workspaces
+  exposed-modules:        Fuse.Common
+  exposed-modules:        Fuse.Inputs
+  exposed-modules:        Fuse.Main
+  exposed-modules:        Fuse.Outputs
+  exposed-modules:        Fuse.Rts
+  exposed-modules:        Fuse.Shells
+  exposed-modules:        Fuse.Workspaces
 
-  other-modules:        GlobalFilter
+  exposed-modules:        GlobalFilter
 
-  other-modules:        IdleManager
-  other-modules:        InjectRunner
+  exposed-modules:        IdleManager
+  exposed-modules:        InjectRunner
 
-  other-modules:        Input
-  other-modules:        Input.Cursor
-  other-modules:        Input.Cursor.Type
-  other-modules:        Input.Keyboard
-  other-modules:        Input.Libinput
-  other-modules:        Input.Seat
-  other-modules:        Input.TabletPad
+  exposed-modules:        Input
+  exposed-modules:        Input.Cursor
+  exposed-modules:        Input.Cursor.Type
+  exposed-modules:        Input.Keyboard
+  exposed-modules:        Input.Libinput
+  exposed-modules:        Input.Seat
+  exposed-modules:        Input.TabletPad
 
-  other-modules:        Hooks.EnterLeave
-  other-modules:        Hooks.FocusFollowPointer
-  other-modules:        Hooks.KeyboardFocus
-  other-modules:        Hooks.OutputAdd
-  other-modules:        Hooks.SeatMapping
-  other-modules:        Hooks.ScaleHook
+  exposed-modules:        Hooks.EnterLeave
+  exposed-modules:        Hooks.FocusFollowPointer
+  exposed-modules:        Hooks.KeyboardFocus
+  exposed-modules:        Hooks.OutputAdd
+  exposed-modules:        Hooks.SeatMapping
+  exposed-modules:        Hooks.ScaleHook
 
-  other-modules:        Layout
-  other-modules:        Layout.AvoidStruts
-  other-modules:        Layout.Choose
-  other-modules:        Layout.Full
-  other-modules:        Layout.Mirror
-  other-modules:        Layout.Ratio
-  other-modules:        Layout.SmartBorders
-  other-modules:        Layout.Spiral
-  other-modules:        Layout.Tall
-  other-modules:        Layout.ToggleFull
-  other-modules:        Layout.TwoPane
+  exposed-modules:        Layout
+  exposed-modules:        Layout.AvoidStruts
+  exposed-modules:        Layout.Choose
+  exposed-modules:        Layout.Full
+  exposed-modules:        Layout.Mirror
+  exposed-modules:        Layout.Ratio
+  exposed-modules:        Layout.SmartBorders
+  exposed-modules:        Layout.Spiral
+  exposed-modules:        Layout.Tall
+  exposed-modules:        Layout.ToggleFull
+  exposed-modules:        Layout.TwoPane
 
-  other-modules:        Log
+  exposed-modules:        Log
 
-  other-modules:        Managehook
-  other-modules:        Navigation2D
-  other-modules:        Output
-  other-modules:        Output.Core
+  exposed-modules:        Managehook
+  exposed-modules:        Navigation2D
+  exposed-modules:        Output
+  exposed-modules:        Output.Core
 
-  other-modules:        Protocols.GammaControl
-  other-modules:        Protocols.Screenshooter
+  exposed-modules:        Protocols.GammaControl
+  exposed-modules:        Protocols.Screenshooter
 
-  other-modules:        Shells.WlShell
-  other-modules:        Shells.XWayland
-  other-modules:        Shells.XdgShell
+  exposed-modules:        Shells.WlShell
+  exposed-modules:        Shells.XWayland
+  exposed-modules:        Shells.XdgShell
 
-  other-modules:        Startup.Environment
-  other-modules:        Startup.Generic
+  exposed-modules:        Startup.Environment
+  exposed-modules:        Startup.Generic
 
-  other-modules:        Shared
-  other-modules:        Utility
-  other-modules:        Utility.Spawn
-  other-modules:        View
-  other-modules:        View.Proxy
-  other-modules:        View.Multi
-  other-modules:        ViewSet
+  exposed-modules:        Shared
+  exposed-modules:        Utility
+  exposed-modules:        Utility.Spawn
+  exposed-modules:        View
+  exposed-modules:        View.Proxy
+  exposed-modules:        View.Multi
+  exposed-modules:        ViewSet
 
-  other-modules:        WayUtil
-  other-modules:        WayUtil.Current
-  other-modules:        WayUtil.Floating
-  other-modules:        WayUtil.Focus
-  other-modules:        WayUtil.Layout
-  other-modules:        WayUtil.Log
-  other-modules:        WayUtil.Mapping
-  other-modules:        WayUtil.Pointer
-  other-modules:        WayUtil.Signal
-  other-modules:        WayUtil.SSD
-  other-modules:        WayUtil.Timing
-  other-modules:        WayUtil.View
-  other-modules:        WayUtil.ViewSet
+  exposed-modules:        WayUtil
+  exposed-modules:        WayUtil.Current
+  exposed-modules:        WayUtil.Floating
+  exposed-modules:        WayUtil.Focus
+  exposed-modules:        WayUtil.Layout
+  exposed-modules:        WayUtil.Log
+  exposed-modules:        WayUtil.Mapping
+  exposed-modules:        WayUtil.Pointer
+  exposed-modules:        WayUtil.Signal
+  exposed-modules:        WayUtil.SSD
+  exposed-modules:        WayUtil.Timing
+  exposed-modules:        WayUtil.View
+  exposed-modules:        WayUtil.ViewSet
 
-  other-modules:        Waymonad
-  other-modules:        Waymonad.Main
-  other-modules:        Waymonad.Shells
-  other-modules:        Waymonad.Types
-  other-modules:        Waymonad.Types.Core
-  other-modules:        Waymonad.Types.Logger
-  other-modules:        Waymonad.Extensible
+  exposed-modules:        Waymonad
+  exposed-modules:        Waymonad.Main
+  exposed-modules:        Waymonad.Shells
+  exposed-modules:        Waymonad.Types
+  exposed-modules:        Waymonad.Types.Core
+  exposed-modules:        Waymonad.Types.Logger
+  exposed-modules:        Waymonad.Extensible
 
 
-  other-modules:        XMonad.ViewSet
+  exposed-modules:        XMonad.ViewSet
 
   -- other-modules:        Layout.Quadrant
   -- LANGUAGE extensions used by modules in this package.
@@ -171,6 +169,13 @@ executable waymonad
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
-  ghc-options:         -Wall -with-rtsopts=-V0 -g -O0 -rtsopts
+  ghc-options:         -Wall -g -O0
 -- -threaded
   
+executable waymonad
+  -- .hs or .lhs file containing the Main module.
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  ghc-options:         -Wall -with-rtsopts=-V0 -g -O0 -rtsopts
+  hs-source-dirs:      bin
+  build-depends:       base >=4.6.0.1 && <5, waymonad, hayland, text, libinput, xkbcommon, hsroots, containers
