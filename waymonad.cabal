@@ -97,9 +97,9 @@ library
   exposed-modules:        Layout.ToggleFull
   exposed-modules:        Layout.TwoPane
 
-  exposed-modules:        Log
+  exposed-modules:        Waymonad.Log.Domain
 
-  exposed-modules:        Managehook
+  exposed-modules:        Waymonad.Managehook
   exposed-modules:        Navigation2D
   exposed-modules:        Waymonad.Output
   exposed-modules:        Waymonad.Output.Core
@@ -118,8 +118,8 @@ library
   exposed-modules:        Utility
   exposed-modules:        Utility.Spawn
   exposed-modules:        View
-  exposed-modules:        View.Proxy
-  exposed-modules:        View.Multi
+  exposed-modules:        Waymonad.Shells.Pseudo.Proxy
+  exposed-modules:        Waymonad.Shells.Pseudo.Multi
   exposed-modules:        ViewSet
 
   exposed-modules:        WayUtil

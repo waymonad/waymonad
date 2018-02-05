@@ -70,7 +70,7 @@ import System.Process (spawnCommand)
 import Graphics.Wayland.Server (Client (..), clientCreate)
 import Graphics.Wayland.Server.Client (addDestroyListener)
 
-import Managehook (Managehook, query, liftWay, InsertAction (InsertInto))
+import Waymonad.Managehook (Managehook, query, liftWay, InsertAction (InsertInto))
 import Utility (whenJust, ptrToInt)
 import View (getViewClient)
 import ViewSet (WSTag)

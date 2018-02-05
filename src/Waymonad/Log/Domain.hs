@@ -20,7 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Log
+module Waymonad.Log.Domain
     ( logFun
     )
 where

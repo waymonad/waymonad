@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE InstanceSigs #-}
-module View.Proxy
+module Waymonad.Shells.Pseudo.Proxy
     ( makeProxy
     , ProxiedView
     )
@@ -38,7 +38,7 @@ import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import View
 import ViewSet (WSTag, FocusCore)
 import Waymonad (Way, makeCallback)
-import Managehook (insertView, removeView)
+import Waymonad.Managehook (insertView, removeView)
 
 data ProxiedView = ProxiedView { removeProxy :: View -> IO (),  unProxy :: View, myView :: IORef View}
 

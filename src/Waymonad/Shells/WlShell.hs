@@ -45,7 +45,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
 
 
-import Managehook (insertView, removeView)
+import Waymonad.Managehook (insertView, removeView)
 import Utility (doJust, ptrToInt)
 import View
 import ViewSet (WSTag, FocusCore)

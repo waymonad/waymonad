@@ -69,7 +69,7 @@ import Startup.Environment
 import Startup.Generic
 import Utility (doJust)
 import Utility.Spawn (spawn, manageSpawnOn)
-import View.Proxy (makeProxy)
+import Waymonad.Shells.Pseudo.Proxy (makeProxy)
 import ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
 import WayUtil (sendMessage, focusNextOut, sendTo, killCurrent, closeCompositor)
 import WayUtil.Current (getCurrentView)
@@ -89,7 +89,7 @@ import qualified Waymonad.Shells.XWayland as XWay
 import qualified Waymonad.Shells.XdgShell as Xdg
 import qualified Waymonad.Shells.WlShell as Wl
 import qualified System.InputDevice as LI
-import qualified View.Multi as Multi
+import qualified Waymonad.Shells.Pseudo.Multi as Multi
 import qualified Data.Text as T
 
 import Waymonad.Main

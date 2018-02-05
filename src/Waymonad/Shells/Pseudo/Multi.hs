@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE LambdaCase #-}
-module View.Multi
+module Waymonad.Shells.Pseudo.Multi
     ( copyView
     )
 where
@@ -56,7 +56,7 @@ import View
     , viewHasCSD
     )
 import ViewSet (WSTag (..), FocusCore)
-import Managehook (insertView, removeView)
+import Waymonad.Managehook (insertView, removeView)
 import Waymonad (makeCallback)
 
 data MultiView a = MultiView

@@ -59,7 +59,7 @@ import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, WlrSurfaceEvents (..), getWlrSurfaceEvents)
 
 import Waymonad.Input.Seat
-import Managehook
+import Waymonad.Managehook
 import Utility
 import View
 import ViewSet (WSTag, FocusCore)
