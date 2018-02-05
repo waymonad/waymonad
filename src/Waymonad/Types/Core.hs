@@ -82,6 +82,7 @@ data View = forall a. ShellSurface a => View
     , viewTokens   :: [ListenerToken]
     , viewDirty    :: IORef Bool
     , viewFocus    :: IORef (Maybe (Seat -> View -> IO ()))
+    , viewRemove   :: IORef (Maybe (View -> IO ()))
     }
 
 instance Show Seat where

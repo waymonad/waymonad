@@ -32,7 +32,7 @@ where
 
 import Control.Monad (when, void, forM_)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef, readIORef)
+import Data.IORef (modifyIORef)
 import Data.Set (Set)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
@@ -40,12 +40,16 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Waymonad.Input.Seat (Seat, keyboardEnter)
 import Waymonad.Output
 import Waymonad.Utility.Base (doJust)
-import Waymonad.View (View, moveView, resizeView, setViewFocus, unsetViewFocus, activateView)
+import Waymonad.View
+    ( View, moveView, resizeView
+    , setViewFocus, unsetViewFocus
+    , setViewRemove, unsetViewRemove
+    , activateView, doFocusView
+    )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
-    , WayBindingState (..)
-    , getState
+    , makeCallback
     , makeCallback2
     , getSeat
     )
@@ -90,6 +94,7 @@ setFloating view pos@(WlrBox x y width height) = do
     moveView view (fromIntegral x) (fromIntegral y)
     resizeView view (fromIntegral width) (fromIntegral height)
     setViewFocus view =<< makeCallback2 focusFloating
+    setViewRemove view =<< makeCallback removeFloating
     modifyFloating $ S.insert view
 
     outputs <- getOutputs
@@ -101,21 +106,24 @@ setFloating view pos@(WlrBox x y width height) = do
                 let ref = (M.!) (outputLayers output) "floating"
                 liftIO $ modifyIORef ref ((view, NoSSD mempty, viewBox):)
 
+removeFloating :: View -> Way vs ws ()
+removeFloating view = do
+    modifyFloating $ S.delete view
+    outputs <- getOutputs
+    forM_ outputs $ \output -> do
+        let ref = (M.!) (outputLayers output) "floating"
+        liftIO $ modifyIORef ref (filter (\(v, _, _) -> view /= v))
 
 unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
 unsetFloating view = do
     floats <- isFloating view
     when floats $ do
         unsetViewFocus view
-        modifyFloating $ S.delete view
+        unsetViewRemove view
+        removeFloating view
         ws <- getCurrentWS
         seat <- getSeat
         insertView view ws seat
-
-        outputs <- getOutputs
-        forM_ outputs $ \output -> do
-            let ref = (M.!) (outputLayers output) "floating"
-            liftIO $ modifyIORef ref (filter (\(v, _, _) -> view /= v))
 
 
 toggleFloat :: (WSTag a, FocusCore vs a) => WlrBox ->  Way vs a ()
@@ -126,6 +134,7 @@ toggleFloat box = doJust getCurrentView $ \view -> do
         else do
             modifyFocusedWS (\_ ws vs -> _removeView ws view vs)
             setFloating view box
+            doJust getSeat $ doFocusView view
 
 
 centerFloat :: (WSTag a, FocusCore vs a) => Way vs a ()

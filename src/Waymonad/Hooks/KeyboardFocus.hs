@@ -36,11 +36,10 @@ import Waymonad.Input.Seat (keyboardClear, updatePointerFocus)
 import Waymonad.Output (getOutputBox)
 import Waymonad.Utility.Base (whenJust, doJust)
 import Waymonad.ViewSet (WSTag, FocusCore (..), getFirst)
-import Waymonad.Utility (getOutputWS)
 import Waymonad.Utility.Focus
 import Waymonad.Utility.Pointer
 import Waymonad.Utility.Layout (getViewPosition)
-import Waymonad.Utility.Mapping (getOutputPointers)
+import Waymonad.Utility.Mapping (getOutputPointers, getOutputWS)
 import Waymonad.Utility.ViewSet (unsetFocus, setFocused, withViewSet, getFocused)
 import Waymonad
 import Waymonad.Types

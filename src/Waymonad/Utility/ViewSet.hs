@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Waymonad.Utility.ViewSet
     ( modifyViewSet
     , setFocused
@@ -38,16 +39,20 @@ module Waymonad.Utility.ViewSet
     )
 where
 
-import Control.Monad (void, unless)
+import Control.Monad (void, unless, forM_)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef, readIORef, writeIORef)
+import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
 import Data.List (nub)
 
 import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
 import Waymonad.Layout (reLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
-import Waymonad.View (View, activateView, setViewFocus, unsetViewFocus)
+import Waymonad.View
+    ( View, activateView
+    , setViewFocus, unsetViewFocus
+    , setViewRemove, unsetViewRemove
+    )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
@@ -55,11 +60,13 @@ import Waymonad
     , getState
     , getSeat
     , WayBindingState (..)
+    , makeCallback
     , makeCallback2
     )
+-- import Waymonad.Utility (getOutputs)
 import Waymonad.Types (Output)
 import Waymonad.Utility.Current
-import Waymonad.Utility.Mapping (getOutputKeyboards, setSeatOutput)
+import Waymonad.Utility.Mapping (getOutputKeyboards, setSeatOutput, getOutputWS, getOutputs)
 
 import qualified Data.Set as S
 
@@ -163,14 +170,29 @@ setViewsetFocus seat view = doJust (getPointerOutputS seat) $ \output -> do
     setSeatOutput seat (That output)
     modifyCurrentWS $ \_ ws vs -> _focusView ws seat view vs
 
+removeCB :: forall vs ws. (FocusCore vs ws, WSTag ws) => View -> Way vs ws ()
+removeCB v = do
+    let token :: ws = error "removeGlobal Workspace argument should never be used"
+
+    modifyViewSet $ removeGlobal v token
+
+    outputs <- getOutputs
+    forM_ outputs $ \output -> do
+        seats <- getOutputKeyboards output
+        doJust (getOutputWS output) $ \ws -> do
+            mapM_ (`setFocused` ws) seats
+            reLayout ws
+
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
 insertView v ws s = do
     whenJust s (`unsetFocus` ws)
     setViewFocus v =<< makeCallback2 setViewsetFocus
+    setViewRemove v =<< makeCallback removeCB
     modifyWS ws (\ws' -> _insertView ws' s v)
 
 removeView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()
 removeView v ws = do
     activateView v False
     unsetViewFocus v
+    unsetViewRemove v
     modifyWS ws (\ws' -> _removeView ws' v)

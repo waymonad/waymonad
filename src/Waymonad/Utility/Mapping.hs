@@ -22,6 +22,8 @@ module Waymonad.Utility.Mapping
     ( setSeatOutput
     , getOutputKeyboards
     , getOutputPointers
+    , getOutputWS
+    , getOutputs
     )
 where
 
@@ -30,6 +32,7 @@ import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
+import Data.Tuple (swap)
 
 import Waymonad.Utility.Base (These (..), getThis, getThat)
 import Waymonad.ViewSet (WSTag)
@@ -77,3 +80,12 @@ getOutputPointers :: Output -> Way vs a [Seat]
 getOutputPointers out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState
     pure . map fst . filter ((==) out . fst . snd) $ currents
+
+getOutputWS :: WSTag a => Output -> Way vs a (Maybe a)
+getOutputWS output =  do
+    mapping <- liftIO . readIORef . wayBindingMapping =<< getState
+    pure $ lookup output $ map swap mapping
+
+getOutputs :: Way vs a [Output]
+getOutputs = liftIO . readIORef . wayBindingOutputs =<< getState
+

@@ -34,29 +34,20 @@ module Waymonad.Managehook
     )
 where
 
-import Control.Monad (void, forM_)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad (void)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
-import Data.IORef (modifyIORef)
 
 import Waymonad.Input.Seat
-import Waymonad.Output (Output (outputLayout), forOutput)
 import Waymonad.Utility.Base (doJust)
 import Waymonad
-import Waymonad.Layout
 import Waymonad.Types
 import Waymonad.View
 import Waymonad.ViewSet
-import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Floating
-import Waymonad.Utility.Mapping (getOutputKeyboards)
-import Waymonad.Utility.Focus (focusView, getOutputWorkspace)
-import Waymonad.Utility.ViewSet (modifyViewSet, setFocused)
+import Waymonad.Utility.Focus (focusView)
 import Waymonad.Utility.Current (getCurrentWS)
 
 import qualified Waymonad.Utility.ViewSet as VS
-
-import qualified Data.Set as S
 
 liftWay :: Way vs a b -> Query vs a b
 liftWay = Query . lift
@@ -101,15 +92,4 @@ insertView v = do
 
 removeView :: forall vs ws. (FocusCore vs ws, WSTag ws)
            => View -> Way vs ws ()
-removeView v = do
-    -- TODO: This is ugly and inefficient :(
-    modifyViewSet (removeGlobal v (error "removeGlobal Workspace argument should never be used" :: ws))
-    void . forOutput $ \ output -> doJust (getOutputWorkspace output) $ \ws -> do
-        seats <- getOutputKeyboards output
-        mapM_ (`setFocused` ws) seats
-        reLayout ws
-    outputs <- getOutputs
-    liftIO $ forM_ outputs $ \output ->
-        forM_ (outputLayout output) $ \layer ->
-            modifyIORef layer (filter (\(view, _, _) -> v /= view))
-    modifyFloating (S.delete v)
+removeView v = doRemoveView v

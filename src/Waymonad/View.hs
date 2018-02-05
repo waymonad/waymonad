@@ -54,8 +54,11 @@ module Waymonad.View
     , viewSetClean
     , viewIsDirty
     , setViewFocus
-    , doFocusView
     , unsetViewFocus
+    , doFocusView
+    , setViewRemove
+    , unsetViewRemove
+    , doRemoveView
     , viewHasCSD
     )
 where
@@ -63,10 +66,8 @@ where
 import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
-import Data.IntMap (IntMap)
 import Data.Text (Text)
 import Data.Typeable (Typeable, cast)
-import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -145,6 +146,7 @@ createView surf = liftIO $ do
 
     dirty <- newIORef True
     focus <- newIORef Nothing
+    remove <- newIORef Nothing
     let ret = View
             { viewSurface = surf
             , viewBox = global
@@ -156,9 +158,24 @@ createView surf = liftIO $ do
             , viewTokens = tokens
             , viewDirty = dirty
             , viewFocus = focus
+            , viewRemove = remove
             }
     writeIORef viewRef ret
     pure ret
+
+setViewRemove :: MonadIO m => View -> (View -> IO ()) -> m ()
+setViewRemove v fun = liftIO $ writeIORef (viewRemove v) (Just fun)
+
+unsetViewRemove :: MonadIO m => View -> m ()
+unsetViewRemove v = liftIO $ writeIORef (viewRemove v) Nothing
+
+doRemoveView :: MonadIO m => View -> m ()
+doRemoveView view = liftIO $ do
+    fun <- readIORef (viewRemove view)
+    case fun of
+        Just act -> act view
+        Nothing -> pure ()
+    writeIORef (viewRemove view) Nothing
 
 setViewFocus :: MonadIO m => View -> (Seat -> View -> IO ()) -> m ()
 setViewFocus v fun = liftIO $ writeIORef (viewFocus v) (Just fun)

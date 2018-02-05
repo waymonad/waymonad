@@ -145,11 +145,6 @@ closeCurrent = do
     view <- getCurrentView
     whenJust view closeView
 
-getOutputWS :: WSTag a => Output -> Way vs a (Maybe a)
-getOutputWS output =  do
-    mapping <- liftIO . readIORef . wayBindingMapping =<< getState
-    pure $ lookup output $ map swap mapping
-
 getOutputs :: Way vs a [Output]
 getOutputs = liftIO . readIORef . wayBindingOutputs =<< getState
 
