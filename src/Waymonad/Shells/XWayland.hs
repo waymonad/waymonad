@@ -35,7 +35,7 @@ module Waymonad.Shells.XWayland
     )
 where
 
-import Control.Monad (void, forM_)
+import Control.Monad (void, forM_, unless)
 import Control.Monad.IO.Class
 import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
@@ -210,7 +210,10 @@ handleXwaySurface xway ref surf = do
     let xwaySurf = XWaySurface xway surf
     logPutText loggerX11 Debug "New XWayland surface"
 
-    parent <- liftIO $ doJust (X.getX11ParentSurfrace surf) X.xwaySurfaceGetSurface
+    override <- liftIO $ X.x11SurfaceOverrideRedirect surf
+    parent <- if override
+        then liftIO $ doJust (X.getX11ParentSurfrace surf) X.xwaySurfaceGetSurface
+        else pure Nothing
     case parent of
         Nothing -> do
             logPutText loggerX11 Trace "Creating an normal view"
@@ -267,12 +270,15 @@ renderChildren :: MonadIO m
 renderChildren fun surf = do
     children <- liftIO $ X.getX11Children surf
     WlrBox sx sy _ _  <- liftIO $ X.getX11SurfaceGeometry surf
+
     forM_ children $ \child -> do
-        liftIO $ hPutStrLn stderr $ "Render child at: " ++ show child
-        WlrBox cx cy cw ch <- liftIO $ X.getX11SurfaceGeometry child
-        doJust (liftIO $ X.xwaySurfaceGetSurface child) $ \wlrSurf ->
-            fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)
-        renderChildren fun child
+        override <- liftIO $ X.x11SurfaceOverrideRedirect child
+        unless override $ do
+            liftIO $ hPutStrLn stderr $ "Render child at: " ++ show child
+            WlrBox cx cy cw ch <- liftIO $ X.getX11SurfaceGeometry child
+            doJust (liftIO $ X.xwaySurfaceGetSurface child) $ \wlrSurf ->
+                fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)
+            renderChildren fun child
 
 overrideXRedirect :: Managehook vs a
 overrideXRedirect = do
