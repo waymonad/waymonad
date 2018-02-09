@@ -106,6 +106,7 @@ import Graphics.Wayland.Server
     )
 
 import Graphics.Wayland.Resource (resourceDestroy)
+import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
@@ -142,6 +143,7 @@ import Graphics.Wayland.WlRoots.Render
     , renderWithMatrix
     , isTextureValid
     , doRender
+    , rendererClear
     )
 import Graphics.Wayland.WlRoots.Render.Matrix
     ( withMatrix
@@ -200,8 +202,9 @@ ptrToInt = fromIntegral . ptrToIntPtr
 renderOn :: Ptr WlrOutput -> Ptr Renderer -> Way vs ws a -> Way vs ws a
 renderOn output rend act = bracket_
     (liftIO $ makeOutputCurrent output)
-    (liftIO $ swapOutputBuffers output)
-    (liftIO . doRender rend output =<< unliftWay act)
+    (liftIO $ swapOutputBuffers output Nothing) $ do
+    liftIO $ rendererClear rend $ Color 0.25 0.25 0.25 1
+    liftIO . doRender rend output =<< unliftWay act
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output surface scaleFactor box = do
