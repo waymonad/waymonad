@@ -42,8 +42,7 @@ import Waymonad.Output
 import Waymonad.Utility.Base (doJust)
 import Waymonad.View
     ( View, moveView, resizeView
-    , setViewFocus, unsetViewFocus
-    , setViewRemove, unsetViewRemove
+    , setViewManager, unsetViewManager
     , activateView, doFocusView
     )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
@@ -53,11 +52,13 @@ import Waymonad
     , makeCallback2
     , getSeat
     )
-import Waymonad.Types (SSDPrio (NoSSD))
 import Waymonad.Extensible
+import Waymonad.Types (SSDPrio (NoSSD))
+import Waymonad.Types.Core (ManagerData (..))
 import Waymonad.Utility (getOutputs)
-import Waymonad.Utility.Extensible (modifyEState, getEState)
 import Waymonad.Utility.Current (getCurrentBox, getCurrentView, getCurrentWS)
+import Waymonad.Utility.Extensible (modifyEState, getEState)
+import Waymonad.Utility.LayerCache (applyLayerDamage)
 import Waymonad.Utility.ViewSet (modifyFocusedWS, insertView)
 
 import qualified Data.Set as S
@@ -88,14 +89,19 @@ focusFloating seat view = do
     activateView view True
     void $ keyboardEnter seat view
 
+makeFloatManager :: Way vs ws ManagerData
+makeFloatManager = do
+    focus <- makeCallback2 focusFloating
+    remove <-  makeCallback removeFloating
+    applyDamage <- makeCallback $ applyLayerDamage "floating"
+    pure $ ManagerData remove focus applyDamage
 
 setFloating :: View -> WlrBox -> Way vs a ()
 setFloating view pos@(WlrBox x y width height) = do
     moveView view (fromIntegral x) (fromIntegral y)
     resizeView view (fromIntegral width) (fromIntegral height)
-    setViewFocus view =<< makeCallback2 focusFloating
-    setViewRemove view =<< makeCallback removeFloating
     modifyFloating $ S.insert view
+    setViewManager view =<< makeFloatManager
 
     outputs <- getOutputs
     forM_ outputs $ \output -> do
@@ -118,8 +124,7 @@ unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
 unsetFloating view = do
     floats <- isFloating view
     when floats $ do
-        unsetViewFocus view
-        unsetViewRemove view
+        unsetViewManager view
         removeFloating view
         ws <- getCurrentWS
         seat <- getSeat

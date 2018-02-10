@@ -36,11 +36,11 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import Waymonad.Output.Core (setOutputDirty, getOutputId)
+import Waymonad.Output.Core (getOutputId, outApplyDamage)
 import Waymonad.View (setViewBox, viewHasCSD)
 import Waymonad.ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
-import Waymonad.Types (LogPriority(Debug), SSDPrio (..), ServerSideDecoration (..), Output (..))
+import Waymonad.Types (LogPriority(Debug), Output (..))
 import Waymonad.Utility.Log (logPutText)
 import Waymonad.Utility.SSD
 
@@ -82,7 +82,8 @@ reLayout ws = do
     wstate <- liftIO . readIORef . wayBindingState $ state
 
     boxes <- getLayoutBoxes ws
-    mapM_ (setOutputDirty . fst) boxes
+    forM_ boxes $ \(out, _) ->
+        outApplyDamage out (WlrBox 0 0 0 0)
 
     forM_ boxes $ \(out, box) -> do
         let layout = getLayouted wstate ws box

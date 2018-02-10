@@ -123,6 +123,7 @@ library
   exposed-modules:        Waymonad.ViewSet
 
   exposed-modules:        Waymonad.Utility
+  exposed-modules:        Waymonad.Utility.LayerCache
   exposed-modules:        Waymonad.Utility.Extensible
   exposed-modules:        Waymonad.Utility.Current
   exposed-modules:        Waymonad.Utility.Floating

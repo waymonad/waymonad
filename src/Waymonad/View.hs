@@ -51,15 +51,13 @@ module Waymonad.View
     , rmViewResizeListener
     , triggerViewResize
 
-    , viewSetClean
-    , viewIsDirty
-    , setViewFocus
-    , unsetViewFocus
+    , setViewManager
+    , unsetViewManager
     , doFocusView
-    , setViewRemove
-    , unsetViewRemove
     , doRemoveView
     , viewHasCSD
+    , doApplyDamage
+    , viewAddSurf
     )
 where
 
@@ -77,11 +75,19 @@ import Graphics.Wayland.Signal
 import Graphics.Wayland.Resource (resourceGetClient)
 import Graphics.Wayland.Server (Client)
 
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, getSurfaceResource, getWlrSurfaceEvents, WlrSurfaceEvents (..))
+import Graphics.Wayland.WlRoots.Surface
+    ( WlrSurface
+    , WlrSubSurface
+    , getSurfaceResource
+    , getWlrSurfaceEvents
+    , subSurfaceGetSurface
+    , WlrSurfaceEvents (..)
+    , surfaceGetSubs
+    )
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
 
 import Waymonad.Utility.Base (doJust)
-import Waymonad.Types.Core (View (..), ShellSurface (..), Seat)
+import Waymonad.Types.Core (View (..), ShellSurface (..), Seat, ManagerData (..))
 
 import qualified Data.IntMap as IM
 
@@ -107,13 +113,31 @@ removeListeners View {viewTokens = toks} =
 
 handleCommit :: MonadIO m => View -> IORef (Double, Double) -> m ()
 handleCommit view ref = liftIO $ do
-    writeIORef (viewDirty view) True
     (width, height) <- getViewSize view
     (oldWidth, oldHeight) <- readIORef ref
     when (oldWidth /= width || oldHeight /= height) $ do
         setViewLocal view $ WlrBox 0 0 (floor width) (floor height)
         writeIORef ref (width, height)
         triggerViewResize view
+
+    doApplyDamage view $ WlrBox 0 0 (floor width) (floor height)
+
+viewAddSurf :: MonadIO m => View -> Ptr WlrSurface -> m ()
+viewAddSurf view surf = liftIO $ do
+    let events = getWlrSurfaceEvents surf
+    commitHandler <- addListener
+        (WlListener $ const $ doApplyDamage view (WlrBox 0 0 0 0))
+        (wlrSurfaceEvtCommit events)
+    subSurfHandler <- addListener
+        (WlListener $ handleSubsurf view)
+        (wlrSurfaceEvtSubSurf events)
+    setDestroyHandler (wlrSurfaceEvtSubSurf events) $ \_ -> do
+        removeListener commitHandler
+        removeListener subSurfHandler
+
+handleSubsurf :: MonadIO m => View -> Ptr WlrSubSurface -> m ()
+handleSubsurf view subSurf =
+    viewAddSurf view =<< liftIO (subSurfaceGetSurface subSurf)
 
 createView :: (ShellSurface a, MonadIO m) => a -> m View
 createView surf = liftIO $ do
@@ -141,12 +165,13 @@ createView surf = liftIO $ do
             commitHandler <- addListener
                 (WlListener $ const $ handleCommit (unsafePerformIO $ readIORef viewRef) sizeRef)
                 (wlrSurfaceEvtCommit events)
+            subSurfHandler <- addListener
+                (WlListener $ handleSubsurf (unsafePerformIO $ readIORef viewRef))
+                (wlrSurfaceEvtSubSurf events)
 
-            pure [destroyHandler, commitHandler]
+            pure [destroyHandler, commitHandler, subSurfHandler]
 
-    dirty <- newIORef True
-    focus <- newIORef Nothing
-    remove <- newIORef Nothing
+    manager <- newIORef Nothing
     let ret = View
             { viewSurface = surf
             , viewBox = global
@@ -156,39 +181,45 @@ createView surf = liftIO $ do
             , viewResize = resizeCBs
             , viewID = idVal
             , viewTokens = tokens
-            , viewDirty = dirty
-            , viewFocus = focus
-            , viewRemove = remove
+            , viewManager = manager
             }
+
+    case mainSurf of
+        Nothing -> pure ()
+        Just x -> mapM_ (handleSubsurf ret) =<< liftIO (surfaceGetSubs x)
+
     writeIORef viewRef ret
     pure ret
 
-setViewRemove :: MonadIO m => View -> (View -> IO ()) -> m ()
-setViewRemove v fun = liftIO $ writeIORef (viewRemove v) (Just fun)
-
-unsetViewRemove :: MonadIO m => View -> m ()
-unsetViewRemove v = liftIO $ writeIORef (viewRemove v) Nothing
-
 doRemoveView :: MonadIO m => View -> m ()
 doRemoveView view = liftIO $ do
-    fun <- readIORef (viewRemove view)
+    fun <- readIORef (viewManager view)
     case fun of
-        Just act -> act view
+        Just (ManagerData {managerRemove = act}) -> act view
         Nothing -> pure ()
-    writeIORef (viewRemove view) Nothing
-
-setViewFocus :: MonadIO m => View -> (Seat -> View -> IO ()) -> m ()
-setViewFocus v fun = liftIO $ writeIORef (viewFocus v) (Just fun)
-
-unsetViewFocus :: MonadIO m => View -> m ()
-unsetViewFocus v = liftIO $ writeIORef (viewFocus v) Nothing
+    writeIORef (viewManager view) Nothing
 
 doFocusView :: MonadIO m => View -> Seat -> m ()
 doFocusView view seat = liftIO $ do
-    fun <- readIORef (viewFocus view)
+    fun <- readIORef (viewManager view)
     case fun of
-        Just act -> act seat view
+        Just (ManagerData {managerFocus = act}) -> act seat view
         Nothing -> pure ()
+
+doApplyDamage :: MonadIO m => View -> WlrBox -> m ()
+doApplyDamage view _ = liftIO $ do
+    fun <- readIORef (viewManager view)
+    case fun of
+        Just (ManagerData {managerApplyDamage = act}) -> act view
+        Nothing -> pure ()
+
+setViewManager :: MonadIO m => View -> ManagerData -> m ()
+setViewManager View {viewManager = ref} manager =
+    liftIO $ writeIORef ref $ Just manager
+
+unsetViewManager :: MonadIO m => View -> m ()
+unsetViewManager View {viewManager = ref} =
+    liftIO $ writeIORef ref Nothing
 
 closeView :: MonadIO m => View -> m ()
 closeView View {viewSurface=surf} = close surf
@@ -305,12 +336,6 @@ triggerViewResize :: MonadIO m => View -> m ()
 triggerViewResize v@View {viewResize = ref} = liftIO $ do
     cbs <- readIORef ref
     mapM_ ($ v) cbs
-
-viewIsDirty :: MonadIO m => View -> m Bool
-viewIsDirty = liftIO . readIORef . viewDirty
-
-viewSetClean :: MonadIO m => View -> m ()
-viewSetClean = liftIO . flip writeIORef False . viewDirty
 
 viewHasCSD :: MonadIO m => View -> m Bool
 viewHasCSD View {viewSurface=surf} = hasCSD surf

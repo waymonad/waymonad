@@ -71,6 +71,12 @@ class Typeable a => ShellSurface a where
     setViewVisible _ = pure ()
     hasCSD         :: MonadIO m => a -> m Bool
 
+data ManagerData = ManagerData
+    { managerRemove      :: View -> IO ()
+    , managerFocus       :: Seat -> View -> IO ()
+    , managerApplyDamage :: View -> IO ()
+    }
+
 data View = forall a. ShellSurface a => View
     { viewSurface  :: a
     , viewBox      :: IORef WlrBox
@@ -80,9 +86,8 @@ data View = forall a. ShellSurface a => View
     , viewResize   :: IORef (IntMap (View -> IO ()))
     , viewID       :: Int
     , viewTokens   :: [ListenerToken]
-    , viewDirty    :: IORef Bool
-    , viewFocus    :: IORef (Maybe (Seat -> View -> IO ()))
-    , viewRemove   :: IORef (Maybe (View -> IO ()))
+
+    , viewManager  :: IORef (Maybe ManagerData)
     }
 
 instance Show Seat where

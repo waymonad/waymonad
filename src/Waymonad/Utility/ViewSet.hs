@@ -50,8 +50,7 @@ import Waymonad.Layout (reLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View
     ( View, activateView
-    , setViewFocus, unsetViewFocus
-    , setViewRemove, unsetViewRemove
+    , setViewManager, unsetViewManager
     )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
@@ -63,10 +62,11 @@ import Waymonad
     , makeCallback
     , makeCallback2
     )
--- import Waymonad.Utility (getOutputs)
-import Waymonad.Types (Output)
+import Waymonad.Types (Output (..))
+import Waymonad.Types.Core (ManagerData (..))
 import Waymonad.Utility.Current
 import Waymonad.Utility.Mapping (getOutputKeyboards, setSeatOutput, getOutputWS, getOutputs)
+import Waymonad.Utility.LayerCache (applyLayerDamage)
 
 import qualified Data.Set as S
 
@@ -183,16 +183,21 @@ removeCB v = do
             mapM_ (`setFocused` ws) seats
             reLayout ws
 
+makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData
+makeManager = do
+    focus <- makeCallback2 setViewsetFocus
+    remove <- makeCallback removeCB
+    applyDamage <- makeCallback $ applyLayerDamage "main"
+    pure $ ManagerData remove focus applyDamage
+
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
 insertView v ws s = do
     whenJust s (`unsetFocus` ws)
-    setViewFocus v =<< makeCallback2 setViewsetFocus
-    setViewRemove v =<< makeCallback removeCB
+    setViewManager v =<< makeManager
     modifyWS ws (\ws' -> _insertView ws' s v)
 
 removeView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()
 removeView v ws = do
     activateView v False
-    unsetViewFocus v
-    unsetViewRemove v
+    unsetViewManager v
     modifyWS ws (\ws' -> _removeView ws' v)

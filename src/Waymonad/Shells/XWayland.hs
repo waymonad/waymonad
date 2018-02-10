@@ -35,7 +35,7 @@ module Waymonad.Shells.XWayland
     )
 where
 
-import Control.Monad (void, forM_, unless)
+import Control.Monad (void, forM_)
 import Control.Monad.IO.Class
 import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
@@ -75,6 +75,7 @@ import Waymonad.Types
 
 import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S
+import qualified Data.Text as T
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 
 data XWayRef vs ws = XWayRef
@@ -200,6 +201,16 @@ handleOverrideCommit view surf _ = do
     WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
     resizeView view (fromIntegral w) (fromIntegral h)
 
+handleAddChild :: View -> Ptr X.X11Surface -> Way vs ws ()
+handleAddChild view surf =
+    doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ viewAddSurf view
+
+getAncestorView :: Ptr X.X11Surface -> IntMap View -> IO (Maybe View)
+getAncestorView surf surfMap = case M.lookup (ptrToInt surf) surfMap of
+    Just x -> pure $ Just x
+    Nothing -> doJust (X.getX11ParentSurfrace surf) $ \parent ->
+        getAncestorView parent surfMap
+
 handleXwaySurface
     :: (FocusCore vs a, WSTag a)
     => Ptr X.XWayland
@@ -212,7 +223,9 @@ handleXwaySurface xway ref surf = do
 
     override <- liftIO $ X.x11SurfaceOverrideRedirect surf
     parent <- if override
-        then liftIO $ doJust (X.getX11ParentSurfrace surf) X.xwaySurfaceGetSurface
+        then liftIO $ do
+            doJust (X.getX11ParentSurfrace surf) $ \parent ->
+                fmap (const parent) <$> X.xwaySurfaceGetSurface parent
         else pure Nothing
     case parent of
         Nothing -> do
@@ -234,7 +247,11 @@ handleXwaySurface xway ref surf = do
             liftIO $ do
                 stPtr <- newStablePtr view
                 poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
-        Just _ -> logPutText loggerX11 Trace "Surface has (real) parent. Skipping view creation"
+        Just parentSurf -> do
+            logPutText loggerX11 Trace "Surface has (real) parent. Skipping view creation"
+            doJust (liftIO (getAncestorView parentSurf =<< readIORef ref)) $ \view -> do
+                logPutText loggerX11 Trace $ "Attaching to view: " `T.append` T.pack (show view)
+                handleAddChild view surf
 
 
 instance ShellSurface XWaySurface where
@@ -273,8 +290,7 @@ renderChildren fun surf = do
 
     forM_ children $ \child -> do
         override <- liftIO $ X.x11SurfaceOverrideRedirect child
-        unless override $ do
-            liftIO $ hPutStrLn stderr $ "Render child at: " ++ show child
+        when override $ do
             WlrBox cx cy cw ch <- liftIO $ X.getX11SurfaceGeometry child
             doJust (liftIO $ X.xwaySurfaceGetSurface child) $ \wlrSurf ->
                 fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)

@@ -23,7 +23,8 @@ where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
-import Graphics.Wayland.WlRoots.Output (setOutputNeedsSwap)
+import Graphics.Wayland.WlRoots.Box (WlrBox)
+import Graphics.Wayland.WlRoots.Output (setOutputNeedsSwap, scheduleOutputFrame)
 
 import Waymonad.Utility.Base (ptrToInt)
 import Waymonad.Types (Output (..))
@@ -33,3 +34,8 @@ setOutputDirty out = liftIO $ setOutputNeedsSwap (outputRoots out) True
 
 getOutputId :: Output -> Int
 getOutputId = ptrToInt . outputRoots
+
+outApplyDamage :: MonadIO m => Output -> WlrBox -> m ()
+outApplyDamage Output {outputRoots = roots} _ = liftIO $ do
+    scheduleOutputFrame roots
+    setOutputNeedsSwap roots True

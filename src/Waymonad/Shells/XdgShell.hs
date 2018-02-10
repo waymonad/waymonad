@@ -43,6 +43,7 @@ import Data.Maybe (fromJust)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
 
@@ -52,7 +53,7 @@ import Waymonad.Utility.Base (doJust, ptrToInt)
 import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad.Utility.Log (logPutText, LogPriority (..))
-import Waymonad.Utility.Signal (setDestroyHandler)
+import Waymonad.Utility.Signal (setDestroyHandler, setSignalHandler)
 import Waymonad
 import Waymonad.Types
 
@@ -134,6 +135,16 @@ handleXdgDestroy ref surf = do
     removeView view
     triggerViewDestroy view
 
+handleXdgPopup :: View -> Ptr R.WlrXdgPopup -> Way vs ws ()
+handleXdgPopup view pop = do
+    base <- liftIO $ R.xdgPopupGetBase pop
+    doJust (liftIO $ R.xdgSurfaceGetSurface base) $ viewAddSurf view
+
+    let signals = R.getXdgSurfaceEvents base
+    handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view
+    setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ (const . liftIO $ removeListener handler)
+
+
 handleXdgSurface
     :: (FocusCore vs a, WSTag a)
     => MapRef
@@ -152,12 +163,15 @@ handleXdgSurface ref surf = do
             R.setMaximized surf True
 
         let signals = R.getXdgSurfaceEvents surf
-        setDestroyHandler (R.xdgSurfaceEvtDestroy signals) (handleXdgDestroy ref)
+        handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view
+        setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
+            liftIO $ removeListener handler
+            handleXdgDestroy ref surfPtr
 
 
 renderPopups :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> Ptr R.WlrXdgSurface -> m ()
 renderPopups fun surf = do
-    popups <- liftIO $ filterM R.isConfigured =<< R.getPopups surf
+    popups <- liftIO $ filterM R.isConfigured =<< R.xdgGetPopupSurfaces surf
     surfBox <- liftIO $ R.getGeometry surf
     let surfX = boxX surfBox
     let surfY = boxY surfBox

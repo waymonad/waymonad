@@ -75,8 +75,11 @@ module Waymonad.Output
     , removeOutputFromWork
     , getOutputBox
     , intersectsOutput
+    , outApplyDamage
     )
 where
+
+import System.IO
 
 import UnliftIO.Exception (bracket_)
 import Control.Monad (forM_, forM, filterM, void, when)
@@ -91,7 +94,7 @@ import Data.Word (Word32)
 import Foreign.Ptr (Ptr, ptrToIntPtr)
 import Foreign.Storable (Storable(peek))
 
-import Graphics.Wayland.Signal
+import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.Server
     ( OutputTransform
     , outputTransformNormal
@@ -118,7 +121,7 @@ import Graphics.Wayland.WlRoots.Output
     , getOutputName
     , getOutputScale
 
---    , getOutputNeedsSwap
+    , getOutputNeedsSwap
     , setOutputNeedsSwap
     , isOutputEnabled
     , setOutputMode
@@ -128,6 +131,7 @@ import Graphics.Wayland.WlRoots.Output
     , getHeight
     , OutputSignals (..)
     , getOutputSignals
+    , scheduleOutputFrame
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( outputIntersects
@@ -280,9 +284,13 @@ handleLayers comp secs output (l:ls) = do
 
 frameHandler :: WSTag a
              => Double -> Output -> Way vs a ()
-frameHandler secs Output {outputRoots = output, outputLayout = layers} = do
+frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
-    when enabled $ do
+    needsSwap <- liftIO $ getOutputNeedsSwap output
+    when (enabled && needsSwap) $ do
+        liftIO $ hPutStr stderr "Rendering a frame on:"
+        liftIO $ hPutStrLn stderr $ T.unpack $ outputName out
+
         comp <- wayCompositor <$> getState
         renderOn output (compRenderer comp) $
             handleLayers comp secs output layers
@@ -328,8 +336,9 @@ handleOutputAdd hook output = do
     modeH <- setSignalHandler (outSignalMode signals) (const $ layoutOutput out)
     scaleH <- setSignalHandler (outSignalScale signals) (const $ layoutOutput out)
     transformH <- setSignalHandler (outSignalTransform signals) (const $ layoutOutput out)
+    needsSwapH <- setSignalHandler (outSignalNeedsSwap signals) (const $ outApplyDamage out (WlrBox 0 0 0 0))
 
-    setDestroyHandler (outSignalDestroy signals) (const $ liftIO $ mapM_ removeListener [modeH, scaleH, transformH])
+    setDestroyHandler (outSignalDestroy signals) (const $ liftIO $ mapM_ removeListener [modeH, scaleH, transformH, needsSwapH])
 
     hook out
     makeCallback2 (\t _ ->  frameHandler t out)
@@ -414,3 +423,8 @@ intersectsOutput :: Output -> WlrBox -> Way vs ws Bool
 intersectsOutput Output {outputRoots = out} box = do
     Compositor {compLayout = layout} <- wayCompositor <$> getState
     liftIO $ outputIntersects layout out box
+
+outApplyDamage :: Output -> WlrBox -> Way vs ws ()
+outApplyDamage Output {outputRoots = roots} _ = liftIO $ do
+    scheduleOutputFrame roots
+    setOutputNeedsSwap roots True
