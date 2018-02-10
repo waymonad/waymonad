@@ -195,6 +195,8 @@ import Waymonad
     )
 import Waymonad.Utility.SSD
 
+import Waymonad.Output.Core
+
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as S
@@ -360,16 +362,10 @@ removeOutputFromWork output = do
     liftIO $ modifyIORef (wayBindingMapping state) $ filter ((/=) output . snd)
     liftIO $ writeIORef (outputActive output) False
 
-getOutputId :: Output -> Int
-getOutputId = ptrToInt . outputRoots
-
 outputFromWlr :: Ptr WlrOutput -> Way vs a (Maybe Output)
 outputFromWlr ptr = do
     outs <- liftIO . readIORef . wayBindingOutputs =<< getState
     pure . find ((==) ptr . outputRoots) $ outs
-
-setOutputDirty :: MonadIO m => Output -> m ()
-setOutputDirty out = liftIO $ setOutputNeedsSwap (outputRoots out) True
 
 forOutput :: (Output -> Way vs ws a) -> Way vs ws [a]
 forOutput fun = do
@@ -423,8 +419,3 @@ intersectsOutput :: Output -> WlrBox -> Way vs ws Bool
 intersectsOutput Output {outputRoots = out} box = do
     Compositor {compLayout = layout} <- wayCompositor <$> getState
     liftIO $ outputIntersects layout out box
-
-outApplyDamage :: Output -> WlrBox -> Way vs ws ()
-outApplyDamage Output {outputRoots = roots} _ = liftIO $ do
-    scheduleOutputFrame roots
-    setOutputNeedsSwap roots True

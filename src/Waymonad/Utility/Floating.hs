@@ -32,7 +32,7 @@ where
 
 import Control.Monad (when, void, forM_)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef)
+import Data.IORef (modifyIORef, readIORef)
 import Data.Set (Set)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
@@ -116,8 +116,10 @@ removeFloating :: View -> Way vs ws ()
 removeFloating view = do
     modifyFloating $ S.delete view
     outputs <- getOutputs
-    forM_ outputs $ \output -> do
+    forM_ outputs $ \output -> liftIO $ do
         let ref = (M.!) (outputLayers output) "floating"
+        boxes <- filter (\(v, _, _) -> view == v) <$> readIORef ref
+        forM_ boxes $ \(_, _, b) -> outApplyDamage output b
         liftIO $ modifyIORef ref (filter (\(v, _, _) -> view /= v))
 
 unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
