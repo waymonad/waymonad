@@ -290,8 +290,8 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
     needsSwap <- liftIO $ getOutputNeedsSwap output
     when (enabled && needsSwap) $ do
-        liftIO $ hPutStr stderr "Rendering a frame on:"
-        liftIO $ hPutStrLn stderr $ T.unpack $ outputName out
+--        liftIO $ hPutStr stderr "Rendering a frame on:"
+--        liftIO $ hPutStrLn stderr $ T.unpack $ outputName out
 
         comp <- wayCompositor <$> getState
         renderOn output (compRenderer comp) $
