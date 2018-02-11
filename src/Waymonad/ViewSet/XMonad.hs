@@ -76,6 +76,12 @@ adjustWS :: Ord ws
          => (Workspace ws -> Workspace ws) -> ws -> ViewSet ws -> ViewSet ws
 adjustWS fun ws (ViewSet m l) = ViewSet (M.adjust fun ws m) l
 
+alterWS :: Ord ws
+        => (Workspace ws -> Workspace ws) -> ws -> ViewSet ws -> ViewSet ws
+alterWS fun ws (ViewSet m l) =
+    let empty = Workspace l Nothing
+     in ViewSet (M.alter (Just . fun . fromMaybe empty) ws m) l
+
 mapVS :: Ord ws => (Workspace ws -> Workspace ws) -> ViewSet ws -> ViewSet ws
 mapVS fun (ViewSet m l) = ViewSet (fun `fmap` m) l
 
@@ -83,11 +89,11 @@ instance Ord a => Layouted (ViewSet a) a where
     getLayout (ViewSet vs _) ws = case wsLayout <$> M.lookup ws vs of
         Nothing -> Nothing
         Just (GenericLayout l) -> Just (Layout l)
-    broadcastWS m = adjustWS modify
+    broadcastWS m = alterWS modify
         where modify w@(Workspace (GenericLayout l) z) = case broadcastMessage l  m of
                 Nothing -> w
                 Just nl -> Workspace (GenericLayout nl) z
-    messageWS m = adjustWS modify
+    messageWS m = alterWS modify
         where modify w@(Workspace (GenericLayout l) z) = case handleMessage l  m of
                 Nothing -> w
                 Just nl -> Workspace (GenericLayout nl) z
@@ -106,9 +112,7 @@ instance WSTag a => FocusCore (ViewSet a) a where
         pure $ S.fromList xs
     getLayouted vs@(ViewSet m _) ws = whenJust (wsLayout <$> M.lookup ws m) $
         \(GenericLayout l) -> pureLayout l vs ws
-    _insertView ws s v (ViewSet m l) =
-        let empty = Workspace l Nothing
-         in ViewSet (M.alter (Just .  addView s v . fromMaybe empty) ws m) l
+    _insertView ws s v vs = alterWS (addView s v) ws vs
     _removeView ws v vs = adjustWS (rmView v) ws vs
     removeGlobal v _ = mapVS (rmView v)
 
