@@ -74,6 +74,7 @@ import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer)
 
+import Graphics.Pixman (PixmanRegion32)
 import Graphics.Wayland.WlRoots.Backend (Backend)
 import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
@@ -308,6 +309,8 @@ data Output = Output
     , outputActive :: IORef Bool
     , outputLayout :: [IORef [(View, SSDPrio, WlrBox)]]
     , outputLayers :: Map Text (IORef [(View, SSDPrio, WlrBox)])
+    , outputDamage :: PixmanRegion32
+    , outputOldDamage :: (PixmanRegion32, PixmanRegion32)
     }
 
 instance Show Output where

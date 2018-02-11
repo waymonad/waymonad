@@ -201,13 +201,31 @@ handleOverrideCommit view surf _ = do
     WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
     resizeView view (fromIntegral w) (fromIntegral h)
 
-handleAddChild :: View -> Ptr X.X11Surface -> Way vs ws ()
-handleAddChild view surf =
-    doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ viewAddSurf view
+getAncesterPos :: Ptr X.X11Surface -> Ptr X.X11Surface -> IO Point
+getAncesterPos viewSurf current = if viewSurf == current
+    then pure $ Point 0 0
+    else do
+        parent <- X.getX11ParentSurfrace current
+        Point x y <- case parent of
+            Nothing -> pure $ Point 0 0
+            Just x -> getAncesterPos viewSurf x
 
-getAncestorView :: Ptr X.X11Surface -> IntMap View -> IO (Maybe View)
+        WlrBox cx cy _ _ <- liftIO $ X.getX11SurfaceGeometry current
+        pure $ Point (x + cx) (y + cy)
+
+handleAddChild :: View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
+handleAddChild view viewSurf surf =
+    doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \mainSurf -> do
+        let signals = X.getX11SurfaceEvents surf
+        viewAddSurf
+            view
+            (X.x11SurfaceEvtDestroy signals)
+            (getAncesterPos viewSurf surf)
+            mainSurf
+
+getAncestorView :: Ptr X.X11Surface -> IntMap View -> IO (Maybe (Ptr X.X11Surface, View))
 getAncestorView surf surfMap = case M.lookup (ptrToInt surf) surfMap of
-    Just x -> pure $ Just x
+    Just x -> pure $ Just (surf, x)
     Nothing -> doJust (X.getX11ParentSurfrace surf) $ \parent ->
         getAncestorView parent surfMap
 
@@ -249,9 +267,9 @@ handleXwaySurface xway ref surf = do
                 poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
         Just parentSurf -> do
             logPutText loggerX11 Trace "Surface has (real) parent. Skipping view creation"
-            doJust (liftIO (getAncestorView parentSurf =<< readIORef ref)) $ \view -> do
+            doJust (liftIO (getAncestorView parentSurf =<< readIORef ref)) $ \(viewSurf, view) -> do
                 logPutText loggerX11 Trace $ "Attaching to view: " `T.append` T.pack (show view)
-                handleAddChild view surf
+                handleAddChild view viewSurf surf
 
 
 instance ShellSurface XWaySurface where

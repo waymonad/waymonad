@@ -77,7 +77,7 @@ enactInsert act = do
             hook $ WSEnter view ws
         InsertFloating box -> do
             setFloating view box
-            doJust getSeat $ void . flip keyboardEnter view
+        --    doJust getSeat $ void . flip keyboardEnter view
         InsertCustom ins -> ins
 
 

@@ -30,7 +30,7 @@ module Waymonad.Utility.Floating
     )
 where
 
-import Control.Monad (when, void, forM_)
+import Control.Monad (when, void, forM_, unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Set (Set)
@@ -93,7 +93,7 @@ makeFloatManager :: Way vs ws ManagerData
 makeFloatManager = do
     focus <- makeCallback2 focusFloating
     remove <-  makeCallback removeFloating
-    applyDamage <- makeCallback $ applyLayerDamage "floating"
+    applyDamage <- makeCallback2 $ applyLayerDamage "floating"
     pure $ ManagerData remove focus applyDamage
 
 setFloating :: View -> WlrBox -> Way vs a ()
@@ -119,7 +119,7 @@ removeFloating view = do
     forM_ outputs $ \output -> liftIO $ do
         let ref = (M.!) (outputLayers output) "floating"
         boxes <- filter (\(v, _, _) -> view == v) <$> readIORef ref
-        forM_ boxes $ \(_, _, b) -> outApplyDamage output b
+        unless (null boxes) $ outApplyDamage output Nothing
         liftIO $ modifyIORef ref (filter (\(v, _, _) -> view /= v))
 
 unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()

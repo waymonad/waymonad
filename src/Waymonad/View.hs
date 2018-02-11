@@ -58,6 +58,7 @@ module Waymonad.View
     , viewHasCSD
     , doApplyDamage
     , viewAddSurf
+    , getViewSurfScale
     )
 where
 
@@ -70,10 +71,12 @@ import Foreign.Ptr (Ptr)
 
 import System.IO.Unsafe (unsafePerformIO)
 
+import Graphics.Pixman
 import Graphics.Wayland.Signal
 
 import Graphics.Wayland.Resource (resourceGetClient)
 import Graphics.Wayland.Server (Client)
+import Graphics.Wayland.WlRoots.Util.Region
 
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface
@@ -83,8 +86,13 @@ import Graphics.Wayland.WlRoots.Surface
     , subSurfaceGetSurface
     , WlrSurfaceEvents (..)
     , surfaceGetSubs
+    , getSurfaceDamage
+    , subSurfaceGetBox
+    , surfaceGetScale
+    , subSurfaceGetDestroyEvent
+    , surfaceGetSize
     )
-import Graphics.Wayland.WlRoots.Box (WlrBox(..), toOrigin, centerBox)
+import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox)
 
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Types.Core (View (..), ShellSurface (..), Seat, ManagerData (..))
@@ -120,24 +128,47 @@ handleCommit view ref = liftIO $ do
         writeIORef ref (width, height)
         triggerViewResize view
 
-    doApplyDamage view $ WlrBox 0 0 (floor width) (floor height)
+    doJust (getViewSurface view) $
+        handleSurfaceDamage view (pure $ Point 0 0)
 
-viewAddSurf :: MonadIO m => View -> Ptr WlrSurface -> m ()
-viewAddSurf view surf = liftIO $ do
+handleSurfaceDamage :: View -> IO Point -> Ptr WlrSurface -> IO ()
+handleSurfaceDamage view getPos surf = do
+    Point x y <- getPos
+    WlrBox vx vy _ _ <- viewGetLocal view
+    scale <- viewGetScale view
+    doJust (getSurfaceDamage surf) $ \dmg ->
+        withRegionCopy dmg $ \mutDmg -> do
+
+            scaleRegion mutDmg scale
+            pixmanRegionTranslate mutDmg (x + vx) (y + vy)
+            doApplyDamage view mutDmg
+
+viewAddSurf :: MonadIO m => View -> Ptr (WlSignal a) -> IO Point -> Ptr WlrSurface -> m ()
+viewAddSurf view destroySignal getPos surf = liftIO $ do
     let events = getWlrSurfaceEvents surf
     commitHandler <- addListener
-        (WlListener $ const $ doApplyDamage view (WlrBox 0 0 0 0))
+        (WlListener $ handleSurfaceDamage view getPos)
         (wlrSurfaceEvtCommit events)
     subSurfHandler <- addListener
         (WlListener $ handleSubsurf view)
         (wlrSurfaceEvtSubSurf events)
-    setDestroyHandler (wlrSurfaceEvtSubSurf events) $ \_ -> do
-        removeListener commitHandler
-        removeListener subSurfHandler
+    liftIO $ setDestroyHandler destroySignal $ \_ -> do
+        mapM_ removeListener [commitHandler, subSurfHandler]
+
+        Point x y <- getPos
+        Point w h <- surfaceGetSize surf
+        withRegion $ \region -> do
+            resetRegion region . Just $ WlrBox x y w h
+            doApplyDamage view region
 
 handleSubsurf :: MonadIO m => View -> Ptr WlrSubSurface -> m ()
-handleSubsurf view subSurf =
-    viewAddSurf view =<< liftIO (subSurfaceGetSurface subSurf)
+handleSubsurf view subSurf = do
+    mainSurf <- liftIO $ subSurfaceGetSurface subSurf
+    let getPos = do
+            WlrBox x y _ _ <- subSurfaceGetBox subSurf
+            pure $ Point x y
+
+    viewAddSurf view (subSurfaceGetDestroyEvent subSurf) getPos mainSurf
 
 createView :: (ShellSurface a, MonadIO m) => a -> m View
 createView surf = liftIO $ do
@@ -206,11 +237,11 @@ doFocusView view seat = liftIO $ do
         Just (ManagerData {managerFocus = act}) -> act seat view
         Nothing -> pure ()
 
-doApplyDamage :: MonadIO m => View -> WlrBox -> m ()
-doApplyDamage view _ = liftIO $ do
+doApplyDamage :: MonadIO m => View -> PixmanRegion32 -> m ()
+doApplyDamage view dmg = liftIO $ do
     fun <- readIORef (viewManager view)
     case fun of
-        Just (ManagerData {managerApplyDamage = act}) -> act view
+        Just (ManagerData {managerApplyDamage = act}) -> act view dmg
         Nothing -> pure ()
 
 setViewManager :: MonadIO m => View -> ManagerData -> m ()
@@ -306,6 +337,13 @@ setViewLocal View {viewBox = global, viewPosition = local, viewScaling = scaleRe
 
 viewGetScale :: MonadIO m => View -> m Float
 viewGetScale View {viewScaling = scale} = liftIO $ readIORef scale
+
+getViewSurfScale :: MonadIO m => View -> m Int
+getViewSurfScale view = do
+    ret <- getViewSurface view
+    fromIntegral <$> case ret of
+        Nothing -> pure 1
+        Just surf -> liftIO $ surfaceGetScale surf
 
 viewGetLocal :: MonadIO m => View -> m WlrBox
 viewGetLocal View {viewPosition = local} = liftIO $ readIORef local

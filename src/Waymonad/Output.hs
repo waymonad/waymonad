@@ -79,21 +79,18 @@ module Waymonad.Output
     )
 where
 
-import System.IO
-
-import UnliftIO.Exception (bracket_)
-import Control.Monad (forM_, forM, filterM, void, when)
+import Control.Monad (forM_, forM, void, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (maximumBy, minimumBy)
 import Data.Function (on)
 import Data.IORef (IORef, writeIORef, newIORef, readIORef, modifyIORef)
 import Data.List ((\\), find)
-import Data.Map (Map)
 import Data.Text (Text)
 import Data.Word (Word32)
-import Foreign.Ptr (Ptr, ptrToIntPtr)
+import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(peek))
 
+import Graphics.Pixman
 import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.Server
     ( OutputTransform
@@ -110,7 +107,7 @@ import Graphics.Wayland.Server
 
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
-import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
+import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), boxTransform, scaleBox)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
     , OutputMode (..)
@@ -122,7 +119,6 @@ import Graphics.Wayland.WlRoots.Output
     , getOutputScale
 
     , getOutputNeedsSwap
-    , setOutputNeedsSwap
     , isOutputEnabled
     , setOutputMode
     , outputEnable
@@ -132,6 +128,12 @@ import Graphics.Wayland.WlRoots.Output
     , OutputSignals (..)
     , getOutputSignals
     , scheduleOutputFrame
+    , outputTransformedResolution
+
+    , getOutputTransform
+    , invertOutputTransform
+    , composeOutputTransform
+    , getOutputDamage
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( outputIntersects
@@ -148,6 +150,7 @@ import Graphics.Wayland.WlRoots.Render
     , isTextureValid
     , doRender
     , rendererClear
+    , rendererScissor
     )
 import Graphics.Wayland.WlRoots.Render.Matrix
     ( withMatrix
@@ -171,7 +174,7 @@ import Graphics.Wayland.WlRoots.Surface
     )
 
 import Waymonad.Layout (layoutOutput)
-import Waymonad (makeCallback2, unliftWay)
+import Waymonad (makeCallback, makeCallback2, unliftWay)
 import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), SSDPrio (..), Output (..))
 import Waymonad.Utility.Signal
 import Waymonad.Input.Seat (Seat(seatLoadScale))
@@ -181,7 +184,6 @@ import Waymonad.View
     ( View
     , getViewSurface
     , renderViewAdditional
-    , getViewBox
     , viewGetScale
     , viewGetLocal
     , viewHasCSD
@@ -198,22 +200,15 @@ import Waymonad.Utility.SSD
 import Waymonad.Output.Core
 
 import qualified Data.Map.Strict as M
-import qualified Data.IntMap.Strict as IM
-import qualified Data.Set as S
-import qualified Data.Text as T
 
-ptrToInt :: Num b => Ptr a -> b
-ptrToInt = fromIntegral . ptrToIntPtr
+renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws ()) -> Way vs ws ()
+renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
+    liftIO . doRender rend output =<< unliftWay (act age)
 
-renderOn :: Ptr WlrOutput -> Ptr Renderer -> Way vs ws a -> Way vs ws a
-renderOn output rend act = bracket_
-    (liftIO $ makeOutputCurrent output)
-    (liftIO $ swapOutputBuffers output Nothing) $ do
-    liftIO $ rendererClear rend $ Color 0.25 0.25 0.25 1
-    liftIO . doRender rend output =<< unliftWay act
+    void . liftIO $ swapOutputBuffers output Nothing
 
-outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
-outputHandleSurface comp secs output surface scaleFactor box = do
+outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
+outputHandleSurface comp secs output damage surface scaleFactor box = do
     outputScale <- getOutputScale output
     surfScale <- fromIntegral <$> surfaceGetScale surface
     let localScale = (outputScale / surfScale) * scaleFactor
@@ -227,7 +222,13 @@ outputHandleSurface comp secs output surface scaleFactor box = do
             matrixScale scale localScale localScale 1
             matrixMul trans scale final
             withSurfaceMatrix surface (getTransMatrix output) final $ \mat ->
-                renderWithMatrix (compRenderer comp) texture mat
+                withRegion $ \region -> do
+                    resetRegion region . Just $ scaleBox box outputScale
+                    pixmanRegionIntersect region damage
+                    boxes <- pixmanRegionBoxes region
+                    forM_ boxes $ \box -> do
+                        scissorOutput (compRenderer comp) output $ boxToWlrBox box
+                        renderWithMatrix (compRenderer comp) texture mat
 
             callbacks <- surfaceGetCallbacks =<< getCurrentState surface
             forM_ callbacks $ \callback -> do
@@ -244,6 +245,7 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                     comp
                     secs
                     output
+                    damage
                     subsurf
                     scaleFactor
                     sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + boxX box
@@ -252,20 +254,21 @@ outputHandleSurface comp secs output surface scaleFactor box = do
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
 
-outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
-outputHandleView comp secs output (view, prio, obox) = doJust (getViewSurface view) $ \surface -> do
+outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
+outputHandleView comp secs output d (view, prio, obox) = doJust (getViewSurface view) $ \surface -> do
     hasCSD <- viewHasCSD view
     let box = getDecoBox hasCSD prio obox
     scale <- liftIO $ viewGetScale view
     local <- liftIO $ viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
     renderDeco hasCSD prio output obox box
-    liftIO $ outputHandleSurface comp secs output surface scale lBox
+    liftIO $ outputHandleSurface comp secs output d surface scale lBox
     pure $ renderViewAdditional (\v b ->
         void $ outputHandleSurface
             comp
             secs
             output
+            d
             v
             scale
             b   { boxX = floor (fromIntegral (boxX b) * scale) + boxX lBox
@@ -276,26 +279,63 @@ outputHandleView comp secs output (view, prio, obox) = doJust (getViewSurface vi
         )
         view
 
-handleLayers :: Compositor -> Double -> Ptr WlrOutput -> [IORef [(View, SSDPrio, WlrBox)]] -> Way vs ws ()
-handleLayers _ _ _ [] = pure ()
-handleLayers comp secs output (l:ls) = do
-    handleLayers comp secs output ls
+handleLayers :: Compositor -> Double -> Ptr WlrOutput
+             -> [IORef [(View, SSDPrio, WlrBox)]] 
+             -> PixmanRegion32 -> Way vs ws ()
+handleLayers _ _ _ [] _ = pure ()
+handleLayers comp secs output (l:ls) d = do
+    handleLayers comp secs output ls d
     views <- liftIO $ readIORef l
-    overs <- mapM (outputHandleView comp secs output) views
+    overs <- mapM (outputHandleView comp secs output d) views
     liftIO $ sequence_ overs
 
-frameHandler :: WSTag a
-             => Double -> Output -> Way vs a ()
+scissorOutput :: Ptr Renderer -> Ptr WlrOutput -> WlrBox -> IO ()
+scissorOutput rend output box = do
+    Point w h <- outputTransformedResolution output
+    trans <- getOutputTransform output
+    let transform = composeOutputTransform
+            outputTransformFlipped_180
+            (invertOutputTransform trans)
+    let transed = boxTransform box transform w h
+    rendererScissor rend (Just transed)
+
+frameHandler :: WSTag a => Double -> Output -> Way vs a ()
 frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
     needsSwap <- liftIO $ getOutputNeedsSwap output
     when (enabled && needsSwap) $ do
---        liftIO $ hPutStr stderr "Rendering a frame on:"
---        liftIO $ hPutStrLn stderr $ T.unpack $ outputName out
-
         comp <- wayCompositor <$> getState
-        renderOn output (compRenderer comp) $
-            handleLayers comp secs output layers
+        renderOn output (compRenderer comp) $ \age -> do
+            let withDRegion = \act -> if age < 0 || age > 3
+                then withRegion $ \region -> do
+                        w <- fromIntegral <$> getWidth output
+                        h <- fromIntegral <$> getHeight output
+                        resetRegion region . Just $ WlrBox 0 0 w h
+                        act region
+                else withRegionCopy (outputDamage out) $ \region -> do
+                        let (b1, b2) = outputOldDamage out
+                        pixmanRegionUnion region b1
+                        pixmanRegionUnion region b2
+                        pixmanRegionUnion region (getOutputDamage output)
+                        act region
+            renderBody <- makeCallback $ handleLayers comp secs output layers
+            liftIO $ withDRegion $ \region -> do
+                notEmpty <- pixmanRegionNotEmpty region
+                when notEmpty $ do
+                    -- liftIO $ rendererClear (compRenderer comp) $ Color 0 1 0 1
+                    boxes <- pixmanRegionBoxes region
+                    forM_ boxes $ \box -> do
+                        scissorOutput (compRenderer comp) output $ boxToWlrBox box
+                        liftIO $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+
+                    renderBody region
+
+                    rendererScissor (compRenderer comp) Nothing
+                    let (b1, b2) = outputOldDamage out
+                    copyRegion b1 b2
+                    copyRegion b2 $ outputDamage out
+                    pixmanRegionUnion b2 (getOutputDamage output)
+                    resetRegion (outputDamage out) Nothing
 
 findMode :: MonadIO m
          => Ptr WlrOutput -> Word32
@@ -331,14 +371,17 @@ handleOutputAdd hook output = do
     overrideLayer <- liftIO $ newIORef []
     let layers = [overrideLayer, floatLayer, mainLayer]
         layerMap = M.fromList [("override", overrideLayer), ("floating", floatLayer), ("main", mainLayer)]
-    let out = Output output name active layers layerMap
+    outputDamageR <- liftIO $ allocateRegion
+    outputBuf1 <- liftIO $ allocateRegion
+    outputBuf2 <- liftIO $ allocateRegion
+    let out = Output output name active layers layerMap outputDamageR (outputBuf1, outputBuf2)
     liftIO $ modifyIORef current (out :)
 
     let signals = getOutputSignals output
     modeH <- setSignalHandler (outSignalMode signals) (const $ layoutOutput out)
     scaleH <- setSignalHandler (outSignalScale signals) (const $ layoutOutput out)
     transformH <- setSignalHandler (outSignalTransform signals) (const $ layoutOutput out)
-    needsSwapH <- setSignalHandler (outSignalNeedsSwap signals) (const $ outApplyDamage out (WlrBox 0 0 0 0))
+    needsSwapH <- setSignalHandler (outSignalNeedsSwap signals) (const . liftIO $ scheduleOutputFrame (outputRoots out))
 
     setDestroyHandler (outSignalDestroy signals) (const $ liftIO $ mapM_ removeListener [modeH, scaleH, transformH, needsSwapH])
 

@@ -26,32 +26,39 @@ import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (readIORef)
 import Data.List (find)
 import Data.Text (Text)
+import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.WlRoots.Box (WlrBox)
+import Graphics.Pixman
+import Graphics.Wayland.WlRoots.Util.Region
+import Graphics.Wayland.WlRoots.Box (WlrBox (..))
+import Graphics.Wayland.WlRoots.Output (getOutputScale)
 
 import Waymonad.Output (outApplyDamage)
 import Waymonad.Types (SSDPrio, Output (..), Way)
 import Waymonad.Types.Core (View)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Mapping (getOutputs)
+import Waymonad.View (getViewSurfScale)
 
 import qualified Data.Map as M
 
-getViewPosition :: View -> [(View, SSDPrio, WlrBox)] -> Maybe WlrBox
+getViewPosition :: View -> [(View, SSDPrio, WlrBox)] -> [WlrBox]
 getViewPosition view xs =
-    let ret = find (\(v, _, _) -> view == v) xs
+    let ret = filter (\(v, _, _) -> view == v) xs
      in fmap (\(_, _, b) -> b) ret
 
 getViewBoxInLayer :: MonadIO m
-                  => Output -> View -> Text -> m (Maybe WlrBox)
+                  => Output -> View -> Text -> m ([WlrBox])
 getViewBoxInLayer Output {outputLayers = layers} view layer = liftIO $ do
     case M.lookup layer layers of
-        Nothing -> pure Nothing
+        Nothing -> pure []
         Just ref -> getViewPosition view <$> readIORef ref
 
-applyLayerDamage :: Text -> View -> Way vs ws ()
-applyLayerDamage layer view = do
+applyLayerDamage :: Text -> View -> PixmanRegion32-> Way vs ws ()
+applyLayerDamage layer view orig = do
     outs <- getOutputs
-    forM_ outs $ \out ->
-        doJust (getViewBoxInLayer out view layer) $ \box ->
-            outApplyDamage out box
+    liftIO $ forM_ outs $ \out -> do
+        boxes <- getViewBoxInLayer out view layer
+        forM_ boxes $ \(WlrBox x y _ _) -> withRegionCopy orig $ \region -> do
+            pixmanRegionTranslate region x y
+            outApplyDamage out (Just region)

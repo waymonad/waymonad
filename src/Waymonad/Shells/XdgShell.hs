@@ -135,14 +135,32 @@ handleXdgDestroy ref surf = do
     removeView view
     triggerViewDestroy view
 
-handleXdgPopup :: View -> Ptr R.WlrXdgPopup -> Way vs ws ()
-handleXdgPopup view pop = do
+handleXdgPopup :: View -> IO Point -> Ptr R.WlrXdgPopup -> Way vs ws ()
+handleXdgPopup view getParentPos pop = do
     base <- liftIO $ R.xdgPopupGetBase pop
-    doJust (liftIO $ R.xdgSurfaceGetSurface base) $ viewAddSurf view
+    let getPos = do
+            Point parentX parentY <- getParentPos
+            popBox <- liftIO $ R.getGeometry base
+            stateBox <- liftIO $ R.getPopupGeometry base
+
+            let popX = boxX popBox
+            let popY = boxY popBox
+
+            let stateX = boxX stateBox
+            let stateY = boxY stateBox
+
+            let x = parentX + stateX - popX
+            let y = parentY + stateY - popY
+
+            pure $ Point x y
 
     let signals = R.getXdgSurfaceEvents base
-    handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view
-    setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ (const . liftIO $ removeListener handler)
+    doJust (liftIO $ R.xdgSurfaceGetSurface base) $ \popSurf -> do
+        viewAddSurf view (R.xdgSurfaceEvtDestroy signals) getPos popSurf
+
+    handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
+    setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \_ -> do
+        liftIO $ removeListener handler
 
 
 handleXdgSurface
@@ -163,7 +181,10 @@ handleXdgSurface ref surf = do
             R.setMaximized surf True
 
         let signals = R.getXdgSurfaceEvents surf
-        handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view
+        let getPos = do
+                WlrBox x y _ _ <- liftIO $ R.getGeometry surf
+                pure $ Point x y
+        handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
             liftIO $ removeListener handler
             handleXdgDestroy ref surfPtr

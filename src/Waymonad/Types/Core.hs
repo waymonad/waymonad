@@ -32,6 +32,7 @@ import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 import Waymonad.Input.Cursor.Type
 
+import Graphics.Pixman
 import Graphics.Wayland.Signal (ListenerToken)
 import Graphics.Wayland.WlRoots.Box (WlrBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
@@ -74,7 +75,7 @@ class Typeable a => ShellSurface a where
 data ManagerData = ManagerData
     { managerRemove      :: View -> IO ()
     , managerFocus       :: Seat -> View -> IO ()
-    , managerApplyDamage :: View -> IO ()
+    , managerApplyDamage :: View -> PixmanRegion32 -> IO ()
     }
 
 data View = forall a. ShellSurface a => View

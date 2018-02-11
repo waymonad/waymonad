@@ -83,7 +83,7 @@ reLayout ws = do
 
     boxes <- getLayoutBoxes ws
     forM_ boxes $ \(out, _) ->
-        outApplyDamage out (WlrBox 0 0 0 0)
+        outApplyDamage out Nothing
 
     forM_ boxes $ \(out, box) -> do
         let layout = getLayouted wstate ws box

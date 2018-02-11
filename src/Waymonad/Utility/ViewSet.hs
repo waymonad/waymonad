@@ -187,7 +187,7 @@ makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData
 makeManager = do
     focus <- makeCallback2 setViewsetFocus
     remove <- makeCallback removeCB
-    applyDamage <- makeCallback $ applyLayerDamage "main"
+    applyDamage <- makeCallback2 $ applyLayerDamage "main"
     pure $ ManagerData remove focus applyDamage
 
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
