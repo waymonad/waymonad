@@ -79,8 +79,6 @@ viewBelow point output = do
                             pure $ find (\(v, _, _) -> v == focused) candidates <|> listToMaybe candidates
     runMaybeT (foldr1 (<|>) ret)
 
-
--- TODO: Should this be pre or post layouting? :|
 -- | Get the position of the given View on the provided Output.
 getViewPosition :: View -> Output -> Way vs ws (Maybe WlrBox)
 getViewPosition view Output {outputLayout = layers} = do

@@ -308,7 +308,7 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
     when (enabled && needsSwap) $ do
         comp <- wayCompositor <$> getState
         renderOn output (compRenderer comp) $ \age -> do
-            let withDRegion = \act -> if age < 0 || age > 3
+            let withDRegion = \act -> if age < 0 || age > 1
                 then withRegion $ \region -> do
                         w <- fromIntegral <$> getWidth output
                         h <- fromIntegral <$> getHeight output

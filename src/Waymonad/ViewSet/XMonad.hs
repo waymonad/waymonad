@@ -150,8 +150,6 @@ addView seat v (Workspace l z) = Workspace l $ addElem seat v z
 rmView :: View -> Workspace a -> Workspace a
 rmView v (Workspace l z) = Workspace l $ rmElem v z
 
-
--- TODO: Refactor :(
 setFocused' :: (Ord a, Eq b) => a -> b -> Zipper a b -> Zipper a b
 setFocused' t v (Zipper xs) =
     Zipper $ map update xs
