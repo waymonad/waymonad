@@ -324,7 +324,8 @@ renderChildren fun surf = do
 
     forM_ children $ \child -> do
         override <- liftIO $ X.x11SurfaceOverrideRedirect child
-        when override $ do
+        mapped <- liftIO $ X.isX11Mapped child
+        when (override && mapped) $ do
             WlrBox cx cy cw ch <- liftIO $ X.getX11SurfaceGeometry child
             doJust (liftIO $ X.xwaySurfaceGetSurface child) $ \wlrSurf ->
                 fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)
