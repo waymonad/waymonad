@@ -261,6 +261,8 @@ outputHandleView comp secs output d (view, prio, obox) = doJust (getViewSurface 
     scale <- liftIO $ viewGetScale view
     local <- liftIO $ viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
+    -- TODO: Limit to damaged areas
+    liftIO $ scissorOutput (compRenderer comp) output obox
     renderDeco hasCSD prio output obox box
     liftIO $ outputHandleSurface comp secs output d surface scale lBox
     pure $ renderViewAdditional (\v b ->

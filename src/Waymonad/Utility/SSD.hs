@@ -21,11 +21,12 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Utility.SSD
 where
 
+import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.Set (Set)
 import Foreign.Ptr
 
-import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), scaleBox)
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Render (renderColoredQuad)
@@ -60,16 +61,21 @@ renderDeco False (SuggestedSSD SSD {ssdDraw = fun}) = fun
 renderDeco _    _ = \_ _ _ -> pure ()
 
 simpleQuad :: Way vs ws Color -> Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
-simpleQuad getCol out (WlrBox x y w h) _ = do
+simpleQuad getCol out (WlrBox ox oy ow oh) (WlrBox ix iy iw ih) = do
     Compositor {compRenderer = renderer} <- wayCompositor <$> getState
     color <- getCol
     liftIO $ withMatrix $ \mat -> do
         scale <- getOutputScale out
         let multi z = floor $ fromIntegral z * scale
-            box = WlrBox (multi x) (multi y) (multi w) (multi h)
+            top    = flip scaleBox scale $ WlrBox ox oy        ow        (iy - oy)
+            bottom = flip scaleBox scale $ WlrBox ox (iy + ih) ow        ((oy + oh) - (iy + ih))
+            left   = flip scaleBox scale $ WlrBox ox iy        (ix - ox) ih
+            right  = flip scaleBox scale $ WlrBox (ix + iw) iy ((ox + ow) - (ix + iw)) ih
+
         transform <- getOutputTransform out
-        matrixProjectBox mat box transform 0 $ getTransMatrix out
-        renderColoredQuad renderer color mat
+        forM_ [top, bottom, left, right] $ \box -> do
+            matrixProjectBox mat box transform 0 $ getTransMatrix out
+            renderColoredQuad renderer color mat
 
 
 
