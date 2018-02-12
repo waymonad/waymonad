@@ -117,10 +117,8 @@ setMultiInactive slave =
                 writeIORef ref Nothing
                 setMasterSize multi
 
-makeMulti'
-    :: View
-    -> (View -> IO ())
-    -> IO (MultiView a)
+makeMulti' :: View
+           -> (View -> IO ()) -> IO (MultiView a)
 makeMulti' view delFun = MultiView
         view
     <$> newIORef mempty
@@ -130,10 +128,8 @@ makeMulti' view delFun = MultiView
     <*> newIORef mempty
     <*> pure delFun
 
-makeMulti
-    :: (FocusCore vs a, WSTag a)
-    => View
-    -> Way vs a (MultiView a)
+makeMulti :: (FocusCore vs a, WSTag a)
+          => View -> Way vs a (MultiView a)
 makeMulti view = do
     removeView view
     delFun <- makeCallback removeView

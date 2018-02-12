@@ -52,12 +52,16 @@ import Foreign.StablePtr
 import Foreign.Storable (Storable(..))
 import System.IO
 
+import Graphics.Pixman (withBoxRegion)
+
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (removeListener, ListenerToken)
 import Graphics.Wayland.WlRoots.Box (Point(..), WlrBox(..), boxContainsPoint)
 import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, WlrSurfaceEvents (..), getWlrSurfaceEvents)
-
+import Graphics.Wayland.WlRoots.Surface
+    (WlrSurface, WlrSurfaceEvents (..)
+    , getWlrSurfaceEvents
+    )
 import Waymonad.Input.Seat
 import Waymonad.Managehook
 import Waymonad.Utility.Base
@@ -77,6 +81,8 @@ import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Graphics.Wayland.WlRoots.XWayland as X
+
+import Debug.Trace
 
 data XWayRef vs ws = XWayRef
     (IORef (Maybe XWayShell))
@@ -140,7 +146,6 @@ data XWaySurface = XWaySurface
     { _surfXWay :: Ptr X.XWayland
     , unXway :: Ptr X.X11Surface
     }
-
 
 
 xwayShellCreate :: (FocusCore vs a, WSTag a)
@@ -213,15 +218,26 @@ getAncesterPos viewSurf current = if viewSurf == current
         WlrBox cx cy _ _ <- liftIO $ X.getX11SurfaceGeometry current
         pure $ Point (x + cx) (y + cy)
 
+handleChildMap :: View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
+handleChildMap view viewSurf surf = liftIO $ do
+    Point x y <- getAncesterPos viewSurf surf
+    WlrBox _ _ w h <- X.getX11SurfaceGeometry surf
+    withBoxRegion (traceShowId (WlrBox x y w h)) $ doApplyDamage view
+
 handleAddChild :: View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
-handleAddChild view viewSurf surf =
+handleAddChild view viewSurf surf = do
+    let signals = X.getX11SurfaceEvents surf
     doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \mainSurf -> do
-        let signals = X.getX11SurfaceEvents surf
         viewAddSurf
             view
             (X.x11SurfaceEvtDestroy signals)
             (getAncesterPos viewSurf surf)
             mainSurf
+
+    unMapH <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ handleChildMap view viewSurf
+    mapH <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleChildMap view viewSurf
+
+    setDestroyHandler (X.x11SurfaceEvtDestroy signals) (liftIO . const (removeListener unMapH >> removeListener mapH))
 
 getAncestorView :: Ptr X.X11Surface -> IntMap View -> IO (Maybe (Ptr X.X11Surface, View))
 getAncestorView surf surfMap = case M.lookup (ptrToInt surf) surfMap of
