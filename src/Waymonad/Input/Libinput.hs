@@ -31,6 +31,8 @@ import System.InputDevice
 
 import Waymonad.Utility.Base (showT, readT)
 
+import qualified Data.Text as T
+
 data LibinputOption = LibinputOption
     { optionName    :: Text
     , optionGet     :: InputDevice -> IO Text
@@ -39,6 +41,10 @@ data LibinputOption = LibinputOption
     , optionExists  :: InputDevice -> IO Bool
     , optionValids  :: Maybe (InputDevice -> IO Text)
     }
+
+instance Show LibinputOption where
+    show LibinputOption { optionName = name } = T.unpack $
+        "LibinputOption (" `T.append` name `T.append` ")"
 
 libinputOptions :: [LibinputOption]
 libinputOptions =

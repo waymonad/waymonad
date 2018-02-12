@@ -46,24 +46,28 @@ import Waymonad.Main (WayUserConf (..))
 
 import Config.Output
 import Config.Logger
+import Config.Input
 
 import qualified Data.Map as M
 
 data WayConfig = WayConfig
     { configOutputs :: Map Text OutputConfig
+    , configInputs :: Map Text InputConfig
     , configLoggers :: Maybe WayLoggers
-    } deriving (Eq, Show)
+    } deriving (Show)
 
 
 waySpec :: ValueSpecs WayConfig
 waySpec = sectionsSpec "waymonad" $ do
     outputs <- optSection "outputs" "List of output configs to be applied when an output is loaded"
+    inputs <- optSection "inputs" "List of input configurations"
     loggers <- optSection "loggers" "Priority settings for all the loggers"
 
 
     pure WayConfig
         { configOutputs = M.fromList $ map (\x -> (outName x, x)) $ fromMaybe [] outputs
         , configLoggers = loggers
+        , configInputs  = M.fromList $ map (\x -> (inputCName x, x)) $ fromMaybe [] inputs
         }
 
 instance Spec WayConfig where
@@ -75,6 +79,7 @@ printConfigInfo = print (generateDocs waySpec)
 emptyConfig :: WayConfig
 emptyConfig = WayConfig
     { configOutputs = mempty
+    , configInputs  = mempty
     , configLoggers = Nothing
     }
 
