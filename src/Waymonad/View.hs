@@ -324,7 +324,8 @@ getLocalBox inner outer =
 -- position it somewhere inside the configured box, because it is *smaller*
 -- than the intended area
 setViewLocal :: MonadIO m => View -> WlrBox -> m ()
-setViewLocal View {viewBox = global, viewPosition = local, viewScaling = scaleRef} box = liftIO $ do
+setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef} box = liftIO $ do
+    before <- readIORef local
     outerBox <- readIORef global
     if toOrigin outerBox == box
         then do
@@ -334,6 +335,13 @@ setViewLocal View {viewBox = global, viewPosition = local, viewScaling = scaleRe
             let (inner, scale) = getLocalBox box outerBox
             writeIORef local (centerBox inner $ toOrigin outerBox)
             writeIORef scaleRef scale
+
+    after <- readIORef local
+    when (before /= after) $ do
+        withBoxRegion before $ \bRegion ->
+            withBoxRegion after  $ \aRegion -> do
+                pixmanRegionUnion aRegion bRegion
+                doApplyDamage v aRegion
 
 viewGetScale :: MonadIO m => View -> m Float
 viewGetScale View {viewScaling = scale} = liftIO $ readIORef scale
