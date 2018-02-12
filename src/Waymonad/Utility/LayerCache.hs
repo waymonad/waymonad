@@ -34,25 +34,30 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Graphics.Wayland.WlRoots.Output (getOutputScale)
 
 import Waymonad.Output (outApplyDamage)
+import Waymonad.View (viewHasCSD)
 import Waymonad.Types (SSDPrio, Output (..), Way)
 import Waymonad.Types.Core (View)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Mapping (getOutputs)
 import Waymonad.View (getViewSurfScale)
+import Waymonad.Utility.SSD
 
 import qualified Data.Map as M
 
-getViewPosition :: View -> [(View, SSDPrio, WlrBox)] -> [WlrBox]
-getViewPosition view xs =
+getViewPosition :: MonadIO m => View -> [(View, SSDPrio, WlrBox)] -> m [WlrBox]
+getViewPosition view xs = do
     let ret = filter (\(v, _, _) -> view == v) xs
-     in fmap (\(_, _, b) -> b) ret
+    mapM (\(v, p, b) -> do
+            hasCSD <- liftIO $ viewHasCSD v
+            pure $ getDecoBox hasCSD p b
+         ) ret
 
 getViewBoxInLayer :: MonadIO m
                   => Output -> View -> Text -> m ([WlrBox])
 getViewBoxInLayer Output {outputLayers = layers} view layer = liftIO $ do
     case M.lookup layer layers of
         Nothing -> pure []
-        Just ref -> getViewPosition view <$> readIORef ref
+        Just ref -> getViewPosition view =<< readIORef ref
 
 applyLayerDamage :: Text -> View -> PixmanRegion32-> Way vs ws ()
 applyLayerDamage layer view orig = do
