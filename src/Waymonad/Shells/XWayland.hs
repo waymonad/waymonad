@@ -82,8 +82,6 @@ import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Graphics.Wayland.WlRoots.XWayland as X
 
-import Debug.Trace
-
 data XWayRef vs ws = XWayRef
     (IORef (Maybe XWayShell))
     (Way vs ws ())
@@ -206,36 +204,44 @@ handleOverrideCommit view surf _ = do
     WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
     resizeView view (fromIntegral w) (fromIntegral h)
 
-getAncesterPos :: Ptr X.X11Surface -> Ptr X.X11Surface -> IO Point
-getAncesterPos viewSurf current = if viewSurf == current
-    then pure $ Point 0 0
+getAncestorPos :: Ptr X.X11Surface -> Ptr X.X11Surface -> IO Point
+getAncestorPos viewSurf current = if viewSurf == current
+    then do
+        WlrBox x y _ _ <- X.getX11SurfaceGeometry current
+        pure $ Point x y
     else do
         parent <- X.getX11ParentSurfrace current
-        Point x y <- case parent of
-            Nothing -> pure $ Point 0 0
-            Just x -> getAncesterPos viewSurf x
+        case parent of
+            Nothing -> do
+                WlrBox x y _ _ <- X.getX11SurfaceGeometry current
+                pure $ Point x y
+            Just x -> getAncestorPos viewSurf x
 
-        WlrBox cx cy _ _ <- liftIO $ X.getX11SurfaceGeometry current
-        pure $ Point (x + cx) (y + cy)
+handleChildMap :: Bool -> View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
+handleChildMap addSurf view viewSurf surf = liftIO $ if addSurf
+    then doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \mainSurf -> do
+        viewAddSurf
+            view
+            (wlrSurfaceEvtDestroy $ getWlrSurfaceEvents mainSurf)
+            (do
+                WlrBox x y _ _ <- X.getX11SurfaceGeometry viewSurf
+                WlrBox cx cy _ _ <- X.getX11SurfaceGeometry surf
+                pure $ Point (cx - x) (cy - y)
+            )
+            mainSurf
+    else do
+        Point x y <- getAncestorPos viewSurf surf
+        WlrBox cx cy w h <- X.getX11SurfaceGeometry surf
+        withBoxRegion (WlrBox (cx - x) (cy - y) w h) $ doApplyDamage view
 
-handleChildMap :: View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
-handleChildMap view viewSurf surf = liftIO $ do
-    Point x y <- getAncesterPos viewSurf surf
-    WlrBox _ _ w h <- X.getX11SurfaceGeometry surf
-    withBoxRegion (traceShowId (WlrBox x y w h)) $ doApplyDamage view
 
 handleAddChild :: View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
 handleAddChild view viewSurf surf = do
     let signals = X.getX11SurfaceEvents surf
-    doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \mainSurf -> do
-        viewAddSurf
-            view
-            (X.x11SurfaceEvtDestroy signals)
-            (getAncesterPos viewSurf surf)
-            mainSurf
+    handleChildMap True view viewSurf surf
 
-    unMapH <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ handleChildMap view viewSurf
-    mapH <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleChildMap view viewSurf
+    unMapH <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ handleChildMap False view viewSurf
+    mapH <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleChildMap True view viewSurf
 
     setDestroyHandler (X.x11SurfaceEvtDestroy signals) (liftIO . const (removeListener unMapH >> removeListener mapH))
 
