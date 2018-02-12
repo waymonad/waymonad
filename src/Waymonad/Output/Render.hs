@@ -14,7 +14,7 @@ import Graphics.Pixman
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxTransform, scaleBox)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput, getOutputDamage , isOutputEnabled, getOutputNeedsSwap
-    , getHeight, getWidth, invertOutputTransform, getOutputTransform
+    , invertOutputTransform, getOutputTransform
     , outputTransformedResolution, composeOutputTransform, getTransMatrix
       , swapOutputBuffers, getOutputScale, makeOutputCurrent
     )
@@ -156,8 +156,7 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
         renderOn output (compRenderer comp) $ \age -> do
             let withDRegion = \act -> if age < 0 || age > 1
                 then withRegion $ \region -> do
-                        w <- fromIntegral <$> getWidth output
-                        h <- fromIntegral <$> getHeight output
+                        Point w h <- outputTransformedResolution output
                         resetRegion region . Just $ WlrBox 0 0 w h
                         act region
                 else withRegionCopy (outputDamage out) $ \region -> do
@@ -192,8 +191,7 @@ fieteHandler secs Output {outputRoots = output, outputLayout = layers} = do
         comp <- wayCompositor <$> getState
         renderOn output (compRenderer comp) $ \_ -> do
             let withDRegion act = withRegion $ \region -> do
-                        w <- fromIntegral <$> getWidth output
-                        h <- fromIntegral <$> getHeight output
+                        Point w h <- outputTransformedResolution output
                         resetRegion region . Just $ WlrBox 0 0 w h
                         act region
 
