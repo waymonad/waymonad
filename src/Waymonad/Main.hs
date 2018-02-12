@@ -47,7 +47,7 @@ import Graphics.Wayland.WlRoots.Render.Color (Color)
 import Text.XkbCommon.InternalTypes (Keysym(..))
 
 import Waymonad.Input (inputCreate)
-import Waymonad.Output (Output, handleOutputAdd, handleOutputRemove)
+import Waymonad.Output (Output, handleOutputAdd, handleOutputAdd', handleOutputRemove)
 import Waymonad.Start
 import Waymonad.ViewSet
 import Waymonad (makeCallback)
@@ -89,28 +89,30 @@ makeCompositor inputAdd display backend = do
 -- This takes all hooks and common config options as arguments to allow easy
 -- access to the compositor functionality.
 data WayUserConf vs ws = WayUserConf
-    { wayUserConfWorkspaces  :: [ws] -- ^List of workspaces. Used mainly for IPC
-    , wayUserConfLayouts     :: vs -- ^The initial ViewSet
-    , wayUserConfManagehook  :: Managehook vs ws -- ^The Managehook. This is called when a new window is created and has to be managed. Can be used to override the destination.
-    , wayUserConfEventHook   :: SomeEvent -> Way vs ws () -- ^Dynamic events emitted by a non-core component.
-    , wayUserConfKeybinds    :: [(([WlrModifier], Keysym), KeyBinding vs ws)] -- ^Keybinds attached to every keyboard
+    { wayUserConfWorkspaces    :: [ws] -- ^List of workspaces. Used mainly for IPC
+    , wayUserConfLayouts       :: vs -- ^The initial ViewSet
+    , wayUserConfManagehook    :: Managehook vs ws -- ^The Managehook. This is called when a new window is created and has to be managed. Can be used to override the destination.
+    , wayUserConfEventHook     :: SomeEvent -> Way vs ws () -- ^Dynamic events emitted by a non-core component.
+    , wayUserConfKeybinds      :: [(([WlrModifier], Keysym), KeyBinding vs ws)] -- ^Keybinds attached to every keyboard
 
-    , wayUserConfOutputAdd   :: Output -> Way vs ws () -- ^Called everytime an output is added. This should set mode and add to layout if that's wanted.
-    , wayUserConfInputAdd    :: Ptr InputDevice -> Way vs ws () -- ^Called verytime an input device is added. This should do any configuration required and attach it to a seat.
-    , wayUserConfDisplayHook :: [Bracketed vs DisplayServer ws] -- ^Early hooks that require the wl_display/DisplayServer to function. Some things in the Way monad may still be undefined
-    , wayUserConfBackendHook :: [Bracketed vs (DisplayServer, Ptr Backend) ws] -- ^Hooks that require the backend for setup. Will have full Way state available.
-    , wayUserConfPostHook    :: [Bracketed vs () ws] -- ^Hooks that run after the backend is started. Full Way monad available, and outputs/inputdevices should exist already.
-    , wayUserConfCoreHooks   :: WayHooks vs ws -- ^The core events that will be emitted during the runtime of the compositor.
-    , wayUserConfShells      :: [IO (WayShell vs ws)] -- ^The shells that should be available. Will be registered and enabled on startup.
-    , wayUserConfLog         :: Way vs ws () -- ^The log-function. This can be used to feed a statusbar or similar applications
-    , wayUserconfLoggers     :: Maybe WayLoggers
-    , wayUserconfColor       :: Color
-    , wayUserconfColors      :: Map Text Color
+    , wayUserConfOutputAdd     :: Output -> Way vs ws () -- ^Called everytime an output is added. This should set mode and add to layout if that's wanted.
+    , wayUserConfInputAdd      :: Ptr InputDevice -> Way vs ws () -- ^Called verytime an input device is added. This should do any configuration required and attach it to a seat.
+    , wayUserConfDisplayHook   :: [Bracketed vs DisplayServer ws] -- ^Early hooks that require the wl_display/DisplayServer to function. Some things in the Way monad may still be undefined
+    , wayUserConfBackendHook   :: [Bracketed vs (DisplayServer, Ptr Backend) ws] -- ^Hooks that require the backend for setup. Will have full Way state available.
+    , wayUserConfPostHook      :: [Bracketed vs () ws] -- ^Hooks that run after the backend is started. Full Way monad available, and outputs/inputdevices should exist already.
+    , wayUserConfCoreHooks     :: WayHooks vs ws -- ^The core events that will be emitted during the runtime of the compositor.
+    , wayUserConfShells        :: [IO (WayShell vs ws)] -- ^The shells that should be available. Will be registered and enabled on startup.
+    , wayUserConfLog           :: Way vs ws () -- ^The log-function. This can be used to feed a statusbar or similar applications
+    , wayUserconfLoggers       :: Maybe WayLoggers
+    , wayUserconfColor         :: Color
+    , wayUserconfColors        :: Map Text Color
+    , wayUserconfFramerHandler :: Maybe (Double -> Output -> Way vs ws ())
     }
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
 wayUserRealMain conf compRef = do
-    outputAdd <- makeCallback $ handleOutputAdd $ wayUserConfOutputAdd conf
+    let outHook = maybe handleOutputAdd handleOutputAdd' $ wayUserconfFramerHandler conf
+    outputAdd <- makeCallback $ outHook $ wayUserConfOutputAdd conf
     outputRm  <- makeCallback handleOutputRemove
 
     compFun <- pure $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor (wayUserConfInputAdd conf) display backend

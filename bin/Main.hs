@@ -183,6 +183,7 @@ myConf modi = WayUserConf
     , wayUserconfLoggers = Nothing
     , wayUserconfColor = Color 0.5 0 0 1
     , wayUserconfColors = mempty
+    , wayUserconfFramerHandler = Nothing
     }
 
 main :: IO ()
