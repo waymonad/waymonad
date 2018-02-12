@@ -54,6 +54,7 @@ library
   -- Modules included in this executable, other than Main.
   exposed-modules:        Config
   exposed-modules:        Config.Box
+  exposed-modules:        Config.Input
   exposed-modules:        Config.Output
   exposed-modules:        Config.Logger
 
