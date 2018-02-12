@@ -8,17 +8,7 @@ import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
 import Graphics.Wayland.Server
-    ( OutputTransform
-    , outputTransformNormal
-    , outputTransform180
-    , outputTransform90
-    , outputTransform270
-    , outputTransformFlipped
-    , outputTransformFlipped_180
-    , outputTransformFlipped_90
-    , outputTransformFlipped_270
-    , callbackDone
-    )
+    ( outputTransformFlipped_180, callbackDone)
 
 import Graphics.Pixman
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxTransform, scaleBox)
@@ -82,8 +72,8 @@ outputHandleSurface comp secs output damage surface scaleFactor box = do
                     resetRegion region . Just $ scaleBox box outputScale
                     pixmanRegionIntersect region damage
                     boxes <- pixmanRegionBoxes region
-                    forM_ boxes $ \box -> do
-                        scissorOutput (compRenderer comp) output $ boxToWlrBox box
+                    forM_ boxes $ \pbox -> do
+                        scissorOutput (compRenderer comp) output $ boxToWlrBox pbox
                         renderWithMatrix (compRenderer comp) texture mat
 
             callbacks <- surfaceGetCallbacks =<< getCurrentState surface
@@ -193,3 +183,21 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
                     copyRegion b2 $ outputDamage out
                     pixmanRegionUnion b2 (getOutputDamage output)
                     resetRegion (outputDamage out) Nothing
+
+fieteHandler :: WSTag a => Double -> Output -> Way vs a ()
+fieteHandler secs Output {outputRoots = output, outputLayout = layers} = do
+    enabled <- liftIO $ isOutputEnabled output
+    needsSwap <- liftIO $ getOutputNeedsSwap output
+    when (enabled && needsSwap) $ do
+        comp <- wayCompositor <$> getState
+        renderOn output (compRenderer comp) $ \_ -> do
+            let withDRegion act = withRegion $ \region -> do
+                        w <- fromIntegral <$> getWidth output
+                        h <- fromIntegral <$> getHeight output
+                        resetRegion region . Just $ WlrBox 0 0 w h
+                        act region
+
+            renderBody <- makeCallback $ handleLayers comp secs output layers
+            liftIO $ withDRegion $ \region -> do
+                liftIO $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+                renderBody region
