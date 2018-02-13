@@ -56,3 +56,7 @@ This currently only builds with the `new-build` feature of cabal-install. `stack
 * based on the compositor library [wlroots](https://github.com/SirCmpwn/wlroots)
 
 
+# The fabulous logo:
+![Logo](https://i.imgur.com/C15aEKd.png)
+
+Please make a better one <3
