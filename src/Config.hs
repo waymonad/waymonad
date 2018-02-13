@@ -41,8 +41,9 @@ import System.Environment.XDG.BaseDir (getUserConfigFile)
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isDoesNotExistError)
 
-import Waymonad.Types.Logger (WayLoggers)
 import Waymonad.Main (WayUserConf (..))
+import Waymonad.Types.Logger (WayLoggers)
+import Waymonad.ViewSet (FocusCore, WSTag)
 
 import Config.Output
 import Config.Logger
@@ -52,7 +53,7 @@ import qualified Data.Map as M
 
 data WayConfig = WayConfig
     { configOutputs :: Map Text OutputConfig
-    , configInputs :: Map Text InputConfig
+    , configInputs  :: [InputConfig]
     , configLoggers :: Maybe WayLoggers
     } deriving (Show)
 
@@ -67,7 +68,7 @@ waySpec = sectionsSpec "waymonad" $ do
     pure WayConfig
         { configOutputs = M.fromList $ map (\x -> (outName x, x)) $ fromMaybe [] outputs
         , configLoggers = loggers
-        , configInputs  = M.fromList $ map (\x -> (inputCName x, x)) $ fromMaybe [] inputs
+        , configInputs  = fromMaybe [] inputs
         }
 
 instance Spec WayConfig where
@@ -97,7 +98,8 @@ loadConfig = liftIO $ do
 
     liftIO $ catches (Right <$> loadValueFromFile waySpec path) [ioHandler, schemaHandler, parseHandler]
 
-modifyConfig :: WayConfig -> WayUserConf ws vs -> WayUserConf ws vs
-modifyConfig WayConfig {configOutputs = outputs, configLoggers = loggers} =
-    modifyLoggerConfig loggers .
-    modifyOutputConfig outputs
+modifyConfig :: (FocusCore vs ws, WSTag ws) => WayConfig -> WayUserConf vs ws -> WayUserConf vs ws
+modifyConfig config =
+    modifyLoggerConfig (configLoggers config) .
+    modifyOutputConfig (configOutputs config) .
+    modifyInputConfig  (configInputs  config)

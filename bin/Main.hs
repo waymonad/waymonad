@@ -195,4 +195,5 @@ main = do
         Left err -> do
             hPutStrLn stderr "Couldn't load config:"
             hPutStrLn stderr err
+            printConfigInfo
         Right conf -> wayUserMain $ modifyConfig conf (myConf modi)

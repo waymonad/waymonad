@@ -2,18 +2,37 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 module Config.Input
+    ( InputConfig (inputCName)
+    , modifyInputConfig
+    )
 where
 
 import Config.Schema
-import Data.Traversable (for)
-import Data.Maybe (catMaybes)
-
+import Control.Monad.IO.Class (liftIO)
+import Data.List (find)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Text (Text)
+import Data.Traversable (for)
+import Foreign.Ptr (Ptr)
+import Waymonad.Input (attachDevice)
+
+import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
+import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName)
+
+import Waymonad.Main (WayUserConf (..))
+import Waymonad.Types (Way)
+import Waymonad.Utility.Base (doJust)
+import Waymonad.ViewSet (FocusCore, WSTag)
 
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Waymonad.Input.Libinput as LI
 
-newtype LIOptions = LIOptions [(LI.LibinputOption, Text)] deriving (Show)
+import qualified System.InputDevice as LI
+
+import System.IO (stderr, hPutStr)
+
+newtype LIOptions = LIOptions { unLIO :: [(LI.LibinputOption, Text)] } deriving (Show)
 
 data InputConfig = InputConfig
     { inputCName    :: Text
@@ -34,7 +53,37 @@ instance Spec InputConfig where
     valuesSpec = sectionsSpec "input" $ do
         name  <- reqSection "name"  "Name of the device"
         seat <- optSection "seat" "Seat this device should be assigned to"
-        options <- reqSection "options" "The options that should be set"
+        options <- fromMaybe (LIOptions []) <$> optSection "options" "The options that should be set"
 
         pure $ InputConfig name options seat
 
+applyOption :: LI.InputDevice -> LI.LibinputOption -> Text -> Way vs ws ()
+applyOption device opt val = do
+    ret <- liftIO $ LI.optionSet opt device val
+    case ret of
+        Nothing -> pure ()
+        Just err -> liftIO $ do
+            hPutStr stderr "Error while setting libinput option ("
+            T.hPutStr stderr $ LI.optionName opt
+            hPutStr stderr "): "
+            T.hPutStrLn stderr err
+
+configureInput :: (FocusCore vs ws, WSTag ws) => InputConfig -> Ptr InputDevice -> Way vs ws ()
+configureInput conf device = do
+    let seat = fromMaybe "seat0" $ inputCSeat conf
+
+    doJust (liftIO $ getDeviceHandle device) $ \dev ->
+        mapM_ (uncurry $ applyOption dev) . unLIO $ inputCOptions conf
+
+    attachDevice device seat
+
+prependConfig :: (FocusCore vs ws, WSTag ws) => [InputConfig] -> (Ptr InputDevice -> Way vs ws ()) -> (Ptr InputDevice -> Way vs ws ())
+prependConfig configs others input = do
+    name <- liftIO $ getDeviceName input
+    case find (flip T.isPrefixOf name . inputCName) configs of
+        Just config -> configureInput config input
+        Nothing -> others input
+
+modifyInputConfig :: (FocusCore vs ws, WSTag ws) => [InputConfig] -> WayUserConf vs ws -> WayUserConf vs ws
+modifyInputConfig m conf =
+    conf { wayUserConfInputAdd = prependConfig m $ wayUserConfInputAdd conf }
