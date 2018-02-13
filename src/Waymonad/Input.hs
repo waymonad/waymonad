@@ -46,6 +46,7 @@ import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
     , DeviceType(..)
+    , getDestroySignal
     )
 import Graphics.Wayland.WlRoots.Backend.Headless (inputDeviceIsHeadless)
 import Graphics.Wayland.WlRoots.Backend.Libinput (getDeviceHandle)
@@ -250,6 +251,7 @@ handleInputAdd devRef userFun ptr = do
     isHeadless <- liftIO $ inputDeviceIsHeadless ptr
     unless isHeadless $ do
         liftIO $ modifyIORef devRef (S.insert ptr)
+        setDestroyHandler (getDestroySignal ptr) $ handleInputRemove devRef
         userFun ptr
 
 
@@ -288,11 +290,10 @@ inputCreate backend userFun = do
     mapRef <- liftIO $ newIORef mempty
 
     let signals = backendGetSignals backend
-    aTok <- setSignalHandler (inputAdd signals) $ handleInputAdd devRef userFun
-    rTok <- setSignalHandler (inputRemove signals) $ handleInputRemove devRef
+    aTok <- setSignalHandler (backendEvtInput signals) $ handleInputAdd devRef userFun
 
     pure Input
         { inputDevices = devRef
         , inputFooMap = mapRef
-        , inputAddToken = [aTok, rTok]
+        , inputAddToken = [aTok]
         }

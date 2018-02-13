@@ -137,7 +137,7 @@ import Waymonad (makeCallback2)
 import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), Output (..))
 import Waymonad.Utility.Signal
 import Waymonad.Input.Seat (Seat(seatLoadScale))
-import Waymonad.Start (FrameHandler)
+import Waymonad.Start (attachFrame)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Output.Render (frameHandler)
 import Waymonad.ViewSet (WSTag (..), FocusCore)
@@ -176,7 +176,7 @@ handleOutputAdd' :: (WSTag ws, FocusCore vs ws)
                  => (Double -> Output -> Way vs ws ())
                  -> (Output -> Way vs ws ())
                  -> Ptr WlrOutput
-                 -> Way vs ws FrameHandler
+                 -> Way vs ws ()
 handleOutputAdd' handler hook output = do
     name <- liftIO $ getOutputName output
 
@@ -200,15 +200,20 @@ handleOutputAdd' handler hook output = do
     transformH <- setSignalHandler (outSignalTransform signals) (const $ layoutOutput out)
     needsSwapH <- setSignalHandler (outSignalNeedsSwap signals) (const . liftIO $ scheduleOutputFrame (outputRoots out))
 
-    setDestroyHandler (outSignalDestroy signals) (const $ liftIO $ mapM_ removeListener [modeH, scaleH, transformH, needsSwapH])
-
     hook out
-    makeCallback2 (\t _ ->  handler t out)
+
+    frameCB <- makeCallback2 (\t _ ->  handler t out)
+    frameH <- liftIO $ attachFrame frameCB output
+
+    setDestroyHandler (outSignalDestroy signals) (\dout -> do
+        liftIO $ mapM_ removeListener [modeH, scaleH, transformH, needsSwapH, frameH]
+        handleOutputRemove dout
+                                                 )
 
 handleOutputAdd :: (WSTag ws, FocusCore vs ws)
                 => (Output -> Way vs ws ())
                 -> Ptr WlrOutput
-                -> Way vs ws FrameHandler
+                -> Way vs ws ()
 handleOutputAdd = handleOutputAdd' frameHandler
 
 handleOutputRemove

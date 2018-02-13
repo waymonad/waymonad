@@ -105,7 +105,7 @@ idleSetup msecs dsp backend = do
     src <- liftIO $ eventLoopAddTimer evtLoop (cb >> pure False)
 
     let signals = backendGetSignals backend
-    setSignalHandler (inputAdd signals) $ handleInputAdd (gotInput src msecs)
+    setSignalHandler (backendEvtInput signals) $ handleInputAdd (gotInput src msecs)
 
 getIdleBracket :: Int -> Bracketed vs (DisplayServer, Ptr Backend) a
 getIdleBracket msecs = Bracketed (uncurry (idleSetup msecs)) (const $ pure ())

@@ -47,7 +47,7 @@ import Graphics.Wayland.WlRoots.Render.Color (Color)
 import Text.XkbCommon.InternalTypes (Keysym(..))
 
 import Waymonad.Input (inputCreate)
-import Waymonad.Output (Output, handleOutputAdd, handleOutputAdd', handleOutputRemove)
+import Waymonad.Output (Output, handleOutputAdd, handleOutputAdd')
 import Waymonad.Start
 import Waymonad.ViewSet
 import Waymonad (makeCallback)
@@ -113,7 +113,6 @@ wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compos
 wayUserRealMain conf compRef = do
     let outHook = maybe handleOutputAdd handleOutputAdd' $ wayUserconfFramerHandler conf
     outputAdd <- makeCallback $ outHook $ wayUserConfOutputAdd conf
-    outputRm  <- makeCallback handleOutputRemove
 
     compFun <- pure $ \(display, backend) -> liftIO . writeIORef compRef =<<  makeCompositor (wayUserConfInputAdd conf) display backend
 
@@ -123,7 +122,6 @@ wayUserRealMain conf compRef = do
         , backendPostHook  = wayUserConfPostHook conf
 
         , outputAddHook    = outputAdd
-        , outputRemoveHook = outputRm
         }
 
 -- |The intended entry point to the compositor. This will create the Way monad

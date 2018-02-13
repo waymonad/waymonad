@@ -29,6 +29,7 @@ module Waymonad.Start
     , ignoreHooks
     , FrameHandler
     , Bracketed (..)
+    , attachFrame
     )
 where
 
@@ -83,6 +84,7 @@ import Graphics.Wayland.Signal
     ( addListener
     , WlListener (..)
     , removeListener
+    , ListenerToken
     )
 
 data Bracketed vs a b
@@ -108,9 +110,8 @@ data CompHooks vs a = CompHooks
     , backendPreHook :: [Bracketed vs (DisplayServer, Ptr Backend) a]
     , backendPostHook :: [Bracketed vs () a]
 
-    , outputAddHook :: Ptr WlrOutput -> IO FrameHandler
+    , outputAddHook :: Ptr WlrOutput -> IO ()
     , keyPressHook :: Keysym -> Direction -> IO ()
-    , outputRemoveHook :: Ptr WlrOutput -> IO ()
     }
 
 
@@ -119,22 +120,20 @@ ignoreHooks = CompHooks
     { displayHook = []
     , backendPreHook = []
     , backendPostHook = []
-    , outputAddHook = \_ -> pure $ \_ _ -> pure ()
+    , outputAddHook = \_ -> pure ()
     , keyPressHook = \_ _ -> pure ()
-    , outputRemoveHook = \_ -> pure ()
     }
 
 
-handleFrame :: FrameHandler -> IORef Integer -> Ptr WlrOutput -> IO ()
-handleFrame hook ref output = do
-    old <- readIORef ref
-    time <- toNanoSecs <$> getTime Monotonic
-    writeIORef ref time
-
-    let timeDiff = time - old
-    let secs :: Double = fromIntegral timeDiff / 1e9
-
-    hook secs output
+attachFrame :: FrameHandler -> Ptr WlrOutput -> IO ListenerToken
+attachFrame hook output = do
+    let signals = getOutputSignals output
+    addListener (WlListener (\_ -> frameHandler)) (outSignalFrame signals)
+    where   frameHandler = do
+                time <- toNanoSecs <$> getTime Monotonic
+                let timeDiff = time
+                let secs :: Double = fromIntegral timeDiff / 1e9
+                hook secs output
 
 handleOutputAdd :: CompHooks vs a -> Ptr WlrOutput -> IO ()
 handleOutputAdd hooks output = do
@@ -142,25 +141,8 @@ handleOutputAdd hooks output = do
     readable <- mapM peek modes
     hPrint stderr readable
 
-    case listToMaybe $ reverse modes of
-        Nothing -> pure ()
-        Just x -> setOutputMode x output
+    outputAddHook hooks output
 
-    ref <- newIORef 0
-    let signals = getOutputSignals output
-    frame <- outputAddHook hooks output
-    handler <- addListener (WlListener (\_ -> handleFrame frame ref output)) (outSignalFrame signals)
-
-    sptr <- newStablePtr handler
-    poke (getDataPtr output) (castStablePtrToPtr sptr)
-
-handleOutputRemove :: CompHooks vs a -> Ptr WlrOutput -> IO ()
-handleOutputRemove hooks output = do
-    ptr :: Ptr () <- peek (getDataPtr output)
-    let sptr =  castPtrToStablePtr ptr
-    removeListener =<< deRefStablePtr sptr
-    freeStablePtr sptr
-    outputRemoveHook hooks output
 
 foreign import ccall "wl_display_add_socket_auto" c_add_socket_auto :: Ptr DisplayServer -> IO (Ptr CChar)
 
@@ -196,15 +178,14 @@ bindSocket display = liftIO $ do
 
 displayMain :: (FocusCore vs a, WSTag a) => CompHooks vs a -> DisplayServer -> Way vs a ()
 displayMain hooks display = do
-    let outAdd = Bracketed (liftIO . addListener (WlListener $ handleOutputAdd hooks) . outputAdd . backendGetSignals . snd) (liftIO .  removeListener)
-    let outRem = Bracketed (liftIO . addListener (WlListener $ handleOutputRemove hooks) . outputRemove . backendGetSignals . snd) (liftIO .  removeListener)
+    let outAdd = Bracketed (liftIO . addListener (WlListener $ handleOutputAdd hooks) . backendEvtOutput . backendGetSignals . snd) (liftIO .  removeListener)
     liftIO $ do
         dsp <- lookupEnv "WAYLAND_DISPLAY"
         -- Prevent the idiotic defaulting behaviour of libwayland
         case dsp of
             Nothing -> setEnv "WAYLAND_DISPLAY" "What are you even doing?"
             Just _ -> pure ()
-    foldBrackets (outAdd: outRem: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< (liftIO $ backendAutocreate display)
+    foldBrackets (outAdd: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< (liftIO $ backendAutocreate display)
 
 launchCompositor :: (FocusCore vs a, WSTag a) => CompHooks vs a -> Way vs a ()
 launchCompositor hooks = 
