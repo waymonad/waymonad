@@ -32,6 +32,8 @@ module Waymonad.Shells.XdgShell
     )
 where
 
+import Debug.Trace
+
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM_, unless)
 import Control.Monad.IO.Class
@@ -189,6 +191,18 @@ handleXdgSurface ref surf = do
             liftIO $ removeListener handler
             handleXdgDestroy ref surfPtr
 
+getXdgBox :: MonadIO m => Ptr R.WlrXdgSurface -> m WlrBox
+getXdgBox surf = do
+    geo@(WlrBox _ _ gw gh) <- liftIO $ R.getGeometry surf
+    if gw == 0 || gh == 0
+        then do
+            ret <- liftIO $ R.xdgSurfaceGetSurface surf
+            case ret of
+                Nothing -> pure $ WlrBox 0 0 0 0
+                Just wlrSurf -> do
+                    Point w h <- liftIO $ surfaceGetSize wlrSurf
+                    pure $ WlrBox 0 0 w h
+        else pure $ geo
 
 renderPopups :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> Ptr R.WlrXdgSurface -> m ()
 renderPopups fun surf = do
@@ -197,7 +211,7 @@ renderPopups fun surf = do
     let surfX = boxX surfBox
     let surfY = boxY surfBox
     forM_ popups $ \popup -> do
-        popBox <- liftIO $ R.getGeometry popup
+        popBox <- getXdgBox popup
         let popX = boxX popBox
         let popY = boxY popBox
 
@@ -211,29 +225,10 @@ renderPopups fun surf = do
         let box = WlrBox x y (boxWidth popBox) (boxHeight popBox)
 
         doJust (liftIO $ R.xdgSurfaceGetSurface popup) $ \wlrSurf -> do
-            fun wlrSurf box
+            fun wlrSurf (traceShowId box)
             renderPopups
                 (\v b -> fun v b {boxX = boxX b + x, boxY = boxY b + y})
                 popup
-
-getBoundingBox :: Ptr R.WlrXdgSurface -> IO (Double, Double)
-getBoundingBox surf = doJust (R.xdgSurfaceGetSurface surf) $ \wlrsurf -> do
-    WlrBox _ _ gw gh <- R.getGeometry surf
-    (bw, bh) <- if gw == 0 || gh == 0
-        then do
-            Point x y <-  surfaceGetSize wlrsurf
-            pure (x, y)
-        else pure (gw, gh)
-    --subs <- surfaceGetSubs wlrsurf
---    points <- forM subs $ \sub -> do
---        WlrBox x y w h <- subSurfaceGetBox sub
---        pure $ ((Point x y), (Point (x + w) (y + h)))
-    let points = []
-    let topleft = map fst points
-        botright = map snd points
-        Point lx ly = foldr (\(Point x1 y1) (Point x2 y2) -> Point (min x1 x2) (min y1 y2)) (Point 0 0) topleft
-        Point hx hy = foldr (\(Point x1 y1) (Point x2 y2) -> Point (max x1 x2) (max y1 y2)) (Point bw bh) botright
-    pure  $ (fromIntegral (hx - lx), fromIntegral (hy - ly))
 
 xdgPopupAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgPopupAt (XdgSurface surf) x y = do
@@ -248,8 +243,8 @@ xdgSubsurfaceAt (XdgSurface surf) x y = do
 
 xdgMainSurf :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgMainSurf (XdgSurface surf) x y = MaybeT . liftIO $ do
-    (w, h) <- getBoundingBox surf
-    if x > 0 && x < w && y > 0 && y < h
+    WlrBox _ _ w h <- getXdgBox surf
+    if x > 0 && x < fromIntegral w && y > 0 && y < fromIntegral h
         then do
             realS <- R.xdgSurfaceGetSurface surf
             pure $ fmap (, x, y) realS
@@ -263,7 +258,9 @@ getXdgEventSurface surf x y =
 instance ShellSurface XdgSurface where
     close = liftIO . R.sendClose . unXdg
     getSurface = liftIO . R.xdgSurfaceGetSurface . unXdg
-    getSize = liftIO . getBoundingBox . unXdg
+    getSize surf = do
+        WlrBox _ _ w h <- getXdgBox $ unXdg surf
+        pure $ (fromIntegral w, fromIntegral h)
     resize (XdgSurface surf) width height =
         liftIO $ R.setSize surf width height
     activate = liftIO .: R.setActivated . unXdg
