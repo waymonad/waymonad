@@ -76,8 +76,9 @@ renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> 
 
 renderDamaged :: Ptr Renderer -> Ptr WlrOutput -> PixmanRegion32 -> WlrBox -> IO () -> IO ()
 renderDamaged render output damage box act = do
+    outputScale <- getOutputScale output
     withRegion $ \region -> do
-        resetRegion region $ Just box
+        resetRegion region $ Just $ scaleBox box outputScale
         pixmanRegionIntersect region damage
         boxes <- pixmanRegionBoxes region
         forM_ boxes $ \pbox -> do

@@ -38,6 +38,7 @@ import Data.IORef (newIORef, IORef, modifyIORef, readIORef, writeIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
 import Foreign.Ptr (Ptr)
+import Data.Text (Text)
 
 import Graphics.Wayland.Server (DisplayServer, clientDestroy)
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
@@ -50,7 +51,7 @@ import Waymonad.Utility.Base (doJust, ptrToInt)
 import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad.Utility.Log (logPutText, LogPriority (..))
-import Waymonad.Utility.Signal (setDestroyHandler)
+import Waymonad.Utility.Signal (setDestroyHandler, setSignalHandler)
 import Waymonad
 import Waymonad.Types
 
@@ -63,6 +64,7 @@ newtype WlRef = WlRef (IORef (Maybe WlShell))
 type MapRef =  IORef (IntMap View)
 
 instance (FocusCore vs ws, WSTag ws) =>  ShellClass WlRef vs ws where
+    {-# SPECIALIZE instance (FocusCore vs Text) => ShellClass WlRef vs Text #-}
     activateShell (WlRef ref) = do
         ret <- liftIO $ readIORef ref
         case ret of
@@ -97,9 +99,9 @@ makeShell :: (FocusCore vs ws, WSTag ws) => IO (WayShell vs ws)
 makeShell = WayShell . WlRef <$> liftIO (newIORef Nothing)
 
 data WlShell = WlShell
-    { wlSurfaceRef :: MapRef
-    , wlWlrootsShell :: R.WlrWlShell
-    , wlShellToken   :: ListenerToken
+    { wlSurfaceRef   :: {-# UNPACK #-} !MapRef
+    , wlWlrootsShell :: {-# UNPACK #-} !R.WlrWlShell
+    , wlShellToken   :: {-# UNPACK #-} !ListenerToken
     }
 
 newtype WlSurface = WlSurface { unWl :: R.WlrWlShellSurface }
@@ -129,6 +131,26 @@ handleWlDestroy ref surf = do
     removeView view
     triggerViewDestroy view
 
+
+handleWlPopup :: View -> IO Point -> Ptr R.WlrWlShellSurface -> Way vs ws ()
+handleWlPopup view getParentPos ptr = do
+    let popup = R.WlrWlShellSurface ptr
+    let getPos = do
+            transient <- liftIO $ R.getTransientPosition popup
+            case transient of
+                Just (x, y) -> do
+                    Point parentX parentY <- getParentPos
+                    pure $ Point (parentX + fromIntegral x) (parentY + fromIntegral y)
+                Nothing -> pure $ Point 0 0
+
+    let signals = R.getWlrWlSurfaceEvents popup
+    doJust  (liftIO $ R.wlShellSurfaceGetSurface popup) $
+        viewAddSurf view (R.wlrWlSurfaceEvtDestroy signals) getPos
+
+    handler <- setSignalHandler (R.wlrWlSurfaceEvtPopup signals) $ handleWlPopup view getPos
+    setDestroyHandler (R.wlrWlSurfaceEvtDestroy signals) $ \_ -> do
+        liftIO $ removeListener handler
+
 handleWlSurface :: (FocusCore vs a, WSTag a)
                 => MapRef
                 -> R.WlrWlShellSurface
@@ -144,10 +166,14 @@ handleWlSurface ref surf = do
             modifyIORef ref $ M.insert (ptrToInt $ R.unWlrSurf surf) view
 
         let signals = R.getWlrWlSurfaceEvents surf
-        setDestroyHandler (R.wlrWlSurfaceEvtDestroy signals) (handleWlDestroy ref)
+        handler <- setSignalHandler (R.wlrWlSurfaceEvtPopup signals) $ handleWlPopup view $ pure (Point 0 0 )
+        setDestroyHandler (R.wlrWlSurfaceEvtDestroy signals) (\arg -> do
+            liftIO $ removeListener handler
+            handleWlDestroy ref arg
+                                                             )
 
 
-renderPopups :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> R.WlrWlShellSurface -> m ()
+renderPopups :: (Ptr WlrSurface -> WlrBox -> IO ()) -> R.WlrWlShellSurface -> IO ()
 renderPopups fun surf = do
     popups <- liftIO $ R.getWlShellPopups surf
     forM_ popups $ \popup -> doJust (liftIO $ R.getTransientPosition popup) $ \(popX, popY) -> do
@@ -164,16 +190,7 @@ renderPopups fun surf = do
 getBoundingBox :: R.WlrWlShellSurface -> IO (Double, Double)
 getBoundingBox surf = doJust (R.wlShellSurfaceGetSurface surf) $ \wlrsurf -> do
     Point bw bh <-  surfaceGetSize wlrsurf
-    --subs <- surfaceGetSubs wlrsurf
---    points <- forM subs $ \sub -> do
---        WlrBox x y w h <- subSurfaceGetBox sub
---        pure $ ((Point x y), (Point (x + w) (y + h)))
-    let points = []
-    let topleft = map fst points
-        botright = map snd points
-        Point lx ly = foldr (\(Point x1 y1) (Point x2 y2) -> Point (min x1 x2) (min y1 y2)) (Point 0 0) topleft
-        Point hx hy = foldr (\(Point x1 y1) (Point x2 y2) -> Point (max x1 x2) (max y1 y2)) (Point bw bh) botright
-    pure  $ (fromIntegral (hx - lx), fromIntegral (hy - ly))
+    pure ((fromIntegral bw), (fromIntegral bh))
 
 wlPopupAt :: MonadIO m => WlSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 wlPopupAt (WlSurface surf) x y = do
@@ -196,6 +213,7 @@ wlMainSurf (WlSurface surf) x y = MaybeT . liftIO $ do
         else pure Nothing
 
 getWlEventSurface :: MonadIO m => WlSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
+{-# SPECIALIZE getWlEventSurface :: WlSurface -> Double -> Double -> MaybeT IO (Ptr WlrSurface, Double, Double) #-}
 getWlEventSurface surf x y =
     wlPopupAt surf x y <|> wlSubsurfaceAt surf x y <|> wlMainSurf surf x y
 
