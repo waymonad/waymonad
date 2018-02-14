@@ -139,7 +139,6 @@ data XWayShell = XWayShell
     , xwaySurfaceRef   :: {-# UNPACK #-} !MapRef
     }
 
-
 newtype XWaySurface = XWaySurface { unXway :: Ptr X.X11Surface }
 
 xwayGetPid :: MonadIO m => XWaySurface -> m (Maybe ProcessID)
@@ -209,19 +208,6 @@ handleOverrideCommit view surf _ = do
     WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
     resizeView view (fromIntegral w) (fromIntegral h)
 
-getAncestorPos :: Ptr X.X11Surface -> Ptr X.X11Surface -> IO Point
-getAncestorPos viewSurf current = if viewSurf == current
-    then do
-        WlrBox x y _ _ <- X.getX11SurfaceGeometry current
-        pure $ Point x y
-    else do
-        parent <- X.getX11ParentSurfrace current
-        case parent of
-            Nothing -> do
-                WlrBox x y _ _ <- X.getX11SurfaceGeometry current
-                pure $ Point x y
-            Just x -> getAncestorPos viewSurf x
-
 handleChildMap :: Bool -> View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
 handleChildMap addSurf view viewSurf surf = liftIO $ if addSurf
     then doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \mainSurf -> do
@@ -235,7 +221,7 @@ handleChildMap addSurf view viewSurf surf = liftIO $ if addSurf
             )
             mainSurf
     else do
-        Point x y <- getAncestorPos viewSurf surf
+        WlrBox x y _ _ <- X.getX11SurfaceGeometry viewSurf
         WlrBox cx cy w h <- X.getX11SurfaceGeometry surf
         withBoxRegion (WlrBox (cx - x) (cy - y) w h) $ doApplyDamage view
 

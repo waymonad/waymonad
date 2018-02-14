@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE BangPatterns #-}
 module Waymonad.Output.Render
 where
 
@@ -74,22 +75,22 @@ renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> 
     pure $ Just ret
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
-outputHandleSurface comp secs output damage surface scaleFactor box = do
+outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox !bx !by _ _) = do
     outputScale <- getOutputScale output
     surfScale <- fromIntegral <$> surfaceGetScale surface
     let localScale = (outputScale / surfScale) * scaleFactor
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
     when isValid $ withMatrix $ \trans -> withMatrix $ \scale -> withMatrix $ \final -> do
-            let x = fromIntegral (boxX box) * outputScale
-                y = fromIntegral (boxY box) * outputScale
+            let x = fromIntegral bx * outputScale
+                y = fromIntegral by * outputScale
 
             matrixTranslate trans x y 0
             matrixScale scale localScale localScale 1
             matrixMul trans scale final
             withSurfaceMatrix surface (getTransMatrix output) final $ \mat ->
                 withRegion $ \region -> do
-                    resetRegion region . Just $ scaleBox box outputScale
+                    resetRegion region . Just $ scaleBox baseBox outputScale
                     pixmanRegionIntersect region damage
                     boxes <- pixmanRegionBoxes region
                     forM_ boxes $ \pbox -> do
@@ -114,14 +115,14 @@ outputHandleSurface comp secs output damage surface scaleFactor box = do
                     damage
                     subsurf
                     scaleFactor
-                    sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + boxX box
-                        , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + boxY box
+                    sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + bx
+                        , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + by
                         , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
                         , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                         }
 
 outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
-outputHandleView comp secs output d (view, prio, obox) = doJust (getViewSurface view) $ \surface -> do
+outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurface view) $ \surface -> do
     hasCSD <- viewHasCSD view
     let box = getDecoBox hasCSD prio obox
     scale <- liftIO $ viewGetScale view
@@ -158,7 +159,7 @@ handleLayers comp secs output (l:ls) d = do
     liftIO $ sequence_ overs
 
 scissorOutput :: Ptr Renderer -> Ptr WlrOutput -> WlrBox -> IO ()
-scissorOutput rend output box = do
+scissorOutput rend output !box = do
     Point w h <- outputTransformedResolution output
     trans <- getOutputTransform output
     let transform = composeOutputTransform

@@ -24,7 +24,6 @@ module Waymonad.Types.Core
 where
 
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.IntMap (IntMap)
 import Data.IORef (IORef)
 import Data.Text (Text)
