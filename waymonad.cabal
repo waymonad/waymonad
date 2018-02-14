@@ -103,6 +103,7 @@ library
   exposed-modules:        Waymonad.Navigation2D
   exposed-modules:        Waymonad.Output
   exposed-modules:        Waymonad.Output.Core
+  exposed-modules:        Waymonad.Output.DamageDisplay
   exposed-modules:        Waymonad.Output.Render
 
   exposed-modules:        Waymonad.Protocols.GammaControl

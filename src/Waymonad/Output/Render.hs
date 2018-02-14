@@ -1,3 +1,23 @@
+{-
+waymonad A wayland compositor in the spirit of xmonad
+Copyright (C) 2018  Markus Ongyerth
+
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+Reach us at https://github.com/ongy/waymonad
+-}
 module Waymonad.Output.Render
 where
 
@@ -47,11 +67,11 @@ import Waymonad.Utility.SSD (renderDeco, getDecoBox)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
 
-renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws ()) -> Way vs ws ()
+renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
 renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
-    liftIO . doRender rend output =<< unliftWay (act age)
-
+    ret <- liftIO . doRender rend output =<< unliftWay (act age)
     void . liftIO $ swapOutputBuffers output Nothing
+    pure $ Just ret
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output damage surface scaleFactor box = do
@@ -153,7 +173,7 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
     needsSwap <- liftIO $ getOutputNeedsSwap output
     when (enabled && needsSwap) $ do
         comp <- wayCompositor <$> getState
-        renderOn output (compRenderer comp) $ \age -> do
+        void . renderOn output (compRenderer comp) $ \age -> do
             let withDRegion = \act -> if age < 0 || age > 1
                 then withRegion $ \region -> do
                         Point w h <- outputTransformedResolution output
@@ -189,7 +209,7 @@ fieteHandler secs Output {outputRoots = output, outputLayout = layers} = do
     needsSwap <- liftIO $ getOutputNeedsSwap output
     when (enabled && needsSwap) $ do
         comp <- wayCompositor <$> getState
-        renderOn output (compRenderer comp) $ \_ -> do
+        void . renderOn output (compRenderer comp) $ \_ -> do
             let withDRegion act = withRegion $ \region -> do
                         Point w h <- outputTransformedResolution output
                         resetRegion region . Just $ WlrBox 0 0 w h
