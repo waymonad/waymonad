@@ -74,6 +74,16 @@ renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> 
     void . liftIO $ swapOutputBuffers output Nothing
     pure $ Just ret
 
+renderDamaged :: Ptr Renderer -> Ptr WlrOutput -> PixmanRegion32 -> WlrBox -> IO () -> IO ()
+renderDamaged render output damage box act = do
+    withRegion $ \region -> do
+        resetRegion region $ Just box
+        pixmanRegionIntersect region damage
+        boxes <- pixmanRegionBoxes region
+        forM_ boxes $ \pbox -> do
+            scissorOutput render output $ boxToWlrBox pbox
+            act
+
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox !bx !by _ _) = do
     outputScale <- getOutputScale output
@@ -89,13 +99,8 @@ outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox 
             matrixScale scale localScale localScale 1
             matrixMul trans scale final
             withSurfaceMatrix surface (getTransMatrix output) final $ \mat ->
-                withRegion $ \region -> do
-                    resetRegion region . Just $ scaleBox baseBox outputScale
-                    pixmanRegionIntersect region damage
-                    boxes <- pixmanRegionBoxes region
-                    forM_ boxes $ \pbox -> do
-                        scissorOutput (compRenderer comp) output $ boxToWlrBox pbox
-                        renderWithMatrix (compRenderer comp) texture mat
+                renderDamaged (compRenderer comp) output damage baseBox $ 
+                    renderWithMatrix (compRenderer comp) texture mat
 
             callbacks <- surfaceGetCallbacks =<< getCurrentState surface
             forM_ callbacks $ \callback -> do
@@ -128,9 +133,10 @@ outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurfa
     scale <- liftIO $ viewGetScale view
     local <- liftIO $ viewGetLocal view
     let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
-    -- TODO: Limit to damaged areas
-    liftIO $ scissorOutput (compRenderer comp) output obox
-    renderDeco hasCSD prio output obox box
+
+    decoCB <- unliftWay $ renderDeco hasCSD prio output obox box
+    liftIO $ renderDamaged (compRenderer comp) output d obox decoCB
+
     liftIO $ outputHandleSurface comp secs output d surface scale lBox
     pure $ renderViewAdditional (\v b ->
         void $ outputHandleSurface
