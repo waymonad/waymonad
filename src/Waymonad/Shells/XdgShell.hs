@@ -42,6 +42,7 @@ import Data.Composition ((.:))
 import Data.IORef (newIORef, IORef, modifyIORef, readIORef, writeIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
+import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer)
@@ -68,6 +69,7 @@ newtype XdgRef = XdgRef (IORef (Maybe XdgShell))
 type MapRef =  IORef (IntMap View)
 
 instance (FocusCore vs ws, WSTag ws) =>  ShellClass XdgRef vs ws where
+    {-# SPECIALISE instance FocusCore vs Text => ShellClass XdgRef vs Text #-}
     activateShell (XdgRef ref) = do
         ret <- liftIO $ readIORef ref
         case ret of
@@ -101,8 +103,8 @@ makeShell :: (FocusCore vs ws, WSTag ws) => IO (WayShell vs ws)
 makeShell = WayShell . XdgRef <$> liftIO (newIORef Nothing)
 
 data XdgShell = XdgShell
-    { xdgSurfaceRef :: MapRef
-    , xdgWlrootsShell :: Ptr R.WlrXdgShell
+    { xdgSurfaceRef :: {-# UNPACK #-} !MapRef
+    , xdgWlrootsShell :: {-# UNPACK #-} !(Ptr R.WlrXdgShell)
     }
 
 newtype XdgSurface = XdgSurface { unXdg :: Ptr R.WlrXdgSurface }
@@ -204,7 +206,7 @@ getXdgBox surf = do
                     pure $ WlrBox 0 0 w h
         else pure $ geo
 
-renderPopups :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> Ptr R.WlrXdgSurface -> m ()
+renderPopups :: (Ptr WlrSurface -> WlrBox -> IO ()) -> Ptr R.WlrXdgSurface -> IO ()
 renderPopups fun surf = do
     popups <- liftIO $ filterM R.isConfigured =<< R.xdgGetPopupSurfaces surf
     surfBox <- liftIO $ R.getGeometry surf
@@ -251,6 +253,8 @@ xdgMainSurf (XdgSurface surf) x y = MaybeT . liftIO $ do
         else pure Nothing
 
 getXdgEventSurface :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
+{-# SPECIALISE getXdgEventSurface :: XdgSurface -> Double -> Double -> MaybeT IO (Ptr WlrSurface, Double, Double) #-}
+{-# SPECIALISE getXdgEventSurface :: XdgSurface -> Double -> Double -> MaybeT (Way vs ws) (Ptr WlrSurface, Double, Double) #-}
 getXdgEventSurface surf x y =
     xdgPopupAt surf x y <|> xdgSubsurfaceAt surf x y <|> xdgMainSurf surf x y
 

@@ -24,6 +24,7 @@ module Waymonad.Actions.Spawn.X11
     )
 where
 
+import Control.DeepSeq (NFData (..), force, rwhnf)
 import Control.Monad.IO.Class (liftIO)
 import Data.List (lookup)
 import Data.Typeable (Typeable)
@@ -39,19 +40,22 @@ import Waymonad.Utility.Extensible (getEState , modifyEState)
 import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.Types (Way)
 
-newtype X11Spawner ws = X11Spawner { spawnPids :: [(ProcessID, ws)] } deriving Typeable
+newtype PidT = PidT ProcessID deriving (Eq)
+instance NFData PidT where rnf = rwhnf
+
+newtype X11Spawner ws = X11Spawner { spawnPids :: [(PidT, ws)] } deriving Typeable
 
 instance Typeable ws => ExtensionClass (X11Spawner ws) where
     initialValue = X11Spawner []
 
-modifySpawner :: Typeable ws => ([(ProcessID, ws)] -> [(ProcessID, ws)]) -> Way vs ws ()
-modifySpawner fun = modifyEState (X11Spawner . fun . spawnPids)
+modifySpawner :: (NFData ws, Typeable ws) => ([(PidT, ws)] -> [(PidT, ws)]) -> Way vs ws ()
+modifySpawner fun = modifyEState (X11Spawner . force . fun . spawnPids)
 
-manageX11SpawnOn :: WSTag ws => Managehook vs ws
+manageX11SpawnOn :: (NFData ws, WSTag ws) => Managehook vs ws
 manageX11SpawnOn = do
     view <- query
     liftWay $ whenJust (getViewInner view) $ \xway -> 
-        doJust (xwayGetPid xway) $ \pid -> do
+        doJust (fmap PidT <$> xwayGetPid xway) $ \pid -> do
             X11Spawner pids <- getEState
             whenJust (lookup pid pids) $ \ws -> do
                 modifySpawner (filter ((/=) pid . fst))
@@ -60,7 +64,7 @@ manageX11SpawnOn = do
 execChild :: String -> [String] -> IO a
 execChild name args = executeFile name True args Nothing
 
-spawnX11On :: Typeable ws => ws -> String -> [String] -> Way vs ws ()
+spawnX11On :: (NFData ws, Typeable ws) => ws -> String -> [String] -> Way vs ws ()
 spawnX11On ws name args = do
     pid <- liftIO $ forkProcess $ execChild name args
-    modifySpawner ((:) (pid, ws) . take 19)
+    modifySpawner ((:) (PidT pid, ws) . take 19)

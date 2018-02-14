@@ -42,6 +42,7 @@ import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
+import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 import Foreign.StablePtr
@@ -100,6 +101,7 @@ makeShell :: (Typeable vs, Typeable ws, FocusCore vs ws, WSTag ws)
 makeShell = makeShellAct (pure ())
 
 instance (Typeable vs, Typeable ws, FocusCore vs ws, WSTag ws) => ShellClass (XWayRef vs ws) vs ws where
+    {-# SPECIALIZE instance (FocusCore vs Text, Typeable vs) => ShellClass (XWayRef vs Text) vs Text #-}
     activateShell (XWayRef ref act) = do
         ret <- liftIO $ readIORef ref
         case ret of
@@ -133,17 +135,15 @@ instance (Typeable vs, Typeable ws, FocusCore vs ws, WSTag ws) => ShellClass (XW
 type MapRef =  IORef (IntMap View)
 
 data XWayShell = XWayShell
-    { xwaySurfaceRef :: MapRef
-    , xwayWlrootsShell :: Ptr X.XWayland
+    { xwayWlrootsShell :: {-# UNPACK #-} !(Ptr X.XWayland)
+    , xwaySurfaceRef   :: {-# UNPACK #-} !MapRef
     }
 
 
-data XWaySurface = XWaySurface
-    { _surfXWay :: Ptr X.XWayland
-    , unXway :: Ptr X.X11Surface
-    }
+newtype XWaySurface = XWaySurface { unXway :: Ptr X.X11Surface }
 
 xwayGetPid :: MonadIO m => XWaySurface -> m (Maybe ProcessID)
+{-# SPECIALIZE xwayGetPid :: XWaySurface -> Way vs ws (Maybe ProcessID) #-}
 xwayGetPid XWaySurface { unXway = roots } = liftIO $ do
     pid <- X.getX11Pid roots
     pure $ if pid == 0
@@ -160,7 +160,7 @@ xwayShellCreate display comp act = do
     surfaces <- liftIO $ newIORef mempty
     roots <- liftIO $ X.xwaylandCreate display comp
 
-    setCallback (handleXwaySurface roots surfaces) (X.xwayBindNew roots)
+    setCallback (handleXwaySurface surfaces) (X.xwayBindNew roots)
     setDestroyHandler (X.xwayReadEvent roots) (pure (attachSeat roots >> act))
 
     pure XWayShell
@@ -258,12 +258,11 @@ getAncestorView surf surfMap = case M.lookup (ptrToInt surf) surfMap of
 
 handleXwaySurface
     :: (FocusCore vs a, WSTag a)
-    => Ptr X.XWayland
-    -> MapRef
+    => MapRef
     -> Ptr X.X11Surface
     -> Way vs a ()
-handleXwaySurface xway ref surf = do
-    let xwaySurf = XWaySurface xway surf
+handleXwaySurface ref surf = do
+    let xwaySurf = XWaySurface surf
     logPutText loggerX11 Debug "New XWayland surface"
 
     override <- liftIO $ X.x11SurfaceOverrideRedirect surf
@@ -300,35 +299,34 @@ handleXwaySurface xway ref surf = do
 
 
 instance ShellSurface XWaySurface where
-    close (XWaySurface _ surf) = liftIO $ X.xwayCloseSurface surf
+    close (XWaySurface surf) = liftIO $ X.xwayCloseSurface surf
     getSurface = liftIO . X.xwaySurfaceGetSurface . unXway
-    getSize (XWaySurface _ surf) = liftIO $ do
+    getSize (XWaySurface surf) = liftIO $ do
         box <- X.getX11SurfaceGeometry surf
         pure (fromIntegral $ boxWidth box, fromIntegral $ boxHeight box)
-    resize (XWaySurface _ surf) width height = liftIO $ do
+    resize (XWaySurface surf) width height = liftIO $ do
         (Point x y) <- X.getX11SurfacePosition surf
         X.configureX11Surface surf
             (fromIntegral x) (fromIntegral y)
             (fromIntegral width) (fromIntegral height)
-    activate (XWaySurface _ surf) active = liftIO $ X.activateX11Surface surf active
-    getEventSurface (XWaySurface _ surf) x y = liftIO $ do
+    activate (XWaySurface surf) active = liftIO $ X.activateX11Surface surf active
+    getEventSurface (XWaySurface surf) x y = liftIO $ do
         (WlrBox _ _ w h) <- X.getX11SurfaceGeometry surf
         if boxContainsPoint (Point (floor x) (floor y)) (WlrBox 0 0 w h)
            then do
                 ret <- X.xwaySurfaceGetSurface surf
                 pure $ fmap (,x, y) ret
             else pure Nothing
-    setPosition (XWaySurface _ surf) x y =
+    setPosition (XWaySurface surf) x y =
         let point = Point (floor x) (floor y)
          in liftIO $ X.setX11SurfacePosition surf point
-    getID (XWaySurface _ surf) = ptrToInt surf
+    getID (XWaySurface surf) = ptrToInt surf
     getTitle = liftIO . X.getTitle . unXway
     getAppId = liftIO . X.getClass . unXway
-    renderAdditional fun (XWaySurface _ surf) = renderChildren fun surf
+    renderAdditional fun (XWaySurface surf) = renderChildren fun surf
     hasCSD _ = pure False
 
-renderChildren :: MonadIO m
-               => (Ptr WlrSurface -> WlrBox -> m ()) -> Ptr X.X11Surface -> m ()
+renderChildren :: (Ptr WlrSurface -> WlrBox -> IO ()) -> Ptr X.X11Surface -> IO ()
 renderChildren fun surf = do
     children <- liftIO $ X.getX11Children surf
     WlrBox sx sy _ _  <- liftIO $ X.getX11SurfaceGeometry surf
@@ -342,12 +340,12 @@ renderChildren fun surf = do
                 fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)
             renderChildren fun child
 
-overrideXRedirect :: Managehook vs a
+overrideXRedirect :: Managehook vs ws
 overrideXRedirect = do
     view <- ask
     case getViewInner view of
         Nothing -> mempty
-        Just (XWaySurface _ surf) -> do
+        Just (XWaySurface surf) -> do
             override <- liftIO $ X.x11SurfaceOverrideRedirect surf
             if override
                 then do

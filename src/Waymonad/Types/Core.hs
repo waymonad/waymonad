@@ -24,6 +24,7 @@ module Waymonad.Types.Core
 where
 
 import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.IntMap (IntMap)
 import Data.IORef (IORef)
 import Data.Text (Text)
@@ -57,7 +58,7 @@ class Typeable a => ShellSurface a where
     resize :: MonadIO m => a -> Word32 -> Word32 -> m ()
     activate :: MonadIO m => a -> Bool -> m ()
     close :: MonadIO m => a -> m ()
-    renderAdditional :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> a -> m ()
+    renderAdditional :: (Ptr WlrSurface -> WlrBox -> IO ()) -> a -> IO ()
     renderAdditional _ _ = pure ()
     getEventSurface :: MonadIO m => a -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
     setPosition :: MonadIO m => a -> Double -> Double -> m ()

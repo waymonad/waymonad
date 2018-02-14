@@ -62,8 +62,10 @@ module Waymonad.View
     )
 where
 
+import Data.Composition ((.:))
 import Control.Monad (when)
-import Control.Monad.IO.Class
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO)
 import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
 import Data.Text (Text)
 import Data.Typeable (Typeable, cast)
@@ -281,9 +283,11 @@ activateView :: MonadIO m => View -> Bool -> m ()
 activateView View {viewSurface = surf} = activate surf
 
 
-renderViewAdditional :: MonadIO m => (Ptr WlrSurface -> WlrBox -> m ()) -> View -> m ()
-renderViewAdditional fun View {viewSurface = surf} =
-    renderAdditional fun surf
+renderViewAdditional :: (MonadUnliftIO m, MonadIO m) => (Ptr WlrSurface -> WlrBox -> m ()) -> View -> m ()
+{-# SPECIALIZE INLINE renderViewAdditional :: (Ptr WlrSurface -> WlrBox -> IO ()) -> View -> IO () #-}
+renderViewAdditional fun View {viewSurface = surf} = do
+    run <- askRunInIO
+    liftIO $ renderAdditional (run .: fun) surf
 
 
 getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))

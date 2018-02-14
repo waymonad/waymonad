@@ -61,10 +61,8 @@ where
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift
 import Control.Monad.Reader (ReaderT, MonadReader, runReaderT, ask)
-import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.Default (Default(..))
 import Data.IORef (IORef)
-import Data.IntMap (IntMap)
 import Data.Map (Map)
 import Data.Semigroup (Semigroup (..))
 import Data.Set (Set)

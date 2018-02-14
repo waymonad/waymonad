@@ -122,7 +122,6 @@ library
   exposed-modules:        Waymonad.Actions.Spawn
   exposed-modules:        Waymonad.Actions.Spawn.X11
   exposed-modules:        Waymonad.View
-  exposed-modules:        Waymonad.Shells.Pseudo.Proxy
   exposed-modules:        Waymonad.Shells.Pseudo.Multi
   exposed-modules:        Waymonad.ViewSet
 
@@ -165,7 +164,7 @@ library
   build-depends:       config-schema, config-value, xdg-basedir, network
   build-depends:       bytestring, data-default, semigroupoids, HFuse
   build-depends:       formatting, stm, unliftio-core, unliftio, libinput
-  build-depends:       safe
+  build-depends:       safe, deepseq
   
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -175,9 +174,11 @@ library
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
-  ghc-options:         -Wall -g -O0
+  ghc-options:         -Wall -g
 -- -threaded
-  
+  -- build-depends: dump-core
+  -- ghc-options: -fplugin=DumpCore -fplugin-opt DumpCore:core-html
+  -- ghc-options: -O2
 executable waymonad
   -- .hs or .lhs file containing the Main module.
   main-is:             Main.hs
