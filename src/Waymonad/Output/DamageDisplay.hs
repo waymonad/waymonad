@@ -47,7 +47,6 @@ import Waymonad.Utility.Base (ptrToInt)
 import Waymonad.ViewSet (WSTag)
 
 import Waymonad.Output.Render
-import Debug.Trace 
 
 import qualified Data.IntMap.Strict as IM
 
@@ -138,7 +137,7 @@ damageDisplay depth secs out@Output {outputRoots = output, outputLayout = layers
                     withMatrix $ \mat -> forM_ damages $ \(intensity, damage) -> do
                         let color = Color 1 0 0 intensity
                         dBoxes <- pixmanRegionBoxes damage
-                        forM_ (traceShowId dBoxes) $ \dBox -> do
+                        forM_ dBoxes $ \dBox -> do
                             scissorOutput (compRenderer comp) output $ boxToWlrBox dBox
                             matrixProjectBox mat oBox transform 0 $ getTransMatrix output
                             renderColoredQuad (compRenderer comp) color mat
