@@ -88,8 +88,8 @@ instance Spec OutputTransform where
 
 instance Spec Mode where
     valuesSpec = sectionsSpec "mode" $ do
-        width  <- reqSection "width"  "The width of the output"
-        height <- reqSection "height" "The height of the output"
+        width  <- reqSection "width"  "The width of the output in pixels"
+        height <- reqSection "height" "The height of the output in pixels"
         refresh <- reqSection "refresh-rate" "The refresh rate"
 
         pure $ Mode width height refresh
@@ -98,8 +98,8 @@ instance Spec Mode where
 instance Spec OutputConfig where
     valuesSpec = sectionsSpec "output" $ do
         name <- reqSection "name" "Output name (actually connector)"
-        pos <- optSection "position" "The position of the output"
-        mode <- optSection "mode" "The mode that should be set for this output"
+        pos <- optSection "position" "The logical position of the output"
+        mode <- optSection "mode" "The output mode. This is pre transformation/scaling"
         scale <- optSection "scale" "The output scale"
         transform <- optSection "transform" "The output transformation"
 

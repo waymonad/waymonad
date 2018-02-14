@@ -61,7 +61,7 @@ layoutTall _ box [(s, x)] = [(x, NoSSD s, box)]
 layoutTall ratio box (x:xs) =
     let unclipped = floor $ fromIntegral (boxWidth box) * ratio
         width = min (boxWidth box - 10) . max 10 $ unclipped
-        master = (snd x, sillyDeco 2 $ fst x, box { boxWidth = width  })
+        master = (snd x, NoSSD $ fst x, box { boxWidth = width  })
         slaves = zip xs [0 ..]
         num = length xs
         height = boxHeight box `div` num
