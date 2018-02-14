@@ -32,6 +32,7 @@ module Waymonad.Shells.XWayland
     , XWayRef
     , makeShell
     , makeShellAct
+    , xwayGetPid
     )
 where
 
@@ -44,13 +45,10 @@ import Data.Maybe (fromJust)
 import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 import Foreign.StablePtr
-    ( castPtrToStablePtr
-    , castStablePtrToPtr
-    , freeStablePtr
-    , newStablePtr
-    )
+    ( castPtrToStablePtr, castStablePtrToPtr, freeStablePtr, newStablePtr)
 import Foreign.Storable (Storable(..))
 import System.IO
+import System.Posix.Types
 
 import Graphics.Pixman (withBoxRegion)
 
@@ -144,6 +142,13 @@ data XWaySurface = XWaySurface
     { _surfXWay :: Ptr X.XWayland
     , unXway :: Ptr X.X11Surface
     }
+
+xwayGetPid :: MonadIO m => XWaySurface -> m (Maybe ProcessID)
+xwayGetPid XWaySurface { unXway = roots } = liftIO $ do
+    pid <- X.getX11Pid roots
+    pure $ if pid == 0
+        then Nothing
+        else Just pid
 
 
 xwayShellCreate :: (FocusCore vs a, WSTag a)

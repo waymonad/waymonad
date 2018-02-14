@@ -120,6 +120,7 @@ library
   exposed-modules:        Waymonad.Start
   exposed-modules:        Waymonad.Utility.Base
   exposed-modules:        Waymonad.Actions.Spawn
+  exposed-modules:        Waymonad.Actions.Spawn.X11
   exposed-modules:        Waymonad.View
   exposed-modules:        Waymonad.Shells.Pseudo.Proxy
   exposed-modules:        Waymonad.Shells.Pseudo.Multi

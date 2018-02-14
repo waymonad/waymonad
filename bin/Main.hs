@@ -61,6 +61,7 @@ import Waymonad.Protocols.GammaControl
 import Waymonad.Protocols.Screenshooter
 import Waymonad.Actions.Startup.Environment
 import Waymonad.Actions.Spawn (spawn, manageSpawnOn)
+import Waymonad.Actions.Spawn.X11 (manageX11SpawnOn)
 import Waymonad.ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
 import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
 import Waymonad.Utility.Timing
@@ -149,7 +150,7 @@ myConf :: WlrModifier -> WayUserConf (ViewSet Text) Text
 myConf modi = WayUserConf
     { wayUserConfWorkspaces  = workspaces
     , wayUserConfLayouts     = sameLayout . avoidStruts . mkSmartBorders 2 . mkMirror . mkTFull $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
-    , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn
+    , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn <> manageX11SpawnOn
     , wayUserConfEventHook   = const $ pure ()
     , wayUserConfKeybinds    = bindings modi
 

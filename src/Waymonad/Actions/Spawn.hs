@@ -70,18 +70,15 @@ import System.Process (spawnCommand)
 import Graphics.Wayland.Server (Client (..), clientCreate)
 import Graphics.Wayland.Server.Client (addDestroyListener)
 
-import Waymonad.Managehook (Managehook, query, liftWay, InsertAction (InsertInto))
-import Waymonad.Utility.Base (whenJust, ptrToInt)
-import Waymonad.View (getViewClient)
-import Waymonad.ViewSet (WSTag)
 import Waymonad (Way, setCallback, WayLoggers(loggerSpawner))
 import Waymonad.Extensible (ExtensionClass (..))
-import Waymonad.Utility.Extensible
-    ( getEState
-    , modifyEState
-    )
+import Waymonad.Managehook (Managehook, query, liftWay, InsertAction (InsertInto))
 import Waymonad.Utility (getDisplay)
+import Waymonad.Utility.Base (whenJust, ptrToInt)
+import Waymonad.Utility.Extensible (getEState , modifyEState)
 import Waymonad.Utility.Log (logPutText, LogPriority (..))
+import Waymonad.View (getViewClient)
+import Waymonad.ViewSet (WSTag)
 
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Text as T
