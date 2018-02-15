@@ -21,14 +21,14 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Utility.SSD
 where
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, filterM)
 import Control.Monad.IO.Class (liftIO)
 import Data.Set (Set)
 import Foreign.Ptr
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), scaleBox)
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
-import Graphics.Wayland.WlRoots.Render.Color (Color (..))
+import Graphics.Wayland.WlRoots.Render.Color (Color (..), darkenBy)
 import Graphics.Wayland.WlRoots.Render (renderColoredQuad)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
@@ -36,9 +36,11 @@ import Graphics.Wayland.WlRoots.Output
     , getOutputTransform
     , getOutputScale
     )
+
 import Waymonad (getState)
+import Waymonad.Input.Seat (getKeyboardFocus)
 import Waymonad.Types
-import Waymonad.Types.Core (Seat (..))
+import Waymonad.Types.Core (Seat (..), View)
 
 import qualified Data.Set as S
 
@@ -66,8 +68,7 @@ simpleQuad getCol out (WlrBox ox oy ow oh) (WlrBox ix iy iw ih) = do
     color <- getCol
     liftIO $ withMatrix $ \mat -> do
         scale <- getOutputScale out
-        let multi z = floor $ fromIntegral z * scale
-            top    = flip scaleBox scale $ WlrBox ox oy        ow        (iy - oy)
+        let top    = flip scaleBox scale $ WlrBox ox oy        ow        (iy - oy)
             bottom = flip scaleBox scale $ WlrBox ox (iy + ih) ow        ((oy + oh) - (iy + ih))
             left   = flip scaleBox scale $ WlrBox ox iy        (ix - ox) ih
             right  = flip scaleBox scale $ WlrBox (ix + iw) iy ((ox + ow) - (ix + iw)) ih
@@ -79,9 +80,17 @@ simpleQuad getCol out (WlrBox ox oy ow oh) (WlrBox ix iy iw ih) = do
 
 
 
-sillyDeco :: Int -> Set Seat -> SSDPrio
-sillyDeco val s = SuggestedSSD $ SSD
+sillyDeco :: Int -> View -> Set Seat -> SSDPrio
+sillyDeco val v s = SuggestedSSD $ SSD
     (\(Point x y) -> Point (x - val) (y - val))
     (\(WlrBox x y w h) -> WlrBox (x + val) (y + val) (w - val * 2) (h - val * 2))
-    (simpleQuad $ if S.null s then (wayDefaultColor <$> getState) else pure (seatColor $ S.elemAt 0 s))
+    (\out inner outer -> do
+        seats <- filterM (fmap ((==) $ Just v) . getKeyboardFocus) $ S.toList s
+        simpleQuad (case seats of
+            [] -> case S.toList s of
+                [] -> wayDefaultColor <$> getState
+                (x:_) -> pure $ darkenBy 0.5 $ seatColor x
+            (x:_) -> pure $ seatColor x)
+            out inner outer
+    )
 

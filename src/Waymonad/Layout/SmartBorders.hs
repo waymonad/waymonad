@@ -40,6 +40,7 @@ import Formatting
 
 import Waymonad.ViewSet
 import Waymonad.Types
+import Waymonad.Types.Core (View)
 import Waymonad.Utility.SSD
 
 import qualified Data.Map.Strict as M
@@ -75,11 +76,11 @@ instance (GenericLayoutClass l vs ws) => GenericLayoutClass (SmartBorders Int l)
     pureLayout (SmartBorders w l) vs ws box = applyBorders w $ pureLayout l vs ws box
 
 
-applyBorders :: Int -> [(l, SSDPrio, r)] -> [(l, SSDPrio, r)]
+applyBorders :: Int -> [(View, SSDPrio, r)] -> [(View, SSDPrio, r)]
 applyBorders _ [] = []
 applyBorders _ [x]= [x]
 applyBorders w xs = flip fmap xs (\case
-    (v, NoSSD s, b) -> (v, sillyDeco w s, b)
+    (v, NoSSD s, b) -> (v, sillyDeco w v s, b)
     x -> x)
 
 -- | Get the state for the current workspace
