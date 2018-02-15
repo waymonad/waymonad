@@ -24,7 +24,7 @@ module Waymonad.Actions.Spawn.X11
     )
 where
 
-import Control.DeepSeq (NFData (..), force, rwhnf)
+import Control.DeepSeq (NFData (..), force)
 import Control.Monad.IO.Class (liftIO)
 import Data.List (lookup)
 import Data.Typeable (Typeable)
@@ -41,7 +41,7 @@ import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.Types (Way)
 
 newtype PidT = PidT ProcessID deriving (Eq)
-instance NFData PidT where rnf = rwhnf
+instance NFData PidT where rnf = flip seq ()
 
 newtype X11Spawner ws = X11Spawner { spawnPids :: [(PidT, ws)] } deriving Typeable
 
