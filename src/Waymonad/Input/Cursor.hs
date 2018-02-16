@@ -150,6 +150,23 @@ handleTouchDown layout cursor outref event_ptr = do
             old <- getKeyboardFocus seat
             when (old /= Just view) $ doFocusView view seat
 
+handleTouchMotion :: (FocusCore vs ws, WSTag ws)
+                => Ptr WlrOutputLayout -> Ptr WlrCursor
+                -> IORef Int -> Ptr WlrTouchMotion
+                -> Way vs ws ()
+handleTouchMotion layout cursor outref event_ptr = do
+    event <- liftIO $ peek event_ptr
+    let evtX = wlrTouchMotionX event / wlrTouchMotionWidth event
+    let evtY = wlrTouchMotionY event / wlrTouchMotionHeight event
+
+    liftIO $ warpCursorAbs
+        cursor
+        (Just $ wlrTouchMotionDev event)
+        (Just evtX)
+        (Just evtY)
+    updatePosition layout cursor outref (fromIntegral $ wlrTouchMotionMSec event)
+
+
 handleTouchUp :: (FocusCore vs ws, WSTag ws)
               => Ptr WlrOutputLayout -> Ptr WlrCursor
               -> Ptr WlrTouchUp
