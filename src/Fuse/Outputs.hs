@@ -146,7 +146,7 @@ ensureWOutput out fun = do
     roots <- outputFromWlr $ outputRoots out
     maybe (pure $ Left eBADF) (const fun) roots
 
-makeActiveConf :: WSTag a => Output -> Way vs a [(String, Entry vs ws)]
+makeActiveConf :: WSTag ws => Output -> Way vs ws [(String, Entry vs ws)]
 makeActiveConf out = do
     let guaranteed =
             [ ("width",  FileEntry $ textFile $ ensureOutput out $ liftIO (sformat int <$> getWidth  (outputRoots out)))
@@ -226,7 +226,7 @@ enableOutput output txt = do
         Just (Right (x, _)) -> modeFun (addOutputToWork output (Just x) >> pure (Right ()))
         Just (Left _) -> pure $ Left eINVAL
 
-makeConfigs :: WSTag a => Output -> Way vs a [(String, Entry vs ws)]
+makeConfigs :: WSTag ws => Output -> Way vs ws [(String, Entry vs ws)]
 makeConfigs out = do
     active <- liftIO $ readIORef (outputActive out)
     if active

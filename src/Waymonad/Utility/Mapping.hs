@@ -24,6 +24,7 @@ module Waymonad.Utility.Mapping
     , getOutputPointers
     , getOutputWS
     , getOutputs
+    , unsetSeatKeyboardOut
     )
 where
 
@@ -34,7 +35,7 @@ import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
 
-import Waymonad.Utility.Base (These (..), getThis, getThat)
+import Waymonad.Utility.Base (These (..), getThis, getThat, whenJust)
 import Waymonad.ViewSet (WSTag)
 import Waymonad (getState)
 import Waymonad.Types
@@ -44,6 +45,27 @@ runLog :: (WSTag a) => Way vs a ()
 runLog = do
     state <- getState
     wayLogFunction state
+
+-- This: Pointer Focus
+-- That: Keyboard Focus
+unsetSeatKeyboardOut :: WSTag a => Seat -> Way vs a ()
+unsetSeatKeyboardOut seat = do
+    state <- getState
+    current <- lookup seat <$> liftIO (readIORef (wayBindingCurrent state))
+    whenJust current $ \(pointer, keyboard) -> if pointer /= keyboard
+        then setSeatOutput seat (That pointer)
+        else do
+            outputs <- getOutputs
+            case outputs of
+                (o:_) -> setSeatOutput seat (These o o)
+                [] -> do
+                    hook <- wayHooksSeatOutput . wayCoreHooks <$> getState
+                    hook $ PointerOutputChange seat (Just pointer) Nothing
+                    hook $ KeyboardOutputChange seat (Just keyboard) Nothing
+
+                    liftIO $ modifyIORef
+                        (wayBindingCurrent state)
+                        (filter ((/=) seat . fst))
 
 -- This: Pointer Focus
 -- That: Keyboard Focus

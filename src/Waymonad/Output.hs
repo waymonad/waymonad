@@ -136,6 +136,7 @@ import Waymonad.Layout (layoutOutput)
 import Waymonad (makeCallback2)
 import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), Output (..))
 import Waymonad.Utility.Signal
+import Waymonad.Utility.Mapping (getOutputKeyboards, unsetSeatKeyboardOut)
 import Waymonad.Input.Seat (Seat(seatLoadScale))
 import Waymonad.Start (attachFrame)
 import Waymonad.Utility.Base (doJust)
@@ -216,22 +217,25 @@ handleOutputAdd :: (WSTag ws, FocusCore vs ws)
                 -> Way vs ws ()
 handleOutputAdd = handleOutputAdd' frameHandler
 
-handleOutputRemove
-    :: Ptr WlrOutput
-    -> Way vs a ()
+handleOutputRemove :: WSTag ws => Ptr WlrOutput -> Way vs ws ()
 handleOutputRemove output = doJust (outputFromWlr output) $ \out -> do
     state <- getState
     removeOutputFromWork out
     liftIO $ modifyIORef (wayBindingOutputs state) $  \xs -> xs \\ [out]
 
-removeOutputFromWork :: Output -> Way vs ws ()
+removeOutputFromWork :: WSTag ws => Output -> Way vs ws ()
 removeOutputFromWork output = do
     state <- getState
     let Compositor {compLayout = layout} = wayCompositor state
+
     liftIO $ removeOutput layout $ outputRoots output
     liftIO $ outputDisable (outputRoots output)
     liftIO $ modifyIORef (wayBindingMapping state) $ filter ((/=) output . snd)
     liftIO $ writeIORef (outputActive output) False
+
+    keyboards <- getOutputKeyboards output
+    mapM_ unsetSeatKeyboardOut keyboards
+
 
 outputFromWlr :: Ptr WlrOutput -> Way vs a (Maybe Output)
 outputFromWlr ptr = do
