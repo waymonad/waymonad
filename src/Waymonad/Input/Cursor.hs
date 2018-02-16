@@ -43,6 +43,7 @@ import Graphics.Wayland.WlRoots.Input.TabletTool
     , ToolTipEvent (..)
     , tipStateToButtonState
     )
+import Graphics.Wayland.WlRoots.Input.Touch
 import Waymonad.Input.Seat
     ( pointerMotion
     , pointerClear
@@ -112,11 +113,58 @@ cursorCreate layout = do
     tokTAxis <- setSignalHandler (cursorToolAxis signal) (handleToolAxis layout cursor outref)
     tokTTip <- setSignalHandler (cursorToolTip signal) (handleToolTip layout cursor)
 
+    tokD <- setSignalHandler (cursorTouchDown signal) (handleTouchDown layout cursor outref)
+    tokU <- setSignalHandler (cursorTouchUp signal) (handleTouchUp layout cursor)
+
     pure Cursor
         { cursorRoots = cursor
-        , cursorTokens = [tokb, tokm, toka, tokAxis, tokTAxis, tokTTip]
+        , cursorTokens = [tokb, tokm, toka, tokAxis, tokTAxis, tokTTip, tokU, tokD]
         , cursorOutput = outref
         }
+
+handleTouchDown :: (FocusCore vs ws, WSTag ws)
+                => Ptr WlrOutputLayout -> Ptr WlrCursor
+                -> IORef Int -> Ptr WlrTouchDown
+                -> Way vs ws ()
+handleTouchDown layout cursor outref event_ptr = do
+    event <- liftIO $ peek event_ptr
+    let evtX = wlrTouchDownX event / wlrTouchDownWidth event
+    let evtY = wlrTouchDownY event / wlrTouchDownHeight event
+
+    liftIO $ warpCursorAbs
+        cursor
+        (Just $ wlrTouchDownDev event)
+        (Just evtX)
+        (Just evtY)
+    updatePosition layout cursor outref (fromIntegral $ wlrTouchDownMSec event)
+
+    viewM <- getCursorView layout cursor
+    (Just seat) <- getSeat
+
+    case viewM of
+        Nothing -> pointerClear seat
+        Just (view, x, y) -> do
+            pointerButton seat view (fromIntegral x) (fromIntegral y)
+                (wlrTouchDownMSec event) 0x110 ButtonPressed
+
+            old <- getKeyboardFocus seat
+            when (old /= Just view) $ doFocusView view seat
+
+handleTouchUp :: (FocusCore vs ws, WSTag ws)
+              => Ptr WlrOutputLayout -> Ptr WlrCursor
+              -> Ptr WlrTouchUp
+              -> Way vs ws ()
+handleTouchUp layout cursor event_ptr = do
+    event <- liftIO $ peek event_ptr
+
+    viewM <- getCursorView layout cursor
+    (Just seat) <- getSeat
+
+    case viewM of
+        Nothing -> pointerClear seat
+        Just (view, x, y) -> do
+            pointerButton seat view (fromIntegral x) (fromIntegral y)
+                (wlrTouchUpMSec event) 0x110 ButtonReleased
 
 getCursorView
     :: Ptr WlrOutputLayout
