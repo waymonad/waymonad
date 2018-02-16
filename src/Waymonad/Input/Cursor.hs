@@ -115,10 +115,11 @@ cursorCreate layout = do
 
     tokD <- setSignalHandler (cursorTouchDown signal) (handleTouchDown layout cursor outref)
     tokU <- setSignalHandler (cursorTouchUp signal) (handleTouchUp layout cursor)
+    tokM <- setSignalHandler (cursorTouchMotion signal) (handleTouchMotion layout cursor outref)
 
     pure Cursor
         { cursorRoots = cursor
-        , cursorTokens = [tokb, tokm, toka, tokAxis, tokTAxis, tokTTip, tokU, tokD]
+        , cursorTokens = [tokb, tokm, toka, tokAxis, tokTAxis, tokTTip, tokU, tokD, tokM]
         , cursorOutput = outref
         }
 
