@@ -75,6 +75,7 @@ import Graphics.Wayland.WlRoots.Cursor
     , getCursorX
     , getCursorY
     , destroyCursor
+    , absCoordsToGlobal
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( WlrOutputLayout
@@ -167,7 +168,14 @@ handleTouchDown layout cursor outref emuRef event_ptr = do
     let evtX = wlrTouchDownX event / wlrTouchDownWidth event
     let evtY = wlrTouchDownY event / wlrTouchDownHeight event
 
-    viewM <- getViewUnder layout evtX evtY
+    (gX, gY) <- liftIO $ absCoordsToGlobal cursor
+        (wlrTouchDownDev event)
+        (wlrTouchDownX event)
+        (wlrTouchDownY event)
+        (wlrTouchDownWidth event)
+        (wlrTouchDownHeight event)
+
+    viewM <- getViewUnder layout gX gY
     (Just seat) <- getSeat
 
     case viewM of
@@ -223,11 +231,17 @@ handleTouchMotion layout cursor outref emuRef event_ptr = do
     let evtX = wlrTouchMotionX event / wlrTouchMotionWidth event
     let evtY = wlrTouchMotionY event / wlrTouchMotionHeight event
 
+    (gX, gY) <- liftIO $ absCoordsToGlobal cursor
+        (wlrTouchMotionDev event)
+        (wlrTouchMotionX event)
+        (wlrTouchMotionY event)
+        (wlrTouchMotionWidth event)
+        (wlrTouchMotionHeight event)
 
     case fromJust emulate of
         TouchNative v _ _ -> do -- Actually do touch event
             let insert = IM.insert (fromIntegral $ wlrTouchMotionId event)
-            viewM <- getViewUnder layout evtX evtY
+            viewM <- getViewUnder layout gX gY
             case viewM of
                 Nothing -> do
                     liftIO $ touchClearFocus (seatRoots seat)
