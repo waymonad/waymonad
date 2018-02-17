@@ -58,3 +58,6 @@ setValue val (StateMap state) = StateMap $ M.insert (getName val) (StateExtensio
 
 modifyValue :: ExtensionClass a => (a -> a) -> StateMap -> StateMap
 modifyValue fun state = setValue (fun $ getValue state) state
+
+instance Typeable a => ExtensionClass (Maybe a) where
+    initialValue = Nothing

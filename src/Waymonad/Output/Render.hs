@@ -32,7 +32,7 @@ import Graphics.Wayland.Server
     ( outputTransformFlipped_180, callbackDone)
 
 import Graphics.Pixman
-import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxTransform, scaleBox)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxTransform, scaleBox, centerBox)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput, getOutputDamage , isOutputEnabled, getOutputNeedsSwap
     , invertOutputTransform, getOutputTransform
@@ -41,7 +41,7 @@ import Graphics.Wayland.WlRoots.Output
     )
 import Graphics.Wayland.WlRoots.Render
     ( Renderer, rendererScissor, rendererClear, renderWithMatrix, isTextureValid
-    , doRender
+    , doRender, getMatrix
     )
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Render.Matrix
@@ -64,9 +64,11 @@ import Waymonad.View
     ( viewHasCSD, viewGetLocal, getViewSurface, renderViewAdditional
     , viewGetScale
     )
+import Waymonad.Utility.Extensible
 import Waymonad.Utility.SSD (renderDeco, getDecoBox)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
+import Waymonad.Output.Background
 
 renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
 renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
@@ -194,13 +196,27 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
                         pixmanRegionUnion region (getOutputDamage output)
                         act region
             renderBody <- makeCallback $ handleLayers comp secs output layers
+            bg <- getEState
+            clearFun <- liftIO $ case bg of
+                    Nothing -> pure $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+                    Just (BackgroundTexture t bw bh) -> do
+                        Point ow oh <- outputTransformedResolution output
+                        let WlrBox x y _ _ = centerBox (WlrBox 0 0 bw bh) (WlrBox 0 0 ow oh)
+
+                        pure $ do
+                            rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+                            withMatrix $ \matrix -> do
+                                getMatrix t matrix (getTransMatrix output) x y
+                                renderWithMatrix (compRenderer comp) t matrix
+
             liftIO $ withDRegion $ \region -> do
                 notEmpty <- pixmanRegionNotEmpty region
                 when notEmpty $ do
                     boxes <- pixmanRegionBoxes region
+
                     forM_ boxes $ \box -> do
                         scissorOutput (compRenderer comp) output $ boxToWlrBox box
-                        liftIO $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+                        clearFun
 
                     renderBody region
 

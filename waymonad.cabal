@@ -102,6 +102,7 @@ library
   exposed-modules:        Waymonad.Managehook
   exposed-modules:        Waymonad.Navigation2D
   exposed-modules:        Waymonad.Output
+  exposed-modules:        Waymonad.Output.Background
   exposed-modules:        Waymonad.Output.Core
   exposed-modules:        Waymonad.Output.DamageDisplay
   exposed-modules:        Waymonad.Output.Render
@@ -175,6 +176,7 @@ library
   -- Base language which the package is written in.
   default-language:    Haskell2010
   ghc-options:         -Wall -g
+  c-sources:           assets/logo.c
 -- -threaded
   -- build-depends: dump-core
   -- ghc-options: -fplugin=DumpCore -fplugin-opt DumpCore:core-html
