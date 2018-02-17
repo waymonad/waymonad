@@ -43,7 +43,7 @@ import Waymonad.Input.Libinput
 import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad
-import Waymonad.Types (Compositor (compInput))
+import Waymonad.Types (Compositor (compInput), Output (outputName))
 
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -109,7 +109,7 @@ makeInputDir ptr = do
               )
             ]
     let makeDevLink sib = do
-            devName <- liftIO $ T.unpack <$> getDeviceName sib
+            devName <- liftIO $ filter (/= '/') . T.unpack <$> getDeviceName sib
             pure (devName, SymlinkEntry $ pure $ "../../" ++ devName)
     siblings <- getDeviceSiblings ptr
     let sibDir = if S.null siblings
@@ -146,7 +146,15 @@ makeFooDir (name, foo) = do
             pure (devName, SymlinkEntry $ pure $ "../../../devices/" ++ devName)
     let devDir = ("devices", DirEntry $ enumeratingDir $ fmap M.fromList $ mapM makeDevLink $ S.toList devPtrs)
 
-    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList [devDir])
+    currents <- liftIO . readIORef . wayBindingCurrent =<< getState
+    let focus = case lookup (fooSeat foo) currents of
+            Nothing -> []
+            Just (p, k) ->
+                [ ("pointer", SymlinkEntry $ pure $ "../../../outputs/" ++ (T.unpack $ outputName p))
+                , ("keyboard", SymlinkEntry $ pure $ "../../../outputs/" ++(T.unpack $ outputName k))
+                ]
+
+    pure (T.unpack name, DirEntry $ simpleDir $ M.fromList $ devDir: focus)
 
 enumerateSeats :: Way vs a (Map String (Entry vs a))
 enumerateSeats = do
