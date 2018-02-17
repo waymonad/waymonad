@@ -77,7 +77,7 @@ import Graphics.Pixman
 import Graphics.Wayland.Signal
 
 import Graphics.Wayland.Resource (resourceGetClient)
-import Graphics.Wayland.Server (Client)
+import Graphics.Wayland.Server (Client (..))
 import Graphics.Wayland.WlRoots.Util.Region
 
 import Graphics.Wayland.WlRoots.Surface

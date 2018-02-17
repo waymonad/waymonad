@@ -24,12 +24,23 @@ where
 
 import Control.Monad (when, void)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (IORef, newIORef, writeIORef, readIORef)
+import Data.IORef (IORef, newIORef, writeIORef, readIORef, modifyIORef)
+import Data.IntMap (IntMap)
+import Data.Maybe (fromJust)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(..))
 
 import Graphics.Wayland.WlRoots.Box (Point(..))
+import Graphics.Wayland.WlRoots.Seat
+    ( clientHasTouch, handleForClient
+
+    , touchNotifyMotion
+    , touchNotifyUp
+    , touchNotifyDown
+    , touchPointFocus
+    , touchClearFocus
+    )
 import Graphics.Wayland.WlRoots.Input.Buttons
 import Graphics.Wayland.WlRoots.Input.Pointer
     ( WlrEventPointerButton (..)
@@ -50,6 +61,7 @@ import Waymonad.Input.Seat
     , pointerAxis
     , pointerButton
     , getKeyboardFocus
+    , Seat (seatRoots)
     )
 import Graphics.Wayland.WlRoots.Cursor
     ( WlrCursor
@@ -66,17 +78,16 @@ import Graphics.Wayland.WlRoots.Cursor
     )
 import Graphics.Wayland.WlRoots.OutputLayout
     ( WlrOutputLayout
-    , layoutOutputGetOutput
     , layoutAtPos
     , layoutGetOutput
     , layoutOuputGetPosition
     )
-import Graphics.Wayland.Signal (ListenerToken, removeListener)
+import Graphics.Wayland.Signal (removeListener)
 
 import Waymonad.Input.Cursor.Type
 import Waymonad.Output (outputFromWlr)
 import Waymonad.Utility.Base (ptrToInt, doJust, These(..))
-import Waymonad.View (View, doFocusView)
+import Waymonad.View (View, doFocusView, getViewClient, getViewEventSurface)
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad
     ( Way
@@ -85,12 +96,21 @@ import Waymonad
     , WayLoggers (..)
     )
 import Waymonad.Types
-import Waymonad.Utility.Current (getPointerWS, getPointerOutputS)
-import Waymonad.Utility.Focus (focusView, setWorkspace)
 import Waymonad.Utility.Layout (viewBelow)
 import Waymonad.Utility.Log (logPutText, LogPriority (..))
 import Waymonad.Utility.Mapping (setSeatOutput)
 import Waymonad.Utility.Signal (setSignalHandler)
+
+import qualified Data.IntMap.Strict as IM
+
+data TouchPoint
+    = TouchNative -- ^Native touch. Handling
+        { touchView :: Maybe View
+        , touchX    :: Double
+        , touchY    :: Double
+        }
+  | TouchMouse Bool -- ^Emulate a normal pointer behaviour, or ignore TouchPoint
+    deriving (Show)
 
 cursorDestroy :: Cursor -> IO ()
 cursorDestroy Cursor { cursorRoots = roots, cursorTokens = tokens } = do
@@ -113,9 +133,11 @@ cursorCreate layout = do
     tokTAxis <- setSignalHandler (cursorToolAxis signal) (handleToolAxis layout cursor outref)
     tokTTip <- setSignalHandler (cursorToolTip signal) (handleToolTip layout cursor)
 
-    tokD <- setSignalHandler (cursorTouchDown signal) (handleTouchDown layout cursor outref)
-    tokU <- setSignalHandler (cursorTouchUp signal) (handleTouchUp layout cursor)
-    tokM <- setSignalHandler (cursorTouchMotion signal) (handleTouchMotion layout cursor outref)
+    emulateRef <- liftIO $ newIORef mempty
+
+    tokD <- setSignalHandler (cursorTouchDown signal) (handleTouchDown layout cursor outref emulateRef)
+    tokU <- setSignalHandler (cursorTouchUp signal) (handleTouchUp layout cursor outref emulateRef)
+    tokM <- setSignalHandler (cursorTouchMotion signal) (handleTouchMotion layout cursor outref emulateRef)
 
     pure Cursor
         { cursorRoots = cursor
@@ -123,75 +145,159 @@ cursorCreate layout = do
         , cursorOutput = outref
         }
 
+viewSupportsTouch :: View -> Way vs ws Bool
+viewSupportsTouch view = do
+    (Just seat) <- getSeat
+    clientM <- (getViewClient view)
+    liftIO $ case clientM of
+        Nothing -> pure False
+        Just client -> do
+            handleM <- handleForClient (seatRoots seat) client
+            case handleM of
+                Nothing -> pure False
+                Just handle -> clientHasTouch handle
+
 handleTouchDown :: (FocusCore vs ws, WSTag ws)
                 => Ptr WlrOutputLayout -> Ptr WlrCursor
-                -> IORef Int -> Ptr WlrTouchDown
+                -> IORef Int -> IORef (IntMap TouchPoint)
+                -> Ptr WlrTouchDown
                 -> Way vs ws ()
-handleTouchDown layout cursor outref event_ptr = do
+handleTouchDown layout cursor outref emuRef event_ptr = do
     event <- liftIO $ peek event_ptr
     let evtX = wlrTouchDownX event / wlrTouchDownWidth event
     let evtY = wlrTouchDownY event / wlrTouchDownHeight event
 
-    liftIO $ warpCursorAbs
-        cursor
-        (Just $ wlrTouchDownDev event)
-        (Just evtX)
-        (Just evtY)
-    updatePosition layout cursor outref (fromIntegral $ wlrTouchDownMSec event)
-
-    viewM <- getCursorView layout cursor
+    viewM <- getViewUnder layout evtX evtY
     (Just seat) <- getSeat
 
     case viewM of
-        Nothing -> pointerClear seat
-        Just (view, x, y) -> do
-            pointerButton seat view (fromIntegral x) (fromIntegral y)
-                (wlrTouchDownMSec event) 0x110 ButtonPressed
+        Nothing ->
+            let insert = IM.insert (fromIntegral $ wlrTouchDownId event)
+                update = insert (TouchNative Nothing evtX evtY)
+             in liftIO $ modifyIORef emuRef update
+        Just (view, baseX, baseY) -> do
+            supportsTouch <- viewSupportsTouch view
 
-            old <- getKeyboardFocus seat
-            when (old /= Just view) $ doFocusView view seat
+            if supportsTouch
+                then liftIO $ do
+                    let insert = IM.insert (fromIntegral $ wlrTouchDownId event)
+                    let update = insert (TouchNative (Just view) evtX evtY)
+                    modifyIORef emuRef update
+                    void . doJust (getViewEventSurface view (fromIntegral baseX) (fromIntegral baseY)) $ \(surf, tX, tY) -> do
+                        touchNotifyDown (seatRoots seat) surf
+                            (wlrTouchDownMSec event)
+                            (wlrTouchDownId event)
+                            tX
+                            tY
+                else do
+                    emuMap <- liftIO $ readIORef emuRef
+                    let insert = IM.insert (fromIntegral $ wlrTouchDownId event)
+                    let doEmu = IM.null emuMap
+                    liftIO $ modifyIORef emuRef (insert $ TouchMouse doEmu)
+
+                    when doEmu $ do
+                        liftIO $ warpCursorAbs
+                            cursor
+                            (Just $ wlrTouchDownDev event)
+                            (Just evtX)
+                            (Just evtY)
+                        updatePosition layout cursor outref
+                            (fromIntegral $ wlrTouchDownMSec event)
+                        pointerButton seat view (fromIntegral baseX) (fromIntegral baseY)
+                            (wlrTouchDownMSec event) 0x110 ButtonPressed
+
+                        old <- getKeyboardFocus seat
+                        when (old /= Just view) $ doFocusView view seat
+
 
 handleTouchMotion :: (FocusCore vs ws, WSTag ws)
                 => Ptr WlrOutputLayout -> Ptr WlrCursor
-                -> IORef Int -> Ptr WlrTouchMotion
+                -> IORef Int -> IORef (IntMap TouchPoint)
+                -> Ptr WlrTouchMotion
                 -> Way vs ws ()
-handleTouchMotion layout cursor outref event_ptr = do
+handleTouchMotion layout cursor outref emuRef event_ptr = do
     event <- liftIO $ peek event_ptr
+    emulate <- IM.lookup (fromIntegral $ wlrTouchMotionId event) <$> liftIO (readIORef emuRef)
+    (Just seat) <- getSeat
+
     let evtX = wlrTouchMotionX event / wlrTouchMotionWidth event
     let evtY = wlrTouchMotionY event / wlrTouchMotionHeight event
 
-    liftIO $ warpCursorAbs
-        cursor
-        (Just $ wlrTouchMotionDev event)
-        (Just evtX)
-        (Just evtY)
-    updatePosition layout cursor outref (fromIntegral $ wlrTouchMotionMSec event)
+
+    case fromJust emulate of
+        TouchNative v _ _ -> do -- Actually do touch event
+            let insert = IM.insert (fromIntegral $ wlrTouchMotionId event)
+            viewM <- getViewUnder layout evtX evtY
+            case viewM of
+                Nothing -> do
+                    liftIO $ touchClearFocus (seatRoots seat)
+                        (wlrTouchMotionMSec event)
+                        (wlrTouchMotionId event)
+                    let update = insert (TouchNative Nothing evtX evtY)
+                    liftIO $ modifyIORef emuRef update
+
+                Just (view, baseX, baseY) -> do
+                    liftIO $ doJust (getViewEventSurface view (fromIntegral baseX) (fromIntegral baseY)) $ \(surf, tX, tY) -> do
+                        when (Just view /= v) $
+                            touchPointFocus (seatRoots seat) surf
+                                (wlrTouchMotionMSec event)
+                                (wlrTouchMotionId event)
+                                tX tY
+                        touchNotifyMotion (seatRoots seat)
+                                (wlrTouchMotionMSec event)
+                                (wlrTouchMotionId event)
+                                tX  tY
+
+                    let update = insert (TouchNative (Just view) evtX evtY)
+                    liftIO $ modifyIORef emuRef update
+
+
+            let update = IM.insert (fromIntegral $ wlrTouchMotionId event) (TouchNative v evtX evtY)
+            liftIO $ modifyIORef emuRef update
+        TouchMouse doEmu -> when doEmu $ do -- Emulate a normal pointer
+            liftIO $ warpCursorAbs
+                cursor
+                (Just $ wlrTouchMotionDev event)
+                (Just evtX)
+                (Just evtY)
+            updatePosition layout cursor outref (fromIntegral $ wlrTouchMotionMSec event)
 
 
 handleTouchUp :: (FocusCore vs ws, WSTag ws)
               => Ptr WlrOutputLayout -> Ptr WlrCursor
-              -> Ptr WlrTouchUp
+              -> IORef Int
+              -> IORef (IntMap TouchPoint) -> Ptr WlrTouchUp
               -> Way vs ws ()
-handleTouchUp layout cursor event_ptr = do
+handleTouchUp layout cursor outref emuRef event_ptr = do
     event <- liftIO $ peek event_ptr
-
-    viewM <- getCursorView layout cursor
+    emulate <- IM.lookup (fromIntegral $ wlrTouchUpId event) <$> liftIO (readIORef emuRef)
     (Just seat) <- getSeat
 
-    case viewM of
-        Nothing -> pointerClear seat
-        Just (view, x, y) -> do
-            pointerButton seat view (fromIntegral x) (fromIntegral y)
-                (wlrTouchUpMSec event) 0x110 ButtonReleased
+    case fromJust emulate of
+        TouchMouse doEmu -> when doEmu $ do -- emulate a normal pointer interaction
+            viewM <- getCursorView layout cursor
 
-getCursorView
-    :: Ptr WlrOutputLayout
-    -> Ptr WlrCursor
-    -> Way vs a (Maybe (View, Int, Int))
-getCursorView layout cursor = do
-    baseX <- liftIO  $ getCursorX cursor
-    baseY <- liftIO  $ getCursorY cursor
+            case viewM of
+                Nothing -> pointerClear seat
+                Just (view, x, y) -> do
+                    pointerButton seat view (fromIntegral x) (fromIntegral y)
+                        (wlrTouchUpMSec event) 0x110 ButtonReleased
+        TouchNative _ evtX evtY -> do -- handle the touch up event
+            liftIO $ touchNotifyUp (seatRoots seat) (wlrTouchUpMSec event) (wlrTouchUpId event)
 
+            liftIO $ warpCursorAbs
+                cursor
+                (Just $ wlrTouchUpDev event)
+                (Just evtX)
+                (Just evtY)
+            updatePosition layout cursor outref (fromIntegral $ wlrTouchUpMSec event)
+
+    liftIO $ modifyIORef emuRef (IM.delete . fromIntegral $ wlrTouchUpId event)
+
+getViewUnder :: Ptr WlrOutputLayout
+            -> Double -> Double
+            -> Way vs a (Maybe (View, Int, Int))
+getViewUnder layout baseX baseY = do
     outputM <- liftIO $ layoutAtPos layout baseX baseY
     case outputM of
         Nothing -> do
@@ -203,6 +309,17 @@ getCursorView layout cursor = do
             let x = floor baseX - offX
             let y = floor baseY - offY
             doJust (outputFromWlr out) $ viewBelow (Point x y)
+
+getCursorView
+    :: Ptr WlrOutputLayout
+    -> Ptr WlrCursor
+    -> Way vs a (Maybe (View, Int, Int))
+getCursorView layout cursor = do
+    baseX <- liftIO  $ getCursorX cursor
+    baseY <- liftIO  $ getCursorY cursor
+
+    getViewUnder layout baseX baseY
+
 
 updatePosition
     :: (FocusCore vs a, WSTag a)
