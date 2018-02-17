@@ -180,8 +180,8 @@ myConf modi = WayUserConf
     , wayUserConfShells = [Xdg.makeShell, Wl.makeShell, XWay.makeShell]
     , wayUserConfLog = pure ()
     , wayUserConfOutputAdd = \out -> do
-        setPreferdMode (outputRoots out)
-        addOutputToWork out Nothing
+        setPreferdMode (outputRoots out) $
+            addOutputToWork out Nothing
     , wayUserconfLoggers = Nothing
     , wayUserconfColor = Color 0.5 0 0 1
     , wayUserconfColors = mempty

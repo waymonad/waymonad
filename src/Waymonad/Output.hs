@@ -77,9 +77,12 @@ module Waymonad.Output
     , getOutputBox
     , intersectsOutput
     , outApplyDamage
+    , setOutMode
     )
 where
 
+import Control.Exception (try)
+import System.IO.Error (IOError)
 import Control.Monad (forM_, forM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (maximumBy, minimumBy)
@@ -259,12 +262,19 @@ readTransform "Flipped180" = Just outputTransformFlipped_180
 readTransform "Flipped270" = Just outputTransformFlipped_270
 readTransform _ = Nothing
 
-setPreferdMode :: MonadIO m => Ptr WlrOutput -> m ()
-setPreferdMode output = liftIO $ do
-    modes <- getModes output
+setOutMode :: MonadIO m => Ptr WlrOutput -> Ptr OutputMode -> m () -> m ()
+setOutMode output mode cont = do
+    ret :: Either IOError () <- liftIO $ try $ setOutputMode mode output
+    case ret of
+        Left _ -> pure ()
+        Right _ -> cont
+
+setPreferdMode :: MonadIO m => Ptr WlrOutput -> m () -> m ()
+setPreferdMode output cont = do
+    modes <- liftIO $ getModes output
     case modes of
-        [] -> pure ()
-        _ -> setOutputMode (last modes) output
+        [] -> cont
+        _ -> setOutMode output (last modes) cont
 
 addOutputToWork :: Output -> Maybe Point -> Way vs ws ()
 addOutputToWork output position = do

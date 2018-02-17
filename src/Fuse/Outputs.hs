@@ -68,6 +68,7 @@ import Waymonad.Output
     , readTransform
     , removeOutputFromWork
     , setPreferdMode
+    , setOutMode
     )
 import Waymonad.ViewSet (WSTag (..))
 import Waymonad (getState)
@@ -218,8 +219,8 @@ enableOutput output txt = do
         Just x -> Just <$> readMode output x
         Nothing -> pure Nothing
     let modeFun = case mode of
-            Nothing -> (>>) (liftIO $ setPreferdMode (outputRoots $ output))
-            Just (Just m) -> (>>) (liftIO $ setOutputMode m (outputRoots $ output))
+            Nothing -> (>>) (liftIO $ setPreferdMode (outputRoots $ output) $ pure ())
+            Just (Just m) -> (>>) (liftIO $ setOutMode (outputRoots $ output) m $ pure ())
             Just Nothing -> const $ pure $ Left eINVAL
     case position of
         Nothing -> modeFun (addOutputToWork output Nothing >> pure (Right ()))

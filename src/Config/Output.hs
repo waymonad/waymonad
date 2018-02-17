@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings, ApplicativeDo #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Config.Output
     ( OutputConfig (..)
     , Mode (..)
@@ -26,10 +27,11 @@ module Config.Output
     )
 where
 
+import Config.Schema
+import Control.Exception (try)
 import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
 import Data.Functor.Alt ((<!>))
-import Config.Schema
 import Data.List (sortOn)
 import Data.Map (Map)
 import Data.Maybe (listToMaybe)
@@ -37,6 +39,7 @@ import Data.Ratio (Ratio, (%))
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable
+import System.IO.Error (IOError)
 
 import Graphics.Wayland.Server
     ( OutputTransform
@@ -51,7 +54,7 @@ import Graphics.Wayland.Server
     )
 import Graphics.Wayland.WlRoots.Output
 
-import Waymonad.Output (setPreferdMode, addOutputToWork)
+import Waymonad.Output (setPreferdMode, addOutputToWork, setOutMode)
 import Waymonad.Utility.Base (whenJust)
 import Waymonad.Types
 
@@ -160,12 +163,13 @@ configureOutput conf out@Output {outputRoots = output} = do
     mode <- pickMode output confMode
 
     liftIO $ whenJust transform (transformOutput output)
-    case mode of
-        Just m -> liftIO $ setOutputMode m output
-        Nothing -> setPreferdMode output
     liftIO $ whenJust (outScale conf) (setOutputScale output)
 
-    addOutputToWork out (fmap asRootsPoint position)
+    let setMode = case mode of
+            Just m -> setOutMode output m
+            Nothing -> setPreferdMode output
+
+    setMode $  addOutputToWork out (fmap asRootsPoint position)
 
 
 prependConfig :: Map Text OutputConfig -> (Output -> Way vs ws ()) -> (Output -> Way vs ws ())
