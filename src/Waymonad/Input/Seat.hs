@@ -32,6 +32,7 @@ module Waymonad.Input.Seat
     , updatePointerFocus
     , seatDestroy
     , setPointerPosition
+    , useClipboardText
     )
 where
 
@@ -39,10 +40,13 @@ import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef, modifyIORef)
 import Data.Maybe (isJust, fromMaybe)
+import Data.Text (Text)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
+import System.IO (hClose)
+import System.Posix.IO (fdToHandle)
+import System.Posix.Types (Fd (..))
 
-import Graphics.Wayland.WlRoots.Box (Point)
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Input.Buttons (ButtonState)
 import Graphics.Wayland.WlRoots.Input.Pointer (AxisOrientation)
@@ -50,6 +54,13 @@ import Graphics.Wayland.WlRoots.Input.Keyboard (getModifierPtr, getKeyboardKeys)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.Server
     ( DisplayServer
+    , ClientState
+    , clientStateReadable
+    , eventLoopAddFd
+    , displayGetEventLoop
+    , eventSourceRemove
+    , EventSource
+
     , seatCapabilityTouch
     , seatCapabilityKeyboard
     , seatCapabilityPointer
@@ -60,11 +71,14 @@ import Waymonad.Input.Cursor.Type
 import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.View (getViewSurface, getViewEventSurface)
 import Waymonad.ViewSet (WSTag, FocusCore (..))
-import Waymonad (getState)
+import Waymonad (getState, makeCallback2)
 import Waymonad.Types
 import Waymonad.Types.Core
+import Graphics.Wayland.WlRoots.DeviceManager (getSelectionText)
 import Waymonad.Utility.Current (getCurrentWS)
 
+import qualified Data.ByteString as BS
+import qualified Data.Text.Encoding as E
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Graphics.Wayland.WlRoots.Seat as R
@@ -217,3 +231,26 @@ updatePointerFocus seat = updateFocus (seatCursor seat) 0
 
 setPointerPosition :: (FocusCore vs ws, WSTag ws) => Seat -> (Double, Double) -> Way vs ws ()
 setPointerPosition seat p = forcePosition (seatCursor seat) p 0
+
+handleClipboardText :: (Text -> Way vs ws ()) -> IORef EventSource -> Int -> ClientState -> Way vs ws Bool
+handleClipboardText userCB ref _fd _ = do
+    let fd = Fd $ fromIntegral _fd
+    handle <- liftIO $ fdToHandle fd
+    bs <- liftIO $ BS.hGetContents handle
+    case E.decodeUtf8' bs of
+        Left _ -> pure ()
+        Right txt -> userCB txt
+    liftIO $ hClose handle
+    liftIO (eventSourceRemove =<< readIORef ref)
+    pure True
+
+useClipboardText :: Seat -> (Text -> Way vs ws ()) -> Way vs ws ()
+useClipboardText seat fun = do
+    comp <- wayCompositor <$> getState
+    let display = compDisplay comp
+    ref <- liftIO $ newIORef $ error "The clipboard IORef was used to early. How?"
+    cb <- makeCallback2 $ handleClipboardText fun ref
+    liftIO $ doJust (R.getSelectionSource $ seatRoots seat) $ \device -> do
+        fd <- getSelectionText device
+        loop <- displayGetEventLoop display
+        writeIORef ref =<< eventLoopAddFd loop fd clientStateReadable cb

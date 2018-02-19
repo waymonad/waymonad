@@ -27,18 +27,20 @@ module Main
 where
 
 import Control.Applicative ((<|>))
+import Control.Monad.IO.Class (liftIO)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import System.IO
 import System.Environment (lookupEnv)
 
-import Text.XkbCommon.InternalTypes (Keysym(..))
-import Text.XkbCommon.KeysymList
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..))
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
+import Text.XkbCommon.InternalTypes (Keysym(..))
+import Text.XkbCommon.KeysymList
 
 import Data.String (IsString)
 import Fuse.Main
+import Waymonad (getSeat)
 import Waymonad.GlobalFilter
 import Waymonad.Hooks.EnterLeave (enterLeaveHook)
 import Waymonad.Hooks.FocusFollowPointer
@@ -46,6 +48,7 @@ import Waymonad.Hooks.KeyboardFocus
 import Waymonad.Hooks.ScaleHook
 import Waymonad.Input (attachDevice)
 import Waymonad.Input.Keyboard (setSubMap, resetSubMap, getSubMap)
+import Waymonad.Input.Seat (useClipboardText)
 import Waymonad.Layout.SmartBorders
 import Waymonad.Layout.Choose
 import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
@@ -64,6 +67,7 @@ import Waymonad.Actions.Spawn (spawn, manageSpawnOn)
 import Waymonad.Actions.Spawn.X11 (manageX11SpawnOn)
 import Waymonad.ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
 import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Timing
 import Waymonad.Utility.View
 import Waymonad.Utility.ViewSet (modifyFocusedWS)
@@ -122,6 +126,10 @@ getModi = do
     x11 <- lookupEnv "DISPLAY"
     pure . maybe Logo (const Alt) $ way <|> x11
 
+printClipboard :: Way vs ws ()
+printClipboard = doJust getSeat $ \seat ->
+    useClipboardText seat $ liftIO . print
+
 bindings :: (Layouted vs ws, ListLike vs ws, FocusCore vs ws, IsString ws, WSTag ws)
          => WlrModifier -> [(([WlrModifier], Keysym), KeyBinding vs ws)]
 bindings modi =
@@ -140,6 +148,8 @@ bindings modi =
 
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi], keysym_d), spawn "rofi -show run")
+
+    , (([modi], keysym_p), printClipboard)
 
     , (([modi], keysym_n), focusNextOut)
     , (([modi], keysym_q), closeCurrent)

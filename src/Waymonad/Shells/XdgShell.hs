@@ -32,8 +32,6 @@ module Waymonad.Shells.XdgShell
     )
 where
 
-import Debug.Trace
-
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM_, unless)
 import Control.Monad.IO.Class
@@ -227,7 +225,7 @@ renderPopups fun surf = do
         let box = WlrBox x y (boxWidth popBox) (boxHeight popBox)
 
         doJust (liftIO $ R.xdgSurfaceGetSurface popup) $ \wlrSurf -> do
-            fun wlrSurf (traceShowId box)
+            fun wlrSurf box
             renderPopups
                 (\v b -> fun v b {boxX = boxX b + x, boxY = boxY b + y})
                 popup
