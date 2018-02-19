@@ -237,9 +237,10 @@ fieteHandler secs Output {outputRoots = output, outputLayout = layers} = do
             let withDRegion act = withRegion $ \region -> do
                         Point w h <- outputTransformedResolution output
                         resetRegion region . Just $ WlrBox 0 0 w h
+                        scissorOutput (compRenderer comp) output $ WlrBox 0 0 w h
                         act region
 
             renderBody <- makeCallback $ handleLayers comp secs output layers
             liftIO $ withDRegion $ \region -> do
-                liftIO $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+                rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
                 renderBody region
