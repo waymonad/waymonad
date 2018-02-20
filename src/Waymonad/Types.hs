@@ -55,6 +55,8 @@ module Waymonad.Types
     , ServerSideDecoration (..)
     , SSDPrio (..)
     , Output (..)
+    , SeatEvent (..)
+    , EvtCause (..)
     )
 where
 
@@ -122,6 +124,18 @@ data WayShell vs ws = forall a. ShellClass a vs ws => WayShell a
 -- | Core event emitted when a view enters or exists a workspace
 data ViewWSChange ws = WSEnter View ws | WSExit View ws deriving (Show)
 
+-- | Sumtype to determine whether the Pointer or Keyboard changed
+data SeatEvent
+    = SeatKeyboard
+    | SeatPointer
+    deriving (Eq, Show)
+
+data EvtCause
+    = Intentional
+    | SideEffect
+    deriving (Eq, Show)
+
+
 -- | Core event emittend when the workspace displayed on an output is changed
 data OutputMappingEvent ws = OutputMappingEvent
     { outputMappingEvtOutput :: Output
@@ -135,43 +149,38 @@ This happens for pointers when they cross the border between them
 For keyboards this is emitted when a keybind to changed focused output is
 used, or when it's configured to follow the pointer.
 -}
-data SeatOutputChange
-    = PointerOutputChange
-        { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe Output
-        , seatOutChangeEvtNew :: Maybe Output
-        }
-    | KeyboardOutputChange
-        { seatOutChangeEvtSeat :: Seat
-        , seatOutChangeEvtPre :: Maybe Output
-        , seatOutChangeEvtNew :: Maybe Output
-        } deriving (Show)
+data SeatOutputChange = SeatOutputChange
+    { seatOutChangeEvtPart  :: SeatEvent
+    , seatOutChangeEvtCause :: EvtCause
+    , seatOutChangeEvtSeat  :: Seat
+    , seatOutChangeEvtPre   :: Maybe Output
+    , seatOutChangeEvtNew   :: Maybe Output
+    } deriving (Show)
 
 {- | Core event emittedn when a seat changes the focused workspace.
 
 This event is synthesized from 'SeatOutputChange' and 'OutputMappingEvent' event handlers.
 See those two for a better idea when this happens.
 -}
-data SeatWSChange a
-    = PointerWSChange
-        { seatWSChangeSeat :: Seat
-        , seatWSChangePre :: Maybe a
-        , seatWSChangeCur :: Maybe a
-        }
-    | KeyboardWSChange
-        { seatWSChangeSeat :: Seat
-        , seatWSChangePre :: Maybe a
-        , seatWSChangeCur :: Maybe a
-        } deriving (Eq, Show)
+data SeatWSChange a = SeatWSChange
+    { seatWsChangePart  :: SeatEvent
+    , seatWsChangeCause :: EvtCause
+    , seatWSChangeSeat  :: Seat
+    , seatWSChangePre   :: Maybe a
+    , seatWSChangeCur   :: Maybe a
+    } deriving (Eq, Show)
 
 -- | Core event emitted by a seat when the focus changed
-data SeatFocusChange
-    = PointerFocusChange  Seat (Maybe View) (Maybe View)
-    | KeyboardFocusChange Seat (Maybe View) (Maybe View)
-    deriving (Eq, Show)
+data SeatFocusChange = SeatFocusChange
+    { seatFocusEvtPart  :: SeatEvent
+    , seatFocusEvtCause :: EvtCause
+    , seatFocusEvtSeat  :: Seat
+    , seatFocusEvtPre   :: (Maybe View)
+    , seatFocusEvtCur   :: (Maybe View)
+    } deriving (Eq, Show)
 
 -- | A newtype wrapper for 'Output'. To disambiguate Hook usage
-newtype OutputEvent = OutputEvent Output
+newtype OutputEvent = OutputEvent Output deriving (Show, Eq)
 
 -- | The core hooks. This should be filled in by the user.
 data WayHooks vs ws = WayHooks

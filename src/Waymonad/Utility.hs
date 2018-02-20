@@ -44,7 +44,7 @@ import Waymonad.Utility.Mapping (setSeatOutput)
 import Waymonad (Way, WayBindingState(..), WayLoggers (..), getSeat, getState)
 import Waymonad.Types
     ( LogPriority(..), Compositor (..), ViewWSChange (..)
-    , WayHooks (..), SeatOutputChange (..), Output (..)
+    , WayHooks (..), SeatOutputChange (..), Output (..), EvtCause (Intentional)
     )
 
 import qualified Data.Text as T
@@ -83,28 +83,21 @@ focusNextOut :: WSTag a => Way vs a ()
 focusNextOut = doJust getSeat $ \seat -> doJust getCurrentOutput $ \current -> do
     possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
     let new = head . tail . dropWhile (/= current) $ cycle possibles
-    setSeatOutput seat (That new)
+    setSeatOutput seat (That new) Intentional
 
 seatOutputEventLogger :: WSTag a => SeatOutputChange -> Way vs a ()
-seatOutputEventLogger (PointerOutputChange seat pre new) = do
+seatOutputEventLogger (SeatOutputChange part intent seat pre new) = do
     let pName = outputName <$> pre
     let nName = outputName <$> new
     let sName = seatName seat
     logPutText loggerOutput Debug $
         "Seat " `T.append`
         T.pack sName `T.append`
-        " changed pointer focus from " `T.append`
-        fromMaybe "None" pName `T.append`
-        " to " `T.append`
-        fromMaybe "None" nName
-seatOutputEventLogger (KeyboardOutputChange seat pre new) = do
-    let pName = outputName <$> pre
-    let nName = outputName <$> new
-    let sName = seatName seat
-    logPutText loggerOutput Debug $
-        "Seat " `T.append`
-        T.pack sName `T.append`
-        " changed keyboard focus from " `T.append`
+        " changed " `T.append`
+        T.pack (show part) `T.append`
+        " focus because " `T.append`
+        T.pack (show intent) `T.append`
+        " from " `T.append`
         fromMaybe "None" pName `T.append`
         " to " `T.append`
         fromMaybe "None" nName

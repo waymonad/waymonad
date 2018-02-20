@@ -70,10 +70,8 @@ import Waymonad.Utility.Log (logPutText, LogPriority (..))
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
 import Waymonad
 import Waymonad.Types
-    ( Compositor (..)
-    , ShellClass (..)
-    , WayBindingState (..)
-    , WayShell (..)
+    ( Compositor (..),  ShellClass (..), WayBindingState (..), WayShell (..)
+    , EvtCause (SideEffect)
     )
 
 import qualified Data.IntMap.Strict as M
@@ -201,7 +199,7 @@ handleX11Map view surf = do
     Point x y <- liftIO $ X.getX11SurfacePosition surf
     moveView view (fromIntegral x) (fromIntegral y)
     insertView view
-    doJust getSeat (void . flip keyboardEnter view)
+    doJust getSeat (\s -> void $ keyboardEnter s SideEffect view)
 
 handleOverrideCommit :: View -> Ptr X.X11Surface -> Ptr WlrSurface -> Way vs a ()
 handleOverrideCommit view surf _ = do

@@ -23,10 +23,10 @@ module Waymonad.Hooks.KeyboardFocus
     ( handleKeyboardSwitch
     , handlePointerSwitch
     , handleKeyboardPull
+    , handlePointerPull
     )
 where
 
-import Control.Monad (void)
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Data.Maybe (fromMaybe)
 
@@ -36,10 +36,11 @@ import Waymonad.Input.Seat (keyboardClear, updatePointerFocus)
 import Waymonad.Output (getOutputBox)
 import Waymonad.Utility.Base (whenJust, doJust)
 import Waymonad.ViewSet (WSTag, FocusCore (..), getFirst)
+import Waymonad.Utility.Base (These (..))
 import Waymonad.Utility.Focus
 import Waymonad.Utility.Pointer
 import Waymonad.Utility.Layout (getViewPosition)
-import Waymonad.Utility.Mapping (getOutputPointers, getOutputWS)
+import Waymonad.Utility.Mapping (getOutputPointers, getOutputWS, setSeatOutput)
 import Waymonad.Utility.ViewSet (unsetFocus, setFocused, withViewSet, getFocused)
 import Waymonad
 import Waymonad.Types
@@ -57,16 +58,16 @@ import Waymonad.Types
 
 -- IfCxt?
 handleKeyboardSwitch :: (FocusCore vs ws, WSTag ws) => SeatWSChange ws -> Way vs ws ()
-handleKeyboardSwitch (KeyboardWSChange s pre cur) = do
+handleKeyboardSwitch (SeatWSChange SeatKeyboard _ s pre cur) = do
     whenJust pre $ unsetFocus s
     case cur of
         -- We focused the void (in some way) clear focus
-        Nothing -> void $ keyboardClear s
+        Nothing -> keyboardClear s
         -- Focused something
         Just ws -> withViewSet (\_ vs -> _getFocused vs ws (Just s)) >>= \case
             -- Ok, we have a focused view here. Just do the usual focus
             -- setting procedure
-            Just _ -> setFocused s ws
+            Just _ -> setFocused s SideEffect ws
             -- Nothing focused yet. Try master
             Nothing -> withViewSet (\_ vs -> getFirst vs ws) >>= \case
                 -- Master doesn't exist. So this WS is empty, let's clear
@@ -81,9 +82,16 @@ handlePointerSwitch (OutputMappingEvent out _ _) = do
     pointers <- getOutputPointers out
     mapM_  updatePointerFocus pointers
 
+handlePointerPull :: (FocusCore vs ws, WSTag ws)
+                  => SeatOutputChange -> Way vs ws ()
+handlePointerPull (SeatOutputChange SeatPointer Intentional s _ cur) = whenJust cur $ \out -> do
+    setSeatOutput s (That out) SideEffect
+handlePointerPull _ = pure ()
+
+
 handleKeyboardPull :: (FocusCore vs ws, WSTag ws)
                    => SeatOutputChange -> Way vs ws ()
-handleKeyboardPull (KeyboardOutputChange s _ cur) = whenJust cur $ \out -> do
+handleKeyboardPull (SeatOutputChange SeatKeyboard Intentional s _ cur) = whenJust cur $ \out -> do
     doJust (getOutputBox out) $ \ob@(WlrBox ox oy _ _) -> do
         box <- runMaybeT $ do
             ws <- MaybeT $ getOutputWS out

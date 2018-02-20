@@ -53,7 +53,7 @@ import Waymonad
     , getSeat
     )
 import Waymonad.Extensible
-import Waymonad.Types (SSDPrio (NoSSD))
+import Waymonad.Types (SSDPrio (NoSSD), EvtCause (Intentional))
 import Waymonad.Types.Core (ManagerData (..))
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Current (getCurrentBox, getCurrentView, getCurrentWS)
@@ -87,7 +87,7 @@ isFloating v = S.member v <$> getFloats
 focusFloating :: Seat -> View -> Way vs ws ()
 focusFloating seat view = do
     activateView view True
-    void $ keyboardEnter seat view
+    void $ keyboardEnter seat Intentional view
 
 makeFloatManager :: Way vs ws ManagerData
 makeFloatManager = do

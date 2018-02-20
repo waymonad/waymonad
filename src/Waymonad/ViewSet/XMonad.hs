@@ -70,7 +70,7 @@ data Workspace ws = Workspace
 data ViewSet ws = ViewSet
     { _viewSetActive :: Map ws (Workspace ws)
     , _viewSetLayout :: GenericLayout (ViewSet ws) ws
-    }
+    } deriving (Show)
 
 adjustWS :: Ord ws
          => (Workspace ws -> Workspace ws) -> ws -> ViewSet ws -> ViewSet ws

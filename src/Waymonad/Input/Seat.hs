@@ -38,7 +38,7 @@ where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.IORef (IORef, newIORef, writeIORef, readIORef, modifyIORef)
+import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Maybe (isJust, fromMaybe)
 import Data.Text (Text)
 import Data.Word (Word32)
@@ -75,7 +75,6 @@ import Waymonad (getState, makeCallback2)
 import Waymonad.Types
 import Waymonad.Types.Core
 import Graphics.Wayland.WlRoots.DeviceManager (getSelectionText)
-import Waymonad.Utility.Current (getCurrentWS)
 
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as E
@@ -114,8 +113,8 @@ seatCreate dsp name reqDefault loadScale cursor = do
         , seatColor          = fromMaybe (Color 0 1 0 1) $ M.lookup (T.pack name) cMap
         }
 
-keyboardEnter' :: Seat -> Ptr WlrSurface -> View -> Way vs ws Bool
-keyboardEnter' seat surf view = do
+keyboardEnter' :: Seat -> EvtCause -> Ptr WlrSurface -> View -> Way vs ws Bool
+keyboardEnter' seat intent surf view = do
     keyM <- liftIO $ R.getSeatKeyboard $ seatRoots seat
     case keyM of
         Nothing -> pure False
@@ -133,15 +132,15 @@ keyboardEnter' seat surf view = do
                     when changed $ do
                         liftIO $ writeIORef (seatKeyboard seat) (Just view)
                         hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
-                        hook $ KeyboardFocusChange seat oldView (Just view)
+                        hook $ SeatFocusChange SeatKeyboard intent seat oldView (Just view)
                     pure changed
             else pure False
 
-keyboardEnter :: Seat -> View -> Way vs ws Bool
-keyboardEnter seat view = do
+keyboardEnter :: Seat -> EvtCause -> View -> Way vs ws Bool
+keyboardEnter seat intent view = do
     surf <- getViewSurface view
     case surf of
-        Just s -> keyboardEnter' seat s view
+        Just s -> keyboardEnter' seat intent s view
         Nothing -> pure False
 
 pointerButton
@@ -156,14 +155,10 @@ pointerButton
 pointerButton seat _ _ _ time button state =
     liftIO $ R.pointerNotifyButton (seatRoots seat) time button state
 
--- TODO: Deduplicate this away
-modifyViewSet :: WSTag ws => (vs -> vs) -> Way vs ws ()
-modifyViewSet fun = do
-    ref <- wayBindingState <$> getState
-    liftIO $ modifyIORef ref fun
-
-pointerEnter :: (FocusCore vs ws, WSTag ws) => Seat -> Ptr WlrSurface -> View -> Double -> Double -> Way vs ws Bool
-pointerEnter seat surf view x y = do
+pointerEnter :: (FocusCore vs ws, WSTag ws)
+             => Seat -> EvtCause -> Ptr WlrSurface
+             -> View -> Double -> Double -> Way vs ws Bool
+pointerEnter seat intent surf view x y = do
     prev <- liftIO $ R.getPointerFocus . R.getPointerState $ seatRoots seat
     liftIO $ R.pointerNotifyEnter (seatRoots seat) surf x y
     post <- liftIO $ R.getPointerFocus . R.getPointerState $ seatRoots seat
@@ -174,17 +169,15 @@ pointerEnter seat surf view x y = do
             let changed = oldView /= Just view
             when changed $ do
                 liftIO $ writeIORef (seatPointer seat) (Just view)
-                ws <- getCurrentWS
-                modifyViewSet (_focusView ws seat view)
                 hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
-                hook $ PointerFocusChange seat oldView (Just view)
+                hook $ SeatFocusChange SeatPointer intent seat oldView (Just view)
             pure changed
         else pure False
 
-pointerMotion :: (FocusCore vs ws, WSTag ws) => Seat -> View -> Word32 -> Double -> Double -> Way vs ws (Maybe View)
-pointerMotion seat view time baseX baseY =
+pointerMotion :: (FocusCore vs ws, WSTag ws) => Seat -> EvtCause -> View -> Word32 -> Double -> Double -> Way vs ws (Maybe View)
+pointerMotion seat intent view time baseX baseY =
     doJust (getViewEventSurface view baseX baseY) $ \(surf, x, y) -> do
-        changed <- pointerEnter seat surf view x y
+        changed <- pointerEnter seat intent surf view x y
         liftIO $ R.pointerNotifyMotion (seatRoots seat) time x y
         pure $ if changed
             then Just view
@@ -202,7 +195,9 @@ pointerClear seat = do
             when getDefault (liftIO $ seatRequestDefault seat)
             liftIO $ writeIORef (seatPointer seat) Nothing
             hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
-            hook $ PointerFocusChange seat oldView Nothing
+            -- This isn't really guaranteed, but nothing should depend on this
+            -- and care about that, since it's going to Nothing
+            hook $ SeatFocusChange SeatPointer Intentional seat oldView Nothing
 
 pointerAxis :: MonadIO m => Seat -> Word32 -> AxisOrientation -> Double -> m ()
 pointerAxis seat time orientation value = liftIO $
@@ -224,7 +219,9 @@ keyboardClear seat = do
         when (post == nullPtr) $ do
             liftIO $ writeIORef (seatKeyboard seat) Nothing
             hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
-            hook $ KeyboardFocusChange seat oldView Nothing
+            -- This isn't really guaranteed, but nothing should depend on this
+            -- and care about that, since it's going to Nothing
+            hook $ SeatFocusChange SeatKeyboard Intentional seat oldView Nothing
 
 updatePointerFocus :: (FocusCore vs ws, WSTag ws) => Seat -> Way vs ws ()
 updatePointerFocus seat = updateFocus (seatCursor seat) 0

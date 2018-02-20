@@ -53,15 +53,15 @@ unsetSeatKeyboardOut seat = do
     state <- getState
     current <- lookup seat <$> liftIO (readIORef (wayBindingCurrent state))
     whenJust current $ \(pointer, keyboard) -> if pointer /= keyboard
-        then setSeatOutput seat (That pointer)
+        then setSeatOutput seat (That pointer) Intentional
         else do
             outputs <- getOutputs
             case outputs of
-                (o:_) -> setSeatOutput seat (These o o)
+                (o:_) -> setSeatOutput seat (These o o) Intentional
                 [] -> do
                     hook <- wayHooksSeatOutput . wayCoreHooks <$> getState
-                    hook $ PointerOutputChange seat (Just pointer) Nothing
-                    hook $ KeyboardOutputChange seat (Just keyboard) Nothing
+                    hook $ SeatOutputChange SeatPointer  Intentional seat (Just pointer) Nothing
+                    hook $ SeatOutputChange SeatKeyboard Intentional seat (Just keyboard) Nothing
 
                     liftIO $ modifyIORef
                         (wayBindingCurrent state)
@@ -69,8 +69,8 @@ unsetSeatKeyboardOut seat = do
 
 -- This: Pointer Focus
 -- That: Keyboard Focus
-setSeatOutput :: WSTag a => Seat -> These Output -> Way vs a ()
-setSeatOutput seat foci = do
+setSeatOutput :: WSTag a => Seat -> These Output -> EvtCause -> Way vs a ()
+setSeatOutput seat foci cause = do
     state <- getState
     current <- lookup seat <$> liftIO (readIORef (wayBindingCurrent state))
     let curp = fst <$> current
@@ -88,8 +88,8 @@ setSeatOutput seat foci = do
         ((:) (seat, new) . filter ((/=) seat . fst))
 
     hook <- wayHooksSeatOutput . wayCoreHooks <$> getState
-    when (newp /= curp) $ hook $ PointerOutputChange seat curp newp
-    when (newk /= curk) $ hook $ KeyboardOutputChange seat curk newk
+    when (newp /= curp) $ hook $ SeatOutputChange SeatPointer  cause seat curp newp
+    when (newk /= curk) $ hook $ SeatOutputChange SeatKeyboard cause seat curk newk
 
     runLog
 

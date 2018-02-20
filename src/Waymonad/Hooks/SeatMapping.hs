@@ -35,12 +35,10 @@ import Waymonad.Types
 import Waymonad.Utility.Mapping (getOutputKeyboards, getOutputPointers, getOutputWS)
 import Waymonad.Utility.Log
 
-checkOutput
-    :: WSTag a
-    => Maybe Output
-    -> Maybe Output
-    -> (Maybe a -> Maybe a -> SeatWSChange a)
-    -> Way vs a ()
+checkOutput :: WSTag a
+            => Maybe Output -> Maybe Output
+            -> (Maybe a -> Maybe a -> SeatWSChange a)
+            -> Way vs a ()
 checkOutput pre cur con = do
     preWS <- join <$> traverse getOutputWS pre
     curWS <- join <$> traverse getOutputWS cur
@@ -49,10 +47,10 @@ checkOutput pre cur con = do
         hook $ con preWS curWS
 
 outputChangeEvt :: WSTag a => SeatOutputChange -> Way vs a ()
-outputChangeEvt (PointerOutputChange seat pre cur) =
-    checkOutput pre cur $ PointerWSChange seat
-outputChangeEvt (KeyboardOutputChange seat pre cur) =
-    checkOutput pre cur $ KeyboardWSChange seat
+outputChangeEvt (SeatOutputChange SeatPointer _ seat pre cur) =
+    checkOutput pre cur $ SeatWSChange SeatKeyboard SideEffect seat
+outputChangeEvt (SeatOutputChange SeatKeyboard _ seat pre cur) =
+    checkOutput pre cur $ SeatWSChange SeatKeyboard SideEffect seat
 
 mappingChangeEvt :: WSTag a => OutputMappingEvent a -> Way vs a ()
 mappingChangeEvt (OutputMappingEvent out pre cur) = do
@@ -60,8 +58,8 @@ mappingChangeEvt (OutputMappingEvent out pre cur) = do
     points <- getOutputPointers  out
 
     hook <- wayHooksSeatWSChange . wayCoreHooks <$> getState
-    forM_ points $ \point -> hook $ PointerWSChange point pre cur
-    forM_ keys $ \key -> hook $ KeyboardWSChange key pre cur
+    forM_ points $ \point -> hook $ SeatWSChange SeatPointer SideEffect point pre cur
+    forM_ keys $ \key -> hook $ SeatWSChange SeatKeyboard SideEffect key pre cur
 
 wsChangeLogHook :: forall ws vs. WSTag ws => SeatWSChange ws -> Way vs ws ()
 wsChangeLogHook evt = logPrint loggerWS Debug evt

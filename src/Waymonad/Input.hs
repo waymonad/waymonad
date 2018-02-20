@@ -86,7 +86,7 @@ import Waymonad.Utility
 import Waymonad.Utility.Pointer (sendSeatTo)
 import Waymonad.Utility.Mapping (setSeatOutput)
 import Waymonad
-import Waymonad.Types (Compositor (..), Output (..))
+import Waymonad.Types (Compositor (..), Output (..), EvtCause (SideEffect))
 import Waymonad.Utility.Signal
 
 import qualified System.InputDevice as LI
@@ -226,7 +226,7 @@ createSeat name = do
             }
 
     doJust (listToMaybe <$> getOutputs) $ \out ->  do
-        setSeatOutput seat $ These out out
+        setSeatOutput seat (These out out) SideEffect
         doJust (getOutputBox out) $ \(WlrBox x y w h) ->
             sendSeatTo (Point (x + w `div` 2) (y + h `div` 2)) seat
 

@@ -21,10 +21,11 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Hooks.FocusFollowPointer
 where
 
-import Waymonad.Types (SeatFocusChange (..), Way)
+import Waymonad.Types (SeatFocusChange (..), Way, EvtCause (..), SeatEvent (..))
 import Waymonad.View (doFocusView)
 import Waymonad.ViewSet (FocusCore, WSTag)
 
 focusFollowPointer :: (WSTag ws, FocusCore vs ws) => SeatFocusChange -> Way vs ws ()
-focusFollowPointer (PointerFocusChange  seat _ (Just view)) = doFocusView view seat
+focusFollowPointer (SeatFocusChange SeatPointer Intentional seat _ (Just view)) =
+    doFocusView view seat
 focusFollowPointer _ = pure ()

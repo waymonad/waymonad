@@ -210,7 +210,7 @@ handleTouchDown layout cursor outref emuRef event_ptr = do
                             (Just evtX)
                             (Just evtY)
                         updatePosition layout cursor outref
-                            (fromIntegral $ wlrTouchDownMSec event)
+                            (fromIntegral $ wlrTouchDownMSec event) Intentional
                         pointerButton seat view (fromIntegral baseX) (fromIntegral baseY)
                             (wlrTouchDownMSec event) 0x110 ButtonPressed
 
@@ -274,7 +274,7 @@ handleTouchMotion layout cursor outref emuRef event_ptr = do
                 (Just $ wlrTouchMotionDev event)
                 (Just evtX)
                 (Just evtY)
-            updatePosition layout cursor outref (fromIntegral $ wlrTouchMotionMSec event)
+            updatePosition layout cursor outref (fromIntegral $ wlrTouchMotionMSec event) Intentional
 
 
 handleTouchUp :: (FocusCore vs ws, WSTag ws)
@@ -304,7 +304,7 @@ handleTouchUp layout cursor outref emuRef event_ptr = do
                 (Just $ wlrTouchUpDev event)
                 (Just evtX)
                 (Just evtY)
-            updatePosition layout cursor outref (fromIntegral $ wlrTouchUpMSec event)
+            updatePosition layout cursor outref (fromIntegral $ wlrTouchUpMSec event) Intentional
 
     liftIO $ modifyIORef emuRef (IM.delete . fromIntegral $ wlrTouchUpId event)
 
@@ -335,14 +335,12 @@ getCursorView layout cursor = do
     getViewUnder layout baseX baseY
 
 
-updatePosition
-    :: (FocusCore vs a, WSTag a)
-    => Ptr WlrOutputLayout
-    -> Ptr WlrCursor
-    -> IORef Int
-    -> Word32
-    -> Way vs a ()
-updatePosition layout cursor outref time = do
+updatePosition :: (FocusCore vs a, WSTag a)
+               => Ptr WlrOutputLayout -> Ptr WlrCursor
+               -> IORef Int -> Word32
+               -> EvtCause
+               -> Way vs a ()
+updatePosition layout cursor outref time intent = do
     curX <- liftIO  $ getCursorX cursor
     curY <- liftIO  $ getCursorY cursor
 
@@ -353,13 +351,13 @@ updatePosition layout cursor outref time = do
         when (old /= ptrToInt out) $ do
             liftIO $ writeIORef outref $ ptrToInt out
             doJust (outputFromWlr out) $ \arg -> 
-                setSeatOutput seat $ These arg arg
+                setSeatOutput seat (This arg) intent
 
     viewM <- getCursorView layout cursor
     case viewM of
         Nothing -> pointerClear seat
         Just (view, baseX, baseY) -> do
-            void $ pointerMotion seat view time (fromIntegral baseX) (fromIntegral baseY)
+            void $ pointerMotion seat intent view time (fromIntegral baseX) (fromIntegral baseY)
 
 updateFocus :: (FocusCore vs ws, WSTag ws)
             => Cursor
@@ -367,17 +365,15 @@ updateFocus :: (FocusCore vs ws, WSTag ws)
             -> Way vs ws ()
 updateFocus cursor time = do
     Compositor { compLayout = layout } <- wayCompositor <$> getState
-    updatePosition layout (cursorRoots cursor) (cursorOutput cursor) time
+    updatePosition layout (cursorRoots cursor) (cursorOutput cursor) time SideEffect
 
 forcePosition :: (FocusCore vs ws, WSTag ws)
-              => Cursor
-              -> (Double, Double)
-              -> Word32
+              => Cursor -> (Double, Double) -> Word32
               -> Way vs ws ()
 forcePosition cursor (x, y) time = do
     Compositor { compLayout = layout } <- wayCompositor <$> getState
     liftIO $ warpCursorAbs (cursorRoots cursor) Nothing (Just x) (Just y)
-    updatePosition layout (cursorRoots cursor) (cursorOutput cursor) time
+    updatePosition layout (cursorRoots cursor) (cursorOutput cursor) time SideEffect
 
 
 handleCursorMotion
@@ -395,7 +391,7 @@ handleCursorMotion layout cursor outref event_ptr = do
         (Just $ eventPointerMotionDevice event)
         (eventPointerMotionDeltaX event)
         (eventPointerMotionDeltaY event)
-    updatePosition layout cursor outref (fromIntegral $ eventPointerMotionTime event)
+    updatePosition layout cursor outref (fromIntegral $ eventPointerMotionTime event) Intentional
 
 handleCursorMotionAbs
     :: (FocusCore vs a, WSTag a)
@@ -412,7 +408,7 @@ handleCursorMotionAbs layout cursor outref event_ptr = do
         (Just $ eventPointerAbsMotionDevice event)
         (Just $ eventPointerAbsMotionX event / eventPointerAbsMotionWidth event)
         (Just $ eventPointerAbsMotionY event / eventPointerAbsMotionHeight event)
-    updatePosition layout cursor outref (fromIntegral $ eventPointerAbsMotionTime event)
+    updatePosition layout cursor outref (fromIntegral $ eventPointerAbsMotionTime event) Intentional
 
 handleCursorButton
     :: (WSTag a, FocusCore vs a)
@@ -463,7 +459,7 @@ handleToolAxis layout cursor outref event_ptr = do
         (Just $ toolAxisEvtDevice event)
         (xValue $ toolAxisEvtAxes event)
         (yValue $ toolAxisEvtAxes event)
-    updatePosition layout cursor outref (fromIntegral $ toolAxisEvtTime event)
+    updatePosition layout cursor outref (fromIntegral $ toolAxisEvtTime event) Intentional
 
     where   xValue :: [ToolAxis] -> Maybe Double
             xValue (AxisX v w:_) = Just (v / w)

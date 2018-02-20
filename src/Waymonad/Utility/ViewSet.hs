@@ -62,7 +62,7 @@ import Waymonad
     , makeCallback
     , makeCallback2
     )
-import Waymonad.Types (Output (..))
+import Waymonad.Types (Output (..), EvtCause (..))
 import Waymonad.Types.Core (ManagerData (..))
 import Waymonad.Utility.Current
 import Waymonad.Utility.Mapping (getOutputKeyboards, setSeatOutput, getOutputWS, getOutputs)
@@ -82,15 +82,15 @@ modifyViewSet fun = do
     liftIO $ modifyIORef ref fun
     runLog
 
-setFocused :: FocusCore vs a => Seat -> a -> Way vs a ()
-setFocused seat ws = ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) >>= \case
-    Just v -> activateView v True >> void (keyboardEnter seat v)
+setFocused :: FocusCore vs a => Seat -> EvtCause -> a -> Way vs a ()
+setFocused seat intent ws = ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) >>= \case
+    Just v -> activateView v True >> void (keyboardEnter seat intent v)
     Nothing -> keyboardClear seat
 
-forceFocused :: (WSTag a, FocusCore vs a) => Way vs a ()
-forceFocused = doJust getSeat $ \seat -> do
+forceFocused :: (WSTag a, FocusCore vs a) => EvtCause -> Way vs a ()
+forceFocused intent = doJust getSeat $ \seat -> do
     ws <- getCurrentWS
-    setFocused seat ws
+    setFocused seat intent ws
 
 unsetFocus :: FocusCore vs a => Seat -> a -> Way vs a ()
 unsetFocus seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $
@@ -121,7 +121,7 @@ modifyWS ws fun = do
           ) =<< mapM getKeyboardFocus seats
     modifyViewSet (fun ws)
 
-    mapM_ (`setFocused` ws) seats
+    mapM_ (\s -> setFocused s Intentional ws) seats
     unless (null outs) (reLayout ws >> runLog)
 
 modifyCurrentWS
@@ -164,10 +164,9 @@ getWorkspaces = wayUserWorkspaces <$> getState
 getWorkspaceViews :: FocusCore vs a => a -> Way vs a [View]
 getWorkspaceViews ws = withViewSet (\_ vs -> fmap snd . S.toList $ _getViews vs ws)
 
-setViewsetFocus :: (WSTag ws, FocusCore vs ws)
-                => Seat -> View -> Way vs ws ()
+setViewsetFocus :: (WSTag ws, FocusCore vs ws) => Seat -> View -> Way vs ws ()
 setViewsetFocus seat view = doJust (getPointerOutputS seat) $ \output -> do
-    setSeatOutput seat (That output)
+    setSeatOutput seat (That output) Intentional
     modifyCurrentWS $ \_ ws vs -> _focusView ws seat view vs
 
 removeCB :: forall vs ws. (FocusCore vs ws, WSTag ws) => View -> Way vs ws ()
@@ -180,7 +179,7 @@ removeCB v = do
     forM_ outputs $ \output -> do
         seats <- getOutputKeyboards output
         doJust (getOutputWS output) $ \ws -> do
-            mapM_ (`setFocused` ws) seats
+            mapM_ (\s -> setFocused s SideEffect ws) seats
             reLayout ws
 
 makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData

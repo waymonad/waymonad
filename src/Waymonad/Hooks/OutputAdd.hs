@@ -34,7 +34,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 
 import Waymonad (Way, WayBindingState (..), getState)
 import Waymonad.Output (Output, getOutputBox)
-import Waymonad.Types (OutputEvent (..))
+import Waymonad.Types (OutputEvent (..), EvtCause (SideEffect))
 import Waymonad.Utility.Base (These (..))
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Focus (setOutputWorkspace)
@@ -62,7 +62,7 @@ attachFreeSeats out = do
     void . for free $ \seat -> do
         doJust (getOutputBox out) $ \(WlrBox x y w h) ->
             sendSeatTo (Point (x + w `div` 2) (y + h `div` 2)) seat
-        setSeatOutput seat $ These out out
+        setSeatOutput seat (These out out) SideEffect
 
 
 outputAddHook :: (FocusCore vs a, WSTag a) => OutputEvent -> Way vs a ()

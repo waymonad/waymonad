@@ -183,7 +183,7 @@ myConf modi = WayUserConf
         { wayHooksVWSChange       = wsScaleHook
         , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt
         , wayHooksSeatWSChange    = SM.wsChangeLogHook <> handleKeyboardSwitch
-        , wayHooksSeatOutput      = SM.outputChangeEvt {-<> handleKeyboardPull-}
+        , wayHooksSeatOutput      = SM.outputChangeEvt {-<> handleKeyboardPull-} <> handlePointerPull
         , wayHooksSeatFocusChange = focusFollowPointer
         , wayHooksNewOutput       = H.outputAddHook
         }
