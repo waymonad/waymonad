@@ -58,5 +58,5 @@ This currently only builds with the `new-build` feature of cabal-install. `stack
 
 # The fabulous logo:
 
-<img src="./logo-heavy.svg">
-<img src="./logo-light.svg">
+<img src="./assets/logo-heavy.svg">
+<img src="./assets/logo-light.svg">
