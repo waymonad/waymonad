@@ -81,7 +81,7 @@ simpleQuad getCol out (WlrBox ox oy ow oh) (WlrBox ix iy iw ih) = do
 
 
 sillyDeco :: Int -> View -> Set Seat -> SSDPrio
-sillyDeco val v s = SuggestedSSD $ SSD
+sillyDeco val v s = ForcedSSD $ SSD
     (\(Point x y) -> Point (x - val) (y - val))
     (\(WlrBox x y w h) -> WlrBox (x + val) (y + val) (w - val * 2) (h - val * 2))
     (\out inner outer -> do

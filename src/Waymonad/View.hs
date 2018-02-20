@@ -94,7 +94,7 @@ import Graphics.Wayland.WlRoots.Surface
     , subSurfaceGetDestroyEvent
     , surfaceGetSize
     )
-import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox)
+import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox, scaleBox, translateBox)
 
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Types.Core (View (..), ShellSurface (..), Seat, ManagerData (..))
@@ -140,9 +140,9 @@ handleSurfaceDamage view getPos surf = do
     scale <- viewGetScale view
     doJust (getSurfaceDamage surf) $ \dmg ->
         withRegionCopy dmg $ \mutDmg -> do
-
+            pixmanRegionTranslate mutDmg x y
             scaleRegion mutDmg scale
-            pixmanRegionTranslate mutDmg (x + vx) (y + vy)
+            pixmanRegionTranslate mutDmg vx vy
             doApplyDamage view mutDmg
 
 viewAddSurf :: MonadIO m => View -> Ptr (WlSignal a) -> IO Point -> Ptr WlrSurface -> m ()
@@ -156,11 +156,13 @@ viewAddSurf view destroySignal getPos surf = liftIO $ do
         (wlrSurfaceEvtSubSurf events)
     liftIO $ setDestroyHandler destroySignal $ \_ -> do
         mapM_ removeListener [commitHandler, subSurfHandler]
+        scale <- viewGetScale view
 
         Point x y <- getPos
         Point w h <- surfaceGetSize surf
+        WlrBox vx vy _ _ <- viewGetLocal view
         withRegion $ \region -> do
-            resetRegion region . Just $ WlrBox x y w h
+            resetRegion region . Just . translateBox vx vy . flip scaleBox scale $ WlrBox x y w h
             doApplyDamage view region
 
 handleSubsurf :: MonadIO m => View -> Ptr WlrSubSurface -> m ()

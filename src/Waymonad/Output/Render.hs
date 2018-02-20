@@ -45,12 +45,12 @@ import Graphics.Wayland.WlRoots.Render
     )
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Render.Matrix
-    ( matrixMul, matrixScale, matrixTranslate, withMatrix)
+    ( matrixMul, matrixScale, matrixTranslate, withMatrix, matrixProjectBox)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface, subSurfaceGetSurface, surfaceGetSubs, subSurfaceGetBox
     , surfaceGetCallbacks, getCurrentState, withSurfaceMatrix
     , callbackGetCallback , callbackGetResource, surfaceGetScale
-    , surfaceGetTexture
+    , surfaceGetTexture, surfaceGetTransform
     )
 
 import Waymonad (getState, makeCallback , unliftWay)
@@ -70,6 +70,8 @@ import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
 import Waymonad.Output.Background
 
+import Debug.Trace
+
 renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
 renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
     ret <- liftIO . doRender rend output =<< unliftWay (act age)
@@ -88,20 +90,21 @@ renderDamaged render output damage box act = do
             act
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
-outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox !bx !by _ _) = do
+outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox !bx !by !bw !bh) = do
     outputScale <- getOutputScale output
     surfScale <- fromIntegral <$> surfaceGetScale surface
-    let localScale = (outputScale / surfScale) * scaleFactor
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
-    when isValid $ withMatrix $ \trans -> withMatrix $ \scale -> withMatrix $ \final -> do
-            let x = fromIntegral bx * outputScale
-                y = fromIntegral by * outputScale
+    when isValid $ do
+            let surfBox = WlrBox
+                    (floor $ fromIntegral bx * outputScale)
+                    (floor $ fromIntegral by * outputScale)
+                    (ceiling $ fromIntegral bw * outputScale)
+                    (ceiling $ fromIntegral bh * outputScale)
 
-            matrixTranslate trans x y 0
-            matrixScale scale localScale localScale 1
-            matrixMul trans scale final
-            withSurfaceMatrix surface (getTransMatrix output) final $ \mat ->
+            withMatrix $ \mat -> do
+                surfTransform <- invertOutputTransform <$> surfaceGetTransform surface
+                matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
                 renderDamaged (compRenderer comp) output damage baseBox $ 
                     renderWithMatrix (compRenderer comp) texture mat
 
@@ -135,7 +138,7 @@ outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurfa
     let box = getDecoBox hasCSD prio obox
     scale <- liftIO $ viewGetScale view
     local <- liftIO $ viewGetLocal view
-    let lBox = box { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
+    let lBox = local { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
 
     decoCB <- unliftWay $ renderDeco hasCSD prio output obox box
     liftIO $ renderDamaged (compRenderer comp) output d obox decoCB
