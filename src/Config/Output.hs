@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings, ApplicativeDo #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Config.Output
     ( OutputConfig (..)
     , Mode (..)
@@ -28,7 +29,6 @@ module Config.Output
 where
 
 import Config.Schema
-import Control.Exception (try)
 import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
 import Data.Functor.Alt ((<!>))
@@ -39,7 +39,6 @@ import Data.Ratio (Ratio, (%))
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable
-import System.IO.Error (IOError)
 
 import Graphics.Wayland.Server
     ( OutputTransform

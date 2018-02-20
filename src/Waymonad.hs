@@ -56,27 +56,13 @@ module Waymonad
     )
 where
 
-import System.IO.Unsafe (unsafeInterleaveIO)
-
-import Control.Applicative ((<|>))
-import Control.Monad (forM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (MonadReader(..), local)
-import Control.Monad.Trans.Class (MonadTrans (..))
 import Data.IORef (IORef, modifyIORef, readIORef)
-import Data.List (find)
-import Data.Maybe (maybeToList, listToMaybe)
 import Data.Typeable (cast)
 
-import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
-
-import {-# SOURCE #-} Waymonad.Input.Seat (Seat, getPointerFocus)
-import Waymonad.Utility.Base (doJust)
-import Waymonad.View (View, getViewEventSurface, getViewBox)
+import {-# SOURCE #-} Waymonad.Input.Seat (Seat)
 import Waymonad.Types
-
-import qualified Data.Set as S
-
 
 
 get :: (MonadReader (IORef a) m, MonadIO m) => m a

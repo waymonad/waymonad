@@ -30,10 +30,9 @@ module Waymonad.Shells.WlShell
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (filterM, forM_, unless)
+import Control.Monad (forM_, unless)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Maybe (MaybeT (..))
-import Data.Composition ((.:))
 import Data.IORef (newIORef, IORef, modifyIORef, readIORef, writeIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust)
@@ -50,7 +49,6 @@ import Waymonad.Managehook (insertView, removeView)
 import Waymonad.Utility.Base (doJust, ptrToInt)
 import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
-import Waymonad.Utility.Log (logPutText, LogPriority (..))
 import Waymonad.Utility.Signal (setDestroyHandler, setSignalHandler)
 import Waymonad
 import Waymonad.Types
@@ -101,7 +99,7 @@ makeShell = WayShell . WlRef <$> liftIO (newIORef Nothing)
 data WlShell = WlShell
     { wlSurfaceRef   :: {-# UNPACK #-} !MapRef
     , wlWlrootsShell :: {-# UNPACK #-} !R.WlrWlShell
-    , wlShellToken   :: {-# UNPACK #-} !ListenerToken
+    , wlShellToken   :: !ListenerToken
     }
 
 newtype WlSurface = WlSurface { unWl :: R.WlrWlShellSurface }

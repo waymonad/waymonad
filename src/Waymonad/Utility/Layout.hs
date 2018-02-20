@@ -28,22 +28,18 @@ import Data.Foldable (toList)
 import Data.IORef (readIORef)
 import Data.List (find, lookup)
 import Data.Maybe (listToMaybe, isJust)
-import Foreign.Ptr (Ptr)
 import Control.Monad.Trans.Maybe (MaybeT (..))
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
-import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Waymonad.Output (Output (..), getOutputBox)
-import Waymonad.Utility.Base (ptrToInt)
 import Waymonad.View (View, getViewEventSurface, viewHasCSD)
-import Waymonad (getSeat, getState)
+import Waymonad (getSeat)
 import Waymonad.Types
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.SSD
 import {-# SOURCE #-} Waymonad.Input.Seat (getPointerFocus)
 
-import qualified Data.IntMap as IM
 viewsBelow :: Foldable t
            => Point
            -> t (View, SSDPrio, WlrBox)

@@ -102,8 +102,8 @@ data SeatFoo = SeatFoo
     , fooName    :: Text
     }
 
-destroySeatFoo :: SeatFoo -> Way vs ws ()
-destroySeatFoo SeatFoo {fooXCursorManager = xcursor, fooCursor = cursor, fooSeat = seat, fooImageToken = token} = liftIO $ do
+_destroySeatFoo :: SeatFoo -> Way vs ws ()
+_destroySeatFoo SeatFoo {fooXCursorManager = xcursor, fooCursor = cursor, fooSeat = seat, fooImageToken = token} = liftIO $ do
     removeListener token
     xCursorManagerDestroy xcursor
     seatDestroy seat

@@ -37,17 +37,8 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import UnliftIO.Exception (bracket)
 import System.Clock (toNanoSecs , getTime , Clock(Monotonic))
-import Foreign.Storable (Storable(peek, poke))
+import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr)
-import Data.Maybe (listToMaybe)
-import Foreign.StablePtr
-    ( newStablePtr
-    , castStablePtrToPtr
-    , freeStablePtr
-    , castPtrToStablePtr
-    , deRefStablePtr
-    )
-import Data.IORef (IORef, readIORef, newIORef, writeIORef)
 import Graphics.Wayland.WlRoots.Backend
     ( Backend, backendAutocreate, backendStart
     , BackendSignals(..), backendGetSignals
@@ -55,11 +46,9 @@ import Graphics.Wayland.WlRoots.Backend
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
     , getModes
-    , setOutputMode
 
     , OutputSignals(..)
     , getOutputSignals
-    , getDataPtr
     )
 import Graphics.Wayland.Server
     ( DisplayServer (..)

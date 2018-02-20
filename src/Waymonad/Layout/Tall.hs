@@ -28,16 +28,12 @@ where
 
 import Data.Set (Set)
 
-import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..))
-import Graphics.Wayland.WlRoots.Render.Color (colorWhite, colorBlack)
+import Graphics.Wayland.WlRoots.Box (WlrBox(..))
 
 import Waymonad.Layout.Ratio
 import Waymonad.ViewSet
-import Waymonad.Utility.SSD
-import Waymonad.Types (SSDPrio (..), ServerSideDecoration (..))
+import Waymonad.Types (SSDPrio (NoSSD))
 import Waymonad.Types.Core (Seat, View)
-
-import qualified Data.Set as S
 
 data Tall = Tall Double
 

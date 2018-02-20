@@ -44,13 +44,11 @@ import Graphics.Wayland.WlRoots.Render
     , doRender, getMatrix
     )
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
-import Graphics.Wayland.WlRoots.Render.Matrix
-    ( matrixMul, matrixScale, matrixTranslate, withMatrix, matrixProjectBox)
+import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface, subSurfaceGetSurface, surfaceGetSubs, subSurfaceGetBox
-    , surfaceGetCallbacks, getCurrentState, withSurfaceMatrix
-    , callbackGetCallback , callbackGetResource, surfaceGetScale
-    , surfaceGetTexture, surfaceGetTransform
+    , surfaceGetCallbacks, getCurrentState, callbackGetCallback
+    , callbackGetResource, surfaceGetTexture, surfaceGetTransform
     )
 
 import Waymonad (getState, makeCallback , unliftWay)
@@ -69,8 +67,6 @@ import Waymonad.Utility.SSD (renderDeco, getDecoBox)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
 import Waymonad.Output.Background
-
-import Debug.Trace
 
 renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
 renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
@@ -92,7 +88,6 @@ renderDamaged render output damage box act = do
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox !bx !by !bw !bh) = do
     outputScale <- getOutputScale output
-    surfScale <- fromIntegral <$> surfaceGetScale surface
     texture <- surfaceGetTexture surface
     isValid <- isTextureValid texture
     when isValid $ do

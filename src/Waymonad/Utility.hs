@@ -24,61 +24,30 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Utility
 where
 
-import Control.Applicative ((<|>))
-import Control.Monad (when, filterM)
 import Control.Monad.IO.Class (liftIO)
-import Data.Foldable (toList)
-import Data.IORef (readIORef, modifyIORef)
-import Data.List (lookup, find)
-import Data.Maybe (fromJust, fromMaybe, listToMaybe, isJust)
-import Data.Tuple (swap)
-import Foreign.Ptr (Ptr)
+import Data.IORef (readIORef)
+import Data.Maybe (fromMaybe)
 
 import Graphics.Wayland.Server (DisplayServer, displayTerminate)
-import Graphics.Wayland.WlRoots.Box (Point (..), WlrBox (..))
-import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
-import Waymonad.Input.Seat (Seat (seatName), getPointerFocus)
-import Waymonad.Output (Output (..), getOutputId)
-import Waymonad.Utility.Base (whenJust, doJust, These(..), getThis, getThat, ptrToInt)
-import Waymonad.View (View, closeView, getViewEventSurface)
+import Waymonad.Input.Seat (Seat (seatName))
+import Waymonad.Utility.Base (whenJust, doJust, These(..))
+import Waymonad.View (closeView)
 import Waymonad.ViewSet
-    ( FocusCore (..)
-    , Layouted (..)
-    , Message
-    , SomeMessage (..)
-    , WSTag
-    , broadcastWS
-    , messageWS
+    ( FocusCore (..), Layouted (..), SomeMessage (..) ,WSTag
+    , Message, broadcastWS, messageWS
     )
 import Waymonad.Utility.Current (getCurrentOutput , getCurrentView , getCurrentWS)
 import Waymonad.Utility.Log (logPutText)
 import Waymonad.Utility.ViewSet
 import Waymonad.Utility.Mapping (setSeatOutput)
-import Waymonad
-    ( Way
-    , WayBindingState(..)
-    , WayLoggers (..)
-    , getSeat
-    , getState
-    )
-import Waymonad.Extensible
-    ( ExtensionClass
-    , StateMap
-    , getValue
-    , modifyValue
-    , setValue
-    )
+import Waymonad (Way, WayBindingState(..), WayLoggers (..), getSeat, getState)
 import Waymonad.Types
-    ( LogPriority(..)
-    , Compositor (..)
-    , ViewWSChange (..)
-    , WayHooks (..)
-    , SeatOutputChange (..)
+    ( LogPriority(..), Compositor (..), ViewWSChange (..)
+    , WayHooks (..), SeatOutputChange (..), Output (..)
     )
 
 import qualified Data.Text as T
-import qualified Data.IntMap as IM
 
 sendTo :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
 sendTo ws = do

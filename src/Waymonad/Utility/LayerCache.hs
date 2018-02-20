@@ -24,22 +24,16 @@ where
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (readIORef)
-import Data.List (find)
 import Data.Text (Text)
-import Foreign.Ptr (Ptr)
 
 import Graphics.Pixman
-import Graphics.Wayland.WlRoots.Util.Region
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
-import Graphics.Wayland.WlRoots.Output (getOutputScale)
 
 import Waymonad.Output (outApplyDamage)
 import Waymonad.View (viewHasCSD)
 import Waymonad.Types (SSDPrio, Output (..), Way)
 import Waymonad.Types.Core (View)
-import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Mapping (getOutputs)
-import Waymonad.View (getViewSurfScale)
 import Waymonad.Utility.SSD
 
 import qualified Data.Map as M

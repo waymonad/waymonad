@@ -34,11 +34,10 @@ module Waymonad.Managehook
     )
 where
 
-import Control.Monad (void, forM_, when)
+import Control.Monad (forM_, when)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
 import Waymonad.Input.Seat
-import Waymonad.Utility.Base (doJust)
 import Waymonad
 import Waymonad.Types
 import Waymonad.View

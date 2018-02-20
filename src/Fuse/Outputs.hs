@@ -83,7 +83,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Read as R (rational, decimal)
 
 readLayout :: Output -> Way vs ws (Maybe Text)
-readLayout output = pure Nothing
+readLayout _ = pure Nothing
 --    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
 --    pure $ case IM.lookup (ptrToInt $ outputRoots output) fullCache of
 --        Nothing -> Nothing

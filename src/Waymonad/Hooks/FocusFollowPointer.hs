@@ -21,18 +21,9 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Hooks.FocusFollowPointer
 where
 
-import Control.Monad (void)
-
-
-import Waymonad.Input.Seat (Seat, keyboardEnter)
-import Waymonad.Utility.Base (These (..), doJust)
-import Waymonad.View (View, doFocusView)
-import Waymonad.ViewSet (FocusCore, WSTag)
-import Waymonad.Utility.Current (getPointerOutputS)
-import Waymonad.Utility.Focus (focusView)
-import Waymonad.Utility.Mapping (setSeatOutput)
-import Waymonad.Utility.Floating (isFloating)
 import Waymonad.Types (SeatFocusChange (..), Way)
+import Waymonad.View (doFocusView)
+import Waymonad.ViewSet (FocusCore, WSTag)
 
 focusFollowPointer :: (WSTag ws, FocusCore vs ws) => SeatFocusChange -> Way vs ws ()
 focusFollowPointer (PointerFocusChange  seat _ (Just view)) = doFocusView view seat

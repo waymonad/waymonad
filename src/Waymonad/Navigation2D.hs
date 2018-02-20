@@ -29,16 +29,13 @@ import Data.Maybe (listToMaybe)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
-import Waymonad.Output (getOutputId, Output (outputLayers))
 import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.ViewSet
-import Waymonad (getState)
-import Waymonad.Types
+import Waymonad.Types (Output (outputLayers), Way)
 import Waymonad.Utility.Current (getCurrentOutput, getCurrentView)
 import Waymonad.Utility.Focus (focusView)
 
-import qualified Data.Map as M
-import qualified Data.IntMap as IM
+import qualified Data.Map.Strict as M
 
 moveLeft :: (FocusCore vs ws, WSTag ws) => Way vs ws ()
 moveLeft = doJust getCurrentOutput $ \output ->
