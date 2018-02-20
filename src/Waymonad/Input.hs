@@ -42,6 +42,7 @@ import Foreign.Storable (Storable(peek))
 import System.IO.Unsafe (unsafePerformIO)
 
 import Graphics.Wayland.Signal (removeListener)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Input
     ( InputDevice
     , inputDeviceType
@@ -77,10 +78,12 @@ import Waymonad.Input.Cursor.Type
 import Waymonad.Input.Keyboard
 import Waymonad.Input.TabletPad
 import Waymonad.Input.Seat
+import Waymonad.Output (getOutputBox)
 import Waymonad.View (getViewClient)
 import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad.Utility.Base (doJust, These (..))
 import Waymonad.Utility
+import Waymonad.Utility.Pointer (sendSeatTo)
 import Waymonad.Utility.Mapping (setSeatOutput)
 import Waymonad
 import Waymonad.Types (Compositor (..), Output (..))
@@ -222,8 +225,10 @@ createSeat name = do
             , fooName = name
             }
 
-    doJust (listToMaybe <$> getOutputs) $ \out -> 
+    doJust (listToMaybe <$> getOutputs) $ \out ->  do
         setSeatOutput seat $ These out out
+        doJust (getOutputBox out) $ \(WlrBox x y w h) ->
+            sendSeatTo (Point (x + w `div` 2) (y + h `div` 2)) seat
 
     pure ret
 
