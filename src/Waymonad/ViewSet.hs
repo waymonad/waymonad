@@ -58,7 +58,7 @@ instance WSTag Text where
 class LayoutClass a where
     -- | Handle a message, update internal state and return `Just new` if
     -- things changed
-    handleMessage :: a -> SomeMessage -> Maybe a
+    handleMessage :: a -> Maybe Seat -> SomeMessage -> Maybe a
     -- | Update internal state on the message and forward it to *all*
     -- sublayouts so those can update as well
     broadcastMessage :: a -> SomeMessage -> Maybe a
@@ -133,7 +133,7 @@ class ListLike vs ws where
 -- | Supplementary class to implement ViewSets which use a layout
 class Layouted vs ws where
     -- | Let the layout in the given Workspace handle the mssage
-    messageWS :: SomeMessage -> ws -> vs -> vs
+    messageWS :: SomeMessage -> Maybe Seat -> ws -> vs -> vs
     -- | Let the layout in the given Workspace handle the mssage as broadcaste
     broadcastWS :: SomeMessage -> ws -> vs -> vs
     -- | Broadcast a message to all workspaces

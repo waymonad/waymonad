@@ -61,10 +61,10 @@ mirrorBox :: WlrBox -> WlrBox
 mirrorBox (WlrBox x y w h) = WlrBox y x h w
 
 instance LayoutClass l => LayoutClass (Mirror Identity l) where
-    handleMessage (Mirror state l) m =
+    handleMessage (Mirror state l) s m =
         case getMessage m of
             (Just ToggleMirror) -> Just $ Mirror (fmap not state) l
-            Nothing -> Mirror state <$> handleMessage l m
+            Nothing -> Mirror state <$> handleMessage l s m
     broadcastMessage (Mirror state l) m = Mirror state <$> broadcastMessage l m
     description (Mirror _ l) =
         "Mirror(" `T.append` description l `T.append` ")"
@@ -109,9 +109,9 @@ instance ListLike vs ws => ListLike (Mirror c vs) ws where
 
 
 instance (Layouted vs ws, Ord ws) => Layouted (Mirror (Map ws) vs) ws where
-    messageWS message ws (Mirror state vs) = case getMessage message of
+    messageWS message s ws (Mirror state vs) = case getMessage message of
         (Just ToggleMirror) -> Mirror (M.alter (Just . maybe True not) ws state) vs
-        Nothing -> Mirror state (messageWS message ws vs)
+        Nothing -> Mirror state (messageWS message s ws vs)
     broadcastWS message ws (Mirror state vs) = case getMessage message of
         (Just ToggleMirror) -> Mirror (M.alter (Just . maybe True not) ws state) vs
         Nothing -> Mirror state (broadcastWS message ws vs)

@@ -35,7 +35,7 @@ data TwoPane = TwoPane Double
 
 instance LayoutClass TwoPane where
     description _ = "TwoPane"
-    handleMessage (TwoPane val) m = case getMessage m of
+    handleMessage (TwoPane val) _ m = case getMessage m of
         Just (IncreaseRatio x) -> Just . TwoPane $ val + x
         Just (DecreaseRatio x) -> Just . TwoPane $ val - x
         _ -> Nothing

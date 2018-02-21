@@ -60,9 +60,9 @@ newtype StrutMessage = StrutMessage Struts deriving (Show)
 instance Message StrutMessage
 
 instance LayoutClass l => LayoutClass (StrutAvoider l) where
-    handleMessage s@(StrutAvoider st child) m = case getMessage m of
-        Just (StrutMessage x) -> Just s { avoiderStruts = x }
-        Nothing -> StrutAvoider st <$> handleMessage child m
+    handleMessage l@(StrutAvoider st child) s m = case getMessage m of
+        Just (StrutMessage x) -> Just l { avoiderStruts = x }
+        Nothing -> StrutAvoider st <$> handleMessage child s m
     broadcastMessage s@(StrutAvoider st child) m = case getMessage m of
         Just (StrutMessage x) -> Just s { avoiderStruts = x }
         Nothing -> StrutAvoider st <$> broadcastMessage child m

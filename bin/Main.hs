@@ -73,7 +73,8 @@ import Waymonad.Utility.View
 import Waymonad.Utility.ViewSet (modifyFocusedWS)
 import Waymonad (Way, KeyBinding)
 import Waymonad.Types (WayHooks (..), BindingMap)
-import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)
+-- import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)
+import Waymonad.ViewSet.HLWM (ViewSet, sameLayout, HLWMMessage (..), Orientation (..), Direction (..))
 
 import qualified Data.Map as M
 
@@ -130,24 +131,34 @@ printClipboard :: Way vs ws ()
 printClipboard = doJust getSeat $ \seat ->
     useClipboardText seat $ liftIO . print
 
-bindings :: (Layouted vs ws, ListLike vs ws, FocusCore vs ws, IsString ws, WSTag ws)
+bindings :: (Layouted vs ws{-, ListLike vs ws-}, FocusCore vs ws, IsString ws, WSTag ws)
          => WlrModifier -> [(([WlrModifier], Keysym), KeyBinding vs ws)]
 bindings modi =
     [ (([modi], keysym_k), moveUp)
     , (([modi], keysym_j), moveDown)
     , (([modi], keysym_h), moveLeft)
     , (([modi], keysym_l), moveRight)
-    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
-    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
-    , (([modi, Shift], keysym_h), setSubMap =<< makeListNavigation modi)
+    , (([modi], keysym_w), sendMessage $ HLWMSplit Horizontal 0.7)
+    , (([modi], keysym_e), sendMessage $ HLWMSplit Vertical 0.7)
+    , (([modi], keysym_d), sendMessage $ HLWMMerge)
+    , (([modi], keysym_s), sendMessage $ SendOver)
+--    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
+--    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
+    -- , (([modi, Shift], keysym_h), setSubMap =<< makeListNavigation modi)
     , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_space), sendMessage NextLayout)
-    , (([modi], keysym_Left), sendMessage $ DecreaseRatio 0.1)
-    , (([modi], keysym_Right), sendMessage $ IncreaseRatio 0.1)
+
+
+    , (([modi, Shift], keysym_Left), sendMessage $ ChangeSize HLLeft (subtract 0.1))
+    , (([modi, Shift], keysym_Right), sendMessage $ ChangeSize HLRight (+ 0.1))
+    , (([modi, Shift], keysym_Up), sendMessage $ ChangeSize HLUp (subtract 0.1))
+    , (([modi, Shift], keysym_Down), sendMessage $ ChangeSize HLDown (+ 0.1))
+--    , (([modi], keysym_Left), sendMessage $ DecreaseRatio 0.1)
+--    , (([modi], keysym_Right), sendMessage $ IncreaseRatio 0.1)
 
     , (([modi], keysym_Return), spawn "weston-terminal")
-    , (([modi], keysym_d), spawn "rofi -show run")
+    -- , (([modi], keysym_d), spawn "rofi -show run")
 
     , (([modi], keysym_p), printClipboard)
 

@@ -34,7 +34,7 @@ data Full = Full
 
 instance LayoutClass Full where
     description _ = "Full"
-    handleMessage _ _ = Nothing
+    handleMessage _ _ _ = Nothing
     broadcastMessage _ _ = Nothing
 
 instance FocusCore vs ws => GenericLayoutClass Full vs ws where

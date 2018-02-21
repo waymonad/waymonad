@@ -150,7 +150,8 @@ library
   exposed-modules:        Waymonad.Types.Logger
   exposed-modules:        Waymonad.Extensible
 
-
+  exposed-modules:        Waymonad.ViewSet.HLWM
+  exposed-modules:        Waymonad.ViewSet.Utility
   exposed-modules:        Waymonad.ViewSet.XMonad
 
   -- other-modules:        Layout.Quadrant

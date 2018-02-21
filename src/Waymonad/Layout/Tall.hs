@@ -39,7 +39,7 @@ data Tall = Tall Double
 
 instance LayoutClass Tall where
     description _ = "Tall"
-    handleMessage (Tall val) m = case getMessage m of
+    handleMessage (Tall val) _ m = case getMessage m of
         Just (IncreaseRatio x) -> Just . Tall $ val + x
         Just (DecreaseRatio x) -> Just . Tall $ val - x
         _ -> Nothing

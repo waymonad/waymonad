@@ -33,6 +33,7 @@ import Control.Applicative ((<|>))
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
+import Waymonad.Types.Core (Seat)
 import Waymonad.ViewSet
 
 import qualified Data.Text as T
@@ -51,30 +52,31 @@ data NextLayout = FirstLayout | NextLayout | NoWrap deriving (Eq, Show)
 instance Message NextLayout
 
 
-handle :: LayoutClass l => NextLayout -> l -> Maybe l
-handle m l = handleMessage l (SomeMessage m)
+handle :: LayoutClass l => NextLayout -> Maybe Seat -> l -> Maybe l
+handle m s l = handleMessage l s (SomeMessage m)
 
 choose :: Choose l r -> Maybe l -> Maybe r -> Maybe (Choose l r)
 choose _ Nothing Nothing = Nothing
 choose (Choose lr l r) nl nr = Just $ Choose lr (fromMaybe l nl) (fromMaybe r nr)
 
-handleNext :: (LayoutClass l, LayoutClass r) => NextLayout -> Choose l r -> Maybe (Choose l r)
-handleNext FirstLayout (Choose _ l r) = choose (Choose L l r) (handle FirstLayout l) (Just r)
-handleNext NoWrap (Choose L l r) = case handle NoWrap l of
+handleNext :: (LayoutClass l, LayoutClass r) => NextLayout -> Maybe Seat -> Choose l r -> Maybe (Choose l r)
+handleNext FirstLayout s  (Choose _ l r) = choose (Choose L l r) (handle FirstLayout s l) (Just r)
+handleNext NoWrap s (Choose L l r) = case handle NoWrap s l of
     Just nl -> Just (Choose L nl r)
-    Nothing -> choose (Choose R l r) (Just l) (handle FirstLayout r)
-handleNext NoWrap (Choose R l r) = Choose R l <$> handle NoWrap r
-handleNext NextLayout c = handle NoWrap c <|> handle FirstLayout c
+    Nothing -> choose (Choose R l r) (Just l) (handle FirstLayout s r)
+handleNext NoWrap s (Choose R l r) = Choose R l <$> handle NoWrap s r
+handleNext NextLayout s c = handle NoWrap s c <|> handle FirstLayout s c
 
 instance (LayoutClass l, LayoutClass r) =>  LayoutClass (Choose l r) where
-    handleMessage :: Choose l r -> SomeMessage -> Maybe (Choose l r)
-    handleMessage c m
-        | Just msg <- getMessage m = handleNext msg c
+    handleMessage :: Choose l r -> Maybe Seat -> SomeMessage -> Maybe (Choose l r)
+    handleMessage c s m
+        | Just msg <- getMessage m = handleNext msg s c
         | otherwise = case c of
-                        Choose L l _ -> choose c (handleMessage l m) Nothing
-                        Choose R _ r -> choose c Nothing (handleMessage r m)
+                        Choose L l _ -> choose c (handleMessage l s m) Nothing
+                        Choose R _ r -> choose c Nothing (handleMessage r s m)
+    --TODO: Implement this broadcast
     broadcastMessage :: Choose l r -> SomeMessage -> Maybe (Choose l r)
-    broadcastMessage = handleMessage
+    broadcastMessage l m = handleMessage l Nothing m
     description :: Choose l r -> Text
     description (Choose _ l r) = description l `T.append` " ||| " `T.append` description r
     currentDesc :: Choose l r -> Text
