@@ -32,15 +32,16 @@ import Foreign.C.Error (eINVAL)
 import Formatting
 import System.Mem (performMajorGC, performMinorGC)
 
-#ifdef __GLASGOW_HASKELL__
-import GHC.Stats
-#endif
 
-import Waymonad.Types (Way)
 import Fuse.Common
 
 import qualified Data.Map as M
+
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 802
+import GHC.Stats
+import Waymonad.Types (Way)
 import qualified Data.Text as T
+#endif
 
 formatBytes :: Word64 -> Text
 formatBytes val
