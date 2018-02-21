@@ -129,7 +129,7 @@ printClipboard :: Way vs ws ()
 printClipboard = doJust getSeat $ \seat ->
     useClipboardText seat $ liftIO . print
 
-bindings :: (Layouted vs ws{-, ListLike vs ws-}, FocusCore vs ws, IsString ws, WSTag ws)
+bindings :: (Layouted vs ws, ListLike vs ws, FocusCore vs ws, IsString ws, WSTag ws)
          => WlrModifier -> [(([WlrModifier], Keysym), KeyBinding vs ws)]
 bindings modi =
     [ (([modi], keysym_k), moveUp)
@@ -140,9 +140,9 @@ bindings modi =
     , (([modi], keysym_e), sendMessage $ HLWMSplit Vertical 0.7)
     , (([modi], keysym_d), sendMessage $ HLWMMerge)
     , (([modi], keysym_s), sendMessage $ SendOver)
---    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
---    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
-    -- , (([modi, Shift], keysym_h), setSubMap =<< makeListNavigation modi)
+    , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
+    , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
+    , (([modi, Shift], keysym_h), setSubMap =<< makeListNavigation modi)
     , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_space), sendMessage NextLayout)

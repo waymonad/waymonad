@@ -7,9 +7,10 @@ module Waymonad.ViewSet.HLWM
 where
 
 import Control.Applicative ((<|>))
+import Control.Monad (join)
 import Data.Semigroup ((<>))
 import Data.Map (Map)
-import Data.Maybe (fromMaybe, fromJust, listToMaybe)
+import Data.Maybe (fromMaybe, fromJust, listToMaybe, maybeToList)
 import Data.Set (Set)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
@@ -42,6 +43,11 @@ data HLWMMessage
     | ChangeSize Direction (Double -> Double)
 
 instance Message HLWMMessage
+
+data ViewSet ws = ViewSet
+    { _viweSetWorkspaces :: Map ws (Workspace ws)
+    , _viewSetLayout :: GenericLayout (U.Zipper Seat View) ws
+    }
 
 splitWS :: HLWMMessage -> Workspace ws -> Workspace ws
 splitWS (HLWMSplit o d) (LeafWS (U.Workspace l (Just (U.Zipper (x@(f, _):xs))))) =
@@ -83,11 +89,6 @@ mapWSMaybe' fun (LeafWS ws) = LeafWS <$> fun ws
 mapWSMaybe' fun (SplitWS o d m l r) = case ((mapWSMaybe' fun l), (mapWSMaybe' fun r)) of
     (Nothing, Nothing) -> Nothing
     (ml, mr) -> Just $ SplitWS o d m (fromMaybe l ml) (fromMaybe r mr)
-
-data ViewSet ws = ViewSet
-    { _viweSetWorkspaces :: Map ws (Workspace ws)
-      , _viewSetLayout :: GenericLayout (U.Zipper Seat View) ws
-    }
 
 sameLayout :: (WSTag ws, GenericLayoutClass l (U.Zipper Seat View) ws)
            => l -> ViewSet ws
@@ -262,4 +263,16 @@ instance WSTag ws => FocusCore (ViewSet ws) ws where
                         (Just FocusSecond) -> doSecond <|> doFirst
                         _ -> doFirst <|> doSecond
 
+instance WSTag ws => ListLike (ViewSet ws) ws where
+    _asList (ViewSet m _) ws =
+        maybe [] (join . maybeToList . fmap U.unZipper . U.wsViews . unLeafWS . getFocused Nothing) $ M.lookup ws m
+    --_moveFocusLeft    :: ws -> Seat -> vs-> vs
+    _moveFocusLeft ws seat vs =
+        adjustWS (fromJust . modifyFocused (Just seat) (Just . mapWorkspace (U.moveLeft seat))) ws vs
+    _moveFocusRight ws seat vs =
+        adjustWS (fromJust . modifyFocused (Just seat) (Just . mapWorkspace (U.moveRight seat))) ws vs
+    _moveFocusedLeft ws seat vs =
+        adjustWS (fromJust . modifyFocused (Just seat) (Just . mapWorkspace (U.moveViewLeft seat))) ws vs
+    _moveFocusedRight ws seat vs =
+        adjustWS (fromJust . modifyFocused (Just seat) (Just . mapWorkspace (U.moveViewRight seat))) ws vs
 
