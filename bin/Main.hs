@@ -52,12 +52,10 @@ import Waymonad.Input.Seat (useClipboardText)
 import Waymonad.Layout.SmartBorders
 import Waymonad.Layout.Choose
 import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
-import Waymonad.Layout.Spiral
 import Waymonad.Layout.AvoidStruts
-import Waymonad.Layout.Tall (Tall (..))
-import Waymonad.Layout.ToggleFull (mkTFull, ToggleFullM (..))
-import Waymonad.Layout.TwoPane (TwoPane (..))
-import Waymonad.Layout.Ratio
+import qualified Waymonad.Layout.Vertical as LV
+import Waymonad.Layout.Full 
+import Waymonad.Layout.ToggleFull (mkVSFull, ToggleFull, ToggleFullM (..))
 import Waymonad.Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.GammaControl
@@ -167,10 +165,13 @@ bindings modi =
     , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws), (([modi, Ctrl], sym), copyView ws)]) (zip wsSyms workspaces)
 
-myConf :: WlrModifier -> WayUserConf (ViewSet Text) Text
+myConf :: WlrModifier
+       -> WayUserConf
+            (StrutAvoider (Struts, M.Map Text Struts) (SmartBorders (Int, M.Map Text Int) (Waymonad.Layout.ToggleFull.ToggleFull (M.Map Text) (ViewSet Text))))
+            Text
 myConf modi = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout . avoidStruts . mkSmartBorders 2 . mkMirror . mkTFull $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
+    , wayUserConfLayouts     = avoidVSStruts . mkVSSmartBorders 2 . mkVSFull . sameLayout . mkMirror $ (LV.Vertical ||| Full)
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn <> manageX11SpawnOn
     , wayUserConfEventHook   = const $ pure ()
     , wayUserConfKeybinds    = bindings modi
