@@ -96,6 +96,7 @@ library
   exposed-modules:        Waymonad.Layout.Tall
   exposed-modules:        Waymonad.Layout.ToggleFull
   exposed-modules:        Waymonad.Layout.TwoPane
+  exposed-modules:        Waymonad.Layout.Vertical
 
   exposed-modules:        Waymonad.Log.Domain
 

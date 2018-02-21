@@ -9,7 +9,7 @@ where
 import Control.Applicative ((<|>))
 import Data.Semigroup ((<>))
 import Data.Map (Map)
-import Data.Maybe (fromMaybe, fromJust)
+import Data.Maybe (fromMaybe, fromJust, listToMaybe)
 import Data.Set (Set)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
@@ -115,7 +115,9 @@ mapVS fun (ViewSet m l) = ViewSet (fun `fmap` m) l
 
 getFocused :: forall ws. Maybe Seat -> Workspace ws -> Workspace ws
 getFocused _ ws@(LeafWS {}) = ws
-getFocused Nothing (SplitWS _ _ _ first _) = getFocused Nothing first
+getFocused Nothing (SplitWS _ _ m first second) = case listToMaybe $ M.elems m of
+    (Just FocusSecond) -> getFocused Nothing second
+    _ -> getFocused Nothing first
 getFocused (Just s) (SplitWS _ _ m first second) = getSub (M.lookup s m)
     where   getSub :: Maybe HLFocus -> Workspace ws
             getSub (Just FocusSecond) = getFocused (Just s) second
@@ -259,4 +261,5 @@ instance WSTag ws => FocusCore (ViewSet ws) ws where
                      in case M.lookup s m of
                         (Just FocusSecond) -> doSecond <|> doFirst
                         _ -> doFirst <|> doSecond
+
 
