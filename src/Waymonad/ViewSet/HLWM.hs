@@ -70,7 +70,7 @@ data ViewSet ws = ViewSet
     }
 
 splitWS :: HLWMMessage -> Workspace ws -> Workspace ws
-splitWS (HLWMSplit o d) (LeafWS (U.Workspace l (Just (U.Zipper (x@(f, _):xs))))) =
+splitWS (HLWMSplit o d) (LeafWS (U.Workspace l (Just (U.Zipper (x@(f, _):xs@(_:_)))))) =
     let empty = LeafWS $ U.Workspace l (Just $ U.Zipper [x])
      in SplitWS o d (M.fromList . fmap (, FocusSecond) $ S.toList f)  (LeafWS $ U.Workspace l (Just $ U.Zipper xs)) empty
 splitWS _ ws = ws
@@ -255,19 +255,29 @@ instance WSTag ws => FocusCore (ViewSet ws) ws where
         where   combineViews (LeafWS (U.Workspace _ z)) = fromMaybe mempty $ fmap (S.fromList . U.unZipper) z
                 combineViews (SplitWS _ _ _ first second) = combineViews first <> combineViews second
     getLayouted (ViewSet m _) ws gbox = case (M.lookup ws m) of
-        Just hlws -> getHLLayout hlws gbox
+        Just hlws -> getHLLayout (const True) hlws gbox
         Nothing -> []
-        where   getHLLayout :: Workspace ws -> WlrBox -> [(View, SSDPrio, WlrBox)]
-                getHLLayout (LeafWS (U.Workspace (GenericLayout l) (Just z))) box = pureLayout l z ws box
-                getHLLayout (LeafWS _) _ = mempty
-                getHLLayout (SplitWS Vertical r _ first second) (WlrBox x y w h) =
+        where   getHLLayout :: (Seat -> Bool) ->  Workspace ws -> WlrBox -> [(View, SSDPrio, WlrBox)]
+                getHLLayout s (LeafWS (U.Workspace (GenericLayout l) (Just (U.Zipper xs)))) box =
+                    let tmap fun (a, b) = (fun a, b)
+                     in pureLayout l (U.Zipper (fmap (tmap (S.filter s)) xs)) ws box
+                getHLLayout _ (LeafWS _) _ = mempty
+                getHLLayout s (SplitWS Vertical r wsm first second) (WlrBox x y w h) =
                     let height = floor $ r * fromIntegral h
                         other = h - height
-                     in getHLLayout first (WlrBox x y w height) <> getHLLayout second (WlrBox x (y + height) w other)
-                getHLLayout (SplitWS Horizontal r _ first second) (WlrBox x y w h) =
+                        fSeats = S.fromList $ filter s $ map fst $ filter ((==) FocusFirst . snd) $ M.toList wsm
+                        sSeats = S.fromList $ filter s $ map fst $ filter ((==) FocusSecond . snd) $ M.toList wsm
+                        fS = (`S.member` fSeats)
+                        sS = (`S.member` sSeats)
+                     in getHLLayout fS first (WlrBox x y w height) <> getHLLayout sS second (WlrBox x (y + height) w other)
+                getHLLayout s (SplitWS Horizontal r wsm first second) (WlrBox x y w h) =
                     let width = floor $ r * fromIntegral w
                         other = w - width
-                     in getHLLayout first (WlrBox x y width h) <> getHLLayout second (WlrBox (x + width) y other h)
+                        fSeats = S.fromList $ filter s $ map fst $ filter ((==) FocusFirst . snd) $ M.toList wsm
+                        sSeats = S.fromList $ filter s $ map fst $ filter ((==) FocusSecond . snd) $ M.toList wsm
+                        fS = (`S.member` fSeats)
+                        sS = (`S.member` sSeats)
+                     in getHLLayout fS first (WlrBox x y width h) <> getHLLayout sS second (WlrBox (x + width) y other h)
     _insertView ws s v vs = alterWS (fromJust . (modifyFocused s (Just . mapWorkspace (U.addView s v)))) ws vs
     _removeView ws v vs = adjustWS (removeViewFrom v) ws vs
     removeGlobal v _ = mapVS (removeViewFrom v)
