@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 module Waymonad.ViewSet.HLWM
 where
 
@@ -9,6 +10,7 @@ import Control.Applicative ((<|>))
 import Data.Semigroup ((<>))
 import Data.Map (Map)
 import Data.Maybe (fromMaybe, fromJust)
+import Data.Set (Set)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
@@ -42,9 +44,9 @@ data HLWMMessage
 instance Message HLWMMessage
 
 splitWS :: HLWMMessage -> Workspace ws -> Workspace ws
-splitWS (HLWMSplit o d) (LeafWS (U.Workspace l (Just (U.Zipper (x:xs))))) =
+splitWS (HLWMSplit o d) (LeafWS (U.Workspace l (Just (U.Zipper (x@(f, _):xs))))) =
     let empty = LeafWS $ U.Workspace l (Just $ U.Zipper [x])
-     in SplitWS o d mempty (LeafWS $ U.Workspace l (Just $ U.Zipper xs)) empty
+     in SplitWS o d (M.fromList . fmap (, FocusSecond) $ S.toList f)  (LeafWS $ U.Workspace l (Just $ U.Zipper xs)) empty
 splitWS _ ws = ws
 
 switchOrientation :: Workspace ws -> Workspace ws
@@ -52,15 +54,20 @@ switchOrientation ws@LeafWS {} = ws
 switchOrientation (SplitWS Horizontal d m f s) = SplitWS Vertical d m f s
 switchOrientation (SplitWS Vertical d m f s) = SplitWS Horizontal d m f s
 
-addChildren :: [View] -> Workspace ws -> Workspace ws
-addChildren vs (LeafWS ws) = LeafWS $ foldr (U.addView Nothing) ws vs
+addChildren :: [(Set Seat, View)] -> Workspace ws -> Workspace ws
+addChildren vs (LeafWS (U.Workspace l Nothing)) = LeafWS (U.Workspace l $ Just $ U.Zipper vs)
+addChildren vs (LeafWS (U.Workspace l (Just (U.Zipper xs)))) =
+    let seats = foldMap fst vs
+        tmap fun (a, b) = (fun a, b)
+        ys = fmap (tmap (S.\\ seats)) xs
+     in (LeafWS (U.Workspace l (Just (U.Zipper (vs ++ ys)))))
 addChildren vs (SplitWS o r m first second) = SplitWS o r m (addChildren vs first) second
 
 mergeLeafes :: Workspace ws -> Workspace ws
 mergeLeafes (SplitWS _ _ _ first (LeafWS (U.Workspace _ z))) = 
-    addChildren (map snd $ maybe [] U.unZipper z) first
+    addChildren (maybe [] U.unZipper z) first
 mergeLeafes (SplitWS _ _ _ (LeafWS (U.Workspace _ z)) second) = 
-    addChildren (map snd $ maybe [] U.unZipper z) second
+    addChildren (maybe [] U.unZipper z) second
 mergeLeafes ws = ws
 
 mapWorkspace :: (HLWorkspace ws -> HLWorkspace ws) -> Workspace ws -> Workspace ws
