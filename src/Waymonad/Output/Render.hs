@@ -103,13 +103,6 @@ outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox 
                 renderDamaged (compRenderer comp) output damage baseBox $ 
                     renderWithMatrix (compRenderer comp) texture mat
 
-            callbacks <- surfaceGetCallbacks =<< getCurrentState surface
-            forM_ callbacks $ \callback -> do
-                cb <- callbackGetCallback callback
-                callbackDone cb (floor $ secs * 1000)
-                res <- callbackGetResource callback
-                resourceDestroy res
-
             subs <- surfaceGetSubs surface
             forM_ subs $ \sub -> do
                 sbox <- subSurfaceGetBox sub
@@ -165,6 +158,31 @@ handleLayers comp secs output (l:ls) d = do
     overs <- mapM (outputHandleView comp secs output d) views
     liftIO $ sequence_ overs
 
+notifySurface :: Double -> Ptr WlrSurface -> IO ()
+notifySurface secs surface = do
+    callbacks <- surfaceGetCallbacks =<< getCurrentState surface
+    forM_ callbacks $ \callback -> do
+        cb <- callbackGetCallback callback
+        callbackDone cb (floor $ secs * 1000)
+        res <- callbackGetResource callback
+        resourceDestroy res
+
+    subs <- surfaceGetSubs surface
+    forM_ subs $ \sub -> notifySurface secs =<< subSurfaceGetSurface sub
+
+
+notifyView :: Double -> (View, SSDPrio, WlrBox) -> IO ()
+notifyView secs (!view, _, _) = doJust (getViewSurface view) $ \surface -> do
+    notifySurface secs surface
+    renderViewAdditional (\s _ -> notifySurface secs s) view
+
+notifyLayers :: Double -> [IORef [(View, SSDPrio, WlrBox)]] -> IO ()
+notifyLayers _ [] = pure ()
+notifyLayers secs (l:ls) = liftIO $ do
+    notifyLayers secs ls
+    views <- readIORef l
+    mapM_ (notifyView secs) views
+
 scissorOutput :: Ptr Renderer -> Ptr WlrOutput -> WlrBox -> IO ()
 scissorOutput rend output !box = do
     Point w h <- outputTransformedResolution output
@@ -179,6 +197,8 @@ frameHandler :: WSTag a => Double -> Output -> Way vs a ()
 frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
     needsSwap <- liftIO $ getOutputNeedsSwap output
+    liftIO $ when enabled $ notifyLayers secs layers
+
     when (enabled && needsSwap) $ do
         comp <- wayCompositor <$> getState
         void . renderOn output (compRenderer comp) $ \age -> do
@@ -229,6 +249,7 @@ fieteHandler :: WSTag a => Double -> Output -> Way vs a ()
 fieteHandler secs Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
     needsSwap <- liftIO $ getOutputNeedsSwap output
+    liftIO $ when enabled $ notifyLayers secs layers
     when (enabled && needsSwap) $ do
         comp <- wayCompositor <$> getState
         void . renderOn output (compRenderer comp) $ \_ -> do
