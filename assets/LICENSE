@@ -1,0 +1,9 @@
+LGPL is not very suitable for assets.
+Assets should have their license in the file if possible.
+
+Please make sure to list all used licenses here, and add a section about the
+license of a particular file, if it can't carry the information inline (because
+of format restrictions).
+
+Currently in use:
+  CC-NC-SA: https://creativecommons.org/licenses/by-nc-sa/4.0/
