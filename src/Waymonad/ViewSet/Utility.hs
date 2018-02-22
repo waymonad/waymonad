@@ -72,6 +72,7 @@ rmView :: View -> Workspace ws vs -> Workspace ws vs
 rmView v (Workspace l z) = Workspace l $ rmElem v z
 
 zipContains :: (Ord b) => b -> Zipper a b -> Bool
+{-# SPECIALISE zipContains :: View -> Zipper a View -> Bool #-}
 zipContains b (Zipper xs) = any ((==) b . snd) xs
 
 setFocused' :: (Ord a, Eq b) => a -> b -> Zipper a b -> Zipper a b

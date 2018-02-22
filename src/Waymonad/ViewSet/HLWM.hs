@@ -32,6 +32,7 @@ import Data.Semigroup ((<>))
 import Data.Map (Map)
 import Data.Maybe (fromMaybe, fromJust, listToMaybe, maybeToList)
 import Data.Set (Set)
+import Data.Text (Text)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
@@ -227,6 +228,7 @@ removeViewFrom v (SplitWS o r m first second) =
                     _ -> SplitWS o r m first' second'
 
 instance Ord ws => Layouted (ViewSet ws) ws where
+    {-# SPECIALISE instance Layouted (ViewSet Text) Text #-}
     getLayout _ _ = Nothing
     messageWS m s ws vs
         | Just message <- getMessage m = handleHLWMMessage message s ws vs
@@ -247,6 +249,7 @@ instance Ord ws => Layouted (ViewSet ws) ws where
                     Just nl -> U.Workspace (GenericLayout nl) z
 
 instance WSTag ws => FocusCore (ViewSet ws) ws where
+    {-# SPECIALISE instance FocusCore (ViewSet Text) Text #-}
     _getFocused (ViewSet vs _) ws (Just s) = U.getFocused s . unLeafWS . getFocused (Just s) =<< M.lookup ws vs
     _getFocused (ViewSet vs _) ws Nothing = U.getFirstFocused . unLeafWS . getFocused Nothing =<< M.lookup ws vs
     _getViews (ViewSet vs _) ws = fromMaybe mempty $ case M.lookup ws vs of
@@ -294,6 +297,7 @@ instance WSTag ws => FocusCore (ViewSet ws) ws where
                         _ -> doFirst <|> doSecond
 
 instance WSTag ws => ListLike (ViewSet ws) ws where
+    {-# SPECIALISE instance ListLike (ViewSet Text) Text #-}
     _asList (ViewSet m _) ws =
         maybe [] (join . maybeToList . fmap U.unZipper . U.wsViews . unLeafWS . getFocused Nothing) $ M.lookup ws m
     --_moveFocusLeft    :: ws -> Seat -> vs-> vs

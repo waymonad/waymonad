@@ -45,6 +45,7 @@ where
 import Control.Monad (join)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe, maybeToList)
+import Data.Text (Text)
 
 import Waymonad.Utility.Base (whenJust)
 import Waymonad.ViewSet
@@ -77,6 +78,7 @@ mapVS :: Ord ws => (XMWorkspace ws -> XMWorkspace ws) -> ViewSet ws -> ViewSet w
 mapVS fun (ViewSet m l) = ViewSet (fun `fmap` m) l
 
 instance Ord a => Layouted (ViewSet a) a where
+    {-# SPECIALISE instance Layouted (ViewSet Text) Text #-}
     getLayout (ViewSet vs _) ws = case wsLayout <$> M.lookup ws vs of
         Nothing -> Nothing
         Just (GenericLayout l) -> Just (Layout l)
@@ -94,6 +96,7 @@ instance Ord a => Layouted (ViewSet a) a where
                 Just nl -> Workspace (GenericLayout nl) z
 
 instance WSTag a => FocusCore (ViewSet a) a where
+    {-# SPECIALISE instance FocusCore (ViewSet Text) Text #-}
     _getFocused (ViewSet vs _) ws (Just s) = getFocused s =<< M.lookup ws vs
     _getFocused (ViewSet vs _) ws Nothing = getFirstFocused =<< M.lookup ws vs
     _focusView ws s v = adjustWS (setFocused v s) ws
@@ -108,6 +111,7 @@ instance WSTag a => FocusCore (ViewSet a) a where
     removeGlobal v _ = mapVS (rmView v)
 
 instance WSTag a => ListLike (ViewSet a) a where
+    {-# SPECIALISE instance ListLike (ViewSet Text) Text #-}
     _asList (ViewSet vs _) ws =
         join . maybeToList $ fmap unZipper (wsViews =<< M.lookup ws vs)
     _moveFocusLeft ws s vs    = adjustWS (moveLeft s) ws vs
