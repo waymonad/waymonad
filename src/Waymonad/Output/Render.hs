@@ -139,13 +139,13 @@ outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurfa
     liftIO $ renderDamaged (compRenderer comp) output d obox decoCB
 
     liftIO $ outputHandleSurface comp secs output d surface scale lBox
-    pure $ renderViewAdditional (\v b ->
+    pure $ renderViewAdditional (\s b ->
         void $ outputHandleSurface
             comp
             secs
             output
             d
-            v
+            s
             scale
             b   { boxX = floor (fromIntegral (boxX b) * scale) + boxX lBox
                 , boxY = floor (fromIntegral (boxY b) * scale) + boxY lBox

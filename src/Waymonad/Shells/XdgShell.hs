@@ -45,7 +45,7 @@ import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (removeListener)
-import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), translateBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
 
 
@@ -140,27 +140,30 @@ handleXdgDestroy ref surf = do
 handleXdgPopup :: View -> IO Point -> Ptr R.WlrXdgPopup -> Way vs ws ()
 handleXdgPopup view getParentPos pop = do
     base <- liftIO $ R.xdgPopupGetBase pop
-    let getPos = do
+    let getPopPos = do
             Point parentX parentY <- getParentPos
-            popBox <- liftIO $ R.getGeometry base
             stateBox <- liftIO $ R.getPopupGeometry base
-
-            let popX = boxX popBox
-            let popY = boxY popBox
 
             let stateX = boxX stateBox
             let stateY = boxY stateBox
 
-            let x = parentX + stateX - popX
-            let y = parentY + stateY - popY
+            let x = parentX + stateX
+            let y = parentY + stateY
 
             pure $ Point x y
+    let getSurfPos = do
+            Point x y <- getPopPos
+            popBox <- liftIO $ R.getGeometry base
+
+            let popX = boxX popBox
+            let popY = boxY popBox
+            pure $ Point (x - popX) (y - popY)
 
     let signals = R.getXdgSurfaceEvents base
     doJust (liftIO $ R.xdgSurfaceGetSurface base) $ \popSurf -> do
-        viewAddSurf view (R.xdgSurfaceEvtDestroy signals) getPos popSurf
+        viewAddSurf view (R.xdgSurfaceEvtDestroy signals) getSurfPos popSurf
 
-    handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
+    handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPopPos
     setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \_ -> do
         liftIO $ removeListener handler
 
@@ -207,27 +210,25 @@ getXdgBox surf = do
 renderPopups :: (Ptr WlrSurface -> WlrBox -> IO ()) -> Ptr R.WlrXdgSurface -> IO ()
 renderPopups fun surf = do
     popups <- liftIO $ filterM R.isConfigured =<< R.xdgGetPopupSurfaces surf
-    surfBox <- liftIO $ R.getGeometry surf
-    let surfX = boxX surfBox
-    let surfY = boxY surfBox
     forM_ popups $ \popup -> do
-        popBox <- getXdgBox popup
-        let popX = boxX popBox
+        popBox <- liftIO $ R.getGeometry popup
+        let popX = boxX  popBox
         let popY = boxY popBox
 
         stateBox <- liftIO $ R.getPopupGeometry popup
         let stateX = boxX stateBox
         let stateY = boxY stateBox
 
-        let x = surfX + stateX - popX
-        let y = surfY + stateY - popY
+        let x = stateX - popX
+        let y = stateY - popY
 
         let box = WlrBox x y (boxWidth popBox) (boxHeight popBox)
 
         doJust (liftIO $ R.xdgSurfaceGetSurface popup) $ \wlrSurf -> do
-            fun wlrSurf box
+            Point w h <- liftIO $ surfaceGetSize wlrSurf
+            fun wlrSurf box { boxWidth = w, boxHeight = h }
             renderPopups
-                (\v b -> fun v b {boxX = boxX b + x, boxY = boxY b + y})
+                (\s b -> fun s $ translateBox stateX stateY b)
                 popup
 
 xdgPopupAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
