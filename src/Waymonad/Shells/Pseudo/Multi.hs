@@ -33,8 +33,10 @@ import Data.Set (Set)
 import Data.Typeable (Typeable)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), enlarge)
+import Graphics.Pixman (PixmanRegion32)
 
 import Waymonad.Types (Way)
+import Waymonad.Types.Core (ManagerData (..))
 
 import qualified Data.IntMap as IM
 import qualified Data.Set as S
@@ -54,6 +56,8 @@ import Waymonad.View
     , addViewDestroyListener
     , closeView
     , viewHasCSD
+    , doApplyDamage
+    , setViewManager
     )
 import Waymonad.ViewSet (WSTag (..), FocusCore)
 import Waymonad.Managehook (insertView, removeView)
@@ -117,6 +121,18 @@ setMultiInactive slave =
                 writeIORef ref Nothing
                 setMasterSize multi
 
+applyMultiDamage :: MultiView a -> View -> PixmanRegion32 -> IO ()
+applyMultiDamage mv _ region = do
+    slaveMap <- readIORef $ multiSlaves mv
+    mapM_ (`doApplyDamage` region) (IM.elems slaveMap)
+
+multiManager :: MultiView a -> ManagerData
+multiManager mv = ManagerData
+    { managerRemove = const $ pure ()
+    , managerFocus = \_ _ -> pure ()
+    , managerApplyDamage = applyMultiDamage mv
+    }
+
 makeMulti' :: View
            -> (View -> IO ()) -> IO (MultiView a)
 makeMulti' view delFun = MultiView
@@ -134,6 +150,7 @@ makeMulti view = do
     removeView view
     delFun <- makeCallback removeView
     multi <- liftIO $ makeMulti' view delFun
+    setViewManager view $ multiManager multi
     addViewDestroyListener 0 (const $ multiDestroy multi) view
     pure multi
 
