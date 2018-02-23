@@ -98,6 +98,7 @@ damageDisplay :: WSTag ws => Int -> Double -> Output -> Way vs ws ()
 damageDisplay depth secs out@Output {outputRoots = output, outputLayout = layers} = do
     enabled <- liftIO $ isOutputEnabled output
     needsSwap <- liftIO $ getOutputNeedsSwap output
+    liftIO $ when (enabled) $ notifyLayers secs layers
     when (enabled && needsSwap) $ do
         comp <- wayCompositor <$> getState
         reEnable <- renderOn output (compRenderer comp) $ \age -> do
