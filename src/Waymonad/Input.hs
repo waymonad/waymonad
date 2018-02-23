@@ -207,7 +207,7 @@ createSeat name = do
     seatRef <- wayBindingSeats <$> getState
     liftIO $ modifyIORef seatRef ((:) seat)
     -- Attach to the first output, so things "just werk"TM
-
+    resetSeatKeymap seat
     ret <- withSeat (Just seat) $ do
         cursor  <- cursorCreate layout
         liftIO $ writeIORef cursorRef cursor

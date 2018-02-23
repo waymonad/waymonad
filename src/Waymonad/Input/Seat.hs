@@ -33,11 +33,16 @@ module Waymonad.Input.Seat
     , seatDestroy
     , setPointerPosition
     , useClipboardText
+
+    , setSeatKeybinds
+    , setSeatKeymap
+    , resetSeatKeymap
     )
 where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Bits ((.|.), shiftL)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Maybe (isJust, fromMaybe)
 import Data.Text (Text)
@@ -71,7 +76,7 @@ import Waymonad.Input.Cursor.Type
 import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.View (getViewSurface, getViewEventSurface)
 import Waymonad.ViewSet (WSTag, FocusCore (..))
-import Waymonad (getState, makeCallback2)
+import Waymonad (withSeat, getState, makeCallback, makeCallback2)
 import Waymonad.Types
 import Waymonad.Types.Core
 import Graphics.Wayland.WlRoots.DeviceManager (getSelectionText)
@@ -80,7 +85,27 @@ import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as E
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.IntMap.Strict as IM
 import qualified Graphics.Wayland.WlRoots.Seat as R
+
+setSeatKeybinds :: Seat -> (WayKeyState -> Way vs ws Bool) -> Way vs ws ()
+setSeatKeybinds seat fun = withSeat (Just seat) $ do
+    bindingCB <- makeCallback fun
+    liftIO $ writeIORef (seatKeymap seat) bindingCB
+
+setSeatKeymap :: Seat -> BindingMap vs ws -> Way vs ws ()
+setSeatKeymap seat m =
+    setSeatKeybinds seat $ \(WayKeyState mods key) ->
+        let keyPart = fromIntegral key
+            modPart = fromIntegral mods `shiftL` 32
+         in case IM.lookup (keyPart .|. modPart) m of
+                Nothing -> pure False
+                Just act -> act >> pure True
+
+resetSeatKeymap :: Seat -> Way vs ws ()
+resetSeatKeymap seat = do
+    keyMap <- wayKeybinds <$> getState
+    setSeatKeymap seat keyMap
 
 seatDestroy :: Seat -> IO ()
 seatDestroy Seat {seatRoots = roots} = do
@@ -102,6 +127,7 @@ seatCreate dsp name reqDefault loadScale cursor = do
 
     liftIO $ R.setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
     cMap <- waySeatColors <$> getState
+    keymap <- liftIO $ newIORef (const $ pure False)
     pure Seat
         { seatRoots          = roots
         , seatPointer        = pointer
@@ -111,6 +137,7 @@ seatCreate dsp name reqDefault loadScale cursor = do
         , seatLoadScale      = loadScale
         , seatCursor         = cursor
         , seatColor          = fromMaybe (Color 0 1 0 1) $ M.lookup (T.pack name) cMap
+        , seatKeymap         = keymap
         }
 
 keyboardEnter' :: Seat -> EvtCause -> Ptr WlrSurface -> View -> Way vs ws Bool

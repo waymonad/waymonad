@@ -19,13 +19,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Waymonad.Input.Keyboard
 where
 
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (MonadReader(..), local)
 import Data.Bits ((.&.), complement)
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Data.IORef (readIORef)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
@@ -67,19 +67,19 @@ import Control.Monad (forM, when, unless)
 
 import Waymonad.Input.Seat
 import Waymonad
-    ( BindingMap
-    , withSeat
-    , WayBindingState (..)
+    ( withSeat
     , WayLoggers (..)
     , getState
+    , getSeat
     )
 import Waymonad.Types
     ( Compositor (compBackend)
-    , WayBindingState (wayCompositor, wayKeybinds)
+    , WayBindingState (wayCompositor)
     , Way (..)
     )
+import Waymonad.Types.Core (WayKeyState (..), Seat(seatKeymap))
 import Waymonad.Utility.Signal (setSignalHandler)
-import Waymonad.Utility.Log (logPutText, logPutStr, LogPriority (..))
+import Waymonad.Utility.Log (logPutStr, LogPriority (..))
 
 import Text.XkbCommon.Context
 import Text.XkbCommon.KeyboardState
@@ -89,13 +89,16 @@ import Text.XkbCommon.Keysym
 import Text.XkbCommon.KeysymPatterns
 import Text.XkbCommon.Types
 
-import qualified Data.Map as M
-
 data Keyboard vs ws = Keyboard
     { keyboardDevice :: Ptr WlrKeyboard
     , keyboardIDevice :: Ptr InputDevice
-    , keyboardBindings :: IORef (BindingMap vs ws)
     }
+
+tryRunKeybind :: WayKeyState -> Way vs ws Bool
+tryRunKeybind keyState = do
+    Just bindRef <- fmap seatKeymap <$> getSeat
+    keybindings <- liftIO $ readIORef bindRef
+    liftIO $ keybindings keyState
 
 keyStateToDirection :: KeyState -> Direction
 keyStateToDirection KeyReleased = keyUp
@@ -110,12 +113,8 @@ switchVT backend vt = do
         Just s -> changeVT s vt
 
 
-handleKeyPress
-    :: BindingMap vs a
-    -> Word32
-    -> Keysym
-    -> Way vs a Bool
-handleKeyPress bindings modifiers sym@(Keysym key) = do
+handleKeyPress :: Word32 -> Keysym -> Way vs a Bool
+handleKeyPress modifiers sym@(Keysym key) = do
     logPutStr loggerKeybinds Trace $ "Checking for keybind: " ++ (show $ fieldToModifiers modifiers) ++ ":" ++ keysymName sym
     backend <- compBackend . wayCompositor <$> getState
     case sym of
@@ -132,12 +131,7 @@ handleKeyPress bindings modifiers sym@(Keysym key) = do
         Keysym_XF86Switch_VT_10 -> liftIO (switchVT backend 10) >> pure True
         Keysym_XF86Switch_VT_11 -> liftIO (switchVT backend 11) >> pure True
         Keysym_XF86Switch_VT_12 -> liftIO (switchVT backend 12) >> pure True
-        _ -> case M.lookup (modifiers, key) bindings of
-                Nothing -> pure False
-                Just fun -> do
-                    logPutText loggerKeybinds Debug "Found a keybind"
-                    fun
-                    pure True
+        _ -> tryRunKeybind $ WayKeyState (fromIntegral modifiers) (fromIntegral key)
 
 
 tellClient :: Seat -> Keyboard vs ws -> EventKey -> IO ()
@@ -145,12 +139,8 @@ tellClient seat keyboard event = do
     seatSetKeyboard   (seatRoots seat) $ keyboardIDevice keyboard
     keyboardNotifyKey (seatRoots seat) (timeSec event) (keyCode event) (state event)
 
-handleKeySimple
-    :: BindingMap vs a
-    -> Keyboard vs a
-    -> CKeycode
-    -> Way vs a Bool
-handleKeySimple bindings keyboard keycode = do
+handleKeySimple :: Keyboard vs a -> CKeycode -> Way vs a Bool
+handleKeySimple keyboard keycode = do
     keystate <- liftIO . getKeystate $ keyboardDevice keyboard
     keymap   <- liftIO . getKeymap $ keyboardDevice keyboard
     modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
@@ -159,16 +149,12 @@ handleKeySimple bindings keyboard keycode = do
     syms <- liftIO $ keymapSymsByLevelI keymap keycode layoutL (CLevelIndex 0)
 
     handled <- forM syms $
-        handleKeyPress bindings modifiers
+        handleKeyPress modifiers
 
     pure $ or handled
 
-handleKeyXkb
-    :: BindingMap vs a
-    -> Keyboard vs a
-    -> CKeycode
-    -> Way vs a Bool
-handleKeyXkb bindings keyboard keycode = do
+handleKeyXkb :: Keyboard vs a -> CKeycode -> Way vs a Bool
+handleKeyXkb keyboard keycode = do
     keystate <- liftIO . getKeystate $ keyboardDevice keyboard
     modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
     consumed <- liftIO $ keyGetConsumedMods2 keystate keycode
@@ -178,7 +164,7 @@ handleKeyXkb bindings keyboard keycode = do
     syms <- liftIO $ getStateSymsI keystate keycode
 
     handled <- forM syms $
-        handleKeyPress bindings usedMods
+        handleKeyPress usedMods
 
     pure $ or handled
 
@@ -205,7 +191,6 @@ handleKeyEvent :: Keyboard vs ws
                -> Ptr EventKey
                -> Way vs ws ()
 handleKeyEvent keyboard seat ptr = withSeat (Just seat) $ do
-    bindings <- liftIO . readIORef $ keyboardBindings keyboard
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
 
@@ -213,10 +198,10 @@ handleKeyEvent keyboard seat ptr = withSeat (Just seat) $ do
         -- We currently don't do anything special for releases
         KeyReleased -> pure False
         KeyPressed -> do
-            handled <- handleKeyXkb bindings keyboard keycode
+            handled <- handleKeyXkb keyboard keycode
             if handled
                 then pure handled
-                else handleKeySimple bindings keyboard keycode
+                else handleKeySimple keyboard keycode
 
     liftIO . unless handled $ tellClient seat keyboard event
 
@@ -226,27 +211,6 @@ handleModifiers keyboard seat _ = liftIO $ do
 
     keyboardNotifyModifiers (seatRoots seat) (getModifierPtr $ keyboardDevice keyboard)
 
-getSubMap :: Way vs ws (BindingMap vs ws)
-getSubMap =  do
-    ref <- wayCurrentKeybinds <$> getState
-    liftIO $ readIORef ref
-
-setSubMap :: BindingMap vs ws -> Way vs ws ()
-setSubMap subMap = do
-    let keys = M.keys subMap
-        klines = map (\(modifiers, sym) -> (show $ fieldToModifiers modifiers) ++ ":" ++ keysymName (Keysym sym)) keys
-        logLine = unlines klines
-
-    logPutStr loggerKeybinds Trace $ "Loading submap with keybinds:\n" ++ logLine
-    ref <- wayCurrentKeybinds <$> getState
-    liftIO $ writeIORef ref subMap
-
-resetSubMap :: Way vs ws ()
-resetSubMap = setSubMap =<< (wayKeybinds <$> getState)
-
-withBindingRef :: IORef (BindingMap vs ws) -> Way vs ws a -> Way vs ws a
-withBindingRef ref (Way act) = Way $ local (\s -> s {wayCurrentKeybinds = ref}) act
-
 handleKeyboardAdd
     :: Seat
     -> Ptr InputDevice
@@ -254,34 +218,23 @@ handleKeyboardAdd
     -> Way vs a ()
 handleKeyboardAdd seat dev ptr = do
     let signals = getKeySignals ptr
-    bindings <- wayKeybinds <$> getState
-
-    let keys = M.keys bindings
-        klines = map (\(modifiers, sym) -> (show $ fieldToModifiers modifiers) ++ ":" ++ keysymName (Keysym sym)) keys
-        logLine = unlines klines
-
-    logPutStr loggerKeybinds Trace $ "Loading keyboard with keybinds:\n" ++ logLine
-
     liftIO $ do
         (Just cxt) <- newContext defaultFlags
         (Just keymap) <- newKeymapFromNamesI cxt noPrefs
         setKeymap ptr keymap
 
-    mapRef <- liftIO $ newIORef bindings
+    let keyboard = Keyboard ptr dev
 
-    withBindingRef mapRef $ do
-        let keyboard = Keyboard ptr dev mapRef
+    kh <- setSignalHandler
+        (keySignalKey signals)
+        (handleKeyEvent keyboard seat)
+    mh <- setSignalHandler
+        (keySignalModifiers signals)
+        (handleModifiers keyboard seat)
 
-        kh <- setSignalHandler
-            (keySignalKey signals)
-            (handleKeyEvent keyboard seat)
-        mh <- setSignalHandler
-            (keySignalModifiers signals)
-            (handleModifiers keyboard seat)
-
-        liftIO $ do
-            sptr <- newStablePtr (kh, mh)
-            poke (getKeyDataPtr ptr) (castStablePtrToPtr sptr)
+    liftIO $ do
+        sptr <- newStablePtr (kh, mh)
+        poke (getKeyDataPtr ptr) (castStablePtrToPtr sptr)
 
 
 detachKeyboard :: Ptr WlrKeyboard -> IO ()

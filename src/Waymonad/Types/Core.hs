@@ -23,6 +23,8 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Types.Core
 where
 
+import Data.Bits ((.|.), shiftL)
+
 import Control.Monad.IO.Class (MonadIO)
 import Data.IntMap (IntMap)
 import Data.IORef (IORef)
@@ -40,6 +42,16 @@ import Graphics.Wayland.WlRoots.Render.Color (Color)
 
 import qualified Graphics.Wayland.WlRoots.Seat as R
 
+
+data WayKeyState = WayKeyState
+    { keyStateMods :: {-# UNPACK #-} !Word32
+    , keyStateKey  :: {-# UNPACK #-} !Word32
+    }
+
+keystateAsInt :: WayKeyState -> Int
+keystateAsInt (WayKeyState mods key) =
+    fromIntegral key .|. (fromIntegral mods `shiftL` 32)
+
 data Seat = Seat
     { seatRoots          :: Ptr R.WlrSeat
     , seatPointer        :: IORef (Maybe View)
@@ -49,6 +61,7 @@ data Seat = Seat
     , seatLoadScale      :: Float -> IO ()
     , seatCursor         :: Cursor
     , seatColor          :: Color
+    , seatKeymap         :: IORef (WayKeyState -> IO Bool)
     }
 
 class Typeable a => ShellSurface a where

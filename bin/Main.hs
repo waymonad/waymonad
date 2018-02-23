@@ -28,6 +28,7 @@ where
 
 import Control.Applicative ((<|>))
 import Control.Monad.IO.Class (liftIO)
+import Data.IORef (readIORef)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import System.IO
@@ -47,8 +48,7 @@ import Waymonad.Hooks.FocusFollowPointer
 import Waymonad.Hooks.KeyboardFocus
 import Waymonad.Hooks.ScaleHook
 import Waymonad.Input (attachDevice)
-import Waymonad.Input.Keyboard (setSubMap, resetSubMap, getSubMap)
-import Waymonad.Input.Seat (useClipboardText)
+import Waymonad.Input.Seat (useClipboardText, setSeatKeybinds, resetSeatKeymap)
 import Waymonad.Layout.SmartBorders
 import Waymonad.Layout.Choose
 import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
@@ -73,9 +73,10 @@ import Waymonad.Utility.View
 import Waymonad.Utility.ViewSet (modifyFocusedWS)
 import Waymonad (Way, KeyBinding)
 import Waymonad.Types (WayHooks (..), BindingMap)
+import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
 import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)
 
-import qualified Data.Map as M
+import qualified Data.IntMap.Strict as IM
 
 import qualified Waymonad.Hooks.OutputAdd as H
 import qualified Waymonad.Hooks.SeatMapping as SM
@@ -107,17 +108,19 @@ workspaces :: IsString a => [a]
 workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 makeListNavigation :: (ListLike vs ws, FocusCore vs ws, WSTag ws)
-                   => WlrModifier -> Way vs ws (BindingMap vs ws)
-makeListNavigation modi = do
-    let listNav = makeBindingMap
+                   => Seat -> WlrModifier -> Way vs ws (WayKeyState -> Way vs ws Bool)
+makeListNavigation seat modi = do
+    current <- liftIO . readIORef $ seatKeymap seat
+    let newMap = makeBindingMap
             [ (([modi], keysym_j), modifyFocusedWS $ flip _moveFocusRight)
             , (([modi], keysym_k), modifyFocusedWS $ flip _moveFocusLeft )
-            , (([modi, Shift], keysym_h), resetSubMap)
-            , (([], keysym_Escape), resetSubMap)
+            , (([modi, Shift], keysym_h), resetSeatKeymap seat)
+            , (([], keysym_Escape), resetSeatKeymap seat)
             ]
-    current <- getSubMap
-    pure (M.union listNav current)
 
+    pure $ \keystate -> case IM.lookup (keystateAsInt keystate) newMap of
+        Nothing -> liftIO $ current keystate
+        Just act -> act >> pure True
 
 -- Use Logo as modifier when standalone, but Alt when started as child
 getModi :: IO WlrModifier
@@ -139,7 +142,9 @@ bindings modi =
     , (([modi], keysym_l), moveRight)
     , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
     , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
-    , (([modi, Shift], keysym_h), setSubMap =<< makeListNavigation modi)
+    , (([modi, Shift], keysym_h), doJust getSeat $ \seat -> do
+            subMap <- makeListNavigation seat modi
+            setSeatKeybinds seat subMap)
     , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_space), sendMessage NextLayout)

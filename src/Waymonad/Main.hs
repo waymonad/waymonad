@@ -21,11 +21,13 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Waymonad.Main
 where
 
 import System.IO
 
+import Data.Bits ((.|.), shiftL)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe)
@@ -53,11 +55,14 @@ import Waymonad.ViewSet
 import Waymonad (makeCallback)
 import Waymonad.Types
 
-import qualified Data.Map as M
+import qualified Data.IntMap.Strict as IM
 
 makeBindingMap :: [(([WlrModifier], Keysym), KeyBinding vs a)] -> BindingMap vs a
-makeBindingMap = M.fromList .
-    map (\((mods, Keysym sym), fun) -> ((modifiersToField mods, sym), fun))
+makeBindingMap = IM.fromList .
+    map (\((mods, Keysym sym), fun) -> 
+        let modPart :: Int = (modifiersToField mods) `shiftL` 32
+         in (modPart .|. sym , fun)
+        )
 
 makeCompositor
     :: (FocusCore vs ws, WSTag ws)
@@ -134,7 +139,6 @@ wayUserMain conf = do
     outputs <- newIORef []
     seats <- newIORef []
     extensible <- newIORef mempty
-    currentMap <- newIORef mempty
     compRef <- newIORef $ error "Tried to access compositor to early"
     shells <- sequence $ wayUserConfShells conf
 
@@ -159,7 +163,6 @@ wayUserMain conf = do
             , wayLogFunction = wayUserConfLog conf
             , wayExtensibleState = extensible
             , wayCurrentSeat = Nothing
-            , wayCurrentKeybinds = currentMap
             , wayEventHook = wayUserConfEventHook conf
             , wayUserWorkspaces = wayUserConfWorkspaces conf
             , wayCompositor = unsafePerformIO (readIORef compRef)

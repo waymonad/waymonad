@@ -65,12 +65,12 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Reader (ReaderT, MonadReader, runReaderT, ask)
 import Data.Default (Default(..))
 import Data.IORef (IORef)
+import Data.IntMap (IntMap)
 import Data.Map (Map)
 import Data.Semigroup (Semigroup (..))
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf)
-import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer)
 
@@ -202,9 +202,6 @@ data WayBindingState vs ws = WayBindingState
     , wayBindingOutputs  :: IORef [Output] -- ^The total list of existing outputs. May be enabled or disable.
     , wayBindingSeats    :: IORef [Seat] -- ^The seats that currently exist. Probably a singleton for most situations
     , wayExtensibleState :: IORef StateMap -- ^The statemap for extensible state.
-    , wayCurrentKeybinds :: IORef (BindingMap vs ws)
-    -- ^Current keybinds. This is local to actions in keybinds. Changing this
-    -- only makes a difference for the *current* keyboard.
 
     , wayCurrentSeat     :: Maybe Seat -- ^Current seat. This is local to actions triggered by a seat. Will be Nothing if no seat can be associated.
 
@@ -227,7 +224,7 @@ newtype Way vs ws b = Way (ReaderT (WayBindingState vs ws) IO b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader (WayBindingState vs ws))
 
 type KeyBinding vs a = Way vs a ()
-type BindingMap vs a = Map (Word32, Int) (KeyBinding vs a)
+type BindingMap vs a = IntMap (KeyBinding vs a)
 
 type LogFun vs a = Way vs a ()
 
