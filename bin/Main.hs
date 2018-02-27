@@ -76,6 +76,10 @@ import Waymonad.Types (WayHooks (..), BindingMap)
 import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
 import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)
 
+import Waymonad.IdleDPMS
+import Waymonad.IdleManager
+import Waymonad.Protocols.IdleInhibit
+
 import qualified Data.IntMap.Strict as IM
 
 import qualified Waymonad.Hooks.OutputAdd as H
@@ -166,7 +170,7 @@ myConf modi = WayUserConf
     { wayUserConfWorkspaces  = workspaces
     , wayUserConfLayouts     = sameLayout . avoidStruts . mkSmartBorders 2 . mkMirror . mkTFull $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn <> manageX11SpawnOn
-    , wayUserConfEventHook   = const $ pure ()
+    , wayUserConfEventHook   = idleDPMSHandler <> idleLog
     , wayUserConfKeybinds    = bindings modi
 
     , wayUserConfInputAdd    = flip attachDevice "seat0"
@@ -182,8 +186,11 @@ myConf modi = WayUserConf
                      , ("CLUTTER_BACKEND", "wayland")
                      ]
         ]
-    , wayUserConfBackendHook = []
-    , wayUserConfPostHook    = [getScreenshooterBracket]
+    , wayUserConfBackendHook = [getIdleBracket 6e5 {- 10 minutes in ms -}]
+    , wayUserConfPostHook    =
+        [ getScreenshooterBracket
+        , getIdleInihibitBracket
+        ]
     , wayUserConfCoreHooks   = WayHooks
         { wayHooksVWSChange       = wsScaleHook
         , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt

@@ -57,9 +57,11 @@ module Waymonad.View
     , doRemoveView
     , viewHasCSD
     , doApplyDamage
+    , doGetPosition
     , viewAddSurf
     , getViewSurfScale
     , viewTakesFocus
+    , getViewFromSurface
     )
 where
 
@@ -70,7 +72,8 @@ import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO)
 import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
 import Data.Text (Text)
 import Data.Typeable (Typeable, cast)
-import Foreign.Ptr (Ptr)
+import Foreign.Ptr (Ptr, nullPtr)
+import Foreign.StablePtr (newStablePtr, freeStablePtr, castStablePtrToPtr, castPtrToStablePtr, deRefStablePtr)
 
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -81,6 +84,7 @@ import Graphics.Wayland.Resource (resourceGetClient)
 import Graphics.Wayland.Server (Client (..))
 import Graphics.Wayland.WlRoots.Util.Region
 
+import Graphics.Wayland.WlRoots.Output (WlrOutput)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface
     , WlrSubSurface
@@ -94,6 +98,8 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceGetScale
     , subSurfaceGetDestroyEvent
     , surfaceGetSize
+    , pokeSurfaceData
+    , peekSurfaceData
     )
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox, scaleBox, translateBox)
 
@@ -146,8 +152,18 @@ handleSurfaceDamage view getPos surf = do
             pixmanRegionTranslate mutDmg vx vy
             doApplyDamage view mutDmg
 
+getViewFromSurface :: MonadIO m => Ptr WlrSurface -> m (Maybe View)
+getViewFromSurface surf = liftIO $ do
+    sPtr <- peekSurfaceData surf
+    case sPtr /= nullPtr of
+        True -> fmap Just . deRefStablePtr $ castPtrToStablePtr sPtr
+        False -> pure Nothing
+
 viewAddSurf :: MonadIO m => View -> Ptr (WlSignal a) -> IO Point -> Ptr WlrSurface -> m ()
 viewAddSurf view destroySignal getPos surf = liftIO $ do
+    sPtr <- newStablePtr view
+    pokeSurfaceData surf $ castStablePtrToPtr sPtr
+
     let events = getWlrSurfaceEvents surf
     commitHandler <- addListener
         (WlListener $ handleSurfaceDamage view getPos)
@@ -165,6 +181,13 @@ viewAddSurf view destroySignal getPos surf = liftIO $ do
         withRegion $ \region -> do
             resetRegion region . Just . translateBox vx vy . flip scaleBox scale $ WlrBox x y w h
             doApplyDamage view region
+
+        dSPtr <- peekSurfaceData surf
+        when (dSPtr /= nullPtr) $ do
+            freeStablePtr $ castPtrToStablePtr dSPtr
+            pokeSurfaceData surf nullPtr
+
+    mapM_ (handleSubsurf view) =<< surfaceGetSubs surf
 
 handleSubsurf :: MonadIO m => View -> Ptr WlrSubSurface -> m ()
 handleSubsurf view subSurf = do
@@ -194,6 +217,7 @@ createView surf = liftIO $ do
         Nothing -> pure []
         Just wlrSurf -> do
             let events = getWlrSurfaceEvents wlrSurf
+            viewAddSurf (unsafePerformIO $ readIORef viewRef) (wlrSurfaceEvtDestroy events) (pure $ Point 0 0) wlrSurf
             destroyHandler <- addListener
                 (WlListener $ const $ removeListeners $ unsafePerformIO $ readIORef viewRef)
                 (wlrSurfaceEvtDestroy events)
@@ -201,11 +225,8 @@ createView surf = liftIO $ do
             commitHandler <- addListener
                 (WlListener $ const $ handleCommit (unsafePerformIO $ readIORef viewRef) sizeRef)
                 (wlrSurfaceEvtCommit events)
-            subSurfHandler <- addListener
-                (WlListener $ handleSubsurf (unsafePerformIO $ readIORef viewRef))
-                (wlrSurfaceEvtSubSurf events)
 
-            pure [destroyHandler, commitHandler, subSurfHandler]
+            pure [destroyHandler, commitHandler]
 
     manager <- newIORef Nothing
     let ret = View
@@ -248,6 +269,13 @@ doApplyDamage view dmg = liftIO $ do
     case fun of
         Just (ManagerData {managerApplyDamage = act}) -> act view dmg
         Nothing -> pure ()
+
+doGetPosition :: MonadIO m => View -> m [(Ptr WlrOutput, Point)]
+doGetPosition view = liftIO $ do
+    fun <- readIORef (viewManager view)
+    case fun of
+        Just (ManagerData {managerGetPosition = act}) -> act view
+        Nothing -> pure []
 
 setViewManager :: MonadIO m => View -> ManagerData -> m ()
 setViewManager View {viewManager = ref} manager =

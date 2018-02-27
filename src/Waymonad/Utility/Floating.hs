@@ -58,7 +58,7 @@ import Waymonad.Types.Core (ManagerData (..))
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Current (getCurrentBox, getCurrentView, getCurrentWS)
 import Waymonad.Utility.Extensible (modifyEState, getEState)
-import Waymonad.Utility.LayerCache (applyLayerDamage)
+import Waymonad.Utility.LayerCache (applyLayerDamage, getLayerPosition')
 import Waymonad.Utility.ViewSet (modifyFocusedWS, insertView)
 
 import qualified Data.Set as S
@@ -94,7 +94,8 @@ makeFloatManager = do
     focus <- makeCallback2 focusFloating
     remove <-  makeCallback removeFloating
     applyDamage <- makeCallback2 $ applyLayerDamage "floating"
-    pure $ ManagerData remove focus applyDamage
+    getPos <- makeCallback $ getLayerPosition' "floating"
+    pure $ ManagerData remove focus applyDamage getPos
 
 setFloating :: View -> WlrBox -> Way vs a ()
 setFloating view pos@(WlrBox x y width height) = do

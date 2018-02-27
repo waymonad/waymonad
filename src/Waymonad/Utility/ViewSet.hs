@@ -66,7 +66,7 @@ import Waymonad.Types (Output (..), EvtCause (..))
 import Waymonad.Types.Core (ManagerData (..))
 import Waymonad.Utility.Current
 import Waymonad.Utility.Mapping (getOutputKeyboards, setSeatOutput, getOutputWS, getOutputs)
-import Waymonad.Utility.LayerCache (applyLayerDamage)
+import Waymonad.Utility.LayerCache (applyLayerDamage, getLayerPosition')
 
 import qualified Data.Set as S
 
@@ -187,7 +187,8 @@ makeManager = do
     focus <- makeCallback2 setViewsetFocus
     remove <- makeCallback removeCB
     applyDamage <- makeCallback2 $ applyLayerDamage "main"
-    pure $ ManagerData remove focus applyDamage
+    getPos <- makeCallback $ getLayerPosition' "main"
+    pure $ ManagerData remove focus applyDamage getPos
 
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
 insertView v ws s = do

@@ -23,22 +23,23 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Types.Core
 where
 
-import Data.Bits ((.|.), shiftL)
-
 import Control.Monad.IO.Class (MonadIO)
-import Data.IntMap (IntMap)
+import Data.Bits ((.|.), shiftL)
 import Data.IORef (IORef)
+import Data.IntMap (IntMap)
 import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
-import Waymonad.Input.Cursor.Type
 
 import Graphics.Pixman
 import Graphics.Wayland.Signal (ListenerToken)
-import Graphics.Wayland.WlRoots.Box (WlrBox)
+import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
+import Graphics.Wayland.WlRoots.Output (WlrOutput)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.WlRoots.Render.Color (Color)
+
+import Waymonad.Input.Cursor.Type
 
 import qualified Graphics.Wayland.WlRoots.Seat as R
 
@@ -96,6 +97,7 @@ data ManagerData = ManagerData
     { managerRemove      :: View -> IO ()
     , managerFocus       :: Seat -> View -> IO ()
     , managerApplyDamage :: View -> PixmanRegion32 -> IO ()
+    , managerGetPosition :: View -> IO [(Ptr WlrOutput, Point)]
     }
 
 data View = forall a. ShellSurface a => View

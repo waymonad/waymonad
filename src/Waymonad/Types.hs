@@ -222,6 +222,9 @@ type BindingMap vs a = IntMap (KeyBinding vs a)
 
 type LogFun vs a = Way vs a ()
 
+instance Semigroup a => Semigroup (Way vs b a) where
+    left <> right = (<>) <$> left <*> right
+
 instance Monoid a => Monoid (Way vs b a) where
     mempty = pure mempty
     left `mappend` right = mappend <$> left <*> right

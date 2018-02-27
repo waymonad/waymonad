@@ -23,6 +23,7 @@ module Waymonad.IdleManager
     ( IdleEvent (..)
     , getIdleBracket
     , idleLog
+    , isIdle
     )
 where
 
@@ -114,3 +115,6 @@ idleLog :: SomeEvent -> Way vs a ()
 idleLog evt = whenJust (getEvent evt) $ \case
     IdleStart -> liftIO $ hPutStrLn stderr "Setting up idle state"
     IdleStop -> liftIO $ hPutStrLn stderr "Tearing down idle state"
+
+isIdle :: Way vs ws Bool
+isIdle = (\(Idle x) -> x) <$> getEState

@@ -21,13 +21,15 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Utility.LayerCache
 where
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, forM)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (readIORef)
 import Data.Text (Text)
+import Foreign.Ptr (Ptr)
 
 import Graphics.Pixman
-import Graphics.Wayland.WlRoots.Box (WlrBox (..))
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
+import Graphics.Wayland.WlRoots.Output (WlrOutput)
 
 import Waymonad.Output (outApplyDamage)
 import Waymonad.View (viewHasCSD)
@@ -52,6 +54,20 @@ getViewBoxInLayer Output {outputLayers = layers} view layer = liftIO $ do
     case M.lookup layer layers of
         Nothing -> pure []
         Just ref -> getViewPosition view =<< readIORef ref
+
+getLayerPosition :: Text -> View -> Way vs ws [(Output, Point)]
+getLayerPosition layer view = do
+    outs <- getOutputs
+    ret <- liftIO $ forM outs $ \out -> do
+        boxes <- getViewBoxInLayer out view layer
+        pure $ fmap (\(WlrBox x y _ _) -> (out, Point x y)) boxes
+
+    pure . concat $ ret
+
+getLayerPosition' :: Text -> View -> Way vs ws [(Ptr WlrOutput, Point)]
+getLayerPosition' layer view = do
+    ret <- getLayerPosition layer view
+    pure $ fmap (\(o, p) -> (outputRoots o, p)) ret
 
 applyLayerDamage :: Text -> View -> PixmanRegion32-> Way vs ws ()
 applyLayerDamage layer view orig = do

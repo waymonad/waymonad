@@ -31,8 +31,10 @@ import Data.IntMap (IntMap)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Set (Set)
 import Data.Typeable (Typeable)
+import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.WlRoots.Box (WlrBox (..), enlarge)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), enlarge, Point)
+import Graphics.Wayland.WlRoots.Output (WlrOutput)
 import Graphics.Pixman (PixmanRegion32)
 
 import Waymonad.Types (Way)
@@ -57,6 +59,7 @@ import Waymonad.View
     , closeView
     , viewHasCSD
     , doApplyDamage
+    , doGetPosition
     , setViewManager
     )
 import Waymonad.ViewSet (WSTag (..), FocusCore)
@@ -126,11 +129,17 @@ applyMultiDamage mv _ region = do
     slaveMap <- readIORef $ multiSlaves mv
     mapM_ (`doApplyDamage` region) (IM.elems slaveMap)
 
+getMultiRegions :: MultiView a -> View -> IO [(Ptr WlrOutput, Point)]
+getMultiRegions mv _ = do
+    slaveMap <- readIORef $ multiSlaves mv
+    fmap concat $ mapM doGetPosition (IM.elems slaveMap)
+
 multiManager :: MultiView a -> ManagerData
 multiManager mv = ManagerData
     { managerRemove = const $ pure ()
     , managerFocus = \_ _ -> pure ()
     , managerApplyDamage = applyMultiDamage mv
+    , managerGetPosition = getMultiRegions mv
     }
 
 makeMulti' :: View

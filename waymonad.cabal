@@ -69,6 +69,7 @@ library
   exposed-modules:        Waymonad.GlobalFilter
 
   exposed-modules:        Waymonad.IdleManager
+  exposed-modules:        Waymonad.IdleDPMS
 
   exposed-modules:        Waymonad.Input
   exposed-modules:        Waymonad.Input.Cursor
@@ -108,6 +109,7 @@ library
   exposed-modules:        Waymonad.Output.Render
 
   exposed-modules:        Waymonad.Protocols.GammaControl
+  exposed-modules:        Waymonad.Protocols.IdleInhibit
   exposed-modules:        Waymonad.Protocols.PrimarySelection
   exposed-modules:        Waymonad.Protocols.Screenshooter
 
