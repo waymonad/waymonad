@@ -73,6 +73,7 @@ import Waymonad.Types
     ( Compositor (..),  ShellClass (..), WayBindingState (..), WayShell (..)
     , EvtCause (SideEffect)
     )
+import Waymonad.Types.Core (SeatEvent (SeatKeyboard))
 
 import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S
@@ -309,6 +310,11 @@ instance ShellSurface XWaySurface where
     getAppId = liftIO . X.getClass . unXway
     renderAdditional fun (XWaySurface surf) = renderChildren fun surf
     hasCSD _ = pure False
+    takesFocus (XWaySurface surf) SeatKeyboard = do
+        -- FIXME: This should use the unmanaged thingy once available
+        override <- liftIO $ X.x11SurfaceOverrideRedirect surf
+        pure $ not override
+    takesFocus _ _ = pure True
 
 renderChildren :: (Ptr WlrSurface -> WlrBox -> IO ()) -> Ptr X.X11Surface -> IO ()
 renderChildren fun surf = do

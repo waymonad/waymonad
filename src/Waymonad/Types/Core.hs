@@ -42,6 +42,11 @@ import Graphics.Wayland.WlRoots.Render.Color (Color)
 
 import qualified Graphics.Wayland.WlRoots.Seat as R
 
+-- | Sumtype to switch between pointer or keyboard
+data SeatEvent
+    = SeatKeyboard
+    | SeatPointer
+    deriving (Eq, Show)
 
 data WayKeyState = WayKeyState
     { keyStateMods :: {-# UNPACK #-} !Word32
@@ -84,6 +89,8 @@ class Typeable a => ShellSurface a where
     setViewVisible :: MonadIO m => a -> m ()
     setViewVisible _ = pure ()
     hasCSD         :: MonadIO m => a -> m Bool
+    takesFocus :: MonadIO m => a -> SeatEvent -> m Bool
+    takesFocus _ _ = pure True
 
 data ManagerData = ManagerData
     { managerRemove      :: View -> IO ()

@@ -124,12 +124,6 @@ data WayShell vs ws = forall a. ShellClass a vs ws => WayShell a
 -- | Core event emitted when a view enters or exists a workspace
 data ViewWSChange ws = WSEnter View ws | WSExit View ws deriving (Show)
 
--- | Sumtype to determine whether the Pointer or Keyboard changed
-data SeatEvent
-    = SeatKeyboard
-    | SeatPointer
-    deriving (Eq, Show)
-
 data EvtCause
     = Intentional
     | SideEffect

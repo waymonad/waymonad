@@ -59,6 +59,7 @@ module Waymonad.View
     , doApplyDamage
     , viewAddSurf
     , getViewSurfScale
+    , viewTakesFocus
     )
 where
 
@@ -97,7 +98,7 @@ import Graphics.Wayland.WlRoots.Surface
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox, scaleBox, translateBox)
 
 import Waymonad.Utility.Base (doJust)
-import Waymonad.Types.Core (View (..), ShellSurface (..), Seat, ManagerData (..))
+import Waymonad.Types.Core (View (..), ShellSurface (..), Seat, ManagerData (..), SeatEvent)
 
 import qualified Data.IntMap as IM
 
@@ -391,3 +392,6 @@ triggerViewResize v@View {viewResize = ref} = liftIO $ do
 
 viewHasCSD :: MonadIO m => View -> m Bool
 viewHasCSD View {viewSurface=surf} = hasCSD surf
+
+viewTakesFocus :: MonadIO m => View -> SeatEvent -> m Bool
+viewTakesFocus View {viewSurface=surf} = takesFocus surf

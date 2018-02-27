@@ -34,7 +34,7 @@ module Waymonad.Managehook
     )
 where
 
-import Control.Monad (forM_, when)
+import Control.Monad (forM_, when, void)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 
 import Waymonad.Input.Seat
@@ -42,6 +42,7 @@ import Waymonad
 import Waymonad.Types
 import Waymonad.View
 import Waymonad.ViewSet
+import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Floating
 import Waymonad.Utility.Focus (focusView)
 import Waymonad.Utility.Current (getCurrentWS)
@@ -76,7 +77,9 @@ enactInsert act = do
             hook $ WSEnter view ws
         InsertFloating box -> do
             setFloating view box
-        --    doJust getSeat $ void . flip keyboardEnter view
+            doFocus <- viewTakesFocus view SeatKeyboard
+            when doFocus $ doJust getSeat $ \seat ->
+                void $ keyboardEnter seat SideEffect view
         InsertCustom ins -> ins
 
 
