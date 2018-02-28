@@ -86,6 +86,7 @@ import qualified Waymonad.Hooks.OutputAdd as H
 import qualified Waymonad.Hooks.SeatMapping as SM
 import qualified Waymonad.Shells.XWayland as XWay
 import qualified Waymonad.Shells.XdgShell as Xdg
+import qualified Waymonad.Shells.XdgShellv6 as Xdgv6
 import qualified Waymonad.Shells.WlShell as Wl
 
 import Waymonad.Main
@@ -199,7 +200,7 @@ myConf modi = WayUserConf
         , wayHooksSeatFocusChange = focusFollowPointer
         , wayHooksNewOutput       = H.outputAddHook
         }
-    , wayUserConfShells = [Xdg.makeShell, Wl.makeShell, XWay.makeShell]
+    , wayUserConfShells = [Xdg.makeShell, Xdgv6.makeShell, Wl.makeShell, XWay.makeShell]
     , wayUserConfLog = pure ()
     , wayUserConfOutputAdd = \out -> do
         setPreferdMode (outputRoots out) $

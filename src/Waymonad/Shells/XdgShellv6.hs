@@ -23,7 +23,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Waymonad.Shells.XdgShell
+module Waymonad.Shells.XdgShellv6
     ( xdgShellCreate
     , XdgShell
 
@@ -60,7 +60,7 @@ import Waymonad.Types
 
 import qualified Data.IntMap.Strict as M
 import qualified Data.Set as S
-import qualified Graphics.Wayland.WlRoots.XdgShell as R
+import qualified Graphics.Wayland.WlRoots.XdgShellv6 as R
 
 newtype XdgRef = XdgRef (IORef (Maybe XdgShell))
 
@@ -88,7 +88,7 @@ instance (FocusCore vs ws, WSTag ws) =>  ShellClass XdgRef vs ws where
         pure $ case ret of
             Just _ -> True
             Nothing -> False
-    getShellName _ = pure $ "XdgShell"
+    getShellName _ = pure $ "XdgShell (v6)"
     getShellViews (XdgRef ref) = liftIO $ do
         ret <- readIORef ref
         case ret of
@@ -117,7 +117,7 @@ xdgShellCreate display = do
         (handleXdgSurface surfaces)
         (`R.xdgShellCreate` display)
 
-    logPutText loggerXdg Trace "Created xdg_shell handler"
+    logPutText loggerXdg Trace "Created xdg_shell_v6 handler"
 
     pure XdgShell
         { xdgSurfaceRef = surfaces

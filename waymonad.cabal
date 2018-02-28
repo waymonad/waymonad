@@ -116,6 +116,7 @@ library
   exposed-modules:        Waymonad.Shells.WlShell
   exposed-modules:        Waymonad.Shells.XWayland
   exposed-modules:        Waymonad.Shells.XdgShell
+  exposed-modules:        Waymonad.Shells.XdgShellv6
 
   exposed-modules:        Waymonad.Actions.Startup.Environment
   exposed-modules:        Waymonad.Actions.Startup.Generic
