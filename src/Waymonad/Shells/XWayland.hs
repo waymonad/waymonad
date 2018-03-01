@@ -310,10 +310,8 @@ instance ShellSurface XWaySurface where
     getAppId = liftIO . X.getClass . unXway
     renderAdditional fun (XWaySurface surf) = renderChildren fun surf
     hasCSD _ = pure False
-    takesFocus (XWaySurface surf) SeatKeyboard = do
-        -- FIXME: This should use the unmanaged thingy once available
-        override <- liftIO $ X.x11SurfaceOverrideRedirect surf
-        pure $ not override
+    takesFocus (XWaySurface surf) SeatKeyboard =
+        fmap not $ liftIO $ X.isSurfaceUnamanged surf
     takesFocus _ _ = pure True
 
 renderChildren :: (Ptr WlrSurface -> WlrBox -> IO ()) -> Ptr X.X11Surface -> IO ()
