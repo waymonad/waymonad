@@ -24,6 +24,7 @@ module Waymonad.IdleManager
     , getIdleBracket
     , idleLog
     , isIdle
+    , setIdleTime
     )
 where
 
@@ -48,10 +49,10 @@ import Graphics.Wayland.WlRoots.Input.Pointer (WlrPointer, PointerEvents (..), p
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard, KeyboardSignals (..), getKeySignals)
 
 import Waymonad.Start (Bracketed (..))
-import Waymonad.Utility.Base (whenJust)
 import Waymonad (unliftWay, sendEvent, getEvent)
 import Waymonad.Extensible (ExtensionClass (..))
 import Waymonad.Types (Way, EventClass, SomeEvent)
+import Waymonad.Utility.Base (whenJust)
 import Waymonad.Utility.Extensible (getEState, setEState)
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
 
@@ -60,14 +61,27 @@ newtype Idle = Idle Bool deriving (Eq, Show)
 instance ExtensionClass Idle where
     initialValue = Idle False
 
+data IdleStore = IdleStore !Int !(Maybe EventSource)
+
+instance ExtensionClass IdleStore where
+    initialValue = IdleStore 0 Nothing
+
 data IdleEvent
     = IdleStart
     | IdleStop
 
 instance EventClass IdleEvent
 
-gotInput :: EventSource -> Int -> Way vs a ()
-gotInput src msecs = do
+setIdleTime :: Int -> Way vs ws ()
+setIdleTime msecs = do
+    IdleStore _ src <- getEState
+    liftIO $ whenJust src $ void . flip eventSourceTimerUpdate msecs
+    setEState $ IdleStore msecs src
+
+
+gotInput :: EventSource -> Way vs a ()
+gotInput src = do
+    (IdleStore msecs _) <- getEState
     (Idle idle) <- getEState
     if idle
         then do
@@ -105,8 +119,11 @@ idleSetup msecs dsp backend = do
     cb <- unliftWay (sendEvent IdleStart >> setEState (Idle True))
     src <- liftIO $ eventLoopAddTimer evtLoop (cb >> pure False)
 
+    setEState . IdleStore msecs $ Just src
+    gotInput src
+
     let signals = backendGetSignals backend
-    setSignalHandler (backendEvtInput signals) $ handleInputAdd (gotInput src msecs)
+    setSignalHandler (backendEvtInput signals) $ handleInputAdd (gotInput src)
 
 getIdleBracket :: Int -> Bracketed vs (DisplayServer, Ptr Backend) a
 getIdleBracket msecs = Bracketed (uncurry (idleSetup msecs)) (const $ pure ())
