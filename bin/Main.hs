@@ -41,12 +41,17 @@ import Text.XkbCommon.KeysymList
 
 import Data.String (IsString)
 import Fuse.Main
+import Waymonad (Way, KeyBinding)
 import Waymonad (getSeat)
+import Waymonad.Actions.Spawn (spawn, manageSpawnOn)
+import Waymonad.Actions.Spawn.X11 (manageX11SpawnOn)
+import Waymonad.Actions.Startup.Environment
 import Waymonad.GlobalFilter
 import Waymonad.Hooks.EnterLeave (enterLeaveHook)
 import Waymonad.Hooks.FocusFollowPointer
 import Waymonad.Hooks.KeyboardFocus
 import Waymonad.Hooks.ScaleHook
+import Waymonad.IPC (IPCGroup (..))
 import Waymonad.Input (attachDevice)
 import Waymonad.Input.Seat (useClipboardText, setSeatKeybinds, resetSeatKeymap)
 import Waymonad.Layout.Choose
@@ -61,18 +66,14 @@ import Waymonad.Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.GammaControl
 import Waymonad.Protocols.Screenshooter
-import Waymonad.Actions.Startup.Environment
-import Waymonad.Actions.Spawn (spawn, manageSpawnOn)
-import Waymonad.Actions.Spawn.X11 (manageX11SpawnOn)
-import Waymonad.ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
+import Waymonad.Types (WayHooks (..))
+import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
 import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Timing
 import Waymonad.Utility.View
 import Waymonad.Utility.ViewSet (modifyFocusedWS)
-import Waymonad (Way, KeyBinding)
-import Waymonad.Types (WayHooks (..))
-import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
+import Waymonad.ViewSet (WSTag, Layouted, FocusCore, ListLike (..))
 import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)
 
 import Waymonad.IdleDPMS
@@ -177,7 +178,7 @@ myConf modi = WayUserConf
 
     , wayUserConfInputAdd    = flip attachDevice "seat0"
     , wayUserConfDisplayHook =
-        [ getFuseBracket
+        [ getFuseBracket (IPCGroup [("IdleManager", Right idleIPC)])
         , getGammaBracket
         , getFilterBracket filterUser
         , baseTimeBracket

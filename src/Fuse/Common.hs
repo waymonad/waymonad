@@ -208,3 +208,37 @@ textRWFile txtGen txtTake =
             Left _ -> pure $ Left eINVAL
             Right x -> txtTake x
         )
+
+ipcFile :: Maybe (Way vs ws (Either Errno Text))
+        -> Maybe (Text -> Way vs ws Errno)
+        -> (OpenMode, FileHandle vs ws)
+ipcFile readFun writeFun = do
+    let mode = case (readFun, writeFun) of
+            (Nothing, Nothing) -> error "Called ipcFile with neither read nor write"
+            (Just _, Just _) -> ReadWrite
+            (Just _, Nothing) -> ReadOnly
+            (Nothing, _) -> WriteOnly
+        txtGen = case readFun of
+            Nothing -> pure $ Left eOPNOTSUPP
+            Just fun -> fun
+        txtTake = case writeFun of
+            Nothing -> \_ -> pure $ eOPNOTSUPP
+            Just fun -> fun
+     in (mode, FileHandle
+            { fileRead = \_ count offset -> do
+                txt <- txtGen
+                case txt of
+                    Left err -> pure $ Left err
+                    Right ret -> let bs = E.encodeUtf8 ret
+                        in pure $ Right $ BS.take (fromIntegral count) $ BS.drop (fromIntegral offset) bs
+            , fileWrite = \_ bs _ -> case E.decodeUtf8' bs of
+                Left _ -> pure $ Left eINVAL
+                Right txt -> do
+                    ret <- txtTake txt
+                    case ret == eOK of
+                        True -> pure $ Right (fromIntegral $ BS.length bs)
+                        False -> pure $ Left ret
+            , fileFlush = \_ -> pure eOK
+            , fileRelease = \_ -> pure ()
+            }
+        )

@@ -59,6 +59,7 @@ library
   exposed-modules:        Config.Logger
 
   exposed-modules:        Fuse.Common
+  exposed-modules:        Fuse.Extensible
   exposed-modules:        Fuse.Inputs
   exposed-modules:        Fuse.Main
   exposed-modules:        Fuse.Outputs

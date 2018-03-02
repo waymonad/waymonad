@@ -25,6 +25,7 @@ where
 import System.IO
 
 import Control.Monad.IO.Class (liftIO)
+import Data.Typeable (Typeable)
 import System.Directory (createDirectoryIfMissing, removeDirectory)
 import System.Environment (getEnv)
 import System.Fuse
@@ -42,13 +43,15 @@ import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad.Utility (closeCompositor)
 import Waymonad (getState, runWay, makeCallback, unliftWay)
 import Waymonad.Types (Way)
+import Waymonad.IPC
 
 import Fuse.Common
+import Fuse.Extensible
 import Fuse.Inputs
 import Fuse.Outputs
-import Fuse.Workspaces
-import Fuse.Shells
 import Fuse.Rts
+import Fuse.Shells
+import Fuse.Workspaces
 
 
 import qualified Data.Map as M
@@ -94,20 +97,21 @@ fuseOps dir = do
         , fuseSetFileSize = fileSetSizeCB
         }
 
-mainDir :: (FocusCore vs a, WSTag a) => DirHandle vs a
-mainDir = simpleDir $ M.fromList
+mainDir :: (FocusCore vs ws, Typeable vs, WSTag ws) => IPCGroup vs ws -> DirHandle vs ws
+mainDir grp = simpleDir $ M.fromList
     [ ("workspaces", workspaceDir)
     , ("outputs", outputsDir)
     , ("shutdown", closeFile)
     , ("inputs", inputsDir)
     , ("shells", shellsDir)
     , ("rts", rtsDir)
+    , ("extensions", extensibleDir grp)
     ]
 
 
-getFuseBracket :: (FocusCore vs a, WSTag a) => Bracketed vs DisplayServer a
-getFuseBracket = PreBracket (\dsp act -> do
-    ops <- fuseOps mainDir
+getFuseBracket :: (FocusCore vs ws, Typeable vs, WSTag ws) => IPCGroup vs ws -> Bracketed vs DisplayServer ws
+getFuseBracket grp = PreBracket (\dsp act -> do
+    ops <- fuseOps $ mainDir grp
     runtimeDir <- liftIO $ getEnv "XDG_RUNTIME_DIR"
     localDisplay <- liftIO $ getEnv "_WAYLAND_DISPLAY"
     let fuseDir = runtimeDir ++ "/waymonad/" ++ localDisplay
