@@ -71,6 +71,8 @@ library
   exposed-modules:        Waymonad.IdleManager
   exposed-modules:        Waymonad.IdleDPMS
 
+  exposed-modules:        Waymonad.IPC
+
   exposed-modules:        Waymonad.Input
   exposed-modules:        Waymonad.Input.Cursor
   exposed-modules:        Waymonad.Input.Cursor.Type

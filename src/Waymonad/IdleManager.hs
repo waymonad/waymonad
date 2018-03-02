@@ -25,11 +25,13 @@ module Waymonad.IdleManager
     , idleLog
     , isIdle
     , setIdleTime
+    , idleIPC
     )
 where
 
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
+import Data.Maybe (isJust)
 import Foreign.Ptr (Ptr)
 
 import System.IO
@@ -48,6 +50,7 @@ import Graphics.Wayland.WlRoots.Input (InputDevice, inputDeviceType, getDestroyS
 import Graphics.Wayland.WlRoots.Input.Pointer (WlrPointer, PointerEvents (..), pointerGetEvents)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard, KeyboardSignals (..), getKeySignals)
 
+import Waymonad.IPC
 import Waymonad.Start (Bracketed (..))
 import Waymonad (unliftWay, sendEvent, getEvent)
 import Waymonad.Extensible (ExtensionClass (..))
@@ -71,13 +74,6 @@ data IdleEvent
     | IdleStop
 
 instance EventClass IdleEvent
-
-setIdleTime :: Int -> Way vs ws ()
-setIdleTime msecs = do
-    IdleStore _ src <- getEState
-    liftIO $ whenJust src $ void . flip eventSourceTimerUpdate msecs
-    setEState $ IdleStore msecs src
-
 
 gotInput :: EventSource -> Way vs a ()
 gotInput src = do
@@ -135,3 +131,21 @@ idleLog evt = whenJust (getEvent evt) $ \case
 
 isIdle :: Way vs ws Bool
 isIdle = (\(Idle x) -> x) <$> getEState
+
+setIdleTime :: Int -> Way vs ws ()
+setIdleTime msecs = do
+    IdleStore _ src <- getEState
+    liftIO $ whenJust src $ void . flip eventSourceTimerUpdate msecs
+    setEState $ IdleStore msecs src
+
+getIdleTime :: Way vs ws Int
+getIdleTime = fmap (\(IdleStore x _) -> x) getEState 
+
+idleIPC :: IPCEntry vs ws
+idleIPC = IPCEntry
+    { ipcEntryRead  = [simpleIPCRead getIdleTime, textifyIPCRead getIdleTime]
+    , ipcEntryWrite = [simpleIPCWrite setIdleTime, textifyIPCWrite setIdleTime]
+    , ipcEntryReadable  = isJust . (\(IdleStore _ src) -> src) <$> getEState
+    , ipcEntryWriteable = isJust . (\(IdleStore _ src) -> src) <$> getEState
+    }
+
