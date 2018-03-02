@@ -29,7 +29,7 @@ module Waymonad.IdleManager
     )
 where
 
-import Control.Monad (void)
+import Control.Monad (void, unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (isJust)
 import Foreign.Ptr (Ptr)
@@ -135,7 +135,8 @@ isIdle = (\(Idle x) -> x) <$> getEState
 setIdleTime :: Int -> Way vs ws ()
 setIdleTime msecs = do
     IdleStore _ src <- getEState
-    liftIO $ whenJust src $ void . flip eventSourceTimerUpdate msecs
+    idles <- isIdle
+    liftIO $ unless idles $ whenJust src $ void . flip eventSourceTimerUpdate msecs
     setEState $ IdleStore msecs src
 
 getIdleTime :: Way vs ws Int
