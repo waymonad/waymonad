@@ -186,12 +186,10 @@ myConf modi = WayUserConf
                      , ("SDL_VIDEODRIVER", "wayland")
                      , ("CLUTTER_BACKEND", "wayland")
                      ]
-        ]
-    , wayUserConfBackendHook = [getIdleBracket 6e5 {- 10 minutes in ms -}]
-    , wayUserConfPostHook    =
-        [ getScreenshooterBracket
         , getIdleInihibitBracket
         ]
+    , wayUserConfBackendHook = [getIdleBracket 6e5 {- 10 minutes in ms -}]
+    , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
         { wayHooksVWSChange       = wsScaleHook
         , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt

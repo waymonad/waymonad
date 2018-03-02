@@ -16,14 +16,15 @@ import Data.List (nub)
 import Data.Set (Set)
 
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
+import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.WlRoots.IdleInhibit
 
-import Waymonad (getState, sendEvent)
+import Waymonad (sendEvent)
 import Waymonad.Extensible
 import Waymonad.GlobalFilter
 import Waymonad.Output (outputFromWlr)
 import Waymonad.Start (Bracketed (..))
-import Waymonad.Types (Way, WayBindingState (..), Compositor (..), Output, EventClass)
+import Waymonad.Types (Way, Output, EventClass)
 import Waymonad.Types.Core (View)
 import Waymonad.Utility.Extensible
 import Waymonad.Utility.Signal (setDestroyHandler, setSignalHandler)
@@ -44,9 +45,8 @@ data IdleInhibitChange = IdleInhibitChange deriving (Eq, Show)
 
 instance EventClass IdleInhibitChange
 
-makeManager :: () -> Way vs ws (IdleInhibitManager, ListenerToken)
-makeManager _ = do
-    Compositor {compDisplay = display} <- wayCompositor <$> getState
+makeManager :: DisplayServer -> Way vs ws (IdleInhibitManager, ListenerToken)
+makeManager display = do
     ptr <- liftIO $ idleInhibitCreate display
     registerGlobal "IdleInhibitv1" =<< liftIO (getIdleInhibitGlobal ptr)
     let signal = getIdleInhibitSignal ptr
@@ -54,7 +54,7 @@ makeManager _ = do
     pure (ptr, token)
 
 
-getIdleInihibitBracket :: Bracketed vs () ws
+getIdleInihibitBracket :: Bracketed vs DisplayServer ws
 getIdleInihibitBracket = Bracketed makeManager (\(manager, token) -> liftIO $ do
     removeListener token
     idleInhibitDestroy manager
