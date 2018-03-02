@@ -31,15 +31,16 @@ import Data.Set (Set)
 import Graphics.Wayland.WlRoots.Box (WlrBox(..))
 
 import Waymonad.Layout.Ratio
-import Waymonad.ViewSet
+import Waymonad.Layout.Vertical (layoutVertical)
 import Waymonad.Types (SSDPrio (NoSSD))
 import Waymonad.Types.Core (Seat, View)
+import Waymonad.ViewSet
 
-data Tall = Tall Double
+newtype Tall = Tall Double
 
 instance LayoutClass Tall where
     description _ = "Tall"
-    handleMessage (Tall val) m = case getMessage m of
+    handleMessage (Tall val) _ m = case getMessage m of
         Just (IncreaseRatio x) -> Just . Tall $ val + x
         Just (DecreaseRatio x) -> Just . Tall $ val - x
         _ -> Nothing
@@ -58,14 +59,9 @@ layoutTall ratio box (x:xs) =
     let unclipped = floor $ fromIntegral (boxWidth box) * ratio
         width = min (boxWidth box - 10) . max 10 $ unclipped
         master = (snd x, NoSSD $ fst x, box { boxWidth = width  })
-        slaves = zip xs [0 ..]
-        num = length xs
-        height = boxHeight box `div` num
-        ibox i = box
+        ibox = box
             { boxWidth = boxWidth box - width
             , boxX = boxX box + width
-            , boxHeight = height
-            , boxY = boxY box + i * height
             }
-    in master : map (\((s, v), i) -> (v, NoSSD s, ibox i)) slaves
+     in master : layoutVertical ibox xs
 layoutTall _ _ _ = []

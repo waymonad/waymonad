@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2017  Markus Ongyerth
+Copyright (C) 2018  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -22,22 +22,35 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Waymonad.Layout.Full
+{-# LANGUAGE LambdaCase #-}
+module Waymonad.Layout.Vertical
 where
 
-import Control.Applicative ((<|>))
+import Data.Set (Set)
+
+import Graphics.Wayland.WlRoots.Box (WlrBox(..))
+
 import Waymonad.ViewSet
+import Waymonad.Types (SSDPrio (NoSSD))
+import Waymonad.Types.Core (Seat, View)
 
-import Waymonad.Types (SSDPrio (..))
+data Vertical = Vertical
 
-data Full = Full
-
-instance LayoutClass Full where
-    description _ = "Full"
+instance LayoutClass Vertical where
+    description _ = "Vertical"
     handleMessage _ _ _ = Nothing
-    broadcastMessage _ _ = Nothing
+    broadcastMessage _ _  = Nothing
 
-instance FocusCore vs ws => GenericLayoutClass Full vs ws where
-    pureLayout _ vs ws box = case _getFocused vs ws Nothing <|> getFirst vs ws of
-        Nothing -> []
-        Just v -> [(v, NoSSD mempty, box)]
+instance ListLike vs ws => GenericLayoutClass Vertical vs ws where
+    pureLayout _ vs ws box = layoutVertical box (_asList vs ws)
+
+layoutVertical :: WlrBox -> [(Set Seat, View)] -> [(View, SSDPrio, WlrBox)]
+layoutVertical box xs =
+    let slaves = zip xs [0 ..]
+        num = length xs
+        height = boxHeight box `div` num
+        ibox i = box
+            { boxHeight = height
+            , boxY = boxY box + i * height
+            }
+    in map (\((s, v), i) -> (v, NoSSD s, ibox i)) slaves

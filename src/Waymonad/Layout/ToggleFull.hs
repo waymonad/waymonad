@@ -66,11 +66,11 @@ mkVSFull :: Ord ws => vs -> ToggleFull (Map ws) vs
 mkVSFull = ToggleFull mempty
 
 instance LayoutClass l => LayoutClass (ToggleFull Identity l) where
-    handleMessage (ToggleFull state l) m = case getMessage m of
+    handleMessage (ToggleFull state l) s m = case getMessage m of
         (Just ToggleFullM) -> Just $ ToggleFull (fmap not state) l
         (Just SetFull) -> Just $ ToggleFull (Identity True) l
         (Just UnsetFull) -> Just $ ToggleFull (Identity False) l
-        Nothing -> ToggleFull state <$> handleMessage l m
+        Nothing -> ToggleFull state <$> handleMessage l s m
     broadcastMessage (ToggleFull state l) m = case getMessage m of
         (Just ToggleFullM) -> Just $ ToggleFull (fmap not state) l
         (Just SetFull) -> Just $ ToggleFull (Identity True) l
@@ -130,11 +130,11 @@ instance ListLike vs ws => ListLike (ToggleFull c vs) ws where
 --     getLayout _ _ = Nothing
 
 instance (Layouted vs ws, Ord ws) => Layouted (ToggleFull (Map ws) vs) ws where
-    messageWS message ws (ToggleFull state vs) = case getMessage message of
+    messageWS message s ws (ToggleFull state vs) = case getMessage message of
         (Just ToggleFullM) -> ToggleFull (M.alter (Just . maybe True not) ws state) vs
         (Just SetFull) -> ToggleFull (M.insert ws True state) vs
         (Just UnsetFull) -> ToggleFull (M.insert ws False state) vs
-        Nothing -> ToggleFull state (messageWS message ws vs)
+        Nothing -> ToggleFull state (messageWS message s ws vs)
     broadcastWS message ws (ToggleFull state vs) = case getMessage message of
         (Just ToggleFullM) -> ToggleFull (M.alter (Just . maybe True not) ws state) vs
         (Just SetFull) -> ToggleFull (M.insert ws True state) vs

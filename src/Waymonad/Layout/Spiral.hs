@@ -54,13 +54,13 @@ doLayout s@(Spiral r) _ b@WlrBox{boxHeight = height, boxY = y} ((f, z):zs) =
      in (z, NoSSD f, b {boxHeight = used, boxY = y + height - used}) : doLayout s 0 b {boxHeight = height - used} zs
 
 instance LayoutClass Spiral where
-    handleMessage :: Spiral -> SomeMessage -> Maybe Spiral
-    handleMessage (Spiral val) m = case getMessage m of
+    handleMessage :: Spiral -> Maybe Seat -> SomeMessage -> Maybe Spiral
+    handleMessage (Spiral val) _ m = case getMessage m of
         Just (IncreaseRatio x) -> Just . Spiral $ min 1 $ val + x
         Just (DecreaseRatio x) -> Just . Spiral $ max 0 $ val - x
         _ -> Nothing
     broadcastMessage :: Spiral -> SomeMessage -> Maybe Spiral
-    broadcastMessage = handleMessage
+    broadcastMessage l m = handleMessage l Nothing m
     description :: Spiral -> Text
     description _ = "Spiral"
 

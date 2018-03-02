@@ -52,12 +52,10 @@ import Waymonad.Input.Seat (useClipboardText, setSeatKeybinds, resetSeatKeymap)
 import Waymonad.Layout.SmartBorders
 import Waymonad.Layout.Choose
 import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
-import Waymonad.Layout.Spiral
 import Waymonad.Layout.AvoidStruts
-import Waymonad.Layout.Tall (Tall (..))
-import Waymonad.Layout.ToggleFull (mkTFull, ToggleFullM (..))
-import Waymonad.Layout.TwoPane (TwoPane (..))
-import Waymonad.Layout.Ratio
+import qualified Waymonad.Layout.Vertical as LV
+import Waymonad.Layout.Full 
+import Waymonad.Layout.ToggleFull (mkVSFull, ToggleFull, ToggleFullM (..))
 import Waymonad.Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.GammaControl
@@ -74,13 +72,15 @@ import Waymonad.Utility.ViewSet (modifyFocusedWS)
 import Waymonad (Way, KeyBinding)
 import Waymonad.Types (WayHooks (..), BindingMap)
 import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
-import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)
+-- import Waymonad.ViewSet.XMonad (ViewSet, sameLayout)
+import Waymonad.ViewSet.HLWM (ViewSet, sameLayout, HLWMMessage (..), Orientation (..), Direction (..))
 
 import Waymonad.IdleDPMS
 import Waymonad.IdleManager
 import Waymonad.Protocols.IdleInhibit
 
 import qualified Data.IntMap.Strict as IM
+import qualified Data.Map.Strict as M
 
 import qualified Waymonad.Hooks.OutputAdd as H
 import qualified Waymonad.Hooks.SeatMapping as SM
@@ -145,6 +145,10 @@ bindings modi =
     , (([modi], keysym_j), moveDown)
     , (([modi], keysym_h), moveLeft)
     , (([modi], keysym_l), moveRight)
+    , (([modi], keysym_w), sendMessage $ HLWMSplit Horizontal 0.7)
+    , (([modi], keysym_e), sendMessage $ HLWMSplit Vertical 0.7)
+    , (([modi], keysym_d), sendMessage $ HLWMMerge)
+    , (([modi], keysym_s), sendMessage $ SendOver)
     , (([modi, Shift], keysym_k), modifyFocusedWS $ flip _moveFocusedLeft )
     , (([modi, Shift], keysym_j), modifyFocusedWS $ flip _moveFocusedRight)
     , (([modi, Shift], keysym_h), doJust getSeat $ \seat -> do
@@ -153,11 +157,17 @@ bindings modi =
     , (([modi], keysym_f), sendMessage ToggleFullM)
     , (([modi], keysym_m), sendMessage ToggleMirror)
     , (([modi], keysym_space), sendMessage NextLayout)
-    , (([modi], keysym_Left), sendMessage $ DecreaseRatio 0.1)
-    , (([modi], keysym_Right), sendMessage $ IncreaseRatio 0.1)
+
+
+    , (([modi, Shift], keysym_Left), sendMessage $ ChangeSize HLLeft (subtract 0.1))
+    , (([modi, Shift], keysym_Right), sendMessage $ ChangeSize HLRight (+ 0.1))
+    , (([modi, Shift], keysym_Up), sendMessage $ ChangeSize HLUp (subtract 0.1))
+    , (([modi, Shift], keysym_Down), sendMessage $ ChangeSize HLDown (+ 0.1))
+--    , (([modi], keysym_Left), sendMessage $ DecreaseRatio 0.1)
+--    , (([modi], keysym_Right), sendMessage $ IncreaseRatio 0.1)
 
     , (([modi], keysym_Return), spawn "weston-terminal")
-    , (([modi], keysym_d), spawn "rofi -show run")
+    -- , (([modi], keysym_d), spawn "rofi -show run")
 
     , (([modi], keysym_p), printClipboard)
 
@@ -166,10 +176,13 @@ bindings modi =
     , (([modi, Shift], keysym_e), closeCompositor)
     ] ++ concatMap (\(sym, ws) -> [(([modi], sym), greedyView ws), (([modi, Shift], sym), sendTo ws), (([modi, Ctrl], sym), copyView ws)]) (zip wsSyms workspaces)
 
-myConf :: WlrModifier -> WayUserConf (ViewSet Text) Text
+myConf :: WlrModifier
+       -> WayUserConf
+            (StrutAvoider (Struts, M.Map Text Struts) (SmartBorders (Int, M.Map Text Int) (Waymonad.Layout.ToggleFull.ToggleFull (M.Map Text) (ViewSet Text))))
+            Text
 myConf modi = WayUserConf
     { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout . avoidStruts . mkSmartBorders 2 . mkMirror . mkTFull $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
+    , wayUserConfLayouts     = avoidVSStruts . mkVSSmartBorders 2 . mkVSFull . sameLayout . mkMirror $ (LV.Vertical ||| Full)
     , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn <> manageX11SpawnOn
     , wayUserConfEventHook   = idleDPMSHandler <> idleLog
     , wayUserConfKeybinds    = bindings modi

@@ -63,9 +63,9 @@ mkVSSmartBorders = SmartBorders . (, mempty)
 
 
 instance LayoutClass l => LayoutClass (SmartBorders Int l) where
-    handleMessage (SmartBorders state l) m = case getMessage m of
+    handleMessage (SmartBorders state l) s m = case getMessage m of
         (Just (SetBorderWidth w)) -> Just $ SmartBorders w l
-        Nothing -> SmartBorders state <$> handleMessage l m
+        Nothing -> SmartBorders state <$> handleMessage l s m
     broadcastMessage (SmartBorders state l) m = case getMessage m of
         (Just (SetBorderWidth w)) -> Just $ SmartBorders w l
         Nothing -> SmartBorders state <$> broadcastMessage l m
@@ -110,9 +110,9 @@ instance ListLike vs ws => ListLike (SmartBorders c vs) ws where
     _moveFocusedRight ws seat (SmartBorders s vs) = SmartBorders s (_moveFocusedRight ws seat vs)
 
 instance (Layouted vs ws, Ord ws) => Layouted (SmartBorders (Int, Map ws Int) vs) ws where
-    messageWS message ws (SmartBorders state vs) = case getMessage message of
+    messageWS message s ws (SmartBorders state vs) = case getMessage message of
         (Just (SetBorderWidth v)) -> SmartBorders ((fmap $ M.insert ws v) $ state) vs
-        Nothing -> SmartBorders state (messageWS message ws vs)
+        Nothing -> SmartBorders state (messageWS message s ws vs)
     broadcastWS message ws (SmartBorders state vs) = case getMessage message of
         (Just (SetBorderWidth v)) -> SmartBorders ((fmap $ M.insert ws v) $ state) vs
         Nothing -> SmartBorders state (broadcastWS message ws vs)
