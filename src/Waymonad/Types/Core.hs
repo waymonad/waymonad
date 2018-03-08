@@ -26,7 +26,7 @@ where
 import Control.Monad.IO.Class (MonadIO)
 import Data.Bits ((.|.), shiftL)
 import Data.IORef (IORef)
-import Data.IntMap (IntMap)
+import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Data.Word (Word32)
@@ -35,11 +35,13 @@ import Foreign.Ptr (Ptr)
 import Graphics.Pixman
 import Graphics.Wayland.Signal (ListenerToken)
 import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
+import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard)
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
-import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.WlRoots.Render.Color (Color)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 
 import Waymonad.Input.Cursor.Type
+import Waymonad.Utility.HaskellSignal
 
 import qualified Graphics.Wayland.WlRoots.Seat as R
 
@@ -67,6 +69,7 @@ data Seat = Seat
     , seatLoadScale      :: Float -> IO ()
     , seatCursor         :: Cursor
     , seatColor          :: Color
+    , seatKeyboards      :: IORef (Set (Ptr WlrKeyboard))
     , seatKeymap         :: IORef (WayKeyState -> IO Bool)
     }
 
@@ -105,8 +108,8 @@ data View = forall a. ShellSurface a => View
     , viewBox      :: IORef WlrBox
     , viewPosition :: IORef WlrBox
     , viewScaling  :: IORef Float
-    , viewDestroy  :: IORef (IntMap (View -> IO ()))
-    , viewResize   :: IORef (IntMap (View -> IO ()))
+    , viewDestroy  :: HaskellSignal View IO
+    , viewResize   :: HaskellSignal View IO
     , viewID       :: Int
     , viewTokens   :: [ListenerToken]
 

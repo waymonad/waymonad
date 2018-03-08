@@ -39,6 +39,7 @@ module Waymonad
     , unliftWay
     , makeCallback
     , makeCallback2
+    , makeCallback3
     , setCallback
     , withSeat
     , getViewSet
@@ -111,6 +112,9 @@ makeCallback act = do
 
 makeCallback2 :: (c -> d -> Way vs a b) -> Way vs a (c -> d -> IO b)
 makeCallback2 act = curry <$> makeCallback (uncurry act)
+
+makeCallback3 :: (c -> d -> e -> Way vs a b) -> Way vs a (c -> d -> e -> IO b)
+makeCallback3 act = curry . curry <$> makeCallback (uncurry $ uncurry act)
 
 setCallback :: (c -> Way vs a b) -> ((c -> IO b) -> IO d) -> Way vs a d
 setCallback act fun = do

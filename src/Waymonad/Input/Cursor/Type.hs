@@ -21,13 +21,27 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Input.Cursor.Type
 where
 
+import Data.Functor.Identity (Identity)
 import Data.IORef (IORef)
+import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
-import Graphics.Wayland.WlRoots.Cursor (WlrCursor)
+
 import Graphics.Wayland.Signal (ListenerToken)
+import Graphics.Wayland.WlRoots.Cursor (WlrCursor)
+import Graphics.Wayland.WlRoots.Input (InputDevice)
+import Graphics.Wayland.WlRoots.Input.Buttons (ButtonState)
+import Graphics.Wayland.WlRoots.Input.Pointer (AxisSource, AxisOrientation)
+
+data CursorMapping c = CursorMapping
+    { cursorMappingButton    :: c (Cursor -> Word32 -> Word32 -> ButtonState -> IO ())
+    , cursorMappingMotion    :: c (Cursor -> Word32 -> Ptr InputDevice -> Double -> Double -> IO ())
+    , cursorMappingMotionAbs :: c (Cursor -> Word32 -> Ptr InputDevice -> Double -> Double -> IO ())
+    , cursorMappingAxis      :: c (Cursor -> Word32 -> AxisSource -> AxisOrientation -> Double -> IO ())
+    }
 
 data Cursor = Cursor
     { cursorRoots :: Ptr WlrCursor
-    , cursorTokens :: [ListenerToken]
+    , cursorTokens :: IORef [ListenerToken] -- ^ Should be immutable, but we don't have to overdo the unsafePerformIO readIORef, do we?
     , cursorOutput :: IORef Int
+    , cursorMapping :: IORef (CursorMapping Identity)
     }

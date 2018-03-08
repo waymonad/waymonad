@@ -160,7 +160,7 @@ makeMulti view = do
     delFun <- makeCallback removeView
     multi <- liftIO $ makeMulti' view delFun
     setViewManager view $ multiManager multi
-    addViewDestroyListener 0 (const $ multiDestroy multi) view
+    _ <- addViewDestroyListener (const $ multiDestroy multi) view
     pure multi
 
 deriveSlave

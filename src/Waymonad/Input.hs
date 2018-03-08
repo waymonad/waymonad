@@ -41,7 +41,7 @@ import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(peek))
 import System.IO.Unsafe (unsafePerformIO)
 
-import Graphics.Wayland.Signal (removeListener)
+import Graphics.Wayland.Signal (ListenerToken, removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Input
     ( InputDevice
@@ -71,7 +71,6 @@ import Graphics.Wayland.WlRoots.Backend
     , backendGetSignals
     , BackendSignals (..)
     )
-import Graphics.Wayland.Signal (ListenerToken)
 
 import Waymonad.Input.Cursor
 import Waymonad.Input.Cursor.Type
@@ -140,7 +139,7 @@ doDetach :: Ptr InputDevice -> SeatFoo -> Way vs a ()
 doDetach dev foo = do
     iType <- liftIO $ inputDeviceType dev
     liftIO $ case iType of
-        (DeviceKeyboard kptr) -> detachKeyboard kptr
+        (DeviceKeyboard kptr) -> detachKeyboard (fooSeat foo) kptr
         (DeviceTabletPad pptr) -> handlePadRemove pptr
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceTabletTool _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev

@@ -25,7 +25,7 @@ where
 
 import Control.Monad.IO.Class (liftIO)
 import Data.Bits ((.&.), complement)
-import Data.IORef (readIORef)
+import Data.IORef (readIORef, modifyIORef)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
@@ -46,9 +46,11 @@ import Graphics.Wayland.WlRoots.Input.Keyboard
     , getKeystate
     , getKeymap
 
+    , WlrModifier
     , getModifiers
     , getModifierPtr
     , fieldToModifiers
+    , modifierInField
     )
 import Graphics.Wayland.WlRoots.Seat
     ( seatSetKeyboard
@@ -65,7 +67,6 @@ import Foreign.StablePtr
     )
 import Control.Monad (forM, when, unless)
 
-import Waymonad.Input.Seat
 import Waymonad
     ( withSeat
     , WayLoggers (..)
@@ -77,7 +78,7 @@ import Waymonad.Types
     , WayBindingState (wayCompositor)
     , Way (..)
     )
-import Waymonad.Types.Core (WayKeyState (..), Seat(seatKeymap))
+import Waymonad.Types.Core (WayKeyState (..), Seat(seatKeymap, seatKeyboards, seatRoots))
 import Waymonad.Utility.Signal (setSignalHandler)
 import Waymonad.Utility.Log (logPutStr, LogPriority (..))
 
@@ -89,10 +90,12 @@ import Text.XkbCommon.Keysym
 import Text.XkbCommon.KeysymPatterns
 import Text.XkbCommon.Types
 
-data Keyboard vs ws = Keyboard
+import qualified Data.Set as S
+
+data Keyboard = Keyboard
     { keyboardDevice :: Ptr WlrKeyboard
     , keyboardIDevice :: Ptr InputDevice
-    }
+    } deriving (Eq, Show, Ord)
 
 tryRunKeybind :: WayKeyState -> Way vs ws Bool
 tryRunKeybind keyState = do
@@ -134,12 +137,12 @@ handleKeyPress modifiers sym@(Keysym key) = do
         _ -> tryRunKeybind $ WayKeyState (fromIntegral modifiers) (fromIntegral key)
 
 
-tellClient :: Seat -> Keyboard vs ws -> EventKey -> IO ()
+tellClient :: Seat -> Keyboard -> EventKey -> IO ()
 tellClient seat keyboard event = do
     seatSetKeyboard   (seatRoots seat) $ keyboardIDevice keyboard
     keyboardNotifyKey (seatRoots seat) (timeSec event) (keyCode event) (state event)
 
-handleKeySimple :: Keyboard vs a -> CKeycode -> Way vs a Bool
+handleKeySimple :: Keyboard -> CKeycode -> Way vs a Bool
 handleKeySimple keyboard keycode = do
     keystate <- liftIO . getKeystate $ keyboardDevice keyboard
     keymap   <- liftIO . getKeymap $ keyboardDevice keyboard
@@ -153,7 +156,12 @@ handleKeySimple keyboard keycode = do
 
     pure $ or handled
 
-handleKeyXkb :: Keyboard vs a -> CKeycode -> Way vs a Bool
+isModifierPressed :: Ptr WlrKeyboard -> WlrModifier -> IO Bool
+isModifierPressed ptr modi = do
+    modifiers <- getModifiers ptr
+    pure $ modifierInField modi modifiers
+
+handleKeyXkb :: Keyboard -> CKeycode -> Way vs a Bool
 handleKeyXkb keyboard keycode = do
     keystate <- liftIO . getKeystate $ keyboardDevice keyboard
     modifiers <- liftIO $ getModifiers $ keyboardDevice keyboard
@@ -186,10 +194,7 @@ handleKeyXkb keyboard keycode = do
 --    layouts without interfering with keybinds.
 -- If neither approach matches a keybind, the key-press is forwarded to the
 -- focused client.
-handleKeyEvent :: Keyboard vs ws
-               -> Seat
-               -> Ptr EventKey
-               -> Way vs ws ()
+handleKeyEvent :: Keyboard -> Seat -> Ptr EventKey -> Way vs ws ()
 handleKeyEvent keyboard seat ptr = withSeat (Just seat) $ do
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
@@ -205,18 +210,15 @@ handleKeyEvent keyboard seat ptr = withSeat (Just seat) $ do
 
     liftIO . unless handled $ tellClient seat keyboard event
 
-handleModifiers :: Keyboard vs ws -> Seat -> Ptr a -> Way vs ws ()
+handleModifiers :: Keyboard -> Seat -> Ptr a -> Way vs ws ()
 handleModifiers keyboard seat _ = liftIO $ do
     seatSetKeyboard (seatRoots seat) $ keyboardIDevice keyboard
 
     keyboardNotifyModifiers (seatRoots seat) (getModifierPtr $ keyboardDevice keyboard)
 
-handleKeyboardAdd
-    :: Seat
-    -> Ptr InputDevice
-    -> Ptr WlrKeyboard
-    -> Way vs a ()
+handleKeyboardAdd :: Seat -> Ptr InputDevice -> Ptr WlrKeyboard -> Way vs a ()
 handleKeyboardAdd seat dev ptr = do
+    liftIO $ modifyIORef (seatKeyboards seat) (S.insert ptr)
     let signals = getKeySignals ptr
     liftIO $ do
         (Just cxt) <- newContext defaultFlags
@@ -237,14 +239,15 @@ handleKeyboardAdd seat dev ptr = do
         poke (getKeyDataPtr ptr) (castStablePtrToPtr sptr)
 
 
-detachKeyboard :: Ptr WlrKeyboard -> IO ()
-detachKeyboard ptr = do
-    handleKeyboardRemove ptr
+detachKeyboard :: Seat -> Ptr WlrKeyboard -> IO ()
+detachKeyboard seat ptr = do
+    handleKeyboardRemove seat ptr
     poke (getKeyDataPtr ptr) nullPtr
 
-handleKeyboardRemove :: Ptr WlrKeyboard -> IO ()
-handleKeyboardRemove ptr = do
+handleKeyboardRemove :: Seat -> Ptr WlrKeyboard -> IO ()
+handleKeyboardRemove seat ptr = do
     dptr <- peek (getKeyDataPtr ptr)
+    liftIO $ modifyIORef (seatKeyboards seat) (S.delete ptr)
     when (dptr /= nullPtr) (do
         let sptr = castPtrToStablePtr dptr
         (kh, mh) <- deRefStablePtr sptr

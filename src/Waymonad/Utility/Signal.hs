@@ -27,6 +27,7 @@ Portability : Linux
 -}
 module Waymonad.Utility.Signal
     ( setSignalHandler
+    , setSignalHandlerIO
     , setDestroyHandler
     )
 where
@@ -46,12 +47,19 @@ import Graphics.Wayland.Signal
 import Waymonad (setCallback)
 import Waymonad.Types (Way)
 
+
 -- | Set a 'Way' action as signal handler.
 setSignalHandler :: Ptr (WlSignal a)
                  -> (Ptr a -> Way vs b ())
                  -> Way vs b ListenerToken
 setSignalHandler signal act = 
     setCallback act (\fun -> addListener (WlListener fun) signal)
+
+-- | Set a 'Way' action as signal handler.
+setSignalHandlerIO :: Ptr (WlSignal a)
+                   -> (Ptr a -> IO ())
+                   -> IO ListenerToken
+setSignalHandlerIO signal act = addListener (WlListener act) signal
 
 -- | Set a signal handler that will remove itself after it's fired once. This
 -- can be used for destroy handlers that don't have to be stored anywhere.

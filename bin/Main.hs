@@ -53,6 +53,7 @@ import Waymonad.Hooks.KeyboardFocus
 import Waymonad.Hooks.ScaleHook
 import Waymonad.IPC (IPCGroup (..))
 import Waymonad.Input (attachDevice)
+import Waymonad.Input.Cursor (makeDefaultMappings)
 import Waymonad.Input.Seat (useClipboardText, setSeatKeybinds, resetSeatKeymap)
 import Waymonad.Layout.Choose
 import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
@@ -70,6 +71,7 @@ import Waymonad.Types (WayHooks (..))
 import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
 import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
 import Waymonad.Utility.Base (doJust)
+import Waymonad.Utility.Floating (centerFloat)
 import Waymonad.Utility.Timing
 import Waymonad.Utility.View
 import Waymonad.Utility.ViewSet (modifyFocusedWS)
@@ -161,6 +163,7 @@ bindings modi =
     , (([modi], keysym_Return), spawn "weston-terminal")
     , (([modi], keysym_d), spawn "rofi -show run")
 
+    , (([modi], keysym_o), centerFloat)
     , (([modi], keysym_p), printClipboard)
 
     , (([modi], keysym_n), focusNextOut)
@@ -170,11 +173,12 @@ bindings modi =
 
 myConf :: WlrModifier -> WayUserConf (ViewSet Text) Text
 myConf modi = WayUserConf
-    { wayUserConfWorkspaces  = workspaces
-    , wayUserConfLayouts     = sameLayout . mkSmartBorders 2. mkTFull . mkMirror $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
-    , wayUserConfManagehook  = XWay.overrideXRedirect <> manageSpawnOn <> manageX11SpawnOn
-    , wayUserConfEventHook   = idleDPMSHandler <> idleLog
-    , wayUserConfKeybinds    = bindings modi
+    { wayUserConfWorkspaces   = workspaces
+    , wayUserConfLayouts      = sameLayout . mkSmartBorders 2. mkTFull . mkMirror $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
+    , wayUserConfManagehook   = XWay.overrideXRedirect <> manageSpawnOn <> manageX11SpawnOn
+    , wayUserConfEventHook    = idleDPMSHandler <> idleLog
+    , wayUserConfKeybinds     = bindings modi
+    , wayUserConfPointerbinds = makeDefaultMappings
 
     , wayUserConfInputAdd    = flip attachDevice "seat0"
     , wayUserConfDisplayHook =

@@ -27,6 +27,8 @@ module Waymonad.Utility.Floating
     , modifyFloating
     , unsetFloating
     , setFloating
+    , moveFloat
+    , resizeFloat
     )
 where
 
@@ -37,13 +39,13 @@ import Data.Set (Set)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
-import Waymonad.Input.Seat (Seat, keyboardEnter)
+import Waymonad.Input.Seat (keyboardEnter)
 import Waymonad.Output
 import Waymonad.Utility.Base (doJust)
 import Waymonad.View
     ( View, moveView, resizeView
     , setViewManager, unsetViewManager
-    , activateView, doFocusView
+    , activateView, doFocusView, getViewSize, getViewBox
     )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
@@ -54,7 +56,7 @@ import Waymonad
     )
 import Waymonad.Extensible
 import Waymonad.Types (SSDPrio (NoSSD), EvtCause (Intentional))
-import Waymonad.Types.Core (ManagerData (..))
+import Waymonad.Types.Core (ManagerData (..), Seat)
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Current (getCurrentBox, getCurrentView, getCurrentWS)
 import Waymonad.Utility.Extensible (modifyEState, getEState)
@@ -63,8 +65,6 @@ import Waymonad.Utility.ViewSet (modifyFocusedWS, insertView)
 
 import qualified Data.Set as S
 import qualified Data.Map as M
-
-import Debug.Trace
 
 newtype FSet = FSet {unFS:: Set View}
 
@@ -106,12 +106,11 @@ setFloating view pos@(WlrBox x y width height) = do
 
     outputs <- getOutputs
     forM_ outputs $ \output -> do
-        intersects <- intersectsOutput (traceShowId output) pos
-        when intersects $ do
-            doJust (traceShowId <$> getOutputBox output) $ \(WlrBox ox oy _ _) -> do
-                let viewBox = WlrBox (x - ox) (y - oy) width height
-                let ref = (M.!) (outputLayers output) "floating"
-                liftIO $ modifyIORef ref ((view, NoSSD mempty, viewBox):)
+        intersects <- intersectsOutput output pos
+        when intersects $ doJust (getOutputBox output) $ \(WlrBox ox oy _ _) -> do
+            let viewBox = WlrBox (x - ox) (y - oy) width height
+            let ref = (M.!) (outputLayers output) "floating"
+            liftIO $ modifyIORef ref ((view, NoSSD mempty, viewBox):)
 
 removeFloating :: View -> Way vs ws ()
 removeFloating view = do
@@ -150,3 +149,20 @@ centerFloat = doJust getCurrentBox $ \(WlrBox x y w h) -> do
     let nw = w `div` 2
     let nh = h `div` 2
     toggleFloat $ WlrBox (x + nw `div` 2) (y + nh `div` 2) nw nh
+
+moveFloat :: (WSTag ws, FocusCore vs ws) => View -> Int -> Int -> Way vs ws ()
+moveFloat view x y = do
+    floats <- isFloating view
+    when floats $ do
+        (w, h) <- getViewSize view
+        removeFloating view
+        setFloating view (WlrBox x y (floor w) (floor h))
+
+resizeFloat :: (WSTag ws, FocusCore vs ws) => View -> Int -> Int -> Way vs ws ()
+resizeFloat view w h = do
+    floats <- isFloating view
+    when floats $ do
+        WlrBox pX pY _ _ <- getViewBox view
+        removeFloating view
+        setFloating view (WlrBox pX pY w h)
+

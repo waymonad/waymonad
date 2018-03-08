@@ -44,11 +44,9 @@ module Waymonad.View
     , getViewID
 
     , addViewDestroyListener
-    , rmViewDestroyListener
     , triggerViewDestroy
 
     , addViewResizeListener
-    , rmViewResizeListener
     , triggerViewResize
 
     , setViewManager
@@ -104,9 +102,8 @@ import Graphics.Wayland.WlRoots.Surface
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox, scaleBox, translateBox)
 
 import Waymonad.Utility.Base (doJust)
+import Waymonad.Utility.HaskellSignal
 import Waymonad.Types.Core (View (..), ShellSurface (..), Seat, ManagerData (..), SeatEvent)
-
-import qualified Data.IntMap as IM
 
 getViewSize :: MonadIO m => View -> m (Double, Double)
 getViewSize View {viewSurface=surf} = getSize surf
@@ -205,8 +202,8 @@ createView surf = liftIO $ do
     global <- newIORef box
     local <- newIORef box
     scale <- newIORef 1.0
-    destroyCBs <- newIORef mempty
-    resizeCBs <- newIORef mempty
+    destroyCBs <- makeHaskellSignal
+    resizeCBs <- makeHaskellSignal
     idVal <- readIORef viewCounter
     modifyIORef viewCounter (+1)
     viewRef <- newIORef undefined
@@ -395,28 +392,21 @@ getViewID :: View -> Int
 --getViewID (View {viewSurface = surf}) = getID surf
 getViewID = viewID
 
-addViewDestroyListener :: MonadIO m => Int -> (View -> IO ()) -> View -> m ()
-addViewDestroyListener key cb View {viewDestroy = ref} = liftIO $ modifyIORef ref (IM.insert key cb)
-
-rmViewDestroyListener :: MonadIO m => Int -> View -> m ()
-rmViewDestroyListener key View {viewDestroy = ref} = liftIO $ modifyIORef ref (IM.delete key)
+addViewDestroyListener :: MonadIO m => (View -> IO ()) -> View -> m (HaskellSignalToken View IO)
+addViewDestroyListener cb View {viewDestroy = signal} =
+    addHaskellListener  signal cb
 
 triggerViewDestroy :: MonadIO m => View -> m ()
-triggerViewDestroy v@View {viewDestroy = ref} = liftIO $ do
-    cbs <- readIORef ref
-    mapM_ ($ v) cbs
+triggerViewDestroy v@View {viewDestroy = signal} = liftIO $
+    emitHaskellSignal v signal
 
-
-addViewResizeListener :: MonadIO m => Int -> (View -> IO ()) -> View -> m ()
-addViewResizeListener key cb View {viewResize = ref} = liftIO $ modifyIORef ref (IM.insert key cb)
-
-rmViewResizeListener :: MonadIO m => Int -> View -> m ()
-rmViewResizeListener key View {viewResize = ref} = liftIO $ modifyIORef ref (IM.delete key)
+addViewResizeListener :: MonadIO m => (View -> IO ()) -> View -> m (HaskellSignalToken View IO)
+addViewResizeListener cb View {viewResize = signal} =
+    addHaskellListener  signal cb
 
 triggerViewResize :: MonadIO m => View -> m ()
-triggerViewResize v@View {viewResize = ref} = liftIO $ do
-    cbs <- readIORef ref
-    mapM_ ($ v) cbs
+triggerViewResize v@View {viewResize = signal} = liftIO $
+    emitHaskellSignal v signal
 
 viewHasCSD :: MonadIO m => View -> m Bool
 viewHasCSD View {viewSurface=surf} = hasCSD surf

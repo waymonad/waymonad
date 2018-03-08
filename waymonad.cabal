@@ -143,6 +143,7 @@ library
   exposed-modules:        Waymonad.Utility.Log
   exposed-modules:        Waymonad.Utility.Mapping
   exposed-modules:        Waymonad.Utility.Pointer
+  exposed-modules:        Waymonad.Utility.HaskellSignal
   exposed-modules:        Waymonad.Utility.Signal
   exposed-modules:        Waymonad.Utility.SSD
   exposed-modules:        Waymonad.Utility.Timing

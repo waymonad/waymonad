@@ -21,9 +21,11 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Waymonad.IPC
 where
 
+import Data.Default
 import Control.Applicative ((<|>))
 import Foreign.C.Error (Errno, eOK, eINVAL)
 import Data.Text (Text)
@@ -77,7 +79,8 @@ data IPCEntry vs ws = IPCEntry
     }
 
 
-data IPCGroup vs ws = IPCGroup [(Text, Either (IPCGroup vs ws) (IPCEntry vs ws))]
+newtype IPCGroup vs ws = IPCGroup [(Text, Either (IPCGroup vs ws) (IPCEntry vs ws))]
+    deriving (Default, Monoid)
 
 getEntryReadFun :: forall vs ws a. (Typeable vs, Typeable ws, Typeable a)
                 => IPCEntry vs ws -> Maybe (Way vs ws (Either Errno a))

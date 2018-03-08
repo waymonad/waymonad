@@ -27,13 +27,14 @@ where
 
 import System.IO
 
-import Data.Bits ((.|.), shiftL)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
-import Data.Maybe (fromMaybe)
-import Data.Map (Map)
-import Data.Text (Text)
+import Data.Bits ((.|.), shiftL)
+import Data.Functor.Identity (Identity)
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
+import Data.Map (Map)
+import Data.Maybe (fromMaybe)
+import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -49,6 +50,7 @@ import Graphics.Wayland.WlRoots.Render.Color (Color)
 import Text.XkbCommon.InternalTypes (Keysym(..))
 
 import Waymonad.Input (inputCreate)
+import Waymonad.Input.Cursor.Type (CursorMapping)
 import Waymonad.Output (Output, handleOutputAdd, handleOutputAdd')
 import Waymonad.Start
 import Waymonad.ViewSet
@@ -99,6 +101,7 @@ data WayUserConf vs ws = WayUserConf
     , wayUserConfManagehook    :: Managehook vs ws -- ^The Managehook. This is called when a new window is created and has to be managed. Can be used to override the destination.
     , wayUserConfEventHook     :: SomeEvent -> Way vs ws () -- ^Dynamic events emitted by a non-core component.
     , wayUserConfKeybinds      :: [(([WlrModifier], Keysym), KeyBinding vs ws)] -- ^Keybinds attached to every keyboard
+    , wayUserConfPointerbinds  :: Way vs ws (CursorMapping Identity) -- ^Pointer attached to every cursor
 
     , wayUserConfOutputAdd     :: Output -> Way vs ws () -- ^Called everytime an output is added. This should set mode and add to layout if that's wanted.
     , wayUserConfInputAdd      :: Ptr InputDevice -> Way vs ws () -- ^Called verytime an input device is added. This should do any configuration required and attach it to a seat.
@@ -167,6 +170,7 @@ wayUserMain conf = do
             , wayUserWorkspaces = wayUserConfWorkspaces conf
             , wayCompositor = unsafePerformIO (readIORef compRef)
             , wayKeybinds = makeBindingMap $ wayUserConfKeybinds conf
+            , wayPointerbinds = wayUserConfPointerbinds conf
             , wayManagehook = wayUserConfManagehook conf
             , wayCoreHooks = wayUserConfCoreHooks conf
             , wayCoreShells = shells

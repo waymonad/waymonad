@@ -64,6 +64,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift
 import Control.Monad.Reader (ReaderT, MonadReader, runReaderT, ask)
 import Data.Default (Default(..))
+import Data.Functor.Identity (Identity)
 import Data.IORef (IORef)
 import Data.IntMap (IntMap)
 import Data.Map (Map)
@@ -85,6 +86,7 @@ import Graphics.Wayland.WlRoots.Render (Renderer)
 import Graphics.Wayland.WlRoots.Render.Color (Color)
 
 import {-# SOURCE #-} Waymonad.Input (Input)
+import Waymonad.Input.Cursor.Type
 import Waymonad.Extensible (StateMap)
 
 import Waymonad.Types.Core
@@ -202,6 +204,7 @@ data WayBindingState vs ws = WayBindingState
     , wayCoreShells      :: [WayShell vs ws] -- ^The shells that are loaded for this compositor.
     , wayLogFunction     :: LogFun vs ws -- ^The logfunction (call to feed statusbar)
     , wayKeybinds        :: BindingMap vs ws -- ^The default keybinds a keyboard should aquire
+    , wayPointerbinds    :: Way vs ws (CursorMapping Identity) -- ^The default keybinds that should be used
     , wayEventHook       :: SomeEvent -> Way vs ws () -- ^The event hooks that consume non-core events
     , wayUserWorkspaces  :: [ws]
     , wayCompositor      :: Compositor -- ^The core wlroots struct pointers
