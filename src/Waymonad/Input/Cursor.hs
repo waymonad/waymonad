@@ -22,7 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Input.Cursor
 where
 
-import Control.Monad (when, void, unless)
+import Control.Monad (when, void, unless, join)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Control.Monad.IO.Unlift (askRunInIO)
 import Data.Functor.Identity (Identity (..))
@@ -45,7 +45,7 @@ import Graphics.Wayland.WlRoots.Seat
     )
 import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Input.Buttons
-import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier (Logo))
+import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier)
 import Graphics.Wayland.WlRoots.Input.Pointer
     ( WlrEventPointerButton (..)
     , WlrEventPointerMotion (..)
@@ -199,17 +199,17 @@ extensibleButton act cursor time button buttonState = do
 
 
 defaultButton :: (FocusCore vs ws, WSTag ws)
-              => Cursor -> Word32 -> Word32 -> ButtonState -> Way vs ws ()
-defaultButton = extensibleButton moveHandler
+              => WlrModifier -> Cursor -> Word32 -> Word32 -> ButtonState -> Way vs ws ()
+defaultButton modi = extensibleButton moveHandler
     where   moveHandler cursor button buttonState view p other = do
                 (Just seat) <- getSeat
-                pressed <- isSeatModiPressed seat Logo
+                pressed <- isSeatModiPressed seat modi
                 case pressed && buttonState == ButtonPressed && button == 0x110 of
                     True -> startMoving cursor view p
                     False -> resizeHandler cursor button buttonState view other
             resizeHandler cursor button buttonState view other = do
                 (Just seat) <- getSeat
-                pressed <- isSeatModiPressed seat Logo
+                pressed <- isSeatModiPressed seat modi
                 case pressed && buttonState == ButtonPressed && button == 0x111 of
                     True -> startResize cursor view other
                     False -> other
@@ -241,11 +241,11 @@ makeSimpleMappings = do
         }
 
 
-makeDefaultMappings :: (FocusCore vs ws, WSTag ws) => Way vs ws (CursorMapping Identity)
-makeDefaultMappings = do
+makeDefaultMappings :: (FocusCore vs ws, WSTag ws) => WlrModifier -> Way vs ws (CursorMapping Identity)
+makeDefaultMappings modi = do
     runIO <- askRunInIO
     pure CursorMapping
-        { cursorMappingButton    = Identity $ \cursor time button bState -> runIO (defaultButton cursor time button bState)
+        { cursorMappingButton    = Identity $ \cursor time button bState -> runIO (defaultButton modi cursor time button bState)
         , cursorMappingMotion    = Identity $ \cursor time device x y -> runIO (defaultMotion cursor time device x y)
         , cursorMappingMotionAbs = Identity $ \cursor time device x y -> runIO (defaultMotionAbs cursor time device x y)
         , cursorMappingAxis      = Identity $ \cursor time source orient delta -> runIO (defaultAxis cursor time source orient delta)
@@ -311,13 +311,14 @@ cursorDestroy Cursor { cursorRoots = roots, cursorTokens = tokens } = do
     mapM_ removeListener =<< readIORef tokens
     destroyCursor roots
 
-cursorCreate :: (FocusCore vs a, WSTag a) => Ptr WlrOutputLayout -> Way vs a Cursor
+cursorCreate :: (FocusCore vs a, WSTag a)
+             => Ptr WlrOutputLayout -> Way vs a Cursor
 cursorCreate layout = do
     cursor <- liftIO createCursor
     liftIO $ attachOutputLayout cursor layout
     liftIO $ mapToRegion cursor Nothing
     outref <- liftIO $ newIORef 0
-    mappingRef <- liftIO . newIORef =<< makeDefaultMappings
+    mappingRef <- liftIO . newIORef =<< join (wayPointerbinds <$> getState)
     signalRef <- liftIO . newIORef $ error "Tried to use the cursor signal ref to early?"
 
     let ret = Cursor

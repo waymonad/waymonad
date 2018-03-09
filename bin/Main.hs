@@ -178,7 +178,7 @@ myConf modi = WayUserConf
     , wayUserConfManagehook   = XWay.overrideXRedirect <> manageSpawnOn <> manageX11SpawnOn
     , wayUserConfEventHook    = idleDPMSHandler <> idleLog
     , wayUserConfKeybinds     = bindings modi
-    , wayUserConfPointerbinds = makeDefaultMappings
+    , wayUserConfPointerbinds = makeDefaultMappings modi
 
     , wayUserConfInputAdd    = flip attachDevice "seat0"
     , wayUserConfDisplayHook =
