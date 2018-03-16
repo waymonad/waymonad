@@ -117,6 +117,7 @@ library
   exposed-modules:        Waymonad.Protocols.IdleInhibit
   exposed-modules:        Waymonad.Protocols.PrimarySelection
   exposed-modules:        Waymonad.Protocols.Screenshooter
+  exposed-modules:        Waymonad.Protocols.LinuxDMABuf
 
   exposed-modules:        Waymonad.Shells.WlShell
   exposed-modules:        Waymonad.Shells.XWayland

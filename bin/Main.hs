@@ -65,6 +65,7 @@ import Waymonad.Layout.TwoPane
 import Waymonad.Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.GammaControl
+import Waymonad.Protocols.LinuxDMABuf
 import Waymonad.Protocols.Screenshooter
 import Waymonad.Types (WayHooks (..))
 import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
@@ -193,7 +194,7 @@ myConf modi = WayUserConf
                      ]
         , getIdleInihibitBracket
         ]
-    , wayUserConfBackendHook = [getIdleBracket 6e5 {- 10 minutes in ms -}]
+    , wayUserConfBackendHook = [getIdleBracket 6e5 {- 10 minutes in ms -}, getLinuxDMABufBracket]
     , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
         { wayHooksVWSChange       = wsScaleHook
