@@ -18,11 +18,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NumDecimals #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main
 where
 
@@ -41,8 +41,7 @@ import Text.XkbCommon.KeysymList
 
 import Data.String (IsString)
 import Fuse.Main
-import Waymonad (Way, KeyBinding)
-import Waymonad (getSeat)
+import Waymonad (Way, KeyBinding, getSeat)
 import Waymonad.Actions.Spawn (spawn, manageSpawnOn)
 import Waymonad.Actions.Spawn.X11 (manageX11SpawnOn)
 import Waymonad.Actions.Startup.Environment
@@ -53,7 +52,7 @@ import Waymonad.Hooks.KeyboardFocus
 import Waymonad.Hooks.ScaleHook
 import Waymonad.IPC (IPCGroup (..))
 import Waymonad.Input (attachDevice)
-import Waymonad.Input.Cursor (makeDefaultMappings)
+import Waymonad.Input.Cursor.Bindings (makeDefaultMappings)
 import Waymonad.Input.Seat (useClipboardText, setSeatKeybinds, resetSeatKeymap)
 import Waymonad.Layout.Choose
 import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
@@ -92,7 +91,7 @@ import qualified Waymonad.Shells.XdgShellv6 as Xdgv6
 import qualified Waymonad.Shells.WlShell as Wl
 
 import Waymonad.Main
-import Config
+import "waymonad" Config
 
 import Graphics.Wayland.WlRoots.Util
 import Waymonad.Output.DamageDisplay
@@ -206,9 +205,8 @@ myConf modi = WayUserConf
         }
     , wayUserConfShells = [Xdg.makeShell, Xdgv6.makeShell, Wl.makeShell, XWay.makeShell]
     , wayUserConfLog = pure ()
-    , wayUserConfOutputAdd = \out -> do
-        setPreferdMode (outputRoots out) $
-            addOutputToWork out Nothing
+    , wayUserConfOutputAdd = \out -> setPreferdMode (outputRoots out) $
+        addOutputToWork out Nothing
     , wayUserconfLoggers = Nothing
     , wayUserconfColor = Color 0.5 0 0 1
     , wayUserconfColors = mempty
