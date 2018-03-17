@@ -104,11 +104,11 @@ import Waymonad
 import qualified Data.IntMap.Strict as IM
 
 data TouchPoint
-    = TouchNative -- ^Native touch. Handling
+    = TouchNative
         { touchView :: Maybe View
         , touchX    :: Double
         , touchY    :: Double
-        }
+        } -- ^Native touch. Handling
   | TouchMouse Bool -- ^Emulate a normal pointer behaviour, or ignore TouchPoint
     deriving (Show)
 

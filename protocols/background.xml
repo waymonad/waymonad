@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="background">
+    <copyright>
+	Copyright © 2017 Markus Ongyerth
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in
+	all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+    </copyright>
+
+    <interface name="z_background" version="1">
+	<request name="destroy" type="destructor" />
+
+	<enum name="error">
+	    <description summary="ww_background error values">
+		These errors can be emitted in response to
+		background requests.
+	    </description>
+	    <entry name="role" value="0" summary="given wl_surface has another role"/>
+	</enum>
+
+	<event name="create_background" />
+
+	<request name="get_background_surface">
+		<arg name="id" type="new_id" interface="z_background_surface"/>
+		<arg name="surface" type="object" interface="wl_surface"/>
+	</request>
+    </interface>
+
+    <interface name="z_background_surface" version="1">
+	<event name="remove"/>
+
+	<event name="set_output">
+		<arg name="output" type="object" interface="wl_output"/>
+	</event>
+    </interface>
+</protocol>

@@ -67,6 +67,7 @@ import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.GammaControl
 import Waymonad.Protocols.LinuxDMABuf
 import Waymonad.Protocols.Screenshooter
+import Waymonad.Protocols.Background
 import Waymonad.Types (WayHooks (..))
 import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
 import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
@@ -193,6 +194,7 @@ myConf modi = WayUserConf
                      , ("CLUTTER_BACKEND", "wayland")
                      ]
         , getIdleInihibitBracket
+        , getBackgroundBracket
         ]
     , wayUserConfBackendHook = [getIdleBracket 6e5 {- 10 minutes in ms -}, getLinuxDMABufBracket]
     , wayUserConfPostHook    = [getScreenshooterBracket]

@@ -118,6 +118,7 @@ library
   exposed-modules:        Waymonad.Protocols.PrimarySelection
   exposed-modules:        Waymonad.Protocols.Screenshooter
   exposed-modules:        Waymonad.Protocols.LinuxDMABuf
+  exposed-modules:        Waymonad.Protocols.Background
 
   exposed-modules:        Waymonad.Shells.WlShell
   exposed-modules:        Waymonad.Shells.XWayland
@@ -176,7 +177,8 @@ library
   build-depends:       config-schema, config-value, xdg-basedir, network
   build-depends:       bytestring, data-default, semigroupoids, HFuse
   build-depends:       formatting, stm, unliftio-core, unliftio, libinput
-  build-depends:       safe, deepseq
+  build-depends:       safe, deepseq, template-haskell
+  build-depends:       waymonad-scanner
   
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -186,7 +188,8 @@ library
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
-  ghc-options:         -Wall -g -Werror
+  ghc-options:         -Wall -g
+  --Werror
   c-sources:           assets/logo.c
 -- -threaded
   -- build-depends: dump-core
