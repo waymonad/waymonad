@@ -39,9 +39,10 @@ import Graphics.Wayland.WlRoots.Output
     , outputTransformedResolution, composeOutputTransform, getTransMatrix
       , swapOutputBuffers, getOutputScale, makeOutputCurrent
     )
+import Graphics.Wayland.WlRoots.Render.Matrix (matrixMul, matrixTranslate)
 import Graphics.Wayland.WlRoots.Render
     ( Renderer, rendererScissor, rendererClear, renderWithMatrix, isTextureValid
-    , doRender, getMatrix
+    , doRender
     )
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
@@ -224,7 +225,9 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
                         pure $ do
                             rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
                             withMatrix $ \matrix -> do
-                                getMatrix t matrix (getTransMatrix output) x y
+
+                                matrixTranslate matrix (fromIntegral x) (fromIntegral y)
+                                matrixMul matrix matrix (getTransMatrix output)
                                 renderWithMatrix (compRenderer comp) t matrix
 
             liftIO $ withDRegion $ \region -> do
