@@ -67,7 +67,6 @@ import Waymonad.Utility.Extensible
 import Waymonad.Utility.SSD (renderDeco, getDecoBox)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
-import Waymonad.Output.Background
 
 import Debug.Trace
 
@@ -217,21 +216,6 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
                         pixmanRegionUnion region (getOutputDamage output)
                         act region
             renderBody <- makeCallback $ handleLayers comp secs output layers
-            bg <- getEState
-            clearFun <- liftIO $ case bg of
-                    Nothing -> pure $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
-                    Just (BackgroundTexture t bw bh) -> do
-                        Point ow oh <- outputTransformedResolution output
-                        let WlrBox x y _ _ = centerBox (WlrBox 0 0 bw bh) (WlrBox 0 0 ow oh)
-
-                        pure $ do
-                            rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
-                            withMatrix $ \matrix -> do
-
-                                matrixTranslate matrix (fromIntegral x) (fromIntegral y)
-                                matrixMul matrix matrix (getTransMatrix output)
-                                renderWithMatrix (compRenderer comp) t matrix
-
             liftIO $ withDRegion $ \region -> do
                 notEmpty <- pixmanRegionNotEmpty region
                 when notEmpty $ do
@@ -239,7 +223,7 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
 
                     forM_ boxes $ \box -> do
                         scissorOutput (compRenderer comp) output $ boxToWlrBox box
-                        clearFun
+                        liftIO $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
 
                     renderBody region
 
