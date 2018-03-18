@@ -124,6 +124,14 @@ xdgShellCreate display = do
         , xdgWlrootsShell = roots
         }
 
+handleXdgUnmap :: (FocusCore vs ws, WSTag ws)
+               => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
+handleXdgUnmap view _ = removeView view
+
+handleXdgMap :: (FocusCore vs ws, WSTag ws)
+             => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
+handleXdgMap view _ = insertView view
+
 handleXdgDestroy
     :: (FocusCore vs a, WSTag a)
     => MapRef
@@ -133,8 +141,6 @@ handleXdgDestroy ref surf = do
     logPutText loggerXdg Debug "Destroying xdg toplevel surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     liftIO $ modifyIORef ref $ M.delete (ptrToInt surf)
-
-    removeView view
     triggerViewDestroy view
 
 handleXdgPopup :: View -> IO Point -> Ptr R.WlrXdgPopup -> Way vs ws ()
@@ -189,9 +195,12 @@ handleXdgSurface ref surf = do
         let getPos = do
                 WlrBox x y _ _ <- liftIO $ R.getGeometry surf
                 pure $ Point x y
-        handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
+        popupH <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
+        mapH <- setSignalHandler (R.xdgSurfaceEvtMap signals) $ handleXdgMap view
+        unmapH <- setSignalHandler (R.xdgSurfaceEvtUnmap signals) $ handleXdgUnmap view
+
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
-            liftIO $ removeListener handler
+            liftIO $ mapM_ removeListener [popupH, mapH, unmapH]
             handleXdgDestroy ref surfPtr
 
 getXdgBox :: MonadIO m => Ptr R.WlrXdgSurface -> m WlrBox

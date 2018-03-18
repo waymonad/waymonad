@@ -39,7 +39,7 @@ import Control.Monad.Trans.Maybe (MaybeT (..))
 import Data.Composition ((.:))
 import Data.IORef (newIORef, IORef, modifyIORef, readIORef, writeIORef)
 import Data.IntMap (IntMap)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 
@@ -133,8 +133,6 @@ handleXdgDestroy ref surf = do
     logPutText loggerXdg Debug "Destroying xdg toplevel surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
     liftIO $ modifyIORef ref $ M.delete (ptrToInt surf)
-
-    removeView view
     triggerViewDestroy view
 
 handleXdgPopup :: View -> IO Point -> Ptr R.WlrXdgPopup -> Way vs ws ()
@@ -142,7 +140,7 @@ handleXdgPopup view getParentPos pop = do
     base <- liftIO $ R.xdgPopupGetBase pop
     let getPopPos = do
             Point parentX parentY <- getParentPos
-            stateBox <- liftIO $ R.getPopupGeometry base
+            stateBox <- liftIO $ fmap (fromMaybe (WlrBox 0 0 0 0)) $ R.getPopupGeometry base
 
             let stateX = boxX stateBox
             let stateY = boxY stateBox
@@ -167,19 +165,23 @@ handleXdgPopup view getParentPos pop = do
     setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \_ -> do
         liftIO $ removeListener handler
 
+handleXdgUnmap :: (FocusCore vs ws, WSTag ws)
+               => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
+handleXdgUnmap view _ = removeView view
 
-handleXdgSurface
-    :: (FocusCore vs a, WSTag a)
-    => MapRef
-    -> Ptr R.WlrXdgSurface
-    -> Way vs a ()
+handleXdgMap :: (FocusCore vs ws, WSTag ws)
+             => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
+handleXdgMap view _ = insertView view
+
+
+handleXdgSurface :: (FocusCore vs a, WSTag a)
+                 => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
 handleXdgSurface ref surf = do
     isPopup <- liftIO $ R.isXdgPopup surf
     unless isPopup $ do
         logPutText loggerXdg Debug "New xdg toplevel surface"
         let xdgSurf = XdgSurface surf
         view <- createView xdgSurf
-        insertView view
 
         liftIO $ do
             modifyIORef ref $ M.insert (ptrToInt surf) view
@@ -189,9 +191,12 @@ handleXdgSurface ref surf = do
         let getPos = do
                 WlrBox x y _ _ <- liftIO $ R.getGeometry surf
                 pure $ Point x y
-        handler <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
+        popupH <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
+        mapH <- setSignalHandler (R.xdgSurfaceEvtMap signals) $ handleXdgMap view
+        unmapH <- setSignalHandler (R.xdgSurfaceEvtUnmap signals) $ handleXdgUnmap view
+
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
-            liftIO $ removeListener handler
+            liftIO $ mapM_ removeListener [popupH, mapH, unmapH]
             handleXdgDestroy ref surfPtr
 
 getXdgBox :: MonadIO m => Ptr R.WlrXdgSurface -> m WlrBox
@@ -215,7 +220,7 @@ renderPopups fun surf = do
         let popX = boxX  popBox
         let popY = boxY popBox
 
-        stateBox <- liftIO $ R.getPopupGeometry popup
+        stateBox <- liftIO $ fmap (fromMaybe (WlrBox 0 0 0 0)) $ R.getPopupGeometry popup
         let stateX = boxX stateBox
         let stateY = boxY stateBox
 
