@@ -190,11 +190,12 @@ handleOutputAdd' handler hook output = do
     mainLayer <- liftIO $ newIORef []
     floatLayer <- liftIO $ newIORef []
     overrideLayer <- liftIO $ newIORef []
-    let layers = [overrideLayer, floatLayer, mainLayer]
-        layerMap = M.fromList [("override", overrideLayer), ("floating", floatLayer), ("main", mainLayer)]
-    outputDamageR <- liftIO $ allocateRegion
-    outputBuf1 <- liftIO $ allocateRegion
-    outputBuf2 <- liftIO $ allocateRegion
+    backgroundLayer <- liftIO $ newIORef []
+    let layers = [overrideLayer, floatLayer, mainLayer, backgroundLayer]
+        layerMap = M.fromList [("override", overrideLayer), ("floating", floatLayer), ("main", mainLayer), ("background", backgroundLayer)]
+    outputDamageR <- liftIO allocateRegion
+    outputBuf1 <- liftIO allocateRegion
+    outputBuf2 <- liftIO allocateRegion
     let out = Output output name active layers layerMap outputDamageR (outputBuf1, outputBuf2)
     liftIO $ modifyIORef current (out :)
 

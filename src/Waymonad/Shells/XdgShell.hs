@@ -174,18 +174,14 @@ handleXdgPopup view getParentPos pop = do
         liftIO $ removeListener handler
 
 
-handleXdgSurface
-    :: (FocusCore vs a, WSTag a)
-    => MapRef
-    -> Ptr R.WlrXdgSurface
-    -> Way vs a ()
+handleXdgSurface :: (FocusCore vs a, WSTag a)
+                 => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
 handleXdgSurface ref surf = do
     isPopup <- liftIO $ R.isXdgPopup surf
     unless isPopup $ do
         logPutText loggerXdg Debug "New xdg toplevel surface"
         let xdgSurf = XdgSurface surf
         view <- createView xdgSurf
-        insertView view
 
         liftIO $ do
             modifyIORef ref $ M.insert (ptrToInt surf) view

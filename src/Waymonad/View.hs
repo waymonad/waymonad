@@ -104,7 +104,7 @@ import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.HaskellSignal
 import Waymonad.Types.Core (View (..), ShellSurface (..), Seat, ManagerData (..), SeatEvent)
-
+import Debug.Trace
 getViewSize :: MonadIO m => View -> m (Double, Double)
 getViewSize View {viewSurface=surf} = getSize surf
 
@@ -130,7 +130,7 @@ handleCommit view ref = liftIO $ do
     (width, height) <- getViewSize view
     (oldWidth, oldHeight) <- readIORef ref
     when (oldWidth /= width || oldHeight /= height) $ do
-        setViewLocal view $ WlrBox 0 0 (floor width) (floor height)
+        setViewLocal view . traceShowId $ WlrBox 0 0 (floor width) (floor height)
         writeIORef ref (width, height)
         triggerViewResize view
 
@@ -218,7 +218,7 @@ createView surf = liftIO $ do
             destroyHandler <- addListener
                 (WlListener $ const $ removeListeners $ unsafePerformIO $ readIORef viewRef)
                 (wlrSurfaceEvtDestroy events)
-            sizeRef <- newIORef (0, 0)
+            sizeRef <- newIORef (width, height)
             commitHandler <- addListener
                 (WlListener $ const $ handleCommit (unsafePerformIO $ readIORef viewRef) sizeRef)
                 (wlrSurfaceEvtCommit events)
@@ -359,7 +359,7 @@ setViewLocal :: MonadIO m => View -> WlrBox -> m ()
 setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef} box = liftIO $ do
     before <- readIORef local
     outerBox <- readIORef global
-    if toOrigin outerBox == box
+    if traceShowId (toOrigin outerBox == box)
         then do
             writeIORef local box
             writeIORef scaleRef 1

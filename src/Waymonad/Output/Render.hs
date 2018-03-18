@@ -69,6 +69,8 @@ import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
 import Waymonad.Output.Background
 
+import Debug.Trace
+
 renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
 renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
     ret <- liftIO . doRender rend output =<< unliftWay (act age)
@@ -127,7 +129,7 @@ outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurfa
     let box = getDecoBox hasCSD prio obox
     scale <- liftIO $ viewGetScale view
     local <- liftIO $ viewGetLocal view
-    let lBox = local { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
+    let lBox = traceShowId local { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
 
     decoCB <- unliftWay $ renderDeco hasCSD prio output obox box
     liftIO $ renderDamaged (compRenderer comp) output d obox decoCB

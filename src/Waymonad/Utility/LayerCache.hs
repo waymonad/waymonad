@@ -23,7 +23,7 @@ where
 
 import Control.Monad (forM_, forM)
 import Control.Monad.IO.Class (liftIO, MonadIO)
-import Data.IORef (readIORef)
+import Data.IORef (readIORef, writeIORef)
 import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 
@@ -54,6 +54,19 @@ getViewBoxInLayer Output {outputLayers = layers} view layer = liftIO $ do
     case M.lookup layer layers of
         Nothing -> pure []
         Just ref -> getViewPosition view =<< readIORef ref
+
+setLayerContent :: MonadIO m => Text -> Output -> [(View, SSDPrio, WlrBox)] -> m ()
+setLayerContent layer Output {outputLayers = layers} content = liftIO $ do
+    case M.lookup layer layers of
+        Nothing -> pure ()
+        Just ref -> writeIORef ref content
+
+getLayerContent :: MonadIO m => Text -> Output -> m [(View, SSDPrio, WlrBox)]
+getLayerContent layer Output {outputLayers = layers} = liftIO $ do
+    case M.lookup layer layers of
+        Nothing -> pure []
+        Just ref -> readIORef ref
+
 
 getLayerPosition :: Text -> View -> Way vs ws [(Output, Point)]
 getLayerPosition layer view = do
