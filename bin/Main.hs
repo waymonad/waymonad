@@ -28,6 +28,7 @@ where
 
 import Control.Applicative ((<|>))
 import Control.Monad.IO.Class (liftIO)
+import Data.Proxy (Proxy (..))
 import Data.IORef (readIORef)
 import Data.Monoid ((<>))
 import Data.Text (Text)
@@ -183,7 +184,7 @@ myConf modi = WayUserConf
 
     , wayUserConfInputAdd    = flip attachDevice "seat0"
     , wayUserConfDisplayHook =
-        [ getFuseBracket (IPCGroup [("IdleManager", Right idleIPC)])
+        [ getFuseBracket (IPCGroup  [("IdleManager", Right $ idleIPC (Proxy :: Proxy IdleEvent))])
         , getGammaBracket
         , getFilterBracket filterUser
         , baseTimeBracket
