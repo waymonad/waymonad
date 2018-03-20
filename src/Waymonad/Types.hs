@@ -228,9 +228,9 @@ type LogFun vs a = Way vs a ()
 instance Semigroup a => Semigroup (Way vs b a) where
     left <> right = (<>) <$> left <*> right
 
-instance Monoid a => Monoid (Way vs b a) where
+instance (Semigroup a, Monoid a) => Monoid (Way vs b a) where
     mempty = pure mempty
-    left `mappend` right = mappend <$> left <*> right
+    mappend = (<>)
 
 instance (Typeable a, Typeable b, Typeable vs) => Show (Way vs a b) where
     show =  show . typeOf
@@ -240,9 +240,12 @@ instance (Typeable a, Typeable b, Typeable vs) => Show (Way vs a b) where
 newtype Query vs a b = Query (ReaderT View (Way vs a) b)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader View)
 
-instance Monoid b => Monoid (Query vs a b) where
+instance Semigroup b => Semigroup (Query vs a b) where
+    left <> right = (<>) <$> left <*> right
+
+instance (Semigroup b, Monoid b) => Monoid (Query vs a b) where
     mempty = pure mempty
-    left `mappend` right = mappend <$> left <*> right
+    mappend = (<>)
 
 -- | The return value for Managehooks.
 data InsertAction vs a

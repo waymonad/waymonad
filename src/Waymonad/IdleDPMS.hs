@@ -25,6 +25,7 @@ where
 
 import Control.Monad (filterM, when)
 import Control.Monad.IO.Class (liftIO)
+import Data.Proxy (Proxy (..))
 import Data.IORef (readIORef)
 import Data.Semigroup ((<>))
 import Data.Set (Set)
@@ -84,7 +85,7 @@ unsetDPMS = do
 handleInhibitChange :: Maybe IdleInhibitChange -> Way vs ws ()
 handleInhibitChange Nothing = pure ()
 handleInhibitChange _ = do
-    doDPMS <- isIdle
+    doDPMS <- isIdle (Proxy :: Proxy IdleEvent)
     when doDPMS setNewState
 
 handleIdleChange :: Maybe IdleEvent -> Way vs ws ()

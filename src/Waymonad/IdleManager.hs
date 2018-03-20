@@ -18,20 +18,25 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
 module Waymonad.IdleManager
     ( IdleEvent (..)
     , getIdleBracket
+    , getIdleBracket'
     , idleLog
     , isIdle
     , setIdleTime
     , idleIPC
+    , idleHandler
     )
 where
 
 import Control.Monad (void, unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (isJust)
+import Data.Proxy (Proxy (..))
+import Data.Typeable (Typeable)
 import Foreign.Ptr (Ptr)
 
 import System.IO
@@ -59,30 +64,28 @@ import Waymonad.Utility.Base (whenJust)
 import Waymonad.Utility.Extensible (getEState, setEState)
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
 
-newtype Idle = Idle Bool deriving (Eq, Show)
+newtype Idle a = Idle Bool deriving (Eq, Show)
 
-instance ExtensionClass Idle where
+instance Typeable a => ExtensionClass (Idle a) where
     initialValue = Idle False
 
-data IdleStore = IdleStore !Int !(Maybe EventSource)
+data IdleStore a = IdleStore !Int !(Maybe EventSource)
 
-instance ExtensionClass IdleStore where
+instance Typeable a => ExtensionClass (IdleStore a) where
     initialValue = IdleStore 0 Nothing
 
-data IdleEvent
-    = IdleStart
-    | IdleStop
+data IdleEvent = IdleStart | IdleStop
 
 instance EventClass IdleEvent
 
-gotInput :: EventSource -> Way vs a ()
-gotInput src = do
-    (IdleStore msecs _) <- getEState
-    (Idle idle) <- getEState
+gotInput :: forall a ws vs. Typeable a => Proxy a -> EventSource -> Way vs ws ()
+gotInput _ src = do
+    (IdleStore msecs _) :: IdleStore a <- getEState
+    (Idle idle) :: Idle a <- getEState
     if idle
         then do
             sendEvent IdleStop
-            setEState $ Idle False
+            setEState $ (Idle False :: Idle a)
         else void . liftIO $ eventSourceTimerUpdate src msecs
 
 handlePointerAdd :: Way vs a () -> Ptr WlrPointer -> Way vs a [ListenerToken]
@@ -109,44 +112,55 @@ handleInputAdd report ptr = do
 
     setDestroyHandler (getDestroySignal ptr) (const . liftIO $ mapM_ removeListener listeners)
 
-idleSetup :: Int -> DisplayServer -> Ptr Backend -> Way vs a ListenerToken
-idleSetup msecs dsp backend = do
+idleSetup :: forall a vs ws. Typeable a => Proxy a -> Way vs ws () -> Int -> DisplayServer -> Ptr Backend -> Way vs ws ListenerToken
+idleSetup proxy act msecs dsp backend = do
     evtLoop <- liftIO $ displayGetEventLoop dsp
-    cb <- unliftWay (sendEvent IdleStart >> setEState (Idle True))
+    cb <- unliftWay (act >> setEState (Idle True :: Idle a))
     src <- liftIO $ eventLoopAddTimer evtLoop (cb >> pure False)
 
-    setEState . IdleStore msecs $ Just src
-    gotInput src
+    setEState $ ((IdleStore msecs $ Just src) :: IdleStore a)
+    gotInput proxy src
 
     let signals = backendGetSignals backend
-    setSignalHandler (backendEvtInput signals) $ handleInputAdd (gotInput src)
+    setSignalHandler (backendEvtInput signals) $ handleInputAdd (gotInput proxy src)
 
-getIdleBracket :: Int -> Bracketed vs (DisplayServer, Ptr Backend) a
-getIdleBracket msecs = Bracketed (uncurry (idleSetup msecs)) (const $ pure ())
+-- | More generic voersion of 'getIdleBracket' in case more than one timer is
+-- required. Does not go over event system, but has to be directly wired up
+getIdleBracket' :: Typeable a => Proxy a -> Way vs ws () -> Int -> Bracketed vs (DisplayServer, Ptr Backend) ws
+getIdleBracket' proxy act msecs = Bracketed (uncurry (idleSetup proxy act msecs)) (const $ pure ())
+
+-- | Send an event after @argument@ milli seconds of no input on any input
+-- device.
+getIdleBracket :: Int -> Bracketed vs (DisplayServer, Ptr Backend) ws
+getIdleBracket = getIdleBracket' (Proxy :: Proxy IdleEvent) (sendEvent IdleStart)
 
 idleLog :: SomeEvent -> Way vs a ()
-idleLog evt = whenJust (getEvent evt) $ \case
-    IdleStart -> liftIO $ hPutStrLn stderr "Setting up idle state"
-    IdleStop -> liftIO $ hPutStrLn stderr "Tearing down idle state"
+idleLog = idleHandler (liftIO $ hPutStrLn stderr "Setting up idle state") (liftIO $ hPutStrLn stderr "Tearing down idle state")
 
-isIdle :: Way vs ws Bool
-isIdle = (\(Idle x) -> x) <$> getEState
+isIdle :: forall a vs ws. Typeable a => Proxy a -> Way vs ws Bool
+isIdle _ = (\(Idle x :: Idle a) -> x) <$> getEState
 
-setIdleTime :: Int -> Way vs ws ()
-setIdleTime msecs = do
-    IdleStore _ src <- getEState
-    idles <- isIdle
+setIdleTime :: forall a vs ws. Typeable a => Proxy a -> Int -> Way vs ws ()
+setIdleTime proxy msecs = do
+    IdleStore _ src :: IdleStore a <- getEState
+    idles <- isIdle proxy
     liftIO $ unless idles $ whenJust src $ void . flip eventSourceTimerUpdate msecs
-    setEState $ IdleStore msecs src
+    setEState $ (IdleStore msecs src :: IdleStore a)
 
-getIdleTime :: Way vs ws Int
-getIdleTime = fmap (\(IdleStore x _) -> x) getEState 
+getIdleTime :: forall a vs ws. Typeable a => Proxy a -> Way vs ws Int
+getIdleTime _ = fmap (\(IdleStore x _ :: IdleStore a) -> x) getEState 
 
-idleIPC :: IPCEntry vs ws
-idleIPC = IPCEntry
-    { ipcEntryRead  = [simpleIPCRead getIdleTime, textifyIPCRead getIdleTime]
-    , ipcEntryWrite = [simpleIPCWrite setIdleTime, textifyIPCWrite setIdleTime]
-    , ipcEntryReadable  = isJust . (\(IdleStore _ src) -> src) <$> getEState
-    , ipcEntryWriteable = isJust . (\(IdleStore _ src) -> src) <$> getEState
+idleHandler :: Way vs ws () -> Way vs ws () -> SomeEvent -> Way vs ws ()
+idleHandler start stop evt = whenJust (getEvent evt) $ \case
+    IdleStart -> start
+    IdleStop -> stop
+
+
+idleIPC :: forall a vs ws. Typeable a => Proxy a -> IPCEntry vs ws
+idleIPC proxy = IPCEntry
+    { ipcEntryRead  = [simpleIPCRead $ getIdleTime proxy, textifyIPCRead $ getIdleTime proxy]
+    , ipcEntryWrite = [simpleIPCWrite $ setIdleTime proxy , textifyIPCWrite $ setIdleTime proxy]
+    , ipcEntryReadable  = isJust . (\(IdleStore _ src :: IdleStore a) -> src) <$> getEState
+    , ipcEntryWriteable = isJust . (\(IdleStore _ src :: IdleStore a) -> src) <$> getEState
     }
 
