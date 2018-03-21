@@ -1,3 +1,4 @@
+Side note: Github thinks this a C project, because there's a couple MB of image embedded as C array :/ It's Haskell, I promise!
 # waymonad
 
 We all love tiling window managers and most of all we love [xmonad](https://github.com/xmonad/xmonad).
