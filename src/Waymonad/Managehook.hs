@@ -96,11 +96,11 @@ removeView :: forall vs ws. (FocusCore vs ws, WSTag ws)
            => View -> Way vs ws ()
 removeView v = do
     seats <- getSeats
+
+    doRemoveView v
+
     forM_ seats $ \seat -> do
         kFoc <- getKeyboardFocus seat
         when (kFoc == Just v) $ keyboardClear seat
         pFoc <- getPointerFocus seat
         when (pFoc == Just v) $ pointerClear seat
-
-    doRemoveView v
-

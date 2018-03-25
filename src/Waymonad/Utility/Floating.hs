@@ -32,14 +32,14 @@ module Waymonad.Utility.Floating
     )
 where
 
-import Control.Monad (when, void, forM_, unless)
+import Control.Monad (when, void, forM_, unless, filterM)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef)
 import Data.Set (Set)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
-import Waymonad.Input.Seat (keyboardEnter)
+import Waymonad.Input.Seat (keyboardEnter, getKeyboardFocus)
 import Waymonad.Output
 import Waymonad.Utility.Base (doJust)
 import Waymonad.View
@@ -50,21 +50,22 @@ import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
-    , makeCallback
-    , makeCallback2
-    , getSeat
+    , makeCallback, makeCallback2
+    , getSeat, getSeats, withSeat
     )
 import Waymonad.Extensible
-import Waymonad.Types (SSDPrio (NoSSD), EvtCause (Intentional))
+import Waymonad.Types (SSDPrio (NoSSD), EvtCause (..))
 import Waymonad.Types.Core (ManagerData (..), Seat)
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Current (getCurrentBox, getCurrentView, getCurrentWS)
 import Waymonad.Utility.Extensible (modifyEState, getEState)
 import Waymonad.Utility.LayerCache (applyLayerDamage, getLayerPosition')
-import Waymonad.Utility.ViewSet (modifyFocusedWS, insertView)
+import Waymonad.Utility.ViewSet (modifyFocusedWS, insertView, getFocused)
 
 import qualified Data.Set as S
 import qualified Data.Map as M
+
+import Debug.Trace
 
 newtype FSet = FSet {unFS:: Set View}
 
@@ -89,7 +90,7 @@ focusFloating seat view = do
     activateView view True
     void $ keyboardEnter seat Intentional view
 
-makeFloatManager :: Way vs ws ManagerData
+makeFloatManager :: FocusCore vs ws => Way vs ws ManagerData
 makeFloatManager = do
     focus <- makeCallback2 focusFloating
     remove <-  makeCallback removeFloating
@@ -97,7 +98,7 @@ makeFloatManager = do
     getPos <- makeCallback $ getLayerPosition' "floating"
     pure $ ManagerData remove focus applyDamage getPos
 
-setFloating :: View -> WlrBox -> Way vs a ()
+setFloating :: FocusCore vs ws => View -> WlrBox -> Way vs ws ()
 setFloating view pos@(WlrBox x y width height) = do
     moveView view (fromIntegral x) (fromIntegral y)
     resizeView view (fromIntegral width) (fromIntegral height)
@@ -112,8 +113,16 @@ setFloating view pos@(WlrBox x y width height) = do
             let ref = (M.!) (outputLayers output) "floating"
             liftIO $ modifyIORef ref ((view, NoSSD mempty, viewBox):)
 
-removeFloating :: View -> Way vs ws ()
+flattenSeat :: FocusCore vs ws => Seat -> Way vs ws ()
+flattenSeat seat = {-doJust-} (>>=) (withSeat (Just seat) getCurrentWS) $ \ws ->
+    doJust (getFocused seat ws) $ \view -> void $
+        keyboardEnter seat SideEffect view
+
+removeFloating :: FocusCore vs ws => View -> Way vs ws ()
 removeFloating view = do
+    seats <- getSeats
+    affected <- filterM (fmap (Just view ==) . getKeyboardFocus) seats
+    mapM_ flattenSeat $ traceShowId affected
     modifyFloating $ S.delete view
     outputs <- getOutputs
     forM_ outputs $ \output -> liftIO $ do
