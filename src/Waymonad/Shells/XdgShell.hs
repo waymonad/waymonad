@@ -275,6 +275,14 @@ instance ShellSurface XdgSurface where
     renderAdditional fun (XdgSurface surf) = renderPopups fun surf
     getEventSurface surf x y = runMaybeT (getXdgEventSurface surf x y)
     getID = ptrToInt . unXdg
-    getTitle = liftIO . R.getTitle . unXdg
-    getAppId = liftIO . R.getAppId . unXdg
+    getTitle (XdgSurface surf) = liftIO $ do
+        toplevel <- R.getXdgToplevel surf
+        case toplevel of
+            Nothing -> pure Nothing
+            Just top ->  R.getTitle top
+    getAppId (XdgSurface surf) = liftIO $ do
+        toplevel <- R.getXdgToplevel surf
+        case toplevel of
+            Nothing -> pure Nothing
+            Just top ->  R.getAppId top
     hasCSD _ = pure True

@@ -21,7 +21,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE BangPatterns #-}
 module Waymonad.Output.Render
 where
-
+import System.IO
 import Control.Monad (forM_, when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, readIORef)
@@ -33,19 +33,20 @@ import Graphics.Wayland.Server
 
 import Graphics.Pixman
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxTransform, scaleBox, centerBox)
+import Graphics.Wayland.WlRoots.Backend (backendGetRenderer)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput, getOutputDamage , isOutputEnabled, getOutputNeedsSwap
     , invertOutputTransform, getOutputTransform
     , outputTransformedResolution, composeOutputTransform, getTransMatrix
-      , swapOutputBuffers, getOutputScale, makeOutputCurrent
+    , swapOutputBuffers, getOutputScale, makeOutputCurrent, outputGetBackend
     )
 import Graphics.Wayland.WlRoots.Render.Matrix (matrixMul, matrixTranslate)
 import Graphics.Wayland.WlRoots.Render
-    ( Renderer, rendererScissor, rendererClear, renderWithMatrix, isTextureValid
+    ( Renderer, rendererScissor, rendererClear, renderWithMatrix
     , doRender
     )
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
-import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
+import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox, printMatrix)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface, subSurfaceGetSurface, surfaceGetSubs, subSurfaceGetBox
     , surfaceGetCallbacks, getCurrentState, callbackGetCallback
@@ -89,38 +90,38 @@ renderDamaged render output damage box act = do
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox !bx !by !bw !bh) = do
+    rend <- backendGetRenderer =<< outputGetBackend output
     outputScale <- getOutputScale output
     texture <- surfaceGetTexture surface
-    isValid <- isTextureValid texture
-    when isValid $ do
-            let surfBox = WlrBox
-                    (floor $ fromIntegral bx * outputScale)
-                    (floor $ fromIntegral by * outputScale)
-                    (ceiling $ fromIntegral bw * outputScale)
-                    (ceiling $ fromIntegral bh * outputScale)
+    let surfBox = WlrBox
+            (floor $ fromIntegral bx * outputScale)
+            (floor $ fromIntegral by * outputScale)
+            (ceiling $ fromIntegral bw * outputScale)
+            (ceiling $ fromIntegral bh * outputScale)
 
-            withMatrix $ \mat -> do
-                surfTransform <- invertOutputTransform <$> surfaceGetTransform surface
-                matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
-                renderDamaged (compRenderer comp) output damage baseBox $ 
-                    renderWithMatrix (compRenderer comp) texture mat
 
-            subs <- surfaceGetSubs surface
-            forM_ subs $ \sub -> do
-                sbox <- subSurfaceGetBox sub
-                subsurf <- subSurfaceGetSurface sub
-                outputHandleSurface
-                    comp
-                    secs
-                    output
-                    damage
-                    subsurf
-                    scaleFactor
-                    sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + bx
-                        , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + by
-                        , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
-                        , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
-                        }
+    withMatrix $ \mat -> do
+        surfTransform <- invertOutputTransform <$> surfaceGetTransform surface
+        matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
+        renderDamaged rend output damage baseBox $
+            renderWithMatrix rend texture mat
+
+    subs <- surfaceGetSubs surface
+    forM_ subs $ \sub -> do
+        sbox <- subSurfaceGetBox sub
+        subsurf <- subSurfaceGetSurface sub
+        outputHandleSurface
+            comp
+            secs
+            output
+            damage
+            subsurf
+            scaleFactor
+            sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + bx
+                , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + by
+                , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
+                , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
+                }
 
 outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
 outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurface view) $ \surface -> do
@@ -128,7 +129,7 @@ outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurfa
     let box = getDecoBox hasCSD prio obox
     scale <- liftIO $ viewGetScale view
     local <- liftIO $ viewGetLocal view
-    let lBox = traceShowId local { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
+    let lBox = local { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
 
     decoCB <- unliftWay $ renderDeco hasCSD prio output obox box
     liftIO $ renderDamaged (compRenderer comp) output d obox decoCB
