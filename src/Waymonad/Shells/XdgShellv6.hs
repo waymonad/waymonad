@@ -32,6 +32,8 @@ module Waymonad.Shells.XdgShellv6
     )
 where
 
+import Debug.Trace
+
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM_, unless)
 import Control.Monad.IO.Class
@@ -46,6 +48,7 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), translateBox)
+import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
 
 
@@ -135,8 +138,18 @@ handleXdgDestroy ref surf = do
     liftIO $ modifyIORef ref $ M.delete (ptrToInt surf)
     triggerViewDestroy view
 
+unconstrainPopup :: View -> Ptr R.WlrXdgPopup -> Way vs ws ()
+unconstrainPopup view popup = do
+    outs <- doGetPosition view
+    case outs of
+        [(out, Point x y)] -> liftIO $ do
+            WlrBox ox oy w h <- getEffectiveBox out
+            R.unconstrainPopup popup $ WlrBox (ox - x) (oy - y) w h
+        _ -> pure ()
+
 handleXdgPopup :: View -> IO Point -> Ptr R.WlrXdgPopup -> Way vs ws ()
 handleXdgPopup view getParentPos pop = do
+    unconstrainPopup view pop
     base <- liftIO $ R.xdgPopupGetBase pop
     let getPopPos = do
             Point parentX parentY <- getParentPos

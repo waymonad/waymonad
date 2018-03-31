@@ -172,15 +172,13 @@ handleTouchDown :: (FocusCore vs ws, WSTag ws)
                 -> Way vs ws ()
 handleTouchDown layout cursor outref emuRef event_ptr = do
     event <- liftIO $ peek event_ptr
-    let evtX = wlrTouchDownX event / wlrTouchDownWidth event
-    let evtY = wlrTouchDownY event / wlrTouchDownHeight event
+    let evtX = wlrTouchDownX event
+    let evtY = wlrTouchDownY event
 
     (gX, gY) <- liftIO $ absCoordsToGlobal cursor
         (wlrTouchDownDev event)
         (wlrTouchDownX event)
         (wlrTouchDownY event)
-        (wlrTouchDownWidth event)
-        (wlrTouchDownHeight event)
 
     viewM <- getViewUnder layout gX gY
     (Just seat) <- getSeat
@@ -231,15 +229,13 @@ handleTouchMotion layout cursor outref emuRef event_ptr = do
     emulate <- IM.lookup (fromIntegral $ wlrTouchMotionId event) <$> liftIO (readIORef emuRef)
     (Just seat) <- getSeat
 
-    let evtX = wlrTouchMotionX event / wlrTouchMotionWidth event
-    let evtY = wlrTouchMotionY event / wlrTouchMotionHeight event
+    let evtX = wlrTouchMotionX event
+    let evtY = wlrTouchMotionY event
 
     (gX, gY) <- liftIO $ absCoordsToGlobal cursor
         (wlrTouchMotionDev event)
         (wlrTouchMotionX event)
         (wlrTouchMotionY event)
-        (wlrTouchMotionWidth event)
-        (wlrTouchMotionHeight event)
 
     case fromJust emulate of
         TouchNative v _ _ -> do -- Actually do touch event
@@ -401,8 +397,8 @@ handleCursorMotionAbs cursor event_ptr = do
     act cursor
         (eventPointerAbsMotionTime event)
         (eventPointerAbsMotionDevice event)
-        (eventPointerAbsMotionX event / eventPointerAbsMotionWidth event)
-        (eventPointerAbsMotionY event / eventPointerAbsMotionHeight event)
+        (eventPointerAbsMotionX event)
+        (eventPointerAbsMotionY event)
 
 
 handleCursorButton :: Cursor -> Ptr WlrEventPointerButton -> IO ()
@@ -444,11 +440,11 @@ handleToolAxis layout cursor outref event_ptr = do
     updatePosition layout cursor outref (fromIntegral $ toolAxisEvtTime event) Intentional
 
     where   xValue :: [ToolAxis] -> Maybe Double
-            xValue (AxisX v w:_) = Just (v / w)
+            xValue (AxisX v:_) = Just v
             xValue (_:xs) = xValue xs
             xValue [] = Nothing
             yValue :: [ToolAxis] -> Maybe Double
-            yValue (AxisY v h:_) = Just (v / h)
+            yValue (AxisY v:_) = Just v
             yValue (_:xs) = yValue xs
             yValue [] = Nothing
 
