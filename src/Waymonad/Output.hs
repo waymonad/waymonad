@@ -21,6 +21,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 {-|
 Module      : Output
 Description : The output type for Waymonad
@@ -187,12 +188,10 @@ handleOutputAdd' handler hook output = do
     current <- wayBindingOutputs <$> getState
     active <- liftIO $ newIORef False
 
-    mainLayer <- liftIO $ newIORef []
-    floatLayer <- liftIO $ newIORef []
-    overrideLayer <- liftIO $ newIORef []
-    backgroundLayer <- liftIO $ newIORef []
-    let layers = [overrideLayer, floatLayer, mainLayer, backgroundLayer]
-        layerMap = M.fromList [("override", overrideLayer), ("floating", floatLayer), ("main", mainLayer), ("background", backgroundLayer)]
+    let layerNames = ["overlay", "top", "override", "floating", "main", "bottom", "background"]
+    layerPairs <- liftIO $ mapM (\x -> (x,) <$> newIORef []) layerNames
+    let layers = map snd layerPairs
+        layerMap = M.fromList layerPairs
     outputDamageR <- liftIO allocateRegion
     outputBuf1 <- liftIO allocateRegion
     outputBuf2 <- liftIO allocateRegion

@@ -235,17 +235,17 @@ instance Ord ws => Layouted (ViewSet ws) ws where
         | otherwise = fromMaybe vs $ adjustWS' (modifyFocused s $ mapWSMaybe modify) ws vs
             where   modify :: HLWorkspace ws -> Maybe (HLWorkspace ws)
                     modify (U.Workspace (GenericLayout l) z) = Just $ case handleMessage l s m of
-                        Nothing -> U.Workspace (GenericLayout l) Nothing
+                        Nothing -> U.Workspace (GenericLayout l) z
                         Just nl -> U.Workspace (GenericLayout nl) z
     broadcastWS m ws vs = fromMaybe vs $ adjustWS' (mapWSMaybe' modify) ws vs
         where   modify :: HLWorkspace ws -> Maybe (HLWorkspace ws)
                 modify (U.Workspace (GenericLayout l) z) = Just $ case broadcastMessage l m of
-                    Nothing -> U.Workspace (GenericLayout l) Nothing
+                    Nothing -> U.Workspace (GenericLayout l) z
                     Just nl -> U.Workspace (GenericLayout nl) z
     broadcastVS m _ (ViewSet wss d) = ViewSet (fmap (\ws -> fromMaybe ws $ mapWSMaybe' modify ws) wss) d
         where   modify :: HLWorkspace ws -> Maybe (HLWorkspace ws)
                 modify (U.Workspace (GenericLayout l) z) = Just $ case broadcastMessage l m of
-                    Nothing -> U.Workspace (GenericLayout l) Nothing
+                    Nothing -> U.Workspace (GenericLayout l) z
                     Just nl -> U.Workspace (GenericLayout nl) z
 
 instance WSTag ws => FocusCore (ViewSet ws) ws where

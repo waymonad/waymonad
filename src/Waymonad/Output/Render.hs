@@ -49,7 +49,7 @@ import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox, printMatrix)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface, subSurfaceGetSurface, surfaceGetSubs, subSurfaceGetBox
-    , surfaceGetCallbacks, getCurrentState, callbackGetCallback
+    , surfaceGetCallbacks, getCurrentState, callbackGetCallback, surfaceHasBuffer
     , callbackGetResource, surfaceGetTexture, surfaceGetTransform
     )
 
@@ -90,38 +90,40 @@ renderDamaged render output damage box act = do
 
 outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox !bx !by !bw !bh) = do
-    rend <- backendGetRenderer =<< outputGetBackend output
-    outputScale <- getOutputScale output
-    texture <- surfaceGetTexture surface
-    let surfBox = WlrBox
-            (floor $ fromIntegral bx * outputScale)
-            (floor $ fromIntegral by * outputScale)
-            (ceiling $ fromIntegral bw * outputScale)
-            (ceiling $ fromIntegral bh * outputScale)
+    hasBuffer <- surfaceHasBuffer surface
+    when hasBuffer $ do
+        rend <- backendGetRenderer =<< outputGetBackend output
+        outputScale <- getOutputScale output
+        texture <- surfaceGetTexture surface
+        let surfBox = WlrBox
+                (floor $ fromIntegral bx * outputScale)
+                (floor $ fromIntegral by * outputScale)
+                (ceiling $ fromIntegral bw * outputScale)
+                (ceiling $ fromIntegral bh * outputScale)
 
 
-    withMatrix $ \mat -> do
-        surfTransform <- invertOutputTransform <$> surfaceGetTransform surface
-        matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
-        renderDamaged rend output damage baseBox $
-            renderWithMatrix rend texture mat
+        withMatrix $ \mat -> do
+            surfTransform <- invertOutputTransform <$> surfaceGetTransform surface
+            matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
+            renderDamaged rend output damage baseBox $
+                renderWithMatrix rend texture mat
 
-    subs <- surfaceGetSubs surface
-    forM_ subs $ \sub -> do
-        sbox <- subSurfaceGetBox sub
-        subsurf <- subSurfaceGetSurface sub
-        outputHandleSurface
-            comp
-            secs
-            output
-            damage
-            subsurf
-            scaleFactor
-            sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + bx
-                , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + by
-                , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
-                , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
-                }
+        subs <- surfaceGetSubs surface
+        forM_ subs $ \sub -> do
+            sbox <- subSurfaceGetBox sub
+            subsurf <- subSurfaceGetSurface sub
+            outputHandleSurface
+                comp
+                secs
+                output
+                damage
+                subsurf
+                scaleFactor
+                sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + bx
+                    , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + by
+                    , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
+                    , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
+                    }
 
 outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
 outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurface view) $ \surface -> do
