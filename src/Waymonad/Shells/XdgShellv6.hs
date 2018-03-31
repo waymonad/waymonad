@@ -32,8 +32,6 @@ module Waymonad.Shells.XdgShellv6
     )
 where
 
-import Debug.Trace
-
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM_, unless)
 import Control.Monad.IO.Class
@@ -151,7 +149,8 @@ handleXdgPopup :: View -> IO Point -> Ptr R.WlrXdgPopup -> Way vs ws ()
 handleXdgPopup view getParentPos pop = do
     unconstrainPopup view pop
     base <- liftIO $ R.xdgPopupGetBase pop
-    let getPopPos = do
+
+    pos <- liftIO $ do
             Point parentX parentY <- getParentPos
             stateBox <- liftIO $ fmap (fromMaybe (WlrBox 0 0 0 0)) $ R.getPopupGeometry base
 
@@ -162,6 +161,8 @@ handleXdgPopup view getParentPos pop = do
             let y = parentY + stateY
 
             pure $ Point x y
+
+    let getPopPos = pure pos
     let getSurfPos = do
             Point x y <- getPopPos
             popBox <- liftIO $ R.getGeometry base
