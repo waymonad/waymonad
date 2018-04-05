@@ -39,13 +39,12 @@ import Foreign.Ptr (Ptr)
 import System.IO.Unsafe (unsafePerformIO)
 
 import Graphics.Wayland.Server (DisplayServer, displayInitShm)
-import Graphics.Wayland.WlRoots.Backend (Backend)
+import Graphics.Wayland.WlRoots.Backend (Backend, backendGetRenderer)
 import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
 import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
 import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..), modifiersToField)
 import Graphics.Wayland.WlRoots.OutputLayout (createOutputLayout)
-import Graphics.Wayland.WlRoots.Render.Gles2 (rendererCreate)
 import Graphics.Wayland.WlRoots.Render.Color (Color)
 import Text.XkbCommon.InternalTypes (Keysym(..))
 
@@ -74,7 +73,7 @@ makeCompositor
     -> Way vs ws Compositor
 makeCompositor inputAdd display backend = do
     liftIO $ hPutStrLn stderr "Creating compositor"
-    renderer <- liftIO $ rendererCreate backend
+    renderer <- liftIO $ backendGetRenderer backend
     void $ liftIO $ displayInitShm display
     comp <- liftIO $ compositorCreate display renderer
     devManager <- liftIO $ managerCreate display
@@ -84,7 +83,6 @@ makeCompositor inputAdd display backend = do
 
     pure Compositor
         { compDisplay = display
-        , compRenderer = renderer
         , compCompositor = comp
         , compManager = devManager
         , compBackend = backend

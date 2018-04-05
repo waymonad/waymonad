@@ -26,6 +26,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Set (Set)
 import Foreign.Ptr
 
+import Graphics.Wayland.WlRoots.Backend (backendGetRenderer)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), scaleBox)
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
 import Graphics.Wayland.WlRoots.Render.Color (Color (..), darkenBy)
@@ -35,6 +36,7 @@ import Graphics.Wayland.WlRoots.Output
     , getTransMatrix
     , getOutputTransform
     , getOutputScale
+    , outputGetBackend
     )
 
 import Waymonad (getState)
@@ -64,7 +66,7 @@ renderDeco _    _ = \_ _ _ -> pure ()
 
 simpleQuad :: Way vs ws Color -> Ptr WlrOutput -> WlrBox -> WlrBox -> Way vs ws ()
 simpleQuad getCol out (WlrBox ox oy ow oh) (WlrBox ix iy iw ih) = do
-    Compositor {compRenderer = renderer} <- wayCompositor <$> getState
+    renderer <- liftIO (backendGetRenderer =<< outputGetBackend out)
     color <- getCol
     liftIO $ withMatrix $ \mat -> do
         scale <- getOutputScale out

@@ -82,7 +82,6 @@ import Graphics.Wayland.WlRoots.Compositor (WlrCompositor)
 import Graphics.Wayland.WlRoots.DeviceManager (WlrDeviceManager)
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 import Graphics.Wayland.WlRoots.OutputLayout (WlrOutputLayout)
-import Graphics.Wayland.WlRoots.Render (Renderer)
 import Graphics.Wayland.WlRoots.Render.Color (Color)
 
 import {-# SOURCE #-} Waymonad.Input (Input)
@@ -103,7 +102,6 @@ data SomeEvent = forall e. EventClass e => SomeEvent e
 -- | (static) core wlroots structs.
 data Compositor = Compositor
     { compDisplay :: DisplayServer
-    , compRenderer :: Ptr Renderer
     , compCompositor :: Ptr WlrCompositor
     , compManager :: Ptr WlrDeviceManager
     , compBackend :: Ptr Backend

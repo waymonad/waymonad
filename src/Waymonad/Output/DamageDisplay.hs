@@ -30,13 +30,14 @@ import Data.IntMap (IntMap)
 import Data.Maybe (fromMaybe)
 import System.IO.Unsafe (unsafePerformIO)
 
+import Graphics.Wayland.WlRoots.Backend (backendGetRenderer)
 import Graphics.Wayland.WlRoots.Render ( rendererScissor, rendererClear, renderColoredQuad)
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
 import Graphics.Wayland.WlRoots.Output
     ( getOutputDamage , isOutputEnabled, getOutputNeedsSwap , outputTransformedResolution
-    , setOutputNeedsSwap, getOutputTransform, getTransMatrix
+    , setOutputNeedsSwap, getOutputTransform, getTransMatrix, outputGetBackend
     )
 import Graphics.Pixman
 
@@ -100,8 +101,8 @@ damageDisplay depth secs out@Output {outputRoots = output, outputLayout = layers
     needsSwap <- liftIO $ getOutputNeedsSwap output
     liftIO $ when (enabled) $ notifyLayers secs layers
     when (enabled && needsSwap) $ do
-        comp <- wayCompositor <$> getState
-        reEnable <- renderOn output (compRenderer comp) $ \age -> do
+        renderer <- liftIO (backendGetRenderer =<< outputGetBackend output)
+        reEnable <- renderOn output renderer $ \age -> do
             tracker <- liftIO $ getOutputTracker depth out
             let withDRegion = \act -> if age < 0 || age > 1
                 then withRegion $ \region -> do
@@ -115,14 +116,14 @@ damageDisplay depth secs out@Output {outputRoots = output, outputLayout = layers
                         pixmanRegionUnion region (getOutputDamage output)
                         mapM_ (pixmanRegionUnion region) $ damageRegions tracker
                         act region
-            renderBody <- makeCallback $ handleLayers comp secs output layers
+            renderBody <- makeCallback $ handleLayers secs output layers
             liftIO $ withDRegion $ \region -> do
                 notEmpty <- pixmanRegionNotEmpty region
                 when notEmpty $ do
                     boxes <- pixmanRegionBoxes region
                     forM_ boxes $ \box -> do
-                        scissorOutput (compRenderer comp) output $ boxToWlrBox box
-                        liftIO $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+                        scissorOutput renderer output $ boxToWlrBox box
+                        liftIO $ rendererClear renderer $ Color 0.25 0.25 0.25 1
 
                     renderBody region
 
@@ -139,12 +140,12 @@ damageDisplay depth secs out@Output {outputRoots = output, outputLayout = layers
                         let color = Color 1 0 0 intensity
                         dBoxes <- pixmanRegionBoxes damage
                         forM_ dBoxes $ \dBox -> do
-                            scissorOutput (compRenderer comp) output $ boxToWlrBox dBox
+                            scissorOutput renderer output $ boxToWlrBox dBox
                             matrixProjectBox mat oBox transform 0 $ getTransMatrix output
-                            renderColoredQuad (compRenderer comp) color mat
+                            renderColoredQuad renderer color mat
 
 
-                    rendererScissor (compRenderer comp) Nothing
+                    rendererScissor renderer Nothing
                     let (b1, b2) = outputOldDamage out
                     copyRegion b1 b2
                     copyRegion b2 $ outputDamage out

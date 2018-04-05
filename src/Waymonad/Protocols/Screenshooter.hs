@@ -27,6 +27,7 @@ where
 import Control.Monad.IO.Class (liftIO)
 import Foreign.Ptr (Ptr)
 
+import Graphics.Wayland.WlRoots.Backend (backendGetRenderer)
 import Graphics.Wayland.WlRoots.Screenshooter
 
 import Waymonad.Start (Bracketed (..))
@@ -36,7 +37,8 @@ import Waymonad.Types (Way, WayBindingState (..), Compositor (..))
 
 makeManager :: () -> Way vs a (Ptr WlrScreenshooter)
 makeManager _ = do
-    Compositor {compDisplay = display, compRenderer = renderer} <- wayCompositor <$> getState
+    Compositor {compDisplay = display, compBackend = backend} <- wayCompositor <$> getState
+    renderer <- liftIO $ backendGetRenderer backend
     ptr <- liftIO $ screenshooterCreate display renderer
     registerGlobal "Screenshooter" =<< liftIO (getScreenshooterGlobal ptr)
     pure ptr

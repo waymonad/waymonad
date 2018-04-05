@@ -86,8 +86,8 @@ renderDamaged render output damage box act = do
             scissorOutput render output $ boxToWlrBox pbox
             act
 
-outputHandleSurface :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
-outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox !bx !by !bw !bh) = do
+outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
+outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !by !bw !bh) = do
     hasBuffer <- surfaceHasBuffer surface
     when hasBuffer $ do
         rend <- backendGetRenderer =<< outputGetBackend output
@@ -111,7 +111,6 @@ outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox 
             sbox <- subSurfaceGetBox sub
             subsurf <- subSurfaceGetSurface sub
             outputHandleSurface
-                comp
                 secs
                 output
                 damage
@@ -123,8 +122,8 @@ outputHandleSurface comp secs output damage surface scaleFactor baseBox@(WlrBox 
                     , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                     }
 
-outputHandleView :: Compositor -> Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
-outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurface view) $ \surface -> do
+outputHandleView :: Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
+outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface view) $ \surface -> do
     hasCSD <- viewHasCSD view
     let box = getDecoBox hasCSD prio obox
     scale <- liftIO $ viewGetScale view
@@ -132,12 +131,12 @@ outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurfa
     let lBox = local { boxX = boxX box + boxX local, boxY = boxY box + boxY local}
 
     decoCB <- unliftWay $ renderDeco hasCSD prio output obox box
-    liftIO $ renderDamaged (compRenderer comp) output d obox decoCB
+    renderer <- liftIO (backendGetRenderer =<< outputGetBackend output)
+    liftIO $ renderDamaged renderer output d obox decoCB
 
-    liftIO $ outputHandleSurface comp secs output d surface scale lBox
+    liftIO $ outputHandleSurface secs output d surface scale lBox
     pure $ renderViewAdditional (\s b ->
         void $ outputHandleSurface
-            comp
             secs
             output
             d
@@ -151,14 +150,14 @@ outputHandleView comp secs output d (!view, !prio, !obox) = doJust (getViewSurfa
         )
         view
 
-handleLayers :: Compositor -> Double -> Ptr WlrOutput
+handleLayers :: Double -> Ptr WlrOutput
              -> [IORef [(View, SSDPrio, WlrBox)]] 
              -> PixmanRegion32 -> Way vs ws ()
-handleLayers _ _ _ [] _ = pure ()
-handleLayers comp secs output (l:ls) d = do
-    handleLayers comp secs output ls d
+handleLayers _ _ [] _ = pure ()
+handleLayers secs output (l:ls) d = do
+    handleLayers secs output ls d
     views <- liftIO $ readIORef l
-    overs <- mapM (outputHandleView comp secs output d) views
+    overs <- mapM (outputHandleView secs output d) views
     liftIO $ sequence_ overs
 
 notifySurface :: Double -> Ptr WlrSurface -> IO ()
@@ -203,8 +202,8 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
     liftIO $ when enabled $ notifyLayers secs layers
 
     when (enabled && needsSwap) $ do
-        comp <- wayCompositor <$> getState
-        void . renderOn output (compRenderer comp) $ \age -> do
+        renderer <- liftIO (backendGetRenderer =<< outputGetBackend (outputRoots out))
+        void . renderOn output renderer $ \age -> do
             let withDRegion = \act -> if age < 0 || age > 1
                 then withRegion $ \region -> do
                         Point w h <- outputTransformedResolution output
@@ -216,19 +215,19 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
                         pixmanRegionUnion region b2
                         pixmanRegionUnion region (getOutputDamage output)
                         act region
-            renderBody <- makeCallback $ handleLayers comp secs output layers
+            renderBody <- makeCallback $ handleLayers secs output layers
             liftIO $ withDRegion $ \region -> do
                 notEmpty <- pixmanRegionNotEmpty region
                 when notEmpty $ do
                     boxes <- pixmanRegionBoxes region
 
                     forM_ boxes $ \box -> do
-                        scissorOutput (compRenderer comp) output $ boxToWlrBox box
-                        liftIO $ rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+                        scissorOutput renderer output $ boxToWlrBox box
+                        liftIO $ rendererClear renderer $ Color 0.25 0.25 0.25 1
 
                     renderBody region
 
-                    rendererScissor (compRenderer comp) Nothing
+                    rendererScissor renderer Nothing
                     let (b1, b2) = outputOldDamage out
                     copyRegion b1 b2
                     copyRegion b2 $ outputDamage out
@@ -241,15 +240,15 @@ fieteHandler secs Output {outputRoots = output, outputLayout = layers} = do
     needsSwap <- liftIO $ getOutputNeedsSwap output
     liftIO $ when enabled $ notifyLayers secs layers
     when (enabled && needsSwap) $ do
-        comp <- wayCompositor <$> getState
-        void . renderOn output (compRenderer comp) $ \_ -> do
+        renderer <- liftIO (backendGetRenderer =<< outputGetBackend output)
+        void . renderOn output renderer $ \_ -> do
             let withDRegion act = withRegion $ \region -> do
                         Point w h <- outputTransformedResolution output
                         resetRegion region . Just $ WlrBox 0 0 w h
-                        scissorOutput (compRenderer comp) output $ WlrBox 0 0 w h
+                        scissorOutput renderer output $ WlrBox 0 0 w h
                         act region
 
-            renderBody <- makeCallback $ handleLayers comp secs output layers
+            renderBody <- makeCallback $ handleLayers secs output layers
             liftIO $ withDRegion $ \region -> do
-                rendererClear (compRenderer comp) $ Color 0.25 0.25 0.25 1
+                rendererClear renderer $ Color 0.25 0.25 0.25 1
                 renderBody region
