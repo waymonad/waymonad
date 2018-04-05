@@ -119,7 +119,7 @@ library
   exposed-modules:        Waymonad.Protocols.LinuxDMABuf
   exposed-modules:        Waymonad.Protocols.Background
 
-  exposed-modules:        Waymonad.Shells.Layers
+  --exposed-modules:        Waymonad.Shells.Layers
   exposed-modules:        Waymonad.Shells.WlShell
   exposed-modules:        Waymonad.Shells.XWayland
   exposed-modules:        Waymonad.Shells.XdgShell
@@ -129,6 +129,7 @@ library
   exposed-modules:        Waymonad.Actions.Startup.Generic
 
   exposed-modules:        Waymonad.Start
+  exposed-modules:        Waymonad.Systemd
   exposed-modules:        Waymonad.Utility.Base
   exposed-modules:        Waymonad.Actions.Spawn
   exposed-modules:        Waymonad.Actions.Spawn.X11
