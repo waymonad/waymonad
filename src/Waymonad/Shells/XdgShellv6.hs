@@ -47,7 +47,7 @@ import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), translateBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceAt, surfaceGetSize)
 
 
 import Waymonad.Managehook (insertView, removeView)
@@ -252,14 +252,13 @@ renderPopups fun surf = do
 
 xdgPopupAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgPopupAt (XdgSurface surf) x y = do
-    (popup, popx, popy) <- MaybeT (liftIO $ R.xdgPopupAt surf x y)
-    ret <- MaybeT (liftIO $ R.xdgSurfaceGetSurface popup)
-    pure $ (ret, x - popx, y - popy)
+    (ret, popx, popy) <- MaybeT (liftIO $ R.xdgSurfaceAt surf x y)
+    pure $ (ret, popx, popy)
 
 xdgSubsurfaceAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgSubsurfaceAt (XdgSurface surf) x y = do
     wlrsurf <- MaybeT (liftIO $ R.xdgSurfaceGetSurface surf)
-    MaybeT (liftIO $ subSurfaceAt wlrsurf x y)
+    MaybeT (liftIO $ surfaceAt wlrsurf x y)
 
 xdgMainSurf :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgMainSurf (XdgSurface surf) x y = MaybeT . liftIO $ do

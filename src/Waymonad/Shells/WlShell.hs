@@ -42,7 +42,7 @@ import Data.Text (Text)
 import Graphics.Wayland.Server (DisplayServer, clientDestroy)
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..))
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, subSurfaceAt, surfaceGetSize)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceAt, surfaceGetSize)
 
 
 import Waymonad.Managehook (insertView, removeView)
@@ -192,14 +192,13 @@ getBoundingBox surf = doJust (R.wlShellSurfaceGetSurface surf) $ \wlrsurf -> do
 
 wlPopupAt :: MonadIO m => WlSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 wlPopupAt (WlSurface surf) x y = do
-    (popup, popx, popy) <- MaybeT (liftIO $ R.shellPopupAt surf x y)
-    ret <- MaybeT (liftIO $ R.wlShellSurfaceGetSurface popup)
-    pure $ (ret, x - popx, y - popy)
+    (ret, popx, popy) <- MaybeT (liftIO $ R.shellSurfaceAt surf x y)
+    pure $ (ret, popx, popy)
 
 wlSubsurfaceAt :: MonadIO m => WlSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 wlSubsurfaceAt (WlSurface surf) x y = do
     wlrsurf <- MaybeT (liftIO $ R.wlShellSurfaceGetSurface surf)
-    MaybeT (liftIO $ subSurfaceAt wlrsurf x y)
+    MaybeT (liftIO $ surfaceAt wlrsurf x y)
 
 wlMainSurf :: MonadIO m => WlSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 wlMainSurf (WlSurface surf) x y = MaybeT . liftIO $ do
