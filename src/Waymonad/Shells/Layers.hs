@@ -18,7 +18,7 @@ import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
-import Graphics.Wayland.WlRoots.Surface (subSurfaceAt)
+import Graphics.Wayland.WlRoots.Surface (surfaceAt)
 
 import Waymonad (getState, makeCallback, makeCallback2)
 import Waymonad.Types
@@ -31,8 +31,6 @@ import Waymonad.View (createView, resizeView, setViewManager)
 import qualified Data.Set as S
 import qualified Graphics.Wayland.WlRoots.SurfaceLayers as R
 import qualified Data.IntMap as IM
-
-import Debug.Trace
 
 data LayerShellLayer = LayerShellLayer
     { layerShellBottom     :: [R.LayerSurface]
@@ -48,7 +46,7 @@ layerName R.LayerShellLayerTop = "top"
 layerName R.LayerShellLayerOverlay = "overlay"
 
 data LayerShell = LayerShell
-    { layerShellRoots    :: R.LayerShell
+    { _layerShellRoots   :: R.LayerShell
     , layerShellLayers   :: IORef LayerShellLayer
     , layerShellSurfaces :: IORef (Set R.LayerSurface)
     , layerShellViews    :: IORef (IntMap View)
@@ -146,7 +144,12 @@ layoutLayer b@(WlrBox x y w h) ((surf,state):xs) =
             Just R.AnchorLeft -> (WlrBox (x + fromIntegral (R.surfaceStateMarginLeft state)) (y + offsetY) width height, surf)
             -- Left of box + width of box - width of window - margin
             Just R.AnchorRight -> (WlrBox (x + w - width - fromIntegral (R.surfaceStateMarginRight state)) (y + offsetY) width height, surf)
-            Nothing -> (WlrBox (x + offsetX) (y + offsetY) width height, surf) -- TODO: Test for corners
+            Nothing -> case R.getAnchorCorner anchor of
+                Nothing -> (WlrBox (x + offsetX) (y + offsetY) width height, surf)
+                Just R.TopLeft -> (WlrBox (x + fromIntegral (R.surfaceStateMarginLeft state)) (y + fromIntegral (R.surfaceStateMarginTop state)) width height, surf)
+                Just R.TopRight -> (WlrBox (x + w - width - fromIntegral (R.surfaceStateMarginRight state)) (y + fromIntegral (R.surfaceStateMarginTop state)) width height, surf)
+                Just R.BottomLeft -> (WlrBox (x + fromIntegral (R.surfaceStateMarginLeft state)) (y + h - height - fromIntegral (R.surfaceStateMarginBottom state)) width height, surf)
+                Just R.BottomRight -> (WlrBox (x + w - width - fromIntegral (R.surfaceStateMarginRight state)) (y + h - height - fromIntegral (R.surfaceStateMarginBottom state)) width height, surf)
      in (self:others, final)
 
 layoutOutput :: (R.LayerSurface -> View) -> LayerShellLayer -> Output -> Way vs ws ()
@@ -237,7 +240,7 @@ instance ShellSurface LayerSurface where
         mainSurf <- getSurface surf
         case mainSurf of
             Nothing -> pure Nothing
-            Just val -> subSurfaceAt val x y
+            Just val -> surfaceAt val x y
     setPosition _ _ _ = pure ()
     getID _ = 0
     getTitle _ = pure Nothing
