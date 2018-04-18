@@ -92,6 +92,7 @@ import qualified Waymonad.Shells.XWayland as XWay
 import qualified Waymonad.Shells.XdgShell as Xdg
 import qualified Waymonad.Shells.XdgShellv6 as Xdgv6
 import qualified Waymonad.Shells.WlShell as Wl
+import qualified Waymonad.Shells.Layers as Layer
 
 import Waymonad.Main
 import "waymonad" Config
@@ -207,7 +208,7 @@ myConf modi = WayUserConf
         , wayHooksSeatFocusChange = focusFollowPointer
         , wayHooksNewOutput       = H.outputAddHook
         }
-    , wayUserConfShells = [Xdg.makeShell, Xdgv6.makeShell, Wl.makeShell, XWay.makeShell]
+    , wayUserConfShells = [Xdg.makeShell, Xdgv6.makeShell, Wl.makeShell, XWay.makeShell, Layer.makeShell]
     , wayUserConfLog = pure ()
     , wayUserConfOutputAdd = \out -> setPreferdMode (outputRoots out) $
         addOutputToWork out Nothing
