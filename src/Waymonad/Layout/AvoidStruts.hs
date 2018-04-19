@@ -30,17 +30,20 @@ import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
+import Waymonad.Extensible (ExtensionClass (..))
 import Waymonad.Output (Output(outputName))
-import Waymonad.Utility.Base (whenJust)
-import Waymonad.ViewSet
-import Waymonad.Utility (sendMessageOn)
 import Waymonad.Types
+import Waymonad.Utility (sendMessageOn)
+import Waymonad.Utility.Base (whenJust)
+import Waymonad.Utility.Extensible (getEState, modifyEState)
+import Waymonad.ViewSet
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 
+import Debug.Trace
 
 avoidStruts :: l -> StrutAvoider Struts l
 avoidStruts = StrutAvoider (Struts 0 0 0 0)
@@ -77,7 +80,7 @@ instance LayoutClass l => LayoutClass (StrutAvoider Struts l) where
         "StrutAvoider(" `T.append` currentDesc child `T.append` ")"
 
 instance (FocusCore vs ws, GenericLayoutClass l vs ws) => GenericLayoutClass (StrutAvoider Struts l) vs ws where
-    pureLayout (StrutAvoider s l) vs ws box =
+    pureLayout (StrutAvoider s l) vs ws box =traceShowId $ 
         pureLayout l vs ws $ applyStruts s box
 
 applyStruts :: Struts -> WlrBox -> WlrBox
@@ -87,12 +90,6 @@ applyStruts (Struts n s e we) (WlrBox x y wi h) =
 setWSStruts :: (FocusCore vs ws, WSTag ws, Layouted vs ws)
             => ws -> Struts -> Way vs ws ()
 setWSStruts ws struts = sendMessageOn ws (StrutMessage struts)
-
-constStrutHandler :: (FocusCore vs ws, WSTag ws, Layouted vs ws)
-                  => [(Text, Struts)] -> OutputMappingEvent ws -> Way vs ws ()
-constStrutHandler xs (OutputMappingEvent out _ now) =
-    let struts = lookup (outputName out) xs
-     in whenJust now $ \ws -> setWSStruts ws $ fromMaybe (Struts 0 0 0 0) struts
 
 -- | Get the state for the current workspace
 getState :: Ord ws => ws -> StrutAvoider (Struts, Map ws Struts) vs -> Struts
@@ -125,3 +122,26 @@ instance (Layouted vs ws, Ord ws) => Layouted (StrutAvoider (Struts, Map ws Stru
         (Just (StrutMessage v)) -> StrutAvoider (v, mempty) vs
         Nothing -> StrutAvoider state (broadcastVS message ws vs)
     getLayout (StrutAvoider _ vs) ws = getLayout vs ws
+
+-- Manage hooks
+
+constStrutHandler :: (FocusCore vs ws, WSTag ws, Layouted vs ws)
+                  => [(Text, Struts)] -> OutputMappingEvent ws -> Way vs ws ()
+constStrutHandler xs (OutputMappingEvent out _ now) =
+    let struts = lookup (outputName out) xs
+     in whenJust now $ \ws -> setWSStruts ws $ fromMaybe (Struts 0 0 0 0) struts
+
+newtype StrutMap = StrutMap { unSM :: Map Text Struts} deriving (Eq, Show)
+
+instance ExtensionClass StrutMap where
+    initialValue = StrutMap mempty
+
+updateStruts :: Text -> Struts -> Way vs ws ()
+updateStruts out strut = modifyEState (traceShowId . StrutMap . M.insert out strut . unSM)
+
+managedStrutHandler :: (FocusCore vs ws, WSTag ws, Layouted vs ws)
+                    => OutputMappingEvent ws -> Way vs ws ()
+managedStrutHandler (OutputMappingEvent out _ now) = do
+    StrutMap xs <- getEState
+    let struts = M.lookup (outputName out) xs
+     in whenJust now $ \ws -> setWSStruts ws $ fromMaybe (Struts 0 0 0 0) struts

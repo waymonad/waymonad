@@ -55,6 +55,7 @@ import Waymonad.IPC (IPCGroup (..))
 import Waymonad.Input (attachDevice)
 import Waymonad.Input.Cursor.Bindings (makeDefaultMappings)
 import Waymonad.Input.Seat (useClipboardText, setSeatKeybinds, resetSeatKeymap)
+import Waymonad.Layout.AvoidStruts
 import Waymonad.Layout.Choose
 import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
 import Waymonad.Layout.Ratio 
@@ -177,7 +178,7 @@ bindings modi =
 myConf :: WlrModifier -> WayUserConf (ViewSet Text) Text
 myConf modi = WayUserConf
     { wayUserConfWorkspaces   = workspaces
-    , wayUserConfLayouts      = sameLayout . mkSmartBorders 2. mkTFull . mkMirror $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
+    , wayUserConfLayouts      = sameLayout . avoidStruts . mkSmartBorders 2. mkTFull . mkMirror $ (Tall 0.5 ||| TwoPane 0.5 ||| Spiral 0.618)
     , wayUserConfManagehook   = XWay.overrideXRedirect <> manageSpawnOn <> manageX11SpawnOn
     , wayUserConfEventHook    = idleDPMSHandler <> idleLog
     , wayUserConfKeybinds     = bindings modi
@@ -202,7 +203,7 @@ myConf modi = WayUserConf
     , wayUserConfPostHook    = [getScreenshooterBracket]
     , wayUserConfCoreHooks   = WayHooks
         { wayHooksVWSChange       = wsScaleHook
-        , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt
+        , wayHooksOutputMapping   = enterLeaveHook <> handlePointerSwitch <> SM.mappingChangeEvt <> managedStrutHandler
         , wayHooksSeatWSChange    = SM.wsChangeLogHook <> handleKeyboardSwitch
         , wayHooksSeatOutput      = SM.outputChangeEvt {-<> handleKeyboardPull-} <> handlePointerPull
         , wayHooksSeatFocusChange = focusFollowPointer

@@ -27,10 +27,13 @@ import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.LayerCache
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
 import Waymonad.View (createView, resizeView, setViewManager)
+import Waymonad.Layout.AvoidStruts (updateStruts, Struts (..))
 
 import qualified Data.Set as S
 import qualified Graphics.Wayland.WlRoots.SurfaceLayers as R
 import qualified Data.IntMap as IM
+
+import Debug.Trace
 
 data LayerShellLayer = LayerShellLayer
     { layerShellBottom     :: [R.LayerSurface]
@@ -152,6 +155,13 @@ layoutLayer b@(WlrBox x y w h) ((surf,state):xs) =
                 Just R.BottomRight -> (WlrBox (x + w - width - fromIntegral (R.surfaceStateMarginRight state)) (y + h - height - fromIntegral (R.surfaceStateMarginBottom state)) width height, surf)
      in (self:others, final)
 
+-- data Struts = Struts
+--     { strutsNorth :: Int
+--     , strutsSouth :: Int
+--     , strutsEast  :: Int
+--     , strutsWest  :: Int
+--     } deriving (Show, Eq)
+
 layoutOutput :: (R.LayerSurface -> View) -> LayerShellLayer -> Output -> Way vs ws ()
 layoutOutput conv (LayerShellLayer bottom top overlay back) output = do
     startBox <- liftIO $ getEffectiveBox $ outputRoots output
@@ -159,11 +169,13 @@ layoutOutput conv (LayerShellLayer bottom top overlay back) output = do
     (topL, topB) <- getLayer overB top
 
     (bottomL, bottomB) <- getLayer topB bottom
-    (backL, _) <- getLayer bottomB back
+    (backL, backB) <- getLayer bottomB back
     setLayerContent "overlay" output $ map toLayout overL
     setLayerContent "top" output $ map toLayout topL
     setLayerContent "bottom" output $ map toLayout bottomL
     setLayerContent "background" output $ map toLayout backL
+
+    updateStruts (outputName output) $ makeStruts (traceShowId startBox) (traceShowId backB)
 
     -- send the views their size
     let tmp = fmap toLayout $ overL ++ topL ++ bottomL ++ backL
@@ -177,6 +189,12 @@ layoutOutput conv (LayerShellLayer bottom top overlay back) output = do
                 states <- mapM getLayerState xs
                 pure $ layoutLayer box $ catMaybes states
             toLayout (box, surf) = (conv surf, NoSSD mempty, box)
+            makeStruts (WlrBox bx by bw bh) (WlrBox fx fy fw fh) =
+                let west = fx - bx
+                    north = fy - by
+                    east = bw - fw - west
+                    south = bh - fh - north
+                 in Struts north south east west
 
 layoutShell :: LayerShell -> Way vs ws ()
 layoutShell shell = do
