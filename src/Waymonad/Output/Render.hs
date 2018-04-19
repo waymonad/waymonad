@@ -186,14 +186,7 @@ notifyLayers secs (l:ls) = liftIO $ do
     mapM_ (notifyView secs) views
 
 scissorOutput :: Ptr Renderer -> Ptr WlrOutput -> WlrBox -> IO ()
-scissorOutput rend output !box = do
-    Point w h <- outputTransformedResolution output
-    trans <- getOutputTransform output
-    let transform = composeOutputTransform
-            outputTransformFlipped_180
-            (invertOutputTransform trans)
-    let transed = boxTransform box transform w h
-    rendererScissor rend (Just transed)
+scissorOutput rend _ !box = rendererScissor rend (Just box)
 
 frameHandler :: WSTag a => Double -> Output -> Way vs a ()
 frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
