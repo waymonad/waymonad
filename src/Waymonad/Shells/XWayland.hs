@@ -197,6 +197,13 @@ handleX11Configure view surf evt = do
 
 handleX11Map :: (FocusCore vs ws, WSTag ws) => View -> Ptr X.X11Surface -> Way vs ws ()
 handleX11Map view surf = do
+    WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
+    doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \mainSurf -> liftIO $ do
+        sizeRef <- newIORef (fromIntegral w, fromIntegral h)
+        setViewMainSurface
+            view
+            sizeRef
+            mainSurf
     Point x y <- liftIO $ X.getX11SurfacePosition surf
     moveView view (fromIntegral x) (fromIntegral y)
     insertView view
@@ -261,7 +268,7 @@ handleXwaySurface ref surf = do
             logPutText loggerX11 Trace "Creating an normal view"
             view <- createView xwaySurf
             liftIO $ modifyIORef ref $ M.insert (ptrToInt surf) view
-            insertView view
+--            insertView view
 
             let signals = X.getX11SurfaceEvents surf
 

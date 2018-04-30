@@ -111,7 +111,6 @@ data View = forall a. ShellSurface a => View
     , viewDestroy  :: HaskellSignal View IO
     , viewResize   :: HaskellSignal View IO
     , viewID       :: Int
-    , viewTokens   :: [ListenerToken]
 
     , viewManager  :: IORef (Maybe ManagerData)
     }

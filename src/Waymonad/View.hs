@@ -60,6 +60,7 @@ module Waymonad.View
     , getViewSurfScale
     , viewTakesFocus
     , getViewFromSurface
+    , setViewMainSurface
     )
 where
 
@@ -121,12 +122,8 @@ viewCounter :: IORef Int
 {-# NOINLINE viewCounter #-}
 viewCounter = unsafePerformIO (newIORef 0)
 
-removeListeners :: MonadIO m => View -> m ()
-removeListeners View {viewTokens = toks} =
-    liftIO $ mapM_ removeListener toks
-
-handleCommit :: MonadIO m => View -> IORef (Double, Double) -> m ()
-handleCommit view ref = liftIO $ do
+handleCommit :: MonadIO m => View -> IORef (Double, Double) -> Ptr a -> m ()
+handleCommit view ref _ = liftIO $ do
     (width, height) <- getViewSize view
     (oldWidth, oldHeight) <- readIORef ref
     when (oldWidth /= width || oldHeight /= height) $ do
@@ -195,6 +192,13 @@ handleSubsurf view subSurf = do
 
     viewAddSurf view (subSurfaceGetDestroyEvent subSurf) getPos mainSurf
 
+setViewMainSurface :: MonadIO m => View -> IORef (Double, Double) -> Ptr WlrSurface -> m ()
+setViewMainSurface view sizeRef wlrSurf = liftIO $ do
+    let events = getWlrSurfaceEvents wlrSurf
+    viewAddSurf view (wlrSurfaceEvtDestroy events) (pure $ Point 0 0) wlrSurf
+    commitHandler <- setSignalHandler (wlrSurfaceEvtCommit events) (handleCommit view sizeRef)
+    setDestroyHandler (wlrSurfaceEvtDestroy events) (\_ -> removeListener commitHandler)
+
 createView :: (ShellSurface a, MonadIO m) => a -> m View
 createView surf = liftIO $ do
     (width, height) <- getSize surf
@@ -210,20 +214,11 @@ createView surf = liftIO $ do
 
 
     mainSurf <- getSurface surf
-    tokens <- case mainSurf of
-        Nothing -> pure []
+    case mainSurf of
+        Nothing -> pure ()
         Just wlrSurf -> do
-            let events = getWlrSurfaceEvents wlrSurf
-            viewAddSurf (unsafePerformIO $ readIORef viewRef) (wlrSurfaceEvtDestroy events) (pure $ Point 0 0) wlrSurf
-            destroyHandler <- addListener
-                (WlListener $ const $ removeListeners $ unsafePerformIO $ readIORef viewRef)
-                (wlrSurfaceEvtDestroy events)
             sizeRef <- newIORef (width, height)
-            commitHandler <- addListener
-                (WlListener $ const $ handleCommit (unsafePerformIO $ readIORef viewRef) sizeRef)
-                (wlrSurfaceEvtCommit events)
-
-            pure [destroyHandler, commitHandler]
+            setViewMainSurface (unsafePerformIO $ readIORef viewRef) sizeRef wlrSurf
 
     manager <- newIORef Nothing
     let ret = View
@@ -234,7 +229,6 @@ createView surf = liftIO $ do
             , viewDestroy = destroyCBs
             , viewResize = resizeCBs
             , viewID = idVal
-            , viewTokens = tokens
             , viewManager = manager
             }
 
