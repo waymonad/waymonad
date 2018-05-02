@@ -148,15 +148,17 @@ handleXdgPopup view getParentPos pop = do
     base <- liftIO $ R.xdgPopupGetBase pop
     let getPopPos = do
             Point parentX parentY <- getParentPos
-            stateBox <- liftIO $ R.getPopupGeometry base
+            stateBoxM <- liftIO $ R.getPopupGeometry base
+            pure $ case stateBoxM of
+                Just stateBox ->
+                    let stateX = boxX stateBox
+                        stateY = boxY stateBox
 
-            let stateX = boxX stateBox
-            let stateY = boxY stateBox
+                        x = parentX + stateX
+                        y = parentY + stateY
 
-            let x = parentX + stateX
-            let y = parentY + stateY
-
-            pure $ Point x y
+                     in Point x y
+                Nothing -> Point 0 0
     let getSurfPos = do
             Point x y <- getPopPos
             popBox <- liftIO $ R.getGeometry base
@@ -220,21 +222,21 @@ renderPopups fun surf = do
         let popX = boxX  popBox
         let popY = boxY popBox
 
-        stateBox <- liftIO $ R.getPopupGeometry popup
-        let stateX = boxX stateBox
-        let stateY = boxY stateBox
+        doJust (liftIO $ R.getPopupGeometry popup) $ \stateBox -> do
+            let stateX = boxX stateBox
+            let stateY = boxY stateBox
 
-        let x = stateX - popX
-        let y = stateY - popY
+            let x = stateX - popX
+            let y = stateY - popY
 
-        let box = WlrBox x y (boxWidth popBox) (boxHeight popBox)
+            let box = WlrBox x y (boxWidth popBox) (boxHeight popBox)
 
-        doJust (liftIO $ R.xdgSurfaceGetSurface popup) $ \wlrSurf -> do
-            Point w h <- liftIO $ surfaceGetSize wlrSurf
-            fun wlrSurf box { boxWidth = w, boxHeight = h }
-            renderPopups
-                (\s b -> fun s $ translateBox stateX stateY b)
-                popup
+            doJust (liftIO $ R.xdgSurfaceGetSurface popup) $ \wlrSurf -> do
+                Point w h <- liftIO $ surfaceGetSize wlrSurf
+                fun wlrSurf box { boxWidth = w, boxHeight = h }
+                renderPopups
+                    (\s b -> fun s $ translateBox stateX stateY b)
+                    popup
 
 xdgPopupAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
 xdgPopupAt (XdgSurface surf) x y = do

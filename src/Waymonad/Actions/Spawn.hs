@@ -74,7 +74,7 @@ import Waymonad (Way, setCallback, WayLoggers(loggerSpawner))
 import Waymonad.Extensible (ExtensionClass (..))
 import Waymonad.Managehook (Managehook, query, liftWay, InsertAction (InsertInto))
 import Waymonad.Utility (getDisplay)
-import Waymonad.Utility.Base (whenJust, ptrToInt)
+import Waymonad.Utility.Base (whenJust, ptrToInt, doJust)
 import Waymonad.Utility.Extensible (getEState , modifyEState)
 import Waymonad.Utility.Log (logPutText, LogPriority (..))
 import Waymonad.View (getViewClient)
@@ -129,8 +129,7 @@ getClientName c = IM.lookup (clientToInt c) . unNM <$> getEState
 
 -- | Simple Managehook to log named spawns. Intended for debugging
 manageNamed :: Managehook vs a
-manageNamed = do
-    (Just c) <- getViewClient =<< query
+manageNamed = doJust (getViewClient =<< query) $ \c -> do
     liftWay $ do
         nameM <- getClientName c
         whenJust nameM $ \name ->
@@ -148,8 +147,7 @@ getClientWS c = IM.lookup (clientToInt c) . unWM <$> getEState
 -- | Managehook that checks whether a client had a Workspace attached and will
 -- redirect it towards that if it does.
 manageSpawnOn :: WSTag a => Managehook vs a
-manageSpawnOn = do
-    (Just c) <- getViewClient =<< query
+manageSpawnOn = doJust (getViewClient =<< query) $ \c -> do
     wsM <- liftWay $ getClientWS c
     case wsM of
         Nothing -> mempty
