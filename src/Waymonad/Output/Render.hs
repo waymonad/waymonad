@@ -21,50 +21,44 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE BangPatterns #-}
 module Waymonad.Output.Render
 where
-import System.IO
+
 import Control.Monad (forM_, when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, readIORef)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
-import Graphics.Wayland.Server
-    ( outputTransformFlipped_180, callbackDone)
+import Graphics.Wayland.Server (callbackDone)
 
 import Graphics.Pixman
-import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxTransform, scaleBox, centerBox)
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxTransform, scaleBox)
 import Graphics.Wayland.WlRoots.Backend (backendGetRenderer)
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput, getOutputDamage , isOutputEnabled, getOutputNeedsSwap
     , invertOutputTransform, getOutputTransform
-    , outputTransformedResolution, composeOutputTransform, getTransMatrix
+    , outputTransformedResolution, getTransMatrix
     , swapOutputBuffers, getOutputScale, makeOutputCurrent, outputGetBackend
+    , effectiveResolution
     )
-import Graphics.Wayland.WlRoots.Render.Matrix (matrixMul, matrixTranslate)
 import Graphics.Wayland.WlRoots.Render
     ( Renderer, rendererScissor, rendererClear, renderWithMatrix
     , doRender
     )
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
-import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox, printMatrix)
+import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface, subSurfaceGetSurface, surfaceGetSubs, subSurfaceGetBox
     , surfaceGetCallbacks, getCurrentState, callbackGetCallback, surfaceHasBuffer
     , callbackGetResource, surfaceGetTexture, surfaceGetTransform
     )
 
-import Waymonad (getState, makeCallback , unliftWay)
-import Waymonad.Types
-    ( Way, Output (..), SSDPrio
-    , Compositor (..)
-    , WayBindingState (..)
-    )
+import Waymonad (makeCallback , unliftWay)
+import Waymonad.Types (Way, Output (..), SSDPrio)
 import Waymonad.Types.Core (View)
 import Waymonad.View
     ( viewHasCSD, viewGetLocal, getViewSurface, renderViewAdditional
     , viewGetScale
     )
-import Waymonad.Utility.Extensible
 import Waymonad.Utility.SSD (renderDeco, getDecoBox)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
@@ -85,6 +79,7 @@ renderDamaged render output damage box act = do
         forM_ boxes $ \pbox -> do
             scissorOutput render output $ boxToWlrBox pbox
             act
+
 
 outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
 outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !by !bw !bh) = do
@@ -186,7 +181,10 @@ notifyLayers secs (l:ls) = liftIO $ do
     mapM_ (notifyView secs) views
 
 scissorOutput :: Ptr Renderer -> Ptr WlrOutput -> WlrBox -> IO ()
-scissorOutput rend _ !box = rendererScissor rend (Just box)
+scissorOutput rend output box = do
+    transform <- getOutputTransform output
+    (w, h) <- effectiveResolution output
+    rendererScissor rend (Just $ boxTransform box transform w h)
 
 frameHandler :: WSTag a => Double -> Output -> Way vs a ()
 frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
@@ -199,15 +197,15 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
         void . renderOn output renderer $ \age -> do
             let withDRegion = \act -> if age < 0 || age > 1
                 then withRegion $ \region -> do
-                        Point w h <- outputTransformedResolution output
-                        resetRegion region . Just $ WlrBox 0 0 w h
-                        act region
+                    Point w h <- outputTransformedResolution output
+                    resetRegion region . Just $ WlrBox 0 0 w h
+                    act region
                 else withRegionCopy (outputDamage out) $ \region -> do
-                        let (b1, b2) = outputOldDamage out
-                        pixmanRegionUnion region b1
-                        pixmanRegionUnion region b2
-                        pixmanRegionUnion region (getOutputDamage output)
-                        act region
+                    let (b1, b2) = outputOldDamage out
+                    pixmanRegionUnion region b1
+                    pixmanRegionUnion region b2
+                    pixmanRegionUnion region (getOutputDamage output)
+                    act region
             renderBody <- makeCallback $ handleLayers secs output layers
             liftIO $ withDRegion $ \region -> do
                 notEmpty <- pixmanRegionNotEmpty region
@@ -236,10 +234,10 @@ fieteHandler secs Output {outputRoots = output, outputLayout = layers} = do
         renderer <- liftIO (backendGetRenderer =<< outputGetBackend output)
         void . renderOn output renderer $ \_ -> do
             let withDRegion act = withRegion $ \region -> do
-                        Point w h <- outputTransformedResolution output
-                        resetRegion region . Just $ WlrBox 0 0 w h
-                        scissorOutput renderer output $ WlrBox 0 0 w h
-                        act region
+                    Point w h <- outputTransformedResolution output
+                    resetRegion region . Just $ WlrBox 0 0 w h
+                    scissorOutput renderer output $ WlrBox 0 0 w h
+                    act region
 
             renderBody <- makeCallback $ handleLayers secs output layers
             liftIO $ withDRegion $ \region -> do
