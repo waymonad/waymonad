@@ -42,8 +42,8 @@ import Graphics.Wayland.WlRoots.Output
 import Graphics.Pixman
 
 
-import Waymonad (getState, makeCallback)
-import Waymonad.Types ( Way, Output (..), Compositor (..) , WayBindingState (..))
+import Waymonad (makeCallback)
+import Waymonad.Types ( Way, Output (..))
 import Waymonad.Utility.Base (ptrToInt)
 import Waymonad.ViewSet (WSTag)
 

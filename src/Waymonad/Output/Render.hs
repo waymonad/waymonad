@@ -183,8 +183,8 @@ notifyLayers secs (l:ls) = liftIO $ do
 scissorOutput :: Ptr Renderer -> Ptr WlrOutput -> WlrBox -> IO ()
 scissorOutput rend output box = do
     transform <- getOutputTransform output
-    (w, h) <- effectiveResolution output
-    rendererScissor rend (Just $ boxTransform box transform w h)
+    Point w h <- outputTransformedResolution output
+    rendererScissor rend (Just $ boxTransform box (invertOutputTransform transform) w h)
 
 frameHandler :: WSTag a => Double -> Output -> Way vs a ()
 frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
