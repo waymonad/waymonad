@@ -36,13 +36,15 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import Waymonad.Output.Core (getOutputId, outApplyDamage)
-import Waymonad.View (setViewBox, viewHasCSD)
-import Waymonad.ViewSet (WSTag (..), FocusCore (..))
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
+import Waymonad.Input.Seat (updatePointerFocus)
+import Waymonad.Output.Core (getOutputId, outApplyDamage)
 import Waymonad.Types (LogPriority(Debug), Output (..))
 import Waymonad.Utility.Log (logPutText)
+import Waymonad.Utility.Mapping (getOutputPointers)
 import Waymonad.Utility.SSD
+import Waymonad.View (setViewBox, viewHasCSD)
+import Waymonad.ViewSet (WSTag (..), FocusCore (..))
 
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
@@ -103,6 +105,10 @@ reLayout ws = do
             `T.append` outputName out
             `T.append` " to: "
             `T.append` T.pack (show layout)
+
+        pointers <- getOutputPointers out
+        mapM_  updatePointerFocus pointers
+
 
 layoutOutput :: (FocusCore vs ws, WSTag ws) => Output -> Way vs ws ()
 layoutOutput output = do
