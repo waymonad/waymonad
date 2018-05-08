@@ -32,6 +32,7 @@ module Waymonad.Shells.XdgShell
 
     -- Used for other shells
     , renderPopups
+    , handleXdgPopup
     )
 where
 

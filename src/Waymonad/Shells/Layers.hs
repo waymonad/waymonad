@@ -172,7 +172,7 @@ layoutOutput conv (LayerShellLayer bottom top overlay back) output = do
     setLayerContent "bottom" output $ map toLayout bottomL
     setLayerContent "background" output $ map toLayout backL
 
-    updateStruts (outputName output) $ makeStruts (traceShowId startBox) (traceShowId backB)
+    updateStruts (outputName output) $ makeStruts startBox backB
 
     -- send the views their size
     let tmp = fmap toLayout $ overL ++ topL ++ bottomL ++ backL
@@ -273,7 +273,6 @@ renderPopups fun surf = do
                 XDGShell.renderPopups
                     (\s b -> fun s $ translateBox stateX stateY b)
                     popup
-
 
 instance ShellSurface LayerSurface where
     getSurface (LayerSurface surf) = liftIO $ R.getLayerSurfaceSurface surf
