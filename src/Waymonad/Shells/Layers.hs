@@ -5,6 +5,7 @@
 module Waymonad.Shells.Layers (makeShell)
 where
 
+import Control.Monad (filterM, forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, modifyIORef, readIORef, writeIORef, newIORef)
 import Data.IntMap (IntMap)
@@ -16,14 +17,15 @@ import Foreign.Ptr (Ptr, ptrToIntPtr)
 
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
-import Graphics.Wayland.WlRoots.Box (WlrBox (..))
+import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), translateBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
-import Graphics.Wayland.WlRoots.Surface (surfaceAt)
+import Graphics.Wayland.WlRoots.Surface (surfaceAt, WlrSurface, surfaceGetSize)
 
 import Waymonad (getState, makeCallback, makeCallback2)
 import Waymonad.Types
 import Waymonad.Types.Core (View, ShellSurface (..), ManagerData (..))
 import Waymonad.Utility (getOutputs)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.LayerCache
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
 import Waymonad.View (createView, resizeView, setViewManager)
@@ -31,6 +33,8 @@ import Waymonad.Layout.AvoidStruts (updateStruts, Struts (..))
 
 import qualified Data.Set as S
 import qualified Graphics.Wayland.WlRoots.SurfaceLayers as R
+import qualified Graphics.Wayland.WlRoots.XdgShell as XDG
+import qualified Waymonad.Shells.XdgShell as XDGShell
 import qualified Data.IntMap as IM
 
 import Debug.Trace
@@ -155,13 +159,6 @@ layoutLayer b@(WlrBox x y w h) ((surf,state):xs) =
                 Just R.BottomRight -> (WlrBox (x + w - width - fromIntegral (R.surfaceStateMarginRight state)) (y + h - height - fromIntegral (R.surfaceStateMarginBottom state)) width height, surf)
      in (self:others, final)
 
--- data Struts = Struts
---     { strutsNorth :: Int
---     , strutsSouth :: Int
---     , strutsEast  :: Int
---     , strutsWest  :: Int
---     } deriving (Show, Eq)
-
 layoutOutput :: (R.LayerSurface -> View) -> LayerShellLayer -> Output -> Way vs ws ()
 layoutOutput conv (LayerShellLayer bottom top overlay back) output = do
     startBox <- liftIO $ getEffectiveBox $ outputRoots output
@@ -245,6 +242,30 @@ handleNewLayerSurface shell surfPtr = do
     liftIO $ modifyIORef (layerShellLayers shell) modify
     layoutShell shell
 
+renderPopups :: (Ptr WlrSurface -> WlrBox -> IO ()) -> R.LayerSurface -> IO ()
+renderPopups fun surf = do
+    popups <- liftIO $ filterM XDG.isConfigured =<< mapM XDG.xdgPopupGetBase =<< R.getPopups surf
+    forM_ popups $ \popup -> do
+        popBox <- liftIO $ XDG.getGeometry popup
+        let popX = boxX  popBox
+        let popY = boxY popBox
+
+        doJust (liftIO $ XDG.getPopupGeometry popup) $ \stateBox -> do
+            let stateX = boxX stateBox
+            let stateY = boxY stateBox
+
+            let x = stateX - popX
+            let y = stateY - popY
+
+            let box = WlrBox x y (boxWidth popBox) (boxHeight popBox)
+
+            doJust (liftIO $ XDG.xdgSurfaceGetSurface popup) $ \wlrSurf -> do
+                Point w h <- liftIO $ surfaceGetSize wlrSurf
+                fun wlrSurf box { boxWidth = w, boxHeight = h }
+                XDGShell.renderPopups
+                    (\s b -> fun s $ translateBox stateX stateY b)
+                    popup
+
 
 instance ShellSurface LayerSurface where
     getSurface (LayerSurface surf) = liftIO $ R.getLayerSurfaceSurface surf
@@ -254,6 +275,8 @@ instance ShellSurface LayerSurface where
     resize (LayerSurface surf) w h = liftIO $ R.configureSurface surf w h
     activate _ _ = pure ()
     close (LayerSurface surf) = liftIO $ R.closeSurface surf
+    renderAdditional fun (LayerSurface surf) =
+        renderPopups fun surf
     getEventSurface surf x y = liftIO $ do
         mainSurf <- getSurface surf
         case mainSurf of
@@ -265,4 +288,7 @@ instance ShellSurface LayerSurface where
     getAppId _ = pure Nothing
 
     hasCSD _ = pure True
-    takesFocus _ _ = pure False
+    takesFocus (LayerSurface surf) SeatKeyboard = liftIO $ do
+        state <- R.getSurfaceState surf
+        pure $ R.surfaceStateKeyboard state
+    takesFocus _ _ = pure True

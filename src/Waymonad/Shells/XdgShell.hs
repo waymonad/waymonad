@@ -29,6 +29,9 @@ module Waymonad.Shells.XdgShell
 
     , XdgRef
     , makeShell
+
+    -- Used for other shells
+    , renderPopups
     )
 where
 
