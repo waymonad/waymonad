@@ -13,7 +13,7 @@ import Data.List (delete)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Set (Set)
 import Data.Text (Text)
-import Foreign.Ptr (Ptr, ptrToIntPtr)
+import Foreign.Ptr (Ptr, ptrToIntPtr, nullPtr)
 
 import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
@@ -227,6 +227,14 @@ handleLayerSurfaceMap shell surfPtr = do
 handleNewLayerSurface :: LayerShell -> Ptr R.LayerSurface -> Way vs ws ()
 handleNewLayerSurface shell surfPtr = do
     let surf = R.LayerSurface surfPtr
+    out <- liftIO $ R.getSurfaceOutput surf
+    case out == nullPtr of
+        False -> pure () -- Already have an output, skip it
+        True -> do
+            outputs <- getOutputs
+            case outputs of
+                (x:_) -> liftIO $ R.setSurfaceOutput surf (outputRoots x)
+                [] -> pure () -- close surf
     liftIO $ modifyIORef (layerShellSurfaces shell) (S.insert surf)
 
     let events = R.getLayerSurfaceEvents surf
