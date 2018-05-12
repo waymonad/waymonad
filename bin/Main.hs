@@ -66,10 +66,11 @@ import Waymonad.Layout.ToggleFull (mkTFull, ToggleFullM (..))
 import Waymonad.Layout.TwoPane 
 import Waymonad.Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
+import Waymonad.Protocols.Background
 import Waymonad.Protocols.GammaControl
+import Waymonad.Protocols.InputInhibit
 import Waymonad.Protocols.LinuxDMABuf
 import Waymonad.Protocols.Screenshooter
-import Waymonad.Protocols.Background
 import Waymonad.Types (WayHooks (..))
 import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
 import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
@@ -198,6 +199,7 @@ myConf modi = WayUserConf
                      ]
         , getIdleInihibitBracket
         , getBackgroundBracket
+        , getInputInhibitBracket
         ]
     , wayUserConfBackendHook = [getIdleBracket 6e5 {- 10 minutes in ms -}, getLinuxDMABufBracket]
     , wayUserConfPostHook    = [getScreenshooterBracket]
