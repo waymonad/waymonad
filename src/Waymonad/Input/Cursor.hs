@@ -421,6 +421,7 @@ handleCursorAxis cursor event_ptr = do
         (eventPointerAxisSource event)
         (eventPointerAxisOrientation event)
         (eventPointerAxisDelta event)
+        (eventPointerAxisDiscrete event)
 
 handleToolAxis
     :: (FocusCore vs a, WSTag a)

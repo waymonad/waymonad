@@ -48,6 +48,7 @@ import Data.Default (Default(def))
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Maybe (isJust, fromMaybe)
 import Data.Text (Text)
+import Data.Int (Int32)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 import System.IO (hClose)
@@ -238,9 +239,9 @@ pointerClear seat = do
             -- and care about that, since it's going to Nothing
             hook $ SeatFocusChange SeatPointer Intentional seat oldView Nothing
 
-pointerAxis :: MonadIO m => Seat -> Word32 -> AxisOrientation -> Double -> m ()
-pointerAxis seat time orientation value = liftIO $
-    R.pointerNotifyAxis (seatRoots seat) time orientation value
+pointerAxis :: MonadIO m => Seat -> Word32 -> AxisOrientation -> Double -> Int32 -> m ()
+pointerAxis seat time orientation value discrete = liftIO $
+    R.pointerNotifyAxis (seatRoots seat) time orientation value discrete
 
 getPointerFocus :: MonadIO m => Seat -> m (Maybe View)
 getPointerFocus = liftIO . readIORef . seatPointer
