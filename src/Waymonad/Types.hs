@@ -73,7 +73,7 @@ import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf)
 import Foreign.Ptr (Ptr)
-import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.Server (DisplayServer, Client)
 
 import Graphics.Pixman (PixmanRegion32)
 import Graphics.Wayland.WlRoots.Backend (Backend)
@@ -196,6 +196,7 @@ data WayBindingState vs ws = WayBindingState
     , wayBindingOutputs  :: IORef [Output] -- ^The total list of existing outputs. May be enabled or disable.
     , wayBindingSeats    :: IORef [Seat] -- ^The seats that currently exist. Probably a singleton for most situations
     , wayExtensibleState :: IORef StateMap -- ^The statemap for extensible state.
+    , wayBindingLock     :: IORef (Maybe Client) -- ^If Just, the client that currently ownes a display lock
 
     , wayCurrentSeat     :: Maybe Seat -- ^Current seat. This is local to actions triggered by a seat. Will be Nothing if no seat can be associated.
 

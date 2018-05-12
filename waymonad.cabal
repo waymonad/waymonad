@@ -113,6 +113,7 @@ library
   exposed-modules:        Waymonad.Output.Render
 
   exposed-modules:        Waymonad.Protocols.GammaControl
+  exposed-modules:        Waymonad.Protocols.InputInhibit
   exposed-modules:        Waymonad.Protocols.IdleInhibit
   exposed-modules:        Waymonad.Protocols.PrimarySelection
   exposed-modules:        Waymonad.Protocols.Screenshooter

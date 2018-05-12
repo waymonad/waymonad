@@ -135,10 +135,11 @@ wayUserRealMain conf compRef = do
 wayUserMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IO ()
 wayUserMain conf = do
     stateRef  <- newIORef $ wayUserConfLayouts conf
-    mapRef <- newIORef []
-    currentRef <- newIORef []
-    outputs <- newIORef []
-    seats <- newIORef []
+    mapRef <- newIORef mempty
+    currentRef <- newIORef mempty
+    outputs <- newIORef mempty
+    seats <- newIORef mempty
+    lock <- newIORef Nothing
     extensible <- newIORef mempty
     compRef <- newIORef $ error "Tried to access compositor to early"
     shells <- sequence $ wayUserConfShells conf
@@ -163,6 +164,7 @@ wayUserMain conf = do
             , wayBindingSeats = seats
             , wayLogFunction = wayUserConfLog conf
             , wayExtensibleState = extensible
+            , wayBindingLock = lock
             , wayCurrentSeat = Nothing
             , wayEventHook = wayUserConfEventHook conf
             , wayUserWorkspaces = wayUserConfWorkspaces conf
