@@ -81,6 +81,7 @@ import Waymonad.Input.Cursor.Type
 import Waymonad.Input.Keyboard (isModifierPressed)
 import Waymonad.Types
 import Waymonad.Types.Core
+import {-# SOURCE #-} Waymonad.Protocols.InputInhibit
 import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.View (getViewSurface, getViewEventSurface)
 import Waymonad.ViewSet (WSTag, FocusCore (..))
@@ -149,26 +150,30 @@ seatCreate dsp name reqDefault loadScale cursor = do
 
 keyboardEnter' :: Seat -> EvtCause -> Ptr WlrSurface -> View -> Way vs ws Bool
 keyboardEnter' seat intent surf view = do
-    keyM <- liftIO $ R.getSeatKeyboard $ seatRoots seat
-    case keyM of
-        Nothing -> pure False
-        Just keyboard -> do
-            let modifiers = getModifierPtr keyboard
-            (keys, num) <- liftIO $ getKeyboardKeys keyboard
-            prev <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
-            liftIO $ R.keyboardNotifyEnter (seatRoots seat) surf keys num modifiers
-            post <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
+    inihibted <- isInhibited surf
+    if not inihibted
+        then do
+            keyM <- liftIO $ R.getSeatKeyboard $ seatRoots seat
+            case keyM of
+                Nothing -> pure False
+                Just keyboard -> do
+                    let modifiers = getModifierPtr keyboard
+                    (keys, num) <- liftIO $ getKeyboardKeys keyboard
+                    prev <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
+                    liftIO $ R.keyboardNotifyEnter (seatRoots seat) surf keys num modifiers
+                    post <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
 
-            if prev /= post || prev == surf
-            then do
-                    oldView <- liftIO $ readIORef (seatKeyboard seat)
-                    let changed = oldView /= Just view
-                    when changed $ do
-                        liftIO $ writeIORef (seatKeyboard seat) (Just view)
-                        hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
-                        hook $ SeatFocusChange SeatKeyboard intent seat oldView (Just view)
-                    pure changed
-            else pure False
+                    if prev /= post || prev == surf
+                    then do
+                            oldView <- liftIO $ readIORef (seatKeyboard seat)
+                            let changed = oldView /= Just view
+                            when changed $ do
+                                liftIO $ writeIORef (seatKeyboard seat) (Just view)
+                                hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
+                                hook $ SeatFocusChange SeatKeyboard intent seat oldView (Just view)
+                            pure changed
+                    else pure False
+        else pure False
 
 keyboardEnter :: Seat -> EvtCause -> View -> Way vs ws Bool
 keyboardEnter seat intent view = do
@@ -187,19 +192,23 @@ pointerEnter :: (FocusCore vs ws, WSTag ws)
              => Seat -> EvtCause -> Ptr WlrSurface
              -> View -> Double -> Double -> Way vs ws Bool
 pointerEnter seat intent surf view x y = do
-    prev <- liftIO $ R.getPointerFocus . R.getPointerState $ seatRoots seat
-    liftIO $ R.pointerNotifyEnter (seatRoots seat) surf x y
-    post <- liftIO $ R.getPointerFocus . R.getPointerState $ seatRoots seat
-
-    if prev /= post || prev == surf
+    inihibted <- isInhibited surf
+    if not inihibted
         then do
-            oldView <- liftIO $ readIORef (seatPointer seat)
-            let changed = oldView /= Just view
-            when changed $ do
-                liftIO $ writeIORef (seatPointer seat) (Just view)
-                hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
-                hook $ SeatFocusChange SeatPointer intent seat oldView (Just view)
-            pure changed
+            prev <- liftIO $ R.getPointerFocus . R.getPointerState $ seatRoots seat
+            liftIO $ R.pointerNotifyEnter (seatRoots seat) surf x y
+            post <- liftIO $ R.getPointerFocus . R.getPointerState $ seatRoots seat
+
+            if prev /= post || prev == surf
+                then do
+                    oldView <- liftIO $ readIORef (seatPointer seat)
+                    let changed = oldView /= Just view
+                    when changed $ do
+                        liftIO $ writeIORef (seatPointer seat) (Just view)
+                        hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
+                        hook $ SeatFocusChange SeatPointer intent seat oldView (Just view)
+                    pure changed
+                else pure False
         else pure False
 
 pointerMotion :: (FocusCore vs ws, WSTag ws)
