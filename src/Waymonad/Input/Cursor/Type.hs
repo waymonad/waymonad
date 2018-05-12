@@ -23,6 +23,7 @@ where
 
 import Data.Functor.Identity (Identity)
 import Data.IORef (IORef)
+import Data.Int (Int32)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
@@ -36,7 +37,7 @@ data CursorMapping c = CursorMapping
     { cursorMappingButton    :: c (Cursor -> Word32 -> Word32 -> ButtonState -> IO ())
     , cursorMappingMotion    :: c (Cursor -> Word32 -> Ptr InputDevice -> Double -> Double -> IO ())
     , cursorMappingMotionAbs :: c (Cursor -> Word32 -> Ptr InputDevice -> Double -> Double -> IO ())
-    , cursorMappingAxis      :: c (Cursor -> Word32 -> AxisSource -> AxisOrientation -> Double -> IO ())
+    , cursorMappingAxis      :: c (Cursor -> Word32 -> AxisSource -> AxisOrientation -> Double -> Int32 -> IO ())
     }
 
 data Cursor = Cursor

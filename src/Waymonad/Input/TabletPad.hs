@@ -73,7 +73,7 @@ handlePadStrip seat evt_ptr = do
     event <- liftIO $ peek evt_ptr
     liftIO $ hPutStrLn stderr $ "Strip event: " ++ show event
 
-    pointerAxis seat (padStripEvtTime event) AxisVertical (padStripEvtPosition event)
+    pointerAxis seat (padStripEvtTime event) AxisVertical (padStripEvtPosition event) 0
 
 handlePadButton :: Seat -> (Word32 -> CKeycode) -> Ptr PadButtonEvent -> Way vs a ()
 handlePadButton seat mapFun evt_ptr = do

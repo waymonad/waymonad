@@ -5,7 +5,7 @@
 module Waymonad.Shells.Layers (makeShell)
 where
 
-import Control.Monad (filterM, forM_)
+import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, modifyIORef, readIORef, writeIORef, newIORef)
 import Data.IntMap (IntMap)
@@ -22,14 +22,17 @@ import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
 import Graphics.Wayland.WlRoots.Surface (surfaceAt, WlrSurface, surfaceGetSize)
 
 import Waymonad (getState, makeCallback, makeCallback2)
+import Waymonad.Input.Seat (keyboardEnter)
+import Waymonad.Layout.AvoidStruts (updateStruts, Struts (..))
+import Waymonad.Output (outputFromWlr)
 import Waymonad.Types
 import Waymonad.Types.Core (View, ShellSurface (..), ManagerData (..))
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.LayerCache
+import Waymonad.Utility.Mapping (getOutputKeyboards)
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
 import Waymonad.View (createView, resizeView, setViewManager)
-import Waymonad.Layout.AvoidStruts (updateStruts, Struts (..))
 
 import qualified Data.Set as S
 import qualified Graphics.Wayland.WlRoots.SurfaceLayers as R
@@ -222,7 +225,19 @@ handleLayerSurfaceMap shell surfPtr = do
     viewMap <- liftIO . readIORef $ layerShellViews shell
     let view = fromMaybe (error "Tried to find a layersurface that doesn't exist") $ IM.lookup (surfAsInt surf) viewMap
     layer <- liftIO $ R.getLayerSurfaceLayer surf
-    setViewManager view =<< layerManager (layerName layer)
+    setViewManager view =<< layerManager (layerName layer) 
+
+    let focus = case layer of
+            R.LayerShellLayerBackground -> False
+            R.LayerShellLayerBottom     -> False
+            R.LayerShellLayerTop        -> True
+            R.LayerShellLayerOverlay    -> True
+
+    when focus $ do
+        output <-liftIO $ R.getSurfaceOutput surf
+        doJust (outputFromWlr output) $ \out -> do
+            keyboards <- getOutputKeyboards out
+            forM_ keyboards $ \seat -> keyboardEnter seat SideEffect view
 
 handleNewLayerSurface :: LayerShell -> Ptr R.LayerSurface -> Way vs ws ()
 handleNewLayerSurface shell surfPtr = do

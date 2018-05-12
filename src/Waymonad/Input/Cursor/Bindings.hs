@@ -7,6 +7,7 @@ import Control.Monad.IO.Unlift (askRunInIO)
 import Data.Functor.Identity (Identity (..))
 import Data.IORef (readIORef, modifyIORef, writeIORef)
 import Data.Maybe (fromMaybe)
+import Data.Int (Int32)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
@@ -55,10 +56,10 @@ defaultMotionAbs cursor time device x y = do
         layout (cursorRoots cursor)
         (cursorOutput cursor) (fromIntegral time) Intentional
 
-defaultAxis :: Cursor -> Word32 -> AxisSource -> AxisOrientation -> Double -> Way vs ws ()
-defaultAxis _ time _ orientation delta = do
+defaultAxis :: Cursor -> Word32 -> AxisSource -> AxisOrientation -> Double -> Int32 -> Way vs ws ()
+defaultAxis _ time _ orientation delta discrete = do
     (Just seat) <- getSeat
-    pointerAxis seat time orientation delta
+    pointerAxis seat time orientation delta discrete
 
 startMoving :: (FocusCore vs ws, WSTag ws) => Cursor -> View -> Point -> Way vs ws ()
 startMoving cursor view p@(Point x y) = do
@@ -145,7 +146,7 @@ makeSimpleMappings = do
         { cursorMappingButton    = Identity $ \cursor time button bState -> runIO (simpleButton cursor time button bState)
         , cursorMappingMotion    = Identity $ \cursor time device x y -> runIO (defaultMotion cursor time device x y)
         , cursorMappingMotionAbs = Identity $ \cursor time device x y -> runIO (defaultMotionAbs cursor time device x y)
-        , cursorMappingAxis      = Identity $ \cursor time source orient delta -> runIO (defaultAxis cursor time source orient delta)
+        , cursorMappingAxis      = Identity $ \cursor time source orient delta discrete -> runIO (defaultAxis cursor time source orient delta discrete)
         }
 
 
@@ -156,7 +157,7 @@ makeDefaultMappings modi = do
         { cursorMappingButton    = Identity $ \cursor time button bState -> runIO (defaultButton modi cursor time button bState)
         , cursorMappingMotion    = Identity $ \cursor time device x y -> runIO (defaultMotion cursor time device x y)
         , cursorMappingMotionAbs = Identity $ \cursor time device x y -> runIO (defaultMotionAbs cursor time device x y)
-        , cursorMappingAxis      = Identity $ \cursor time source orient delta -> runIO (defaultAxis cursor time source orient delta)
+        , cursorMappingAxis      = Identity $ \cursor time source orient delta discrete -> runIO (defaultAxis cursor time source orient delta discrete)
         }
 
 makeViewResizeMapping :: (FocusCore vs ws, WSTag ws) => View -> Point -> Way vs ws () -> Way vs ws (CursorMapping Maybe)
