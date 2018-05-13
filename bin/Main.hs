@@ -55,6 +55,7 @@ import Waymonad.IPC (IPCGroup (..))
 import Waymonad.Input (attachDevice)
 import Waymonad.Input.Cursor.Bindings (makeDefaultMappings)
 import Waymonad.Input.Seat (useClipboardText, setSeatKeybinds, resetSeatKeymap)
+import Waymonad.Layout (layoutOutput)
 import Waymonad.Layout.AvoidStruts
 import Waymonad.Layout.Choose
 import Waymonad.Layout.Mirror (mkMirror, ToggleMirror (..))
@@ -71,7 +72,7 @@ import Waymonad.Protocols.GammaControl
 import Waymonad.Protocols.InputInhibit
 import Waymonad.Protocols.LinuxDMABuf
 import Waymonad.Protocols.Screenshooter
-import Waymonad.Types (WayHooks (..))
+import Waymonad.Types (WayHooks (..), OutputEffective (..))
 import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
 import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
 import Waymonad.Utility.Base (doJust)
@@ -210,6 +211,7 @@ myConf modi = WayUserConf
         , wayHooksSeatOutput      = SM.outputChangeEvt {-<> handleKeyboardPull-} <> handlePointerPull
         , wayHooksSeatFocusChange = focusFollowPointer
         , wayHooksNewOutput       = H.outputAddHook
+        , wayHooksOutputEffective = layoutOutput . getChangedOutput <> const Layer.forceLayout
         }
     , wayUserConfShells = [Xdg.makeShell, Xdgv6.makeShell, Wl.makeShell, XWay.makeShell, Layer.makeShell]
     , wayUserConfLog = pure ()

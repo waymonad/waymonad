@@ -2,7 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Waymonad.Shells.Layers (makeShell)
+{-# LANGUAGE ScopedTypeVariables #-}
+module Waymonad.Shells.Layers (makeShell, forceLayout)
 where
 
 import Control.Monad (filterM, forM_, when)
@@ -29,6 +30,7 @@ import Waymonad.Types
 import Waymonad.Types.Core (View, ShellSurface (..), ManagerData (..))
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Base (doJust)
+import Waymonad.Utility.Extensible
 import Waymonad.Utility.LayerCache
 import Waymonad.Utility.Mapping (getOutputKeyboards)
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
@@ -39,8 +41,6 @@ import qualified Graphics.Wayland.WlRoots.SurfaceLayers as R
 import qualified Graphics.Wayland.WlRoots.XdgShell as XDG
 import qualified Waymonad.Shells.XdgShell as XDGShell
 import qualified Data.IntMap as IM
-
-import Debug.Trace
 
 data LayerShellLayer = LayerShellLayer
     { layerShellBottom     :: [R.LayerSurface]
@@ -92,6 +92,7 @@ instance ShellClass LayerRef vs ws where
                 dsp <- compDisplay . wayCompositor <$> getState
                 shell <- layerShellCreate dsp
                 liftIO $ writeIORef ref $ Just shell
+                setEState $ (Just $ fst shell :: Maybe LayerShell)
     deactivateShell _ = pure () -- TODO: implement
     isShellActive (LayerRef ref) = do
         ret <- liftIO $ readIORef ref
@@ -203,6 +204,9 @@ layoutShell shell = do
     outputs <- getOutputs
     let lookupFun surf = fromMaybe (error "Tried to find a layersurface that doesn't exist") $ IM.lookup (surfAsInt surf) viewMap
     mapM_ (layoutOutput lookupFun layers) outputs
+
+forceLayout :: forall vs ws. Way vs ws ()
+forceLayout = doJust (getEState :: Way vs ws (Maybe LayerShell)) layoutShell
 
 handleLayerSurfaceDestroy :: LayerShell -> [ListenerToken] -> Ptr R.LayerSurface -> Way vs ws ()
 handleLayerSurfaceDestroy shell listeners surfPtr = liftIO $ do
