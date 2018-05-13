@@ -65,8 +65,6 @@ import Waymonad.Utility.ViewSet (modifyFocusedWS, insertView, getFocused)
 import qualified Data.Set as S
 import qualified Data.Map as M
 
-import Debug.Trace
-
 newtype FSet = FSet {unFS:: Set View}
 
 instance ExtensionClass FSet where
@@ -122,7 +120,7 @@ removeFloating :: FocusCore vs ws => View -> Way vs ws ()
 removeFloating view = do
     seats <- getSeats
     affected <- filterM (fmap (Just view ==) . getKeyboardFocus) seats
-    mapM_ flattenSeat $ traceShowId affected
+    mapM_ flattenSeat affected
     modifyFloating $ S.delete view
     outputs <- getOutputs
     forM_ outputs $ \output -> liftIO $ do

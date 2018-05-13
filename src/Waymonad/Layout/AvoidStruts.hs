@@ -43,8 +43,6 @@ import Graphics.Wayland.WlRoots.Box (WlrBox (..))
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 
-import Debug.Trace
-
 avoidStruts :: l -> StrutAvoider Struts l
 avoidStruts = StrutAvoider (Struts 0 0 0 0)
 
@@ -80,7 +78,7 @@ instance LayoutClass l => LayoutClass (StrutAvoider Struts l) where
         "StrutAvoider(" `T.append` currentDesc child `T.append` ")"
 
 instance (FocusCore vs ws, GenericLayoutClass l vs ws) => GenericLayoutClass (StrutAvoider Struts l) vs ws where
-    pureLayout (StrutAvoider s l) vs ws box =traceShowId $ 
+    pureLayout (StrutAvoider s l) vs ws box =
         pureLayout l vs ws $ applyStruts s box
 
 applyStruts :: Struts -> WlrBox -> WlrBox
@@ -137,7 +135,7 @@ instance ExtensionClass StrutMap where
     initialValue = StrutMap mempty
 
 updateStruts :: Text -> Struts -> Way vs ws ()
-updateStruts out strut = modifyEState (traceShowId . StrutMap . M.insert out strut . unSM)
+updateStruts out strut = modifyEState (StrutMap . M.insert out strut . unSM)
 
 managedStrutHandler :: (FocusCore vs ws, WSTag ws, Layouted vs ws)
                     => OutputMappingEvent ws -> Way vs ws ()
