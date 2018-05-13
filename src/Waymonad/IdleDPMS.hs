@@ -41,7 +41,6 @@ import Waymonad.Utility.Extensible
 import Waymonad.Utility.Mapping (getOutputs)
 
 import qualified Data.Set as S
-import Debug.Trace
 
 newtype IdleDPMSOuts = IdleDPMSOuts { unIDO :: Set Output }
 
@@ -73,13 +72,13 @@ setNewState = do
         mapM_ (outputDisable . outputRoots) $ S.toList turnOff
         mapM_ (outputEnable . outputRoots) $ S.toList turnOn
 
-    modifyEState (IdleDPMSOuts . traceShowId . flip S.difference turnOn .
+    modifyEState (IdleDPMSOuts . flip S.difference turnOn .
                     S.union turnOff .  unIDO)
 
 unsetDPMS :: Way vs ws ()
 unsetDPMS = do
     current <- unIDO <$> getEState 
-    mapM_ (liftIO . outputEnable . outputRoots) . traceShowId $ S.toList current
+    mapM_ (liftIO . outputEnable . outputRoots) $ S.toList current
     setEState $ IdleDPMSOuts mempty
 
 handleInhibitChange :: Maybe IdleInhibitChange -> Way vs ws ()
