@@ -136,9 +136,8 @@ import Graphics.Wayland.WlRoots.OutputLayout
     , removeOutput
     )
 
-import Waymonad.Layout (layoutOutput)
 import Waymonad (makeCallback2)
-import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), Output (..))
+import Waymonad.Types (Compositor (..), WayHooks (..), OutputEvent (..), Output (..), OutputEffective (..))
 import Waymonad.Utility.Signal
 import Waymonad.Utility.Mapping (getOutputKeyboards, unsetSeatKeyboardOut)
 import Waymonad.Input.Seat (Seat(seatLoadScale))
@@ -176,6 +175,10 @@ findMode output width height refresh = liftIO $ do
         [] -> Nothing
         xs -> Just . snd . fun $ xs
 
+outputEffectiveChanged :: Output -> Way vs ws ()
+outputEffectiveChanged out = do
+    WayHooks {wayHooksOutputEffective = hook} <- wayCoreHooks <$> getState
+    hook $ OutputEffective out
 
 handleOutputAdd' :: (WSTag ws, FocusCore vs ws)
                  => (Double -> Output -> Way vs ws ())
@@ -199,9 +202,9 @@ handleOutputAdd' handler hook output = do
     liftIO $ modifyIORef current (out :)
 
     let signals = getOutputSignals output
-    modeH <- setSignalHandler (outSignalMode signals) (const $ layoutOutput out)
-    scaleH <- setSignalHandler (outSignalScale signals) (const $ layoutOutput out)
-    transformH <- setSignalHandler (outSignalTransform signals) (const $ layoutOutput out)
+    modeH <- setSignalHandler (outSignalMode signals) (const $ outputEffectiveChanged out)
+    scaleH <- setSignalHandler (outSignalScale signals) (const $ outputEffectiveChanged out)
+    transformH <- setSignalHandler (outSignalTransform signals) (const $ outputEffectiveChanged out)
     needsSwapH <- setSignalHandler (outSignalNeedsSwap signals) (const . liftIO $ scheduleOutputFrame (outputRoots out))
 
     hook out

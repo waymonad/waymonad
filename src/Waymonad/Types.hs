@@ -48,6 +48,7 @@ module Waymonad.Types
     , SeatWSChange  (..)
     , SeatOutputChange (..)
     , OutputEvent (..)
+    , OutputEffective (..)
     , ShellClass (..)
     , WayShell (..)
     , SeatFocusChange (..)
@@ -176,6 +177,9 @@ data SeatFocusChange = SeatFocusChange
 -- | A newtype wrapper for 'Output'. To disambiguate Hook usage
 newtype OutputEvent = OutputEvent Output deriving (Show, Eq)
 
+-- | A newtype wrapper for 'Output'. To disambiguate Hook usage
+newtype OutputEffective = OutputEffective { getChangedOutput :: Output } deriving (Show, Eq)
+
 -- | The core hooks. This should be filled in by the user.
 data WayHooks vs ws = WayHooks
     { wayHooksVWSChange       :: ViewWSChange ws -> Way vs ws ()
@@ -184,6 +188,7 @@ data WayHooks vs ws = WayHooks
     , wayHooksSeatWSChange    :: SeatWSChange ws -> Way vs ws ()
     , wayHooksSeatFocusChange :: SeatFocusChange -> Way vs ws ()
     , wayHooksNewOutput       :: OutputEvent -> Way vs ws ()
+    , wayHooksOutputEffective :: OutputEffective -> Way vs ws ()
     }
 
 -- | The main state/config of the compositor. This is the struct provided by
