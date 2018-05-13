@@ -233,6 +233,8 @@ handleLayerSurfaceMap shell surfPtr = do
             R.LayerShellLayerTop        -> True
             R.LayerShellLayerOverlay    -> True
 
+    -- TODO: This should filter on the surface being the topmost surface that
+    -- accepts keyboard focus
     when focus $ do
         output <-liftIO $ R.getSurfaceOutput surf
         doJust (outputFromWlr output) $ \out -> do
