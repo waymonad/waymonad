@@ -26,6 +26,7 @@ where
 import Control.Monad.IO.Class (liftIO)
 import Data.Bits ((.&.), complement)
 import Data.IORef (readIORef, modifyIORef)
+import Data.Maybe (isJust)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
@@ -81,6 +82,7 @@ import Waymonad.Types
 import Waymonad.Types.Core (WayKeyState (..), Seat(seatKeymap, seatKeyboards, seatRoots))
 import Waymonad.Utility.Signal (setSignalHandler)
 import Waymonad.Utility.Log (logPutStr, LogPriority (..))
+import {-# SOURCE #-} Waymonad.Protocols.InputInhibit (getInhibitingClient)
 
 import Text.XkbCommon.Context
 import Text.XkbCommon.KeyboardState
@@ -198,15 +200,18 @@ handleKeyEvent :: Keyboard -> Seat -> Ptr EventKey -> Way vs ws ()
 handleKeyEvent keyboard seat ptr = withSeat (Just seat) $ do
     event <- liftIO $ peek ptr
     let keycode = fromEvdev . fromIntegral . keyCode $ event
+    inhib <- isJust <$> getInhibitingClient
 
-    handled <- case state event of
-        -- We currently don't do anything special for releases
-        KeyReleased -> pure False
-        KeyPressed -> do
-            handled <- handleKeyXkb keyboard keycode
-            if handled
-                then pure handled
-                else handleKeySimple keyboard keycode
+    handled <- if inhib
+        then pure False
+        else case state event of
+            -- We currently don't do anything special for releases
+            KeyReleased -> pure False
+            KeyPressed -> do
+                handled <- handleKeyXkb keyboard keycode
+                if handled
+                    then pure handled
+                    else handleKeySimple keyboard keycode
 
     liftIO . unless handled $ tellClient seat keyboard event
 
