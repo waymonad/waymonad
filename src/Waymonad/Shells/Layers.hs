@@ -6,7 +6,7 @@
 module Waymonad.Shells.Layers (makeShell, forceLayout)
 where
 
-import Control.Monad (filterM, forM_, when)
+import Control.Monad (filterM, forM_, when, unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, modifyIORef, readIORef, writeIORef, newIORef)
 import Data.IntMap (IntMap)
@@ -249,27 +249,33 @@ handleNewLayerSurface :: LayerShell -> Ptr R.LayerSurface -> Way vs ws ()
 handleNewLayerSurface shell surfPtr = do
     let surf = R.LayerSurface surfPtr
     out <- liftIO $ R.getSurfaceOutput surf
-    case out == nullPtr of
-        False -> pure () -- Already have an output, skip it
+    closed <- case out == nullPtr of
+        False -> pure True -- Already have an output, skip it
         True -> do
             outputs <- getOutputs
-            case outputs of
-                (x:_) -> liftIO $ R.setSurfaceOutput surf (outputRoots x)
-                [] -> pure () -- close surf
-    liftIO $ modifyIORef (layerShellSurfaces shell) (S.insert surf)
+            liftIO $ case outputs of
+                (x:_) -> do
+                    R.setSurfaceOutput surf (outputRoots x)
+                    pure True
+                [] -> do
+                    R.closeSurface surf
+                    pure True
 
-    let events = R.getLayerSurfaceEvents surf
-    mapToken <- setSignalHandler (R.layerSurfaceEventsMap events) (handleLayerSurfaceMap shell)
-    unmapToken <- setSignalHandler (R.layerSurfaceEventsUnmap events) (handleLayerSurfaceUnmap shell)
-    setDestroyHandler (R.layerSurfaceEventsDestroy events) (handleLayerSurfaceDestroy shell [mapToken, unmapToken])
+    unless closed $ do
+        liftIO $ modifyIORef (layerShellSurfaces shell) (S.insert surf)
 
-    view <- createView $ LayerSurface surf
-    liftIO $ modifyIORef (layerShellViews shell) (IM.insert (surfAsInt surf) view)
+        let events = R.getLayerSurfaceEvents surf
+        mapToken <- setSignalHandler (R.layerSurfaceEventsMap events) (handleLayerSurfaceMap shell)
+        unmapToken <- setSignalHandler (R.layerSurfaceEventsUnmap events) (handleLayerSurfaceUnmap shell)
+        setDestroyHandler (R.layerSurfaceEventsDestroy events) (handleLayerSurfaceDestroy shell [mapToken, unmapToken])
 
-    layer <- liftIO $ R.getLayerSurfaceLayer surf
-    let modify = getLayerModifier layer (++ [surf])
-    liftIO $ modifyIORef (layerShellLayers shell) modify
-    layoutShell shell
+        view <- createView $ LayerSurface surf
+        liftIO $ modifyIORef (layerShellViews shell) (IM.insert (surfAsInt surf) view)
+
+        layer <- liftIO $ R.getLayerSurfaceLayer surf
+        let modify = getLayerModifier layer (++ [surf])
+        liftIO $ modifyIORef (layerShellLayers shell) modify
+        layoutShell shell
 
 renderPopups :: (Ptr WlrSurface -> WlrBox -> IO ()) -> R.LayerSurface -> IO ()
 renderPopups fun surf = do
