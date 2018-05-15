@@ -1,0 +1,11 @@
+#define FOO 1
+#define QUUX FOO##FOO
+
+quux
+QUUX
+
+#if QUUX == 11
+foo
+#else
+bar
+#endif

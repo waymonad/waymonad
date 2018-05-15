@@ -1,0 +1,10 @@
+#define MAJOR_VERSION 4
+#define MINOR_VERSION 5
+#define PATCH_LEVEL   0
+#define MIN_VERSION_base(x,y,z) MAJOR_VERSION > x || MAJOR_VERSION == x && MINOR_VERSION > y || MAJOR_VERSION == x && MINOR_VERSION == y && PATCH_LEVEL >= z
+
+MIN_VERSION_base(4,5,0)
+#if MIN_VERSION_base(4,5,0)
+this text is only included when expression evaluates to true
+#endif
+done

@@ -1,0 +1,29 @@
+#line 1 "cheplyaka"
+This file tests for a bug reported by Roman Cheplyaka on 2014-02-21.
+All results should be YES, but cpphs was giving NO for the first one.
+
+
+YES
+
+
+
+
+
+YES
+
+
+
+
+
+
+YES
+
+
+
+
+
+
+YES
+
+
+

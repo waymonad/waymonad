@@ -1,0 +1,36 @@
+#line 1 "testfile"
+1 top of file
+
+3
+
+5 X is defined
+
+7
+
+
+
+11
+
+
+
+15
+
+
+
+19
+
+
+
+23 no inclusion, this is an else clause
+
+25
+
+
+
+
+
+31 third branch of elif
+
+33
+34 end of file
+

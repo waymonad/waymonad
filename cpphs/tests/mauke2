@@ -1,0 +1,4 @@
+#define foo _\
+_LINE__
+
+foo

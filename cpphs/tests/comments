@@ -1,0 +1,3 @@
+here is an ordinary C comment:			/* comment here */
+and here is a C++-style end-of-line comment:	// comment here
+this line has no comments

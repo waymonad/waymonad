@@ -1,0 +1,16 @@
+Warning: unknown directive #def
+in Test.hsc  at line 6 col 1
+Warning: unknown directive #def
+in Test.hsc  at line 9 col 1
+#line 1 "Test.hsc"
+module Test where
+
+main :: IO ()
+main = putStrLn "shows a cpphs+hsc2hs bug with comments"
+
+
+
+{-
+#def inline int cpphs_will_stumble(void) {return 42;}
+-}
+

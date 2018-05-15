@@ -1,0 +1,21 @@
+#define MIN_VERSION_base(x,y,z) (x>=4) && (y>=9) && (z>=0)
+This file tests the #if boolean expression parser/evaluator.
+#if !MIN_VERSION_base(4, 7, 0)
+SUCCEED with not and no parens
+#endif
+#if !(MIN_VERSION_base(4, 7, 0))
+SUCCEED with not and parens
+#endif
+
+Then we check for arithmetic.
+#define AT_LEAST_4(x) ((x)>=4)
+#if AT_LEAST_4(2+3)
+simple ARITHMETIC works
+#else
+simple ARITHMETIC broken
+#endif
+#if 2+3 > 4 && 1+12*2*1+2 == 27
+complex ARITHMETIC works
+#else
+complex ARITHMETIC broken
+#endif

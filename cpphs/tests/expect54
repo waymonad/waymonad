@@ -1,0 +1,7 @@
+#line 1 "nomacro"
+This file is intended to show the interaction of --nomacro with --strip
+which was broken up until cpphs-1.14.
+
+Here is a line with some comment          
+Here is a line with some C89 comment               with more text after it.
+Here is a line that uses 1 but it should look like uppercase foo, not 1.

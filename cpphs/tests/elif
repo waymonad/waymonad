@@ -1,0 +1,10 @@
+#if ( defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ > 502 ) || \
+    ( defined(__NHC__) && __NHC__ > 114 ) || defined(__HUGS__)
+import System.IO.Unsafe (unsafePerformIO)
+#elif defined(__GLASGOW_HASKELL__)
+import IOExts (unsafePerformIO)
+#elif defined(__NHC__)
+import IOExtras (unsafePerformIO)
+#elif defined(__HBC__)
+import UnsafePerformIO
+#endif

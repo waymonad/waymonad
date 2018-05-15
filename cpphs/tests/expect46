@@ -1,0 +1,7 @@
+#line 1 "preinclude"
+#line 1 "./inclusion"
+hello world, this is an inclusion
+
+#line 2 "preinclude"
+#line 1 "preinclude"
+something arbitrary

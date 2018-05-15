@@ -1,0 +1,12 @@
+#define FOO 1
+#define QUUX(a) a ## a
+#define WIBBLE QUUX(FOO)
+
+quux
+WIBBLE
+
+#if WIBBLE == 11
+foo
+#else
+bar
+#endif

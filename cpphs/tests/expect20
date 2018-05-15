@@ -1,0 +1,17 @@
+#line 1 "chains"
+For this test, assume that all of 1,1,1,1 are defined.
+Also that 1,1 are defined, a,b are not.
+If cpphs does operator precedence wrongly in infix chains, the final
+conditional will be interpreted wrongly.
+
+
+chained || OK
+
+
+chained && OK
+
+
+mixed chain of || and && OK
+
+
+

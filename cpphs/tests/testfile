@@ -1,0 +1,34 @@
+1 top of file
+#define X 0
+3
+#ifdef X
+5 X is defined
+#endif
+7
+#if X
+9 X is non-zero
+#endif
+11
+#if error
+#error "error message goes here"
+#endif
+15
+#if warning
+#warning "warning message goes here"
+#endif
+19
+#if include
+#include "inclusion"
+#else
+23 no inclusion, this is an else clause
+#endif
+25
+#if noelif
+27 no elif
+#elif elif
+29 this is an elif
+#else
+31 third branch of elif
+#endif
+33
+34 end of file

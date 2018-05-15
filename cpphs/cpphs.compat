@@ -1,0 +1,48 @@
+#!/bin/sh
+#	A minimal compatibility script to make cpphs accept the same
+#	arguments as real cpp, wherever possible.
+CPPHS=/usr/malcolm/Haskell/cpphs/cpphs
+
+processArgs () {
+  TRADITIONAL=no
+  STRIP=yes
+  INFILE="-"
+  OUTFILE="-"
+  while test "$1" != ""
+  do
+    case $1 in
+      -D)            shift; echo -D$1 ;;
+      -D*)           echo $1 ;;
+      -U)            shift; echo -U$1 ;;
+      -U*)           echo $1 ;;
+      -I)            shift; echo -I$1 ;;
+      -I*)           echo $1 ;;
+      -o)            shift; echo -O$1 ;;
+      -o*)           echo -O`echo $1 | cut -c3-` ;;
+      -std*)         ;;		# ignore language spec
+      -x)            shift ;;	# ignore language spec
+      -ansi*)        TRADITIONAL=no ;;
+      -traditional*) TRADITIONAL=yes ;;
+      -include)      shift; echo $1 ;;
+      -P)            echo --noline ;;
+      -C)            STRIP=no ;;
+      -CC)           STRIP=no ;;
+      -A)            shift ;;	# strip assertions
+      --help)        echo $1 ;;
+      -version)      echo -$1 ;;
+      --version)     echo $1 ;;
+      -*)            ;;	# strip all other flags
+      *)     if [ "$INFILE" = "-" ]
+             then INFILE=$1
+             else OUTFILE=$1
+             fi ;;
+    esac
+    if test "$1" != ""; then shift; fi
+  done
+  if [ "$TRADITIONAL" = "no" ]; then echo "--hashes";   fi
+  if [ "$STRIP" = "yes" ];      then echo "--strip";    fi
+  echo $INFILE
+  if [ "$OUTFILE" != "-" ];     then echo "-O$OUTFILE"; fi
+}
+
+exec $CPPHS `processArgs "$@"`

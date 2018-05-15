@@ -1,0 +1,5 @@
+#define FOO 1
+#define BAR FOO
+#define JOIN(f)  f##f
+
+JOIN(BAR)	-- gcc gives BARBAR, cpphs gives 11

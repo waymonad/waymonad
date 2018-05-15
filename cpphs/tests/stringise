@@ -1,0 +1,2 @@
+#define foo(x)	This is #x foo x
+foo(abcd ef)

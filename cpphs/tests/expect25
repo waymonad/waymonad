@@ -1,0 +1,15 @@
+#line 1 "text"
+Here is some ordinary text with embedded Haskell-ish constructs,
+that should however /not/ be interpreted as Haskell if the --text
+option is given to cpphs.  For instance, here is a Haskell comment
+including a cpp definition: {-
+
+and now we end the comment: -}   and try out the definition:  bar
+Likewise, double and single quotes no longer delimit strings or chars: "
+
+and what do we have here?: "  ' bar  '
+
+
+Also, in text-mode, macros should be expanded inside Haskell comments:
+    -- Some text including this, the other, and that.
+and strings "Some text including this, the other, and that.".

@@ -1,0 +1,384 @@
+pristine:e02d15d8b8568cc469fa5c6ab56292a1c0c84612717aa709383bc10d44d617a6
+Starting with inventory:
+0000005344-77dd2aeae1988fb08270a8ad0d05f43d12d04d1b21ce9bed28c1c5788887e957
+[TAG version 1.14
+malcolm.wallace@me.com**20120711141904
+ Ignore-this: e06a7b857c1e324c2cd03df61f48e545
+] 
+hash: 0000002296-39423f8eb5139f59fddf6b7943ba94c11117a921dc7ba2f7dbeed9315c1db64b
+[Some more package args required in Makefile.
+Malcolm.Wallace@me.com**20120716071938] 
+hash: 0000000474-8413e58562bd77bcaf0657f2b8ea3d1b8a2d3f8dbc86546df423f5177d9546cb
+[Add tests for the interaction of --nomacro with --strip.
+Malcolm.Wallace@me.com**20121130103537
+ Ignore-this: 58cb0659eda5ccb211ad164503f7a0bf
+ Until now, --nomacro has meant no lexing, and hence no stripping of
+ comments, which is wrong.
+] 
+hash: 0000002339-20f64572276ecaa62be6d8ca64def632e83174e4889a88a60957ea44c5e822ea
+[Allow both --nomacro and --strip together.
+Malcolm.Wallace@me.com**20121130103549
+ Ignore-this: ed728f97865da01cafff17d8c9a59d6e
+ Previously, --nomacro implied no lexing, and hence no stripping of comments.
+] 
+hash: 0000001292-0e5f6563c022d13a39b053f1f2b43c0ca215a5553fabc54f74cbb44b75a2dd22
+[Do no crash when # appears on a line of its own.
+Malcolm.Wallace@me.com**20121130105049
+ Ignore-this: 11029ede3d7b355d4b7c9bb2ef33db24
+] 
+hash: 0000001352-23a2f0f76634e3c7dc7a64450e84e8e34b31dcb108a0fc3448fbcf1d89c323b4
+[Bump version number to 1.15
+Malcolm.Wallace@me.com**20121130105248
+ Ignore-this: 922b8c394678fe84828ef6eb72e19df3
+] 
+hash: 0000001279-2fc893b0951338c6faabc350ae3103cba1c561e4c9ae32b129a361b14acb1d0c
+[Fix runCpphsReturningSymTab when macros=False.
+Malcolm.Wallace@me.com**20130115181253
+ Ignore-this: bc67881414193aed5888ee5495807238
+] 
+hash: 0000001922-2e11ead7ffc371686b058c36cd0090af4cab8c4b261b36b2afa82b0d2970e71e
+[Bump version to 1.16
+Malcolm.Wallace@me.com**20130122171030
+ Ignore-this: 1f95638d42142a335b603e41bf6f2308
+] 
+hash: 0000001445-2d0b20bd946257fb1fb4e90de94e4023862a25906fdbb6f9c0effb4fce7f8763
+[Escape hashes from haddock
+Roman Cheplyaka <roma@ro-che.info>**20130222145505
+ Ignore-this: eb5dfa4162276e013866f832d71a617a
+] 
+hash: 0000000749-6623526a8407e36364604428bb01bb3f7c718c500e6b64c4bf9925653885d36b
+[Take care to trim trailing slashes on include paths, even when using the
+malcolm.wallace@me.com**20130311095055
+ Ignore-this: fb6a7abd432117d8ca49aa94801bf500
+ library API.
+] 
+hash: 0000001177-ebe9de40ea71f3e995e77f5cb8e663999e6b859f441345dfe58f72257e66b10d
+[When parsing a #if expression, we should recursively attempt to parse
+Malcolm.Wallace@me.com**20130816161613
+ Ignore-this: 9c7609655abe75bf14ae141f82c7588d
+ after macro expansion, in addition to after symbol replacement.
+] 
+hash: 0000000429-c229bd73188b8687ad769afe503fdefa0f6bf059a74bdcf596548536f3df6fa5
+[Add test for bug just fixed (recursive evaluation in #if after macro expansion)
+Malcolm.Wallace@me.com**20130816162311
+ Ignore-this: 2be963e3c2032ac00b4d1177a63d4416
+] 
+hash: 0000000850-87faa2c57b3d5438ab53d4f30845ef8028d814898d63f1aa5d48d78dc4a6f3ea
+[bump version to 1.17
+Malcolm.Wallace@me.com**20130816162411
+ Ignore-this: d7a70ea2b6901d2196a1133b3f81c654
+] 
+hash: 0000001118-009556290638c50b5ae745581ad36846a194d528f34600a2c0925b0b847d4685
+[Make a version 1.17.1 which reports its own version number correctly.
+Malcolm.Wallace@me.com**20130818125214
+ Ignore-this: d5e5edef44645b1237a9cb18b7c46505
+] 
+hash: 0000001109-07040fa8c539b02842be5dd688ce28a1a4c85b874d846658b660cbf29c0bdc00
+[Missed an instance of the version number.
+Malcolm.Wallace@me.com**20130818125414
+ Ignore-this: 4284730501fc164c7dabd41430981ab7
+] 
+hash: 0000000183-711ce82a0f0d0cf684b9d733b770e335909cb0334ca96176ce4eb10f8dfd4504
+[support for correctly lexing template haskell name quotes
+Stefan Wehr <wehr@factisresearch.com>**20140204145447
+ Ignore-this: 295642f81cb01774989dd4a43dca255e
+] 
+hash: 0000001334-dcf594316039d22b78eaed9d513db3d90c8b8164d57bb7ed886843ccbff1ff27
+[Bump version to 1.18
+Malcolm.Wallace@me.com**20140204152050
+ Ignore-this: 1ce37b35ebb5a9ad8eab45de70af4250
+] 
+hash: 0000001002-96ac4dffa5ae91f7b0d720b7f3605f49b4922bc8cbcdaf2490108c6498a7d33e
+[Fix incomplete guard.
+Malcolm.Wallace@me.com**20140218085317
+ Ignore-this: b432bfa342ef39dc5a0b0d71917e073
+] 
+hash: 0000000277-3911c70c5bcb6aad04feb750a3e475c3743efcb052aa3d2fa925746ca664a08c
+[cosmetic refactor
+Malcolm.Wallace@me.com**20140218085359
+ Ignore-this: 7c15a088489cc3dff4677fd4ebd8ae99
+] 
+hash: 0000000374-a67a4df496ad8f18431f5b68cc6393c91906d4790eadaa5d39a279b460e24492
+[bump version to 1.18.1
+Malcolm.Wallace@me.com**20140218085802
+ Ignore-this: e115e60278da699b967db914d6bf156
+] 
+hash: 0000001005-6ab9acfa858e141bd4f1830e9e093f9109a3881a8cfbc2c2ba9b3dbc89ca8eef
+[Add a test for a bug identified by Roman Cheplyaka, and fix it.
+Malcolm.Wallace@me.com**20140224083236
+ Ignore-this: 4c31a489463ad63b5b57d90561a1ff65
+] 
+hash: 0000003093-0b04fa0210f4a161366f7e284ec130f90861a0c022ae95557f36114052b3b353
+[Avoid repeated work in the #if boolean expression parser.
+Malcolm.Wallace@me.com**20140224083747
+ Ignore-this: 777a07df3f3b827c66c15a374a6629a6
+] 
+hash: 0000000758-d289709c3946b7d500dcb36e3d085852b157c6f0bdd91e29068c028c7ce4136b
+[bump to 1.18.2
+Malcolm.Wallace@me.com**20140303140341
+ Ignore-this: 47bac0a810a59f6f5650fb8e1e0f965c
+] 
+hash: 0000000965-261eced6ca542d3144a0bf3ed7d8cf5d8548cd13ef597e6457ce684e6c3a5774
+[Completely rewrite the #if parsing engine, using polyparse.
+malcolm.wallace@me.com**20140226153538
+ Ignore-this: ccf015c8d54b1b665c592783cef36751
+] 
+hash: 0000011114-fe17f364f6f352ec411eac8e963e630131b4c6f37e83c141b9eec5a9e57a9ac7
+[Add a test for complex conditionals in #if.
+malcolm.wallace@me.com**20140226153916
+ Ignore-this: 616c86fd84569235d990f37c2c545b93
+] 
+hash: 0000001054-e5756f013228b851e3862569601c21f35bbe42488f1c827277a5c979f7c47d20
+[bump to 1.18.3
+Malcolm.Wallace@me.com**20140303143726
+ Ignore-this: 6b33282c0812e2e48742aef5369f664d
+] 
+hash: 0000002493-9827f565ae251d6f45dc34cf1c93c5c0d1a607f0a74843c5a32e96e173fd0dd9
+[remove problematic commas in cabal file.
+Malcolm.Wallace@me.com**20140306102857
+ Ignore-this: 38d851f8a1323993e0c2777de4e99626
+] 
+hash: 0000001855-328ce59aa37ce3364a22607067625ee7ebfd42e5cd789894e482d1de1d14334c
+[Derive Show for Options and BoolOptions.  Suggested by Pedro Furlanetto.
+Malcolm.Wallace@me.com**20140311123321
+ Ignore-this: 9f546dcf0e7a2fa866f9a80a1471e46
+] 
+hash: 0000000322-82f4662ac227fa0794c14b3e5ba9b4534d4c9d4372dab1e5a12d4b04a604a57e
+[The comment-stripping bools were flipped at the call-site.
+Malcolm.Wallace@me.com**20140320142209
+ Ignore-this: a7db32a159ad5ddf361f0edb818a101c
+] 
+hash: 0000000531-58b958b185a8b3fbaaebb3ba965d94389d5ac6e0dc3088d79237dd2373dd388c
+[bump version to 1.18.4
+Malcolm.Wallace@me.com**20140322105649
+ Ignore-this: 71851b59733702c5a521183ed505ad85
+] 
+hash: 0000001178-7b8ecefe333f4d6450b89d2ac575b2268eb5bca7f88ca87b0e24605962d93fce
+[Fix a windows directory separator bug in #includes.
+malcolm.wallace@me.com**20140626104544
+ Ignore-this: 8f90a0e8be02c2b21095fb49fb6d6d36
+] 
+hash: 0000001423-80036bd3baaceb466d94a6d48685e4360e91757edb6589f65179bb083b240460
+[Bump version to 1.18.5
+malcolm.wallace@me.com**20140626104714
+ Ignore-this: 4eabc3ede3ffccecff640116e3013c2d
+] 
+hash: 0000001047-e23234b42b2a65de69b9bc0e582afdab6e32bf74bbf9b38e1c8108e90906a2fa
+[build options
+malcolm.wallace@me.com**20141017095348
+ Ignore-this: 495aad5c68804b55d387381b020a0c6
+] 
+hash: 0000000428-32a4e72a438acf3598128101a9042a0be1907ca0cc1331949d6999becf264d03
+[check that uses of macros in #if have the declared arity
+malcolm.wallace@me.com**20141017105312
+ Ignore-this: 385633110d6ed245ef6ec7d0d68ec694
+] 
+hash: 0000000792-7bd762f9e483ab4094566599c9f6d46aafa6bbc12e6ca491035e24821e5dbc38
+[A macro expecting 1 arg, called with none, has one empty-string arg.
+malcolm.wallace@me.com**20141017121613
+ Ignore-this: 12dd48a28976890438169e27d2a46d05
+] 
+hash: 0000000484-196d848e3b7e7ffc053ddc0168bf3e32690572063d288339bdfbd05e30c40313
+[Keep (and check) stderr in the tests.
+malcolm.wallace@me.com**20141017121928
+ Ignore-this: 6a2137ea83e0524d914e1ac45f250d69
+] 
+hash: 0000000401-e26c75d908f33ce1765173a45feb4fbfead20d61cbcc632301efd39343a8d9cc
+[Tests for arity of macro calls in #if
+malcolm.wallace@me.com**20141017122050
+ Ignore-this: c685095a28ed894bd321d99b45bdd19c
+] 
+hash: 0000000763-1c569533db01597f377f647b0c2107b9108cfc16bcc0286a9d914815133602b0
+[Allow for a test that is expected to fail.
+malcolm.wallace@me.com**20141017131514
+ Ignore-this: be7ce005966a97e9371c71dcd8adb6e2
+] 
+hash: 0000000675-3d51f922bfb15b8bcb2be3e2afead992f153ce3910eda7a8105e5eb1efd60611
+[Bump version to 1.18.6
+malcolm.wallace@me.com**20141017132504
+ Ignore-this: 6b010cbcdcc7146971a88fa4af0b553b
+] 
+hash: 0000001292-b6f5d202e6c73fa2994a524853abfd5b95139103c487d0a21a6df2de4afcf134
+[Allow for an absolute filepath in a #include.
+Malcolm.Wallace@me.com**20150117115052
+ Ignore-this: 117c51425020422da8f447c11ebb45e3
+] 
+hash: 0000000623-a9aa059f1c082e10407f40c27a4245f7519a29b11b45f5508ad1f0770201c76e
+[bump version to 1.18.7
+Malcolm.Wallace@me.com**20150117115456
+ Ignore-this: a60b0ef352ca9f9e450c10e3537226
+] 
+hash: 0000000966-5d5bcc8548ec93efaf28c4955c5943ac82850dc48f39af27441bd5ed699aecc9
+[Removed tabs.
+Andrés Sicard-Ramírez <asr@eafit.edu.co>**20150119134615
+ Ignore-this: 1cf9dfb352fd94ff971d564ce106cb62
+] 
+hash: 0000011539-f51b3a3ac2e780c688b226d3d6c5a58ffbfd02a97732a47bc23fb300ed286227
+[Fixed version number.
+Andrés Sicard-Ramírez <asr@eafit.edu.co>**20150119141829
+ Ignore-this: 938d70283c931a81da499be22e5ed3b1
+] 
+hash: 0000000854-bfa27a833ddc010d010e6ead60f54ed1d3b551b37bd27c82df872cb968f66a0b
+[release date
+Malcolm.Wallace@me.com**20150120090901
+ Ignore-this: 8dcc039ddbef1e6d40601ff8ed1f78b4
+] 
+hash: 0000000208-564fb020a8ece4776fab9279c0545ade15954a24f23d3ec570ce49cbacfa329d
+[The syntax "#if defined foo" should be accepted as well as the syntax
+Malcolm.Wallace@me.com**20150209213048
+ Ignore-this: 74c041c4d7280b6bc3ad9e4bb075e207
+ with  parentheses.
+] 
+hash: 0000000761-301628be96d239784d395cb47d9fc6322bbea9c7e3d256e8f7dfa0e4e04b2d87
+[bump version to 1.18.9
+Malcolm.Wallace@me.com**20150220134200
+ Ignore-this: beb4c3a785a24b067dd9f1afafbfe954
+] 
+hash: 0000000845-6adeeab4a6fec3d5b0960e00d2a529c029e39580fbea5109c9536f405cd12a19
+[expose more of cpphs' API
+Stefan Wehr <wehr@cp-med.com>**20150323211504
+ Ignore-this: 64d6196abd2f6eb4f9c50334a211a14d
+] 
+hash: 0000001947-f1b26794ed0f24b5bc22a9ed46b60d8f409a1dc5a8df91f9445a7ef840e167f0
+[Bump version to 1.19.
+Malcolm.Wallace@me.com**20150330140603
+ Ignore-this: a293e757bdf75ccdf49f9a0e89d9679d
+] 
+hash: 0000000678-212504947eb0d8fd6f2b21c5fb72875f4fd4463114617680a7ffd1dbfabcd9db
+[Tighten up copyright info, and add LGPL static linking exception.
+Malcolm.Wallace@me.com**20150330140703
+ Ignore-this: 59189eb662ab5780c23837bbf9e9b7ab
+] 
+hash: 0000002539-a6ee06f87028c180c6ed42e3f8bb46163f1243b8b280cc7761202bebaf81d164
+[Add a test for --cpp -C option (to avoid stripping comments).
+malcolm.wallace@me.com**20150416153230
+ Ignore-this: 80064bde9c8d85f7db60da7ccf38fc83
+] 
+hash: 0000000553-853cb3bbb6f386b232483948bdb9b44e1bfa3025b0b6d9cf4d868f88ba447b3e
+[Allow trailing comments in #ifdefs to not trigger a warning.
+Malcolm.Wallace@me.com**20150730195423
+ Ignore-this: 7d9cf5bc043c6a11ccaac81fd22d545c
+] 
+hash: 0000000461-a18e0f6070dd50b34d4af9a9da9f2265d1f7aa353acb957d7cb09d559809a755
+[bump version to 1.19.1
+Malcolm.Wallace@me.com**20150730195840
+ Ignore-this: fd74b5a49296b267832479d3f1c6c933
+] 
+hash: 0000000830-28786dc76e93fd7df1baeb09b75a1941a3f3c0c49e617768cb553dbcd368e5ac
+[Fix build error, bump version to 1.19.2
+malcolm.wallace@me.com**20150731073028
+ Ignore-this: 9cbea321d6ef17e69cc89b0345893239
+] 
+hash: 0000000980-0b649e2d0e6bc0cee3e70a187596c75350b185000f23334a89d5a54ad206a303
+[For literate files, avoid dropping an initial #line pragma.
+Malcolm.Wallace@me.com**20150823085644
+ Ignore-this: 9c036d0a18cfb4b4893fb0184e4bfb08
+ It can interact badly with a later unlit pass, appearing like a (forbidden)
+ commentary line next to code.
+] 
+hash: 0000000695-b9a139601fc4b6f9e51fce4810b946b3fd93f71b68aae18d0e9c9defd46cf1c8
+[Add a test for unlit/linepragma issue (hlint ticket #161).
+Malcolm.Wallace@me.com**20150823090352
+ Ignore-this: 9eb47980875492a6fe3c2b1ac2ada66e
+] 
+hash: 0000000366-8b7ba4cb109331656326652459464168f5efc6229b4ac49ef47b19ff2c6963fb
+[bump version to 1.19.3
+Malcolm.Wallace@me.com**20150823090844
+ Ignore-this: 998f299252ebd6a6667f8aa732c2e79b
+] 
+hash: 0000000891-99effa3f72b650e304f331edf0deffaebefb8000883b859b00978eeca4a469db
+[Add a test for pre-expansion of macro name in defined().
+malcolm.wallace@me.com**20160302133410
+ Ignore-this: 937da82b35f8bc8b0ad3d1196e918e54
+] 
+hash: 0000000720-acc857ecef067dd2b90b12c63e6811fbf5b8c3836b61ada315b027c8a8c849fe
+[Fix two bugs in #if defined(X) where X is a macro.
+malcolm.wallace@me.com**20160302133512
+ Ignore-this: 1fce89b32e8d8f6033fab579aecb18cc
+] 
+hash: 0000001328-2b0e0c4c587b2166f53e28c923d820d815465dd012a5ad826ba4c4651c9769bf
+[version bump to 1.20 and copyright date to 2016
+malcolm.wallace@me.com**20160302135718
+ Ignore-this: 22c5bf6c961ca7205041c21e62ae6fec
+] 
+hash: 0000001431-661e16174b2315f390238eaabf1aff116f45c5e51b4bb8adcb42325454ef466b
+[fix version number (1.20.1)
+Malcolm.Wallace@me.com**20160304093306
+ Ignore-this: 90e17a649843c29d0b3c583c9278fc0c
+] 
+hash: 0000000456-133007037acacdccfd589bbb6b462c427878f3a6d28150c88fed4f8a9c0300af
+[Point to the bugtracker from the .cabal file.
+Malcolm.Wallace@me.com**20160304163333
+ Ignore-this: 2802fff049a2a10f6ce56611bf69b2a6
+] 
+hash: 0000000217-6882b148d4d6e696b07d60c7fefd5a3ff11bc1697a2158740ed95a48bc5a1e3d
+[Ensure that all file handles are UTF8.
+Malcolm.Wallace@me.com**20160905135433
+ Ignore-this: baf85bbb0f60416f16d79da0222c8cef
+] 
+hash: 0000001932-ef7861cd869ec4cc447fd3e0b8df7aae4f35dd03c9abaaf01a27858f80739d71
+[Bump version to 1.20.2
+Malcolm.Wallace@me.com**20160905163256
+ Ignore-this: dd8ad28b307e71c2624be89870c92088
+] 
+hash: 0000001046-69f4aa611e991593b414915ab5b63d5258a8fee08d5e6ec1876ce69ef246ab69
+[Recognise a windows absolute path in a #include.
+Malcolm.Wallace@me.com**20170206184218
+ Ignore-this: b692979085465e04fdc88df439ceac6c
+] 
+hash: 0000000250-7b8738e76b9baba43c4723a36509ae9f0a7c74889a969f9ceff69c3a31973aeb
+[Bump version to 1.20.3
+Malcolm.Wallace@me.com**20170206185548
+ Ignore-this: b9e8af12b385d55ef5646e5ded83dec3
+] 
+hash: 0000001041-5b6844af5be82a611811d9a39a875a52719dfef0696a71a88ba017661967a0a0
+[Windows path support
+jmitchell@member.fsf.org**20170218002336
+ Ignore-this: 5721ea048d086675871103b2d912b627
+] 
+hash: 0000003472-c2286ab7aaebe0a651ca50b597ca22ae2b3956cc77e3b7ac1eae0c416663d913
+[Rollback the ill-advised changes to windows path handling.
+Malcolm.Wallace@me.com**20170411131525
+ Ignore-this: 941dc72a40478f84d3b0cae9102fd931
+] 
+hash: 0000003508-1dbdc21f9be87e6a433e23f811b2c3e4c5b398cf1df566c65cbcf4882b48fc95
+[bump version to 1.20.5
+Malcolm.Wallace@me.com**20170411132200
+ Ignore-this: 53e44202752677b2f2604123e83735a0
+] 
+hash: 0000001663-04456ae592d5464c4b43ce3dd7d9f7adf2990e8c005aae56c7f3ca152d94df30
+[avoid "head of empty list" crash on illformed input
+Malcolm.Wallace@me.com**20170621124634
+ Ignore-this: a2d88524e9af87948efe9add11582fd5
+] 
+hash: 0000000428-1ca4fc23456a27515e7a7e0924d44ee68066d7a17f2bd2c54ba883374bacd01a
+[Add a test for the illformed input that previously caused a crash.
+Malcolm.Wallace@me.com**20170621124717
+ Ignore-this: 21072a000aae22cca6467ef8b4fdd15b
+] 
+hash: 0000000363-5c62677767e1cc85d3760765e3dc2f8c90f9d5fd0d246c0949ba2faac52a1823
+[Bump version to 1.20.6
+Malcolm.Wallace@me.com**20170621133912
+ Ignore-this: 65098fb418a28d733e67c52185f7a5c0
+] 
+hash: 0000000835-852ab5d7d5587cd61063d26105e5f0e26cfb76003f2328450a334eec5ef5fe7b
+[handle windows drive letters more cleanly
+malcolm.wallace@me.com**20170621161350
+ Ignore-this: 52f58f1f7b73d6415d2413790cf4f24
+] 
+hash: 0000001257-cb1a8be284903ecb71e9187c712751f95b0ce2875d125a7851af211e99e266cf
+[bump version to 1.20.7
+Malcolm.Wallace@me.com**20170621162703
+ Ignore-this: fd6e7c2576912572383ca66cdf39b883
+] 
+hash: 0000000982-4fbfff494abec72798cb26c17c22ac01b2e4f80d2337538c5ac8b5c3a10805d8
+[another case to pattern-match for windows absolute paths.
+Malcolm.Wallace@me.com**20170623104854
+ Ignore-this: d8e2bc400cee1e98a39945f6367a08b9
+] 
+hash: 0000000253-7849ab75371fb0ec36a1d211b9c8bea4f5106970559a802ca0f671ff8386ccb2
+[bump version to 1.20.8
+Malcolm.Wallace@me.com**20170623104953
+ Ignore-this: fea93e55a0383146b982cfbdb9494f18
+] 
+hash: 0000001077-50ebb7c9c355b9431df91d6ab5d667ad21042bc26f2c52c985ee6a6f9d143bc1

@@ -1,0 +1,29 @@
+#if 1
+number (1) in if
+#else
+rejected number (1) in if
+#endif
+
+#if 0
+wrongly accepted number (0) in if
+#else
+number (0) in if
+#endif
+
+#if eaf
+false hex number in if
+#else
+rejected false hex number in if
+#endif
+
+#if 0x1
+real hex number (0x1) in if
+#else
+rejected real hex number (0x1) in if
+#endif
+
+#if 0x00
+wrongly accepted real hex number (0x00) in if
+#else
+hex number (0x00) in if
+#endif

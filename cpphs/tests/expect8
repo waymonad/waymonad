@@ -1,0 +1,37 @@
+#line 1 "HsOpenGLExt.h"
+/* -----------------------------------------------------------------------------
+ *
+ * Module      :  GL extension support for Graphics.Rendering.OpenGL
+ * Copyright   :  (c) Sven Panne 2002-2004
+ * License     :  BSD-style (see the file libraries/OpenGL/LICENSE)
+ * 
+ * Maintainer  :  sven.panne@aedion.de
+ * Stability   :  provisional
+ * Portability :  portable
+ *
+ * This header should only define preprocessor macros!
+ *
+ * -------------------------------------------------------------------------- */
+
+
+
+
+/* NOTE: The macro must immediately start with the foreign declaration,
+   otherwise the magic mangler (hack_foreign) in the Hugs build system
+   doesn't recognize it. */
+
+
+
+
+
+
+
+
+
+
+foreign import ccall unsafe "dynamic" dyn_glFogCoorddEXT :: Graphics.Rendering.OpenGL.GL.Extensions.Invoker (GLdouble -> IO ()) ; 
+glFogCoorddEXT :: (GLdouble -> IO ()) ; 
+glFogCoorddEXT = dyn_glFogCoorddEXT ptr_glFogCoorddEXT ; 
+ptr_glFogCoorddEXT :: FunPtr a ; 
+ptr_glFogCoorddEXT = unsafePerformIO (Graphics.Rendering.OpenGL.GL.Extensions.getProcAddress ("GL_EXT_fog_coord or OpenGL 1.4") ("glFogCoorddEXT")) ; 
+{-# NOINLINE ptr_glFogCoorddEXT #-}

@@ -1,0 +1,11 @@
+#line 1 "ballard"
+
+
+
+
+
+4 > 4 || 4 == 4 && 5 > 5 || 4 == 4 && 5 == 5 && 0 >= 0
+
+this text is only included when expression evaluates to true
+
+done

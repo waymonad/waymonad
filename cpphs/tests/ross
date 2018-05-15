@@ -1,0 +1,19 @@
+/* 1. C comments should be deleted by the preprocessor */
+
+/* 2. repeated expansion */
+#define FOO 4
+#define BAR FOO
+
+f = BAR
+
+/* 3. continuation lines in macros shouldn't give newlines */
+#define LONG_MACRO \
+{ putStr "Hello "; \
+  putStrLn "World" }
+
+g = do LONG_MACRO
+
+/* 4. projection macros */
+#define MACRO(x) x
+
+h = MACRO(FOO)

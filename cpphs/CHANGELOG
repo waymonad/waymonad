@@ -1,0 +1,222 @@
+Version 1.20
+------------
+  * bugfixes for #if defined(FOO) && FOO(a,b)
+  * (1.20.1): fix version number
+  * (1.20.2): ensure all input/output is UTF8, regardless of locale
+  * (1.20.3): detect an absolute windows path with a drive letter in a #include
+  * (1.20.4): more windows path handling
+  * (1.20.5): revert change in 1.20.4
+  * (1.20.6): minor bugfix for crash in obscure corner case
+  * (1.20.7): bugfix for windows drive letter in #include
+  * (1.20.8): another bugfix for windows drive letter in #include
+
+Version 1.19
+------------
+  * expose more of the cpphs API
+  * allow the static linking exception to the LGPL
+  * (1.19.1): don't warn about trailing comments in #ifdefs
+  * (1.19.2): fix build error
+  * (1.19.3): bugfix for hlint ticket #161 - interaction of --unlit/--linepragma
+
+Version 1.18
+------------
+  * better lexing of Template Haskell single quotes (thanks to Stefan Wehr)
+  * (1.18.1): fix incomplete pattern match
+  * (1.18.2): bugfix for erroneous boolean intepretation of some macro
+              expansions in #if clauses
+  * (1.18.3): further rewrites of the #if expression parser
+  * (1.18.4): fix the accidental flipping of comment-stripping behaviour
+              with --cpp -traditional flags
+  * (1.18.5): fix a bug with windows filepath directory separators in a
+              #include
+  * (1.18.6): bugfix to reject a macro usage with different arity than
+              its definition
+  * (1.18.7): bugfix to accept a #include with absolute filepath
+  * (1.18.8): fix version number
+  * (1.18.9): accept #if defined foo as well as #if defined(foo)
+
+Version 1.17
+------------
+  * recursively evaluate #if expressions after macro expansion (fix)
+  * (1.17.1): report the right version with cpphs --version
+
+Version 1.16
+------------
+  * fix interaction of runCpphsReturningSymTab with --nomacro
+
+Version 1.15
+------------
+  * Fix the interaction of --nomacro with --strip.
+  * Fix the error message received when # appears without a command.
+
+Version 1.14
+------------
+  * New API to return symbol table after processing.
+
+Version 1.13
+------------
+  * Accept -U cmdline option for compatibility with cpp.
+
+Version 1.12
+------------
+  * Allow it to build with ghc-7.2.
+
+Version 1.11
+------------
+  * API change: runCpphs, cppIfdef, and macroPass are now in the IO monad.
+
+Version 1.10
+-----------
+  * New command-line option: "--linepragma"
+    It converts #line droppings into {-# LINE #-}.
+
+Version 1.9
+-----------
+  * Bugfix for #undef.
+
+Version 1.8
+-----------
+  * Bugfix for off-by-one error in line numbers with --include=file.
+
+Version 1.7
+-----------
+  * Bugfix in interaction of --unlit with \end{code}
+
+Version 1.6
+-----------
+  * New command-line option: "--include=filename".
+  * New command-line option: "--strip-eol" for comment-stripping.
+  * Line pragmas can have filenames containing spaces.
+
+Version 1.5
+-----------
+  * Parametrised macro-calls now permitted in #ifdef's.
+  * Recursive textual expansion now permitted in #ifdef's.
+  * Better options-handling when used as a library.
+  * Various small bugfixes
+
+Version 1.4
+-----------
+  * Added a "--pragma" option to retain #pragma in the output.
+  * Fixed a number of obscure corner cases involving the interaction of
+    multiple features e.g. foo##__LINE__.
+  * Added the "--nowarn" option.
+
+Version 1.3
+-----------
+  * Added a "--cpp" option for drop-in compatibility with standard cpp.
+    It causes cpphs to accept standard cpp flags and translate
+    them to cpphs equivalents.  Compatibility options include: -o, -ansi,
+    -traditional, -stdc, -x, -include, -P, -C, -CC, -A.  The file
+    behaviour is different too - if two filenames are given on the
+    commandline, then the second is treated as the output location.
+  * Fixed a corner-case bug in evaluating chained and overlapping #ifdefs.
+
+Version 1.2
+-----------
+  * Re-arranged the source files into hierarchical libraries.
+  * Exposed the library interface as an installable Cabal package, with
+    Haddock documentation.
+  * Added the --unlit option, for removing literate-style comments.
+
+Version 1.1
+-----------
+  * Fix the .cabal way of building cpphs.
+  * Update the --version reported (forgotten in 1.0, which still reports 0.9)
+  * No longer throws an error when given an empty file as input.
+
+Version 1.0
+-----------
+  * Add a compatibility script cpphs.compat, allowing cpphs to act as
+    a drop-in replacement for cpp, e.g.
+        ghc -cpp -pgmP cpphs.compat
+  * Place quotes around replacements for special macros __FILE__, __DATE__,
+    and __TIME__.
+  * If no files are specified, read from stdin.
+  * Ignore #! lines (e.g. in scripts)
+  * Parse -D commandline options once only, and consistently with cpp,
+    i.e. -Dfoo means foo=1
+  * Fix compatibility with preprocessors like hsc2hs, which use
+    non-cpp directives like #def.  They are now passed through to the
+    output with a warning to stderr.
+
+Version 0.9
+-----------
+  * Bugfix for ghc-6.4 -O: flush the output buffer.
+
+Version 0.8
+-----------
+  * Added the --text option, to signify the input should not
+    be lexed as Haskell.  This causes macros to be defined or expanded
+    regardless of their location within comments, string delimiters, etc.
+  * Shuffle a few files around to make it easier to say 'hmake cpphs'.
+    There is also now a runhugs script to invoke cpphs nicely.
+
+Version 0.7
+-----------
+  * Enable the __FILE__, __LINE__, __DATE__, and __TIME__ specials, which
+    can be useful for creating DIY error messages.
+
+Version 0.6
+-----------
+  * Recognise and ignore the #pragma cpp directive.
+  * Fix beginning-of-file bug, where in --noline mode, a # cpp directive
+    at the top of the file appeared in the output.
+  * Fix chained parenthesised boolean exprs in #if, e.g.
+        #if ( foo ) && ( bar )
+  * Fix precedence in chained unparenthesised boolean exprs in #if, e.g.
+        #if foo && bar || baz && frob
+  * For better compatibility with cpp, and because otherwise
+    there are certain constructs that cannot be expressed, we no
+    longer permit whitespace in a <tt>#define</tt> between the
+    symbolname and an opening parenthesis, e.g.
+        #define f (f' id)
+    Previously, this was interpreted as a parametrised macro,
+    with arguments in the parens, and no expansion.  Now, the space
+    indicates that this is a textual replacement, and the parenthesised
+    expression is in fact the replacement.
+
+Version 0.5
+-----------
+  * Added a --version flag to report the version number.
+  * Renamed --stringise to --hashes, and use it to turn on ## catenation
+    as well.
+  * Bugfix for #if 1, previously taken as false.
+  * Bugfix for --nolines: it no longer adds extra spurious newlines.
+  * File inclusion now looks in the directory of the calling file.
+  * Failure to find an include file is now merely a warning to stderr
+    rather than an error.
+  * Added a --layout flag.  Previously, line continuations in a macro
+    definition were always preserved in the output, permitting use
+    of the Haskell layout rule even inside a macro.  The default is now
+    to remove line continuations for conformance with cpp, but the option
+    of using --layout is still possible.
+
+Version 0.4
+-----------
+  * New flag -Ofile to redirect output
+  * Bugfix for precedence in   #if !False && False
+  * Bugfix for whitespace between # and if
+  * Bugfix for #define F "blah"; #include F
+
+Version 0.3
+-----------
+  * Bugfix for recursive macro expansion.
+  * New flag --strip to remove C comments even outside cpp directives.
+  * New flag --stringise to recognise the # stringise operator in macros.
+
+Version 0.2
+-----------
+  * New flag --noline to eliminate #line directives from output.
+  * Add symbol-replacement and macro-expansion.
+  * New flag --nomacro to turn off symbol/macro-expansion.
+
+2004-Apr-21
+-----------
+  * Now accept multi-line # commands via the \ line continuation operator.
+    The original file line numbering is preserved in the output by
+    some tricky acrobatics.
+
+Version 0.1
+-----------
+  * Initial release.

@@ -1,0 +1,11 @@
+#line 1 "Defined.hs"
+{-# LANGUAGE CPP #-}
+
+
+
+
+
+
+
+main :: IO ()
+main = print 2

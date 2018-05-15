@@ -1,0 +1,100 @@
+#!/bin/sh
+CPPHS=${1:-"../cpphs"}
+FAIL=0
+
+# Run a test and report whether it matched the expected output.
+runtest() {
+  if $1 >out 2>&1 && diff $2 out >/dev/null
+  then echo "passed: " $1
+  else FAIL=$?
+       echo "FAILED: ($2) " $1
+  fi
+}
+
+# For tests which are expected to fail
+runtestE() {
+  if $1 >out 2>&1 && dos2unix -q out && diff $2 out >/dev/null
+  then echo "UNEXPECTED PASS: ($2) " $1
+  else if dos2unix -q out && diff $2 out >/dev/null
+       then echo "passed: " $1
+       else FAIL=$?
+            echo "FAILED: ($2) " $1
+       fi
+  fi
+}
+
+if $CPPHS </dev/null; then echo -n "passed: "; else echo -n "FAILED: "; fi
+echo " $CPPHS </dev/null"
+runtest "$CPPHS --nomacro testfile" expect1
+runtest "$CPPHS --nomacro -Dnoelif testfile" expect2
+runtest "$CPPHS --nomacro -Delif testfile" expect3
+runtest "$CPPHS --nomacro -Dinclude testfile" expect4
+runtest "$CPPHS --noline -Dinclude testfile" expect5
+runtest "$CPPHS cpp" expect6
+runtest "$CPPHS -D__GLASGOW_HASKELL__ --layout Storable.hs " expect7
+runtest "$CPPHS -DCALLCONV=ccall --hashes --layout HsOpenGLExt.h" expect8
+runtest "$CPPHS --layout multiline" expect9
+runtest "$CPPHS --nomacro multiline" expect10
+runtest "$CPPHS --hashes stringise" expect11
+runtest "$CPPHS recursive" expect12
+runtest "$CPPHS --strip ross" expect13
+runtest "$CPPHS --cpp -C ross" expect13a
+runtest "$CPPHS precedence" expect14
+runtest "$CPPHS indirect" expect15
+runtest "$CPPHS --hashes indirect-a" expect15a
+runtest "$CPPHS numbers" expect16
+runtest "$CPPHS pragma" expect17		# see also test 32
+runtest "$CPPHS --noline pragma" expect18	# see also test 33
+runtest "$CPPHS -D__NHC__=117 parens" expect19
+runtest "$CPPHS -Dc -Dd -De -Df -Dg -Dh chains" expect20
+runtest "$CPPHS --hashes specials" expect21
+runtest "$CPPHS --hashes specialinclude" expect22
+runtest "$CPPHS incomplete" expect23
+runtest "$CPPHS text" expect24
+runtest "$CPPHS --text text" expect25
+runtest "$CPPHS --text nastyhack" expect26
+runtest "$CPPHS nastyhack" expect27
+runtest "$CPPHS -DXXX symbolvalue" expect28
+runtest "$CPPHS Test.hsc" expect29
+runtest "$CPPHS --unlit Arr.lhs" expect30
+runtest "$CPPHS -D__NHC__=118 elif" expect31
+runtest "$CPPHS --pragma pragma" expect32
+runtest "$CPPHS --pragma --noline pragma" expect33
+runtest "$CPPHS igloo" expect34
+runtest "$CPPHS igloo2" expect35
+runtest "$CPPHS --hashes igloo3" expect36
+runtest "$CPPHS --hashes igloo3a" expect36a
+runtest "$CPPHS --hashes igloo3b" expect36b
+runtest "$CPPHS --hashes igloo4" expect37
+runtest "$CPPHS --hashes igloo4a" expect37a
+runtest "$CPPHS mauke" expect38
+runtest "$CPPHS mauke2" expect39
+runtest "$CPPHS --hashes fasta" expect40
+runtest "$CPPHS --hashes fasta2" expect40a
+runtest "$CPPHS --hashes hashjoin" expect41
+runtest "$CPPHS wrongline" expect42
+runtest "$CPPHS --hashes param" expect43
+runtest "$CPPHS --strip comments" expect44
+runtest "$CPPHS --strip-eol comments" expect44a
+runtest "$CPPHS nestcomment" expect45
+runtest "$CPPHS --include=inclusion preinclude" expect46
+runtest "$CPPHS --unlit endcode-a" expect47
+runtest "$CPPHS --unlit endcode-b" expect48
+runtest "$CPPHS undef.hs" expect49
+runtest "$CPPHS --linepragma linepragma" expect50
+runtest "$CPPHS nomacro" expect51
+runtest "$CPPHS --nomacro nomacro" expect52
+runtest "$CPPHS --nomacro --strip-eol nomacro" expect53
+runtest "$CPPHS --strip-eol nomacro" expect54
+runtest "$CPPHS ballard" expect55
+runtest "$CPPHS th" expect56
+runtest "$CPPHS cheplyaka" expect57
+runtest "$CPPHS booleanchain" expect58
+runtestE "$CPPHS wrongarity" expect59
+runtest "$CPPHS --hashes wrongarity0" expect60
+runtest "$CPPHS Defined.hs" expect61
+runtest "$CPPHS --unlit --linepragma lhs.lhs" expect62
+runtest "$CPPHS definedness.txt" expect63
+runtest "$CPPHS -DenableBAR definedness.txt" expect64
+runtest "$CPPHS illformed" expect65
+exit $FAIL

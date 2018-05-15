@@ -1,0 +1,6 @@
+#line 1 "param"
+
+
+
+
+11	-- gcc gives BARBAR, cpphs gives 11

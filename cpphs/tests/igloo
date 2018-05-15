@@ -1,0 +1,10 @@
+#define FOO 1
+#define BAR FOO
+
+BAR
+
+#if BAR == 1
+foo
+#else
+bar
+#endif

@@ -1,0 +1,30 @@
+# This file contains a list of extended regular expressions, one per
+# line.  A file path matching any of these expressions is assumed to
+# contain binary data (not text). The entries in ~/.darcs/binaries (if
+# it exists) supplement those in this file.
+# 
+# Blank lines, and lines beginning with an octothorpe (#) are ignored.
+# See regex(7) for a description of extended regular expressions.
+\.(a|A)$
+\.(bmp|BMP)$
+\.(bz2|BZ2)$
+\.(doc|DOC)$
+\.(elc|ELC)$
+\.(exe|EXE)$
+\.(gif|GIF)$
+\.(gz|GZ)$
+\.(iso|ISO)$
+\.(jar|JAR)$
+\.(jpe?g|JPE?G)$
+\.(mng|MNG)$
+\.(mpe?g|MPE?G)$
+\.(p[nbgp]m|P[NBGP]M)$
+\.(pdf|PDF)$
+\.(png|PNG)$
+\.(pyc|PYC)$
+\.(so|SO)$
+\.(tar|TAR)$
+\.(tgz|TGZ)$
+\.(tiff?|TIFF?)$
+\.(z|Z)$
+\.(zip|ZIP)$

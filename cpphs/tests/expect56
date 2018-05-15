@@ -1,0 +1,6 @@
+#line 1 "th"
+
+test_b = FOO False
+-- This line causes troubles:
+SafeCopy.deriveSafeCopy 0 'SafeCopy.base ''Event
+test_a = FOO True

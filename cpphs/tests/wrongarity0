@@ -1,0 +1,7 @@
+#define FOO(x) 1 && 1
+#define BAR(x) stringise #x
+
+#if FOO()
+There is no error here
+#endif
+BAR()

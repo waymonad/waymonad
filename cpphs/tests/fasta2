@@ -1,0 +1,6 @@
+#define XCONCAT(a, b) a##b
+#define CONCAT(a, b) XCONCAT(a, b)
+#define PS(val) () <- trace (val) (return ())
+#define VIS(ioaction) let CONCAT(b, __LINE__) = unsafeVisualize(ioaction)
+#define V(ioaction) CONCAT(b, __LINE__) = unsafeVisualize(ioaction)
+V(foo)

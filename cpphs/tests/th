@@ -1,0 +1,5 @@
+#define assertBool FOO
+test_b = assertBool False
+-- This line causes troubles:
+SafeCopy.deriveSafeCopy 0 'SafeCopy.base ''Event
+test_a = assertBool True

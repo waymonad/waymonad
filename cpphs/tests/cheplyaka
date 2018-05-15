@@ -1,0 +1,28 @@
+This file tests for a bug reported by Roman Cheplyaka on 2014-02-21.
+All results should be YES, but cpphs was giving NO for the first one.
+#define x (1 == 1)
+#if x
+YES
+#else
+NO
+#endif
+
+#if (1 == 1)
+YES
+#else
+NO
+#endif
+
+#define x 1 == 1
+#if x
+YES
+#else
+NO
+#endif
+
+#define x 0 == 0
+#if x
+YES
+#else
+NO
+#endif

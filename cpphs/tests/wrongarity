@@ -1,0 +1,5 @@
+#define FOO(x,y) This is fine x y
+
+#if FOO(1)
+There is an error here
+#endif

@@ -1,0 +1,9 @@
+#define /**/ ++ `mplus`		// not expected to work
+#define 0   mzero		// not expected to work
+#define x0  X'			// should work
+#define x'  Xprime		// should work
+#define `foo` .(foo)/**/,	// bizarreness
+
+x ++ y = x0 * 0 * y `foo` x' 
+
+//  /*

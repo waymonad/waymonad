@@ -1,0 +1,52 @@
+This directory contains 'cpphs', a simplified but robust
+re-implementation of cpp, the C pre-processor, in Haskell.
+
+TO BUILD
+--------
+Just use
+    hmake cpphs [-package base]
+or
+    ghc --make cpphs [-o cpphs]		#  -o needed for ghc <= 6.4.1 ]
+or
+    runhugs cpphs	# or rename the script cpphs.hugs to cpphs
+
+
+USAGE
+-----
+	cpphs  [filename | -Dsym | -Dsym=val | -Ipath]+  [-Ofile]
+               [ --include=file ]*
+               [ --nomacro | --noline | --nowarn | --strip | --strip-eol |
+                 --pragma | --text | --hashes | --layout | --unlit |
+                 --linepragma ]*
+               [ --cpp compatopts ]
+
+For fuller details, see docs/index.html
+
+If you want to use cpphs as a completely drop-in replacement for the
+real cpp, that is, to accept the same arguments, and have broadly
+the same behaviour in response to them, then use the --cpp compatibility
+option.
+
+
+COPYRIGHT
+---------
+Copyright (c) 2004-2017 Malcolm Wallace (Malcolm.Wallace@me.com)
+
+
+LICENCE
+-------
+These library modules are distributed under the terms of the LGPL.
+The application module 'cpphs.hs' is GPL.
+
+This software comes with no warranty.  Use at your own risk.
+
+If you have a commercial use for cpphs, and feel the terms of the (L)GPL
+are too onerous, you have the option of distributing unmodified binaries
+(only, not sources) under the terms of a different licence (see
+LICENCE-commercial).
+
+
+WEBSITE
+-------
+http://projects.haskell.org/cpphs/
+darcs get http://code.haskell.org/~malcolm/cpphs

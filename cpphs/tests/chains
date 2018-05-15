@@ -1,0 +1,16 @@
+For this test, assume that all of e,f,g,h are defined.
+Also that c,d are defined, a,b are not.
+If cpphs does operator precedence wrongly in infix chains, the final
+conditional will be interpreted wrongly.
+
+#if defined(a) || defined(b) || defined(c) || defined(d)
+chained || OK
+#endif
+#if defined(e) && defined(f) && defined(g) && defined(h)
+chained && OK
+#endif
+#if defined(a) && defined(b) || defined(c) && defined(d)
+mixed chain of || and && OK
+#else
+mixed chain of || and && BROKEN
+#endif

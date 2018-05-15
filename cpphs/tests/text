@@ -1,0 +1,14 @@
+Here is some ordinary text with embedded Haskell-ish constructs,
+that should however /not/ be interpreted as Haskell if the --text
+option is given to cpphs.  For instance, here is a Haskell comment
+including a cpp definition: {-
+#  define FOO bar
+and now we end the comment: -}   and try out the definition:  FOO
+Likewise, double and single quotes no longer delimit strings or chars: "
+#  define BAZ FOO
+and what do we have here?: "  ' BAZ  '
+
+#  define expand(a,b,c)	  Some text including a, the b, and c.
+Also, in text-mode, macros should be expanded inside Haskell comments:
+    -- expand(this,other,that)
+and strings "expand(this,other,that)".

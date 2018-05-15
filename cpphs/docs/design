@@ -1,0 +1,29 @@
+Design for hspp
+
+First pass:
+-----------
+  * traverse the file,
+      - processing #if's and #ifdef's
+      - reading #include's and recursively doing this pass on them
+      - leaving #line's behind
+      - whilst taking account of #define's and #undef's
+  * only needs to look at lines beginning with a #
+  * should discard C-style comments?  (no)
+  * DO NOT gather the #define's for macros - their sequence matters!
+
+pass1 :: SymTab -> String -> String
+
+Second pass:
+------------
+  * traverse the residual file,
+      - keeping track of #define'd macros
+      - expanding #define'd macros when an instance is encountered
+  * needs a whitespace-preserving tokeniser with odd rules to
+    cover e.g. token concatenation.  Within Haskell, quotation marks start
+    strings, haskell comments are preserved.  Within a cpp directive,
+    quotation marks do not start a string, and C-style comments are
+    converted to whitespace.
+  * Line continuation characters are tricky; probably should only
+    be recognised within a macro definition, not in ordinary code.
+
+pass2 :: SymTab -> String -> String

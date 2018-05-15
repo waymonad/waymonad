@@ -1,0 +1,6 @@
+#line 1 "indirect-a"
+
+#line 1 "./inclusion"
+hello world, this is an inclusion
+
+#line 3 "indirect-a"

@@ -1,0 +1,5 @@
+#define error(s)	Error #s at line __LINE__ of file __FILE__
+line 2
+line 3
+line 4  error(horrible)
+line 5

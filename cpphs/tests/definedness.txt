@@ -1,0 +1,9 @@
+#if defined(enableBAR)
+#define BAR(a,b) (a||b)
+#endif
+#define FOO 1
+#if defined(BAR)  && BAR(FO0,20)
+condition accepted
+#else
+condition rejected
+#endif

@@ -1,0 +1,9 @@
+{-# LINE 1 "linepragma" #-}
+{-# LINE 1 "./inclusion" #-}
+hello world, this is an inclusion
+
+{-# LINE 2 "linepragma" #-}
+{-# LINE 2 "linepragma" #-}
+
+{-# LINE 3 "linepragma" #-}
+

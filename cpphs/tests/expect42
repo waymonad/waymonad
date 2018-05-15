@@ -1,0 +1,5 @@
+#line 1 "wrongline"
+
+2
+#line 20 "foo"
+20

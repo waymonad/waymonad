@@ -1,0 +1,4 @@
+#define whereami __LINE__
+whereami
+#line 20 "foo"
+__LINE__

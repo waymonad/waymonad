@@ -1,0 +1,276 @@
+.TH CPPHS 1 2004-10-01 "cpphs version 0.9" "User Manual"
+
+.SH NAME
+cpphs \- liberalised cpp-a-like preprocessor for Haskell
+
+.SH SYNOPSIS
+.B cpphs
+[\fIFILENAME\fR|\fIOPTION\fR]...
+
+.SH DESCRIPTION
+.ds c \fIcpphs\fP
+\*c is a liberalised re-implementation of
+.B cpp (1),
+the C pre-processor, in and for Haskell.
+.PP
+Why re-implement cpp?  Rightly or wrongly, the C pre-processor is
+widely used in Haskell source code.  It enables conditional compilation
+for different compilers, different versions of the same compiler,
+and different OS platforms.  It is also occasionally used for its
+macro language, which can enable certain forms of platform-specific
+detail-filling, such as the tedious boilerplate generation of instance
+definitions and FFI declarations.  However, there are two problems with
+cpp, aside from the obvious aesthetic ones:
+.IP
+For some Haskell systems, notably Hugs on Windows, a true cpp
+is not available by default.
+.IP
+Even for the other Haskell systems, the common cpp provided by
+the gcc 3.x series is changing subtly in ways that are
+incompatible with Haskell's syntax.  There have always been
+problems with, for instance, string gaps, and prime characters
+in identifiers.  These problems are only going to get worse.
+.PP
+So, it seemed right to attempt to provide an alternative to cpp,
+both more compatible with Haskell, and itself written in Haskell so
+that it can be distributed with compilers.
+.PP
+\*c is pretty-much feature-complete,
+and compatible with the
+.B \-traditional
+style of cpp.
+It has two modes:
+.IP
+conditional compilation only (\fB\-\-nomacro\fR),
+.IP
+and full macro-expansion (default).
+.PP
+In
+.B \-\-nomacro
+mode, \*c performs only conditional compilation actions, i.e.
+\fB#include\fR's, \fB#if\fR's, and \fB#ifdef\fR's are processed
+according to text-replacement
+definitions (both command-line and internal), but no parameterised
+macro expansion is performed.  In full compatibility mode (the
+default), textual replacements and macro expansions are also processed
+in the remaining body of non-cpp text.
+.PP
+Working Features:
+.TP
+.B #ifdef
+simple conditional compilation
+.TP
+.B #if
+the full boolean language of defined(), &&, ||, ==, etc.
+.TP
+.B #elif
+chained conditionals
+.TP
+.B #define
+in-line definitions (text replacements and macros)
+.TP
+.B #undef
+in-line revocation of definitions
+.TP
+.B #include
+file inclusion
+.TP
+.B #line
+line number directives
+.TP
+.B \\\\n
+line continuations within all # directives
+.TP
+.B /**/
+token catenation within a macro definition
+.TP
+.B ##
+ANSI-style token catenation
+.TP
+.B #
+ANSI-style token stringisation
+.TP
+.B __FILE__
+special text replacement for DIY error messages
+.TP
+.B __LINE__
+special text replacement for DIY error messages
+.TP
+.B __DATE__
+special text replacement
+.TP
+.B __TIME__
+special text replacement
+.PP
+Macro expansion is recursive.  Redefinition of a macro name does not
+generate a warning.  Macros can be defined on the command-line with
+.B \-D
+just like textual replacements.  Macro names are permitted to be
+Haskell identifiers e.g. with the prime \(ga and backtick \(aa characters,
+which is slightly looser than in C, but they still may not include
+operator symbols.
+.PP
+Numbering of lines in the output is preserved so that any later
+processor can give meaningful error messages.  When a file is
+\fB#include\fR'd, \*c inserts
+.B #line
+directives for the same reason. Numbering should be correct
+even in the presence of line continuations. If you don't want
+.B #line
+directives in the final output, use the
+.B \-\-noline
+option.
+.PP
+Any syntax errors in cpp directives gives a message to stderr and
+halts the program.  Failure to find a #include'd file produces a
+warning to stderr, but processing continues.
+.PP
+You can give any number of filenames on the command-line.  The
+results are catenated on standard output.
+.TP
+.B \-D\fIsym\fR
+define a textual replacement (default value is 1)
+.TP
+.B \-Dsym=\fIval\fR
+define a textual replacement with a specific value
+.TP
+.B \-I\fIpath\fR
+add a directory to the search path for #include's
+.TP
+.B \-O\fIfile\fR
+specify a file for output (default is stdout)
+.TP
+.B \-\-nomacro
+only process #ifdef's and #include's,
+                      do not expand macros
+.TP
+.B \-\-noline
+remove #line droppings from the output
+.TP
+.B \-\-strip
+convert C-style comments to whitespace, even outside
+                      cpp directives
+.TP
+.B \-\-hashes
+recognise the ANSI # stringise operator, and ## for
+                      token catenation, within macros
+.TP
+.B \-\-text
+treat the input as plain text, not Haskell code
+.TP
+.B \-\-layout
+preserve newlines within macro expansions
+.TP
+.B \-\-unlit
+remove literate-style comments
+.TP
+.B \-\-version
+report version number of cpphs and stop
+.PP
+There are NO textual replacements defined by default.  (Normal cpp
+usually has definitions for machine, OS, etc.  These could easily
+be added to the cpphs source code if you wish.)  The search path is
+searched in order of the
+.B \-I
+options, except that the directory of the
+calling file, then the current directory, are always searched first.
+Again, there is no default search path (and again, this could easily
+be changed).
+
+.SH "DIFFERENCES FROM CPP"
+.PP
+In general, cpphs is based on the
+.B \-traditional
+behaviour, not ANSI C, and has the following main differences from the
+standard cpp.
+
+.B General
+.PP
+The
+.B #
+that introduces any cpp directive must be in the first
+column of a line (whereas ANSI permits whitespace before the
+.B #
+).
+.PP
+Generates the
+.B "#line \fIn\fR \(dq\fIfilename\fR\(dq"
+syntax, not the
+.B "# \fIn\fR \(dq\fIfilename\fR\(dq"
+variant.
+.PP
+C comments are only removed from within cpp directives.  They are
+not stripped from other text.  Consider for instance that in
+Haskell, all of the following are valid operator symbols:
+.B /*  */  */*
+However, you can turn on C-comment removal with the
+.B \-\-strip
+option.
+
+.B Macro language
+.PP
+Accepts
+.B /**/
+for token-pasting in a macro definition.
+However,
+.B /* */
+(with any text between the open/close comment) inserts whitespace.
+.PP
+The ANSI
+.B ##
+token-pasting operator is available with
+the
+.B \-\-hashes
+flag.  This is to avoid misinterpreting
+any valid Haskell operator of the same name.
+.PP
+Replaces a macro formal parameter with the actual, even inside a
+string (double or single quoted).  This is \-traditional behaviour,
+not supported in ANSI.
+.PP
+Recognises the
+.B #
+stringisation operator in a macro
+definition only if you use the
+.B \-\-hashes
+option.  (It is
+an ANSI addition, only needed because quoted stringisation (above)
+is prohibited by ANSI.)
+.PP
+Preserves whitespace within a textual replacement definition
+exactly (modulo newlines), but leading and trailing space is eliminated.
+.PP
+Preserves whitespace within a macro definition (and trailing it)
+exactly (modulo newlines), but leading space is eliminated.
+.PP
+Preserves whitespace within macro call arguments exactly
+(including newlines), but leading and trailing space is eliminated.
+.PP
+With the
+.B \-\-layout
+option, line continuations in a textual
+replacement or macro definition are preserved as line-breaks in the
+macro call.  (Useful for layout-sensitive code in Haskell.)
+
+.SH BUGS
+Bug reports, and any other feedback, should be sent to
+Malcolm Wallace <Malcolm.Wallace@cs.york.ac.uk>
+.SH COPYRIGHT
+Copyright \(co 2004-2005 Malcolm Wallace,
+except for ParseLib (Copyright \(co 1995 Graham Hutton and Erik Meijer).
+.PP
+The library modules in cpphs are distributed under
+the terms of the LGPL. If that's a problem for you, contact me to make
+other arrangements. The application module
+.B Main.hs
+itself is GPL.
+.SH "SEE ALSO"
+.BR cpp (1)
+
+.SH AUTHOR
+
+This manual page was written, based on \fBindex.html\fR,
+by Ian Lynagh <igloo@debian.org> for the Debian
+system (but may be used by others).
+
+

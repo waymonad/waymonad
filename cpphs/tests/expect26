@@ -1,0 +1,17 @@
+#line 1 "nastyhack"
+
+-- hackery to convice cpp to splice 6.2.2 into a string
+version :: String
+version = tail "\ 
+    \ 6.2.2"
+
+version2 = "6.2.2"
+
+
+version3 = "6.2.2"
+
+
+version4 = #6.2.2
+
+
+version5 = "6.2.2"

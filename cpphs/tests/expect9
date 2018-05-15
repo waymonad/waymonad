@@ -1,0 +1,16 @@
+#line 1 "multiline"
+
+
+
+
+5 back to ordinary text.
+#line 1 "./inclusion"
+hello world, this is an inclusion
+
+#line 7 "multiline"
+7 hello again
+8 some more
+9 some line here;	
+	and some more;	
+	finish now
+10 end

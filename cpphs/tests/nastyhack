@@ -1,0 +1,16 @@
+#define GHC_PKG_VERSION 6.2.2
+-- hackery to convice cpp to splice GHC_PKG_VERSION into a string
+version :: String
+version = tail "\ 
+    \ GHC_PKG_VERSION"
+
+version2 = "GHC_PKG_VERSION"
+
+#define v3 "GHC_PKG_VERSION"
+version3 = v3
+
+#define stringify(s) #s
+version4 = stringify(GHC_PKG_VERSION)
+
+#define stringify2(s) "s"
+version5 = stringify2(GHC_PKG_VERSION)

@@ -1,0 +1,11 @@
+#define FOO 1
+#define BAZ(x) x
+
+baz
+BAZ(1)
+
+#if BAZ(1) == 1
+foo
+#else
+bar
+#endif

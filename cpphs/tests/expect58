@@ -1,0 +1,22 @@
+#line 1 "booleanchain"
+
+This file tests the #if boolean expression parser/evaluator.
+
+
+
+
+SUCCEED with not and parens
+
+
+Then we check for arithmetic.
+
+
+simple ARITHMETIC works
+
+
+
+
+complex ARITHMETIC works
+
+
+

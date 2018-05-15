@@ -1,0 +1,4 @@
+#line 1 "comments"
+here is an ordinary C comment:			                  
+and here is a C++-style end-of-line comment:	// comment here
+this line has no comments

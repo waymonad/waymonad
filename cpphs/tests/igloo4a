@@ -1,0 +1,10 @@
+#define WIBBLE 1##1
+
+wibble
+WIBBLE
+
+#if WIBBLE == 11
+foo
+#else
+bar
+#endif
