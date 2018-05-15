@@ -165,8 +165,8 @@ layoutLayer b@(WlrBox x y w h) ((surf,state):xs) =
 
 layoutOutput :: (R.LayerSurface -> View) -> LayerShellLayer -> Output -> Way vs ws ()
 layoutOutput conv (LayerShellLayer bottom top overlay back) output = do
-    startBox <- liftIO $ getEffectiveBox $ outputRoots output
-    (overL, overB) <- getLayer startBox overlay
+    WlrBox _ _ sw sh <- liftIO $ getEffectiveBox $ outputRoots output
+    (overL, overB) <- getLayer (WlrBox 0 0 sw sh) overlay
     (topL, topB) <- getLayer overB top
 
     (bottomL, bottomB) <- getLayer topB bottom
@@ -176,7 +176,7 @@ layoutOutput conv (LayerShellLayer bottom top overlay back) output = do
     setLayerContent "bottom" output $ map toLayout bottomL
     setLayerContent "background" output $ map toLayout backL
 
-    updateStruts (outputName output) $ makeStruts startBox backB
+    updateStruts (outputName output) $ makeStruts (WlrBox 0 0 sw sh) backB
 
     -- send the views their size
     let tmp = fmap toLayout $ overL ++ topL ++ bottomL ++ backL
