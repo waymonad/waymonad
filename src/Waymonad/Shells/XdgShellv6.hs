@@ -141,8 +141,8 @@ unconstrainPopup view popup = do
     outs <- doGetPosition view
     case outs of
         [(out, Point x y)] -> liftIO $ do
-            WlrBox ox oy w h <- getEffectiveBox out
-            R.unconstrainPopup popup $ WlrBox (ox - x) (oy - y) w h
+            WlrBox _ _ w h <- getEffectiveBox out
+            R.unconstrainPopup popup $ WlrBox (negate x) (negate y) w h
         _ -> pure ()
 
 handleXdgPopup :: View -> IO Point -> Ptr R.WlrXdgPopup -> Way vs ws ()
