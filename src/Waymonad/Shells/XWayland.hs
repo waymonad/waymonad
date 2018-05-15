@@ -156,7 +156,7 @@ xwayShellCreate :: (FocusCore vs a, WSTag a)
                 -> Way vs a XWayShell
 xwayShellCreate display comp act = do
     surfaces <- liftIO $ newIORef mempty
-    roots <- liftIO $ X.xwaylandCreate display comp
+    roots <- liftIO $ X.xwaylandCreate display comp False
 
     setCallback (handleXwaySurface surfaces) (X.xwayBindNew roots)
     setDestroyHandler (X.xwayReadEvent roots) (pure (attachSeat roots >> act))
