@@ -22,16 +22,70 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Input.Libinput
     ( LibinputOption (..)
     , libinputOptions
+    , LibinputSetter (..)
+    , LibinputOpts (..)
+    , setLibinputOptions
     )
 where
 
+import Control.Monad (void)
+import Control.Monad.IO.Class (liftIO)
+import Data.List (find)
 import Data.Text (Text)
+import Data.Word (Word32)
+import Foreign.Ptr
 
 import System.InputDevice
 
-import Waymonad.Utility.Base (showT, readT)
+import Waymonad.Types (Way)
+import Waymonad.Utility.Base (showT, readT, doJust, whenJust)
 
 import qualified Data.Text as T
+import qualified Graphics.Wayland.WlRoots.Backend.Libinput as LI
+import qualified Graphics.Wayland.WlRoots.Input as R
+
+data LibinputSetter
+    = AccelProfile AccelProfile
+    | AccelSpeed Double
+    | CalibrationMatrix [Float]
+    | ClickMethod ClickMethod
+    | DisableWhileTyping DWTState
+    | LeftHanded Bool
+    | MiddleEmulation MiddleEmulationState
+    | DefaultRotation Word
+    | ScrollButton Word32
+    | ScrollMethod ScrollMethod
+    | NaturalScroll Bool
+    | TapButtonMap TapButtonMap
+    | TapDrag DragState
+    | TapDragLock DragLockState
+    | TapToClick TapState
+    deriving (Show)
+
+data LibinputOpts = LibinputOpts { inputOptName :: Text, inputOptOpts :: [LibinputSetter] } deriving (Show)
+
+applySetting :: InputDevice -> LibinputSetter -> IO ConfigStatus
+applySetting device (AccelProfile profile) = setAccelProfile device profile
+applySetting device (AccelSpeed speed) = setAccelSpeed device speed
+applySetting device (CalibrationMatrix matrix) = setCalibrationMatrix device matrix
+applySetting device (ClickMethod method) = setClickMethod device method
+applySetting device (DisableWhileTyping state) = setDWTEnabled device state
+applySetting device (LeftHanded val) = setLeftHanded device val
+applySetting device (MiddleEmulation state) = setMiddleEmulationEnabled device state
+applySetting device (DefaultRotation angle) = setRotationDefaultAngle device angle
+applySetting device (ScrollButton button) = setScrollButton device button
+applySetting device (ScrollMethod method) = setScrollMethod device method
+applySetting device (NaturalScroll natural) = setNaturalScrollenabled device natural
+applySetting device (TapButtonMap bmap) = setTapButtonMap device bmap
+applySetting device (TapDrag state) = setTapDragEnabled device state
+applySetting device (TapDragLock state) = setTapDragLockEnabled device state
+applySetting device (TapToClick state) = setTapEnabled device state
+
+setLibinputOptions :: [LibinputOpts] -> Ptr R.InputDevice -> Way vs ws ()
+setLibinputOptions opts dev = liftIO $ doJust (LI.getDeviceHandle dev) $ \handle -> do
+    name <- R.getDeviceName dev
+    whenJust (inputOptOpts <$> find (flip T.isPrefixOf name . inputOptName) opts) $
+        mapM_ (void . applySetting handle)
 
 data LibinputOption = LibinputOption
     { optionName    :: Text
