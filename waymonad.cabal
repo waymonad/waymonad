@@ -130,7 +130,7 @@ library
   exposed-modules:        Waymonad.Actions.Startup.Generic
 
   exposed-modules:        Waymonad.Start
-  exposed-modules:        Waymonad.Systemd
+  --exposed-modules:        Waymonad.Systemd
   exposed-modules:        Waymonad.Utility.Base
   exposed-modules:        Waymonad.Actions.Spawn
   exposed-modules:        Waymonad.Actions.Spawn.X11
@@ -190,7 +190,7 @@ library
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
-  ghc-options:         -Wall -g
+  ghc-options:         -Wall
   if impl(ghc < 8.1)
     c-sources:           cbits/background.c
   --Werror
@@ -202,6 +202,6 @@ executable waymonad
   -- .hs or .lhs file containing the Main module.
   main-is:             Main.hs
   default-language:    Haskell2010
-  ghc-options:         -Wall -with-rtsopts=-V0 -g -O0 -rtsopts
+  ghc-options:         -Wall -with-rtsopts=-V0 -O0 -rtsopts
   hs-source-dirs:      bin
   build-depends:       base >=4.6.0.1 && <5, waymonad, hayland, text, libinput, xkbcommon, hsroots, containers
