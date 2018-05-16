@@ -74,7 +74,9 @@ import Data.Set (Set)
 import Data.Text (Text)
 import Data.Typeable (Typeable, typeOf)
 import Foreign.Ptr (Ptr)
+
 import Graphics.Wayland.Server (DisplayServer, Client)
+import Text.XkbCommon.Keymap (RMLVO)
 
 import Graphics.Pixman (PixmanRegion32)
 import Graphics.Wayland.WlRoots.Backend (Backend)
@@ -217,6 +219,7 @@ data WayBindingState vs ws = WayBindingState
     , wayLoggers         :: WayLoggers
     , wayDefaultColor    :: Color -- ^The color for unfocused windows
     , waySeatColors      :: Map Text Color
+    , wayXKBMap          :: Text -> RMLVO
     }
 
 -- | The Monad the compositor lives in. This allows access to all the required

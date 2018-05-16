@@ -38,6 +38,7 @@ import Data.Text (Text)
 import Foreign.Ptr (Ptr)
 import System.IO.Unsafe (unsafePerformIO)
 
+import Text.XkbCommon.Keymap (RMLVO)
 import Graphics.Wayland.Server (DisplayServer, displayInitShm)
 import Graphics.Wayland.WlRoots.Backend (Backend, backendGetRenderer)
 import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
@@ -113,6 +114,7 @@ data WayUserConf vs ws = WayUserConf
     , wayUserconfColor         :: Color
     , wayUserconfColors        :: Map Text Color
     , wayUserconfFramerHandler :: Maybe (Double -> Output -> Way vs ws ())
+    , wayUserconfXKBMap        :: Text -> RMLVO
     }
 
 wayUserRealMain :: (FocusCore vs a, WSTag a) => WayUserConf vs a -> IORef Compositor -> Way vs a ()
@@ -176,7 +178,8 @@ wayUserMain conf = do
             , wayCoreShells = shells
             , wayLoggers = (fromMaybe loggers $ wayUserconfLoggers conf)
             , wayDefaultColor = wayUserconfColor conf
-            , waySeatColors  = wayUserconfColors conf
+            , waySeatColors = wayUserconfColors conf
+            , wayXKBMap = wayUserconfXKBMap conf
             }
 
 

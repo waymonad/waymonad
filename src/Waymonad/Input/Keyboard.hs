@@ -35,7 +35,7 @@ import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
 import Graphics.Wayland.WlRoots.Backend (Backend)
-import Graphics.Wayland.WlRoots.Input (InputDevice)
+import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName)
 import Graphics.Wayland.WlRoots.Input.Keyboard
     ( WlrKeyboard
     , KeyboardSignals (..)
@@ -76,7 +76,7 @@ import Waymonad
     )
 import Waymonad.Types
     ( Compositor (compBackend)
-    , WayBindingState (wayCompositor)
+    , WayBindingState (wayCompositor, wayXKBMap)
     , Way (..)
     )
 import Waymonad.Types.Core (WayKeyState (..), Seat(seatKeymap, seatKeyboards, seatRoots))
@@ -225,9 +225,11 @@ handleKeyboardAdd :: Seat -> Ptr InputDevice -> Ptr WlrKeyboard -> Way vs a ()
 handleKeyboardAdd seat dev ptr = do
     liftIO $ modifyIORef (seatKeyboards seat) (S.insert ptr)
     let signals = getKeySignals ptr
+    rmlvoMap <- wayXKBMap <$> getState
     liftIO $ do
+        name <- getDeviceName dev
         (Just cxt) <- newContext defaultFlags
-        (Just keymap) <- newKeymapFromNamesI cxt noPrefs
+        (Just keymap) <- newKeymapFromNamesI cxt $ rmlvoMap name
         setKeymap ptr keymap
 
     let keyboard = Keyboard ptr dev

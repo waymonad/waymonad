@@ -39,6 +39,7 @@ import Graphics.Wayland.WlRoots.Input.Keyboard (WlrModifier(..))
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Text.XkbCommon.InternalTypes (Keysym(..))
 import Text.XkbCommon.KeysymList
+import Text.XkbCommon.Keymap (noPrefs)
 
 import Data.String (IsString)
 import Fuse.Main
@@ -221,6 +222,7 @@ myConf modi = WayUserConf
     , wayUserconfColor = Color 0.5 0 0 1
     , wayUserconfColors = mempty
     , wayUserconfFramerHandler = Nothing -- Just $ damageDisplay 30
+    , wayUserconfXKBMap = const noPrefs
     }
 
 main :: IO ()
