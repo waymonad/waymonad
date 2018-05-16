@@ -35,7 +35,7 @@ import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
 import Graphics.Wayland.WlRoots.Backend (Backend)
-import Graphics.Wayland.WlRoots.Input (InputDevice, getDeviceName)
+import Graphics.Wayland.WlRoots.Input (InputDevice, getCleanDeviceName)
 import Graphics.Wayland.WlRoots.Input.Keyboard
     ( WlrKeyboard
     , KeyboardSignals (..)
@@ -227,7 +227,7 @@ handleKeyboardAdd seat dev ptr = do
     let signals = getKeySignals ptr
     rmlvoMap <- wayXKBMap <$> getState
     liftIO $ do
-        name <- getDeviceName dev
+        name <- getCleanDeviceName dev
         (Just cxt) <- newContext defaultFlags
         (Just keymap) <- newKeymapFromNamesI cxt $ rmlvoMap name
         setKeymap ptr keymap
