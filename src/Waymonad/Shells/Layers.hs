@@ -250,13 +250,13 @@ handleNewLayerSurface shell surfPtr = do
     let surf = R.LayerSurface surfPtr
     out <- liftIO $ R.getSurfaceOutput surf
     closed <- case out == nullPtr of
-        False -> pure True -- Already have an output, skip it
+        False -> pure False -- Already have an output, skip it
         True -> do
             outputs <- getOutputs
             liftIO $ case outputs of
                 (x:_) -> do
                     R.setSurfaceOutput surf (outputRoots x)
-                    pure True
+                    pure False
                 [] -> do
                     R.closeSurface surf
                     pure True
