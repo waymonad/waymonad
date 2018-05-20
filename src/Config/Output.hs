@@ -80,9 +80,9 @@ data Mode = Mode
 instance Spec OutputTransform where
     valuesSpec = 
         outputTransformNormal      <$ atomSpec "Normal"     <!>
-        outputTransform90          <$ atomSpec "90"         <!>
-        outputTransform180         <$ atomSpec "180"        <!>
-        outputTransform270         <$ atomSpec "270"        <!>
+        outputTransform90          <$ atomSpec "N90"         <!>
+        outputTransform180         <$ atomSpec "N180"        <!>
+        outputTransform270         <$ atomSpec "N270"        <!>
         outputTransformFlipped     <$ atomSpec "Flipped"    <!>
         outputTransformFlipped_90  <$ atomSpec "Flipped90"  <!>
         outputTransformFlipped_180 <$ atomSpec "Flipped180" <!>
