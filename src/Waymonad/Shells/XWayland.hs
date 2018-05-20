@@ -207,7 +207,6 @@ handleX11Map view surf = do
     Point x y <- liftIO $ X.getX11SurfacePosition surf
     moveView view (fromIntegral x) (fromIntegral y)
     insertView view
-    doJust getSeat (\s -> void $ keyboardEnter s SideEffect view)
 
 handleOverrideCommit :: View -> Ptr X.X11Surface -> Ptr WlrSurface -> Way vs a ()
 handleOverrideCommit view surf _ = do
