@@ -29,6 +29,7 @@ module Waymonad.Utility.Floating
     , setFloating
     , moveFloat
     , resizeFloat
+    , flattenView
     )
 where
 
@@ -111,6 +112,12 @@ setFloating view pos@(WlrBox x y width height) = do
             let ref = (M.!) (outputLayers output) "floating"
             liftIO $ modifyIORef ref ((view, NoSSD mempty, viewBox):)
 
+flattenView :: FocusCore vs ws => View -> Way vs ws ()
+flattenView view = do
+    seats <- getSeats
+    affected <- filterM (fmap (Just view ==) . getKeyboardFocus) seats
+    mapM_ flattenSeat affected
+
 flattenSeat :: FocusCore vs ws => Seat -> Way vs ws ()
 flattenSeat seat = {-doJust-} (>>=) (withSeat (Just seat) getCurrentWS) $ \ws ->
     doJust (getFocused seat ws) $ \view -> void $
@@ -118,9 +125,7 @@ flattenSeat seat = {-doJust-} (>>=) (withSeat (Just seat) getCurrentWS) $ \ws ->
 
 removeFloating :: FocusCore vs ws => View -> Way vs ws ()
 removeFloating view = do
-    seats <- getSeats
-    affected <- filterM (fmap (Just view ==) . getKeyboardFocus) seats
-    mapM_ flattenSeat affected
+    flattenView view
     modifyFloating $ S.delete view
     outputs <- getOutputs
     forM_ outputs $ \output -> liftIO $ do
