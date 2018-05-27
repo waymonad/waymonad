@@ -36,7 +36,7 @@ module Waymonad.Shells.XWayland
     )
 where
 
-import Control.Monad (void, forM_)
+import Control.Monad (forM_)
 import Control.Monad.IO.Class
 import Control.Monad.Reader (ask, when)
 import Data.IORef (newIORef, IORef, readIORef, writeIORef, modifyIORef)
@@ -66,12 +66,12 @@ import Waymonad.Managehook
 import Waymonad.Utility.Base
 import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
+import Waymonad.Utility.Floating (resizeFloat, moveFloat)
 import Waymonad.Utility.Log (logPutText, LogPriority (..))
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
 import Waymonad
 import Waymonad.Types
     ( Compositor (..),  ShellClass (..), WayBindingState (..), WayShell (..)
-    , EvtCause (SideEffect)
     )
 import Waymonad.Types.Core (SeatEvent (SeatKeyboard))
 
@@ -183,7 +183,7 @@ handleXwayDestroy ref tokens surf = do
         stPtr <- peek (X.getX11SurfaceDataPtr surf)
         freeStablePtr $ castPtrToStablePtr stPtr
 
-handleX11Configure :: View -> Ptr X.X11Surface -> Ptr X.ConfigureEvent -> Way vs a ()
+handleX11Configure :: (WSTag ws, FocusCore vs ws) => View -> Ptr X.X11Surface -> Ptr X.ConfigureEvent -> Way vs ws ()
 handleX11Configure view surf evt = do
     logPutText loggerX11 Debug "Got configure request"
     override <- liftIO $ X.x11SurfaceOverrideRedirect surf
@@ -194,6 +194,8 @@ handleX11Configure view surf evt = do
         let x = fromIntegral $ X.configureEvtX event
         let y = fromIntegral $ X.configureEvtY event
         setViewBox view (WlrBox x y width height)
+        moveFloat view x y
+        resizeFloat view width height
 
 handleX11Map :: (FocusCore vs ws, WSTag ws) => View -> Ptr X.X11Surface -> Way vs ws ()
 handleX11Map view surf = do
@@ -208,10 +210,11 @@ handleX11Map view surf = do
     moveView view (fromIntegral x) (fromIntegral y)
     insertView view
 
-handleOverrideCommit :: View -> Ptr X.X11Surface -> Ptr WlrSurface -> Way vs a ()
+handleOverrideCommit :: (WSTag ws, FocusCore vs ws) => View -> Ptr X.X11Surface -> Ptr WlrSurface -> Way vs ws ()
 handleOverrideCommit view surf _ = do
     WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
     resizeView view (fromIntegral w) (fromIntegral h)
+    resizeFloat view (fromIntegral w) (fromIntegral h)
 
 handleChildMap :: Bool -> View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
 handleChildMap addSurf view viewSurf surf = liftIO $ if addSurf
@@ -334,7 +337,7 @@ renderChildren fun surf = do
                 fun wlrSurf (WlrBox (cx - sx) (cy - sy) cw ch)
             renderChildren fun child
 
-overrideXRedirect :: Managehook vs ws
+overrideXRedirect :: (WSTag ws, FocusCore vs ws) => Managehook vs ws
 overrideXRedirect = do
     view <- ask
     case getViewInner view of
