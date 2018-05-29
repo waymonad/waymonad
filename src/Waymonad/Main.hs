@@ -27,7 +27,6 @@ where
 
 import System.IO
 
-import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Bits ((.|.), shiftL)
 import Data.Functor.Identity (Identity)
@@ -39,7 +38,7 @@ import Foreign.Ptr (Ptr)
 import System.IO.Unsafe (unsafePerformIO)
 
 import Text.XkbCommon.Keymap (RMLVO)
-import Graphics.Wayland.Server (DisplayServer, displayInitShm)
+import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.WlRoots.Backend (Backend, backendGetRenderer)
 import Graphics.Wayland.WlRoots.Compositor (compositorCreate)
 import Graphics.Wayland.WlRoots.DeviceManager (managerCreate)
@@ -75,7 +74,6 @@ makeCompositor
 makeCompositor inputAdd display backend = do
     liftIO $ hPutStrLn stderr "Creating compositor"
     renderer <- liftIO $ backendGetRenderer backend
-    void $ liftIO $ displayInitShm display
     comp <- liftIO $ compositorCreate display renderer
     devManager <- liftIO $ managerCreate display
     layout <- liftIO createOutputLayout

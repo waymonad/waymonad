@@ -175,7 +175,7 @@ displayMain hooks display = do
         dsp <- lookupEnv "WAYLAND_DISPLAY"
         -- Prevent the idiotic defaulting behaviour of libwayland
         case dsp of
-            Nothing -> setEnv "WAYLAND_DISPLAY" "What are you even doing?"
+            Nothing -> setEnv "WAYLAND_DISPLAY" ":What are you even doing?:"
             Just _ -> pure ()
     foldBrackets (outAdd: backendPreHook hooks) (uncurry $ backendMain hooks) . (display, ) =<< (liftIO $ backendAutocreate display)
 
