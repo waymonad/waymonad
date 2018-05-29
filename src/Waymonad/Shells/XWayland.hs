@@ -197,8 +197,9 @@ handleX11Configure view surf evt = do
         moveFloat view x y
         resizeFloat view width height
 
-handleX11Map :: (FocusCore vs ws, WSTag ws) => View -> Ptr X.X11Surface -> Way vs ws ()
-handleX11Map view surf = do
+handleX11Map :: (FocusCore vs ws, WSTag ws)
+             => View -> MapRef -> Ptr X.X11Surface -> Way vs ws ()
+handleX11Map view ref surf = do
     WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
     doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \mainSurf -> liftIO $ do
         sizeRef <- newIORef (fromIntegral w, fromIntegral h)
@@ -206,9 +207,24 @@ handleX11Map view surf = do
             view
             sizeRef
             mainSurf
-    Point x y <- liftIO $ X.getX11SurfacePosition surf
-    moveView view (fromIntegral x) (fromIntegral y)
-    insertView view
+
+    override <- liftIO $ X.x11SurfaceOverrideRedirect surf
+    parent <- if override
+        then liftIO $ do
+            doJust (X.getX11ParentSurfrace surf) $ \parent ->
+                fmap (const parent) <$> X.xwaySurfaceGetSurface parent
+        else pure Nothing
+    case parent of
+        Nothing -> do
+            logPutText loggerX11 Trace "Creating an normal view"
+            Point x y <- liftIO $ X.getX11SurfacePosition surf
+            moveView view (fromIntegral x) (fromIntegral y)
+            insertView view
+        Just parentSurf -> do
+            logPutText loggerX11 Trace "Surface has (real) parent. Skipping view creation"
+            doJust (liftIO (getAncestorView parentSurf =<< readIORef ref)) $ \(viewSurf, pView) -> do
+                logPutText loggerX11 Trace $ "Attaching to view: " `T.append` T.pack (show pView)
+                handleAddChild pView viewSurf surf
 
 handleOverrideCommit :: (WSTag ws, FocusCore vs ws) => View -> Ptr X.X11Surface -> Ptr WlrSurface -> Way vs ws ()
 handleOverrideCommit view surf _ = do
@@ -259,37 +275,22 @@ handleXwaySurface ref surf = do
     let xwaySurf = XWaySurface surf
     logPutText loggerX11 Debug "New XWayland surface"
 
-    override <- liftIO $ X.x11SurfaceOverrideRedirect surf
-    parent <- if override
-        then liftIO $ do
-            doJust (X.getX11ParentSurfrace surf) $ \parent ->
-                fmap (const parent) <$> X.xwaySurfaceGetSurface parent
-        else pure Nothing
-    case parent of
-        Nothing -> do
-            logPutText loggerX11 Trace "Creating an normal view"
-            view <- createView xwaySurf
-            liftIO $ modifyIORef ref $ M.insert (ptrToInt surf) view
---            insertView view
+    view <- createView xwaySurf
+    liftIO $ modifyIORef ref $ M.insert (ptrToInt surf) view
 
-            let signals = X.getX11SurfaceEvents surf
+    let signals = X.getX11SurfaceEvents surf
 
-            h1 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
-            h2 <- setSignalHandler (X.x11SurfaceEvtParent signals) $ const . liftIO $ (hPutStrLn stderr "Something set the parent")
-            h3 <- setSignalHandler (X.x11SurfaceEvtMove signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a move")
-            h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view surf
-            h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const (removeView view)
-            h6 <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleX11Map view
+    --h1 <- setSignalHandler (X.x11SurfaceEvtType signals) $ const $ liftIO $ hPutStrLn stderr "Some surface set type"
+    --h2 <- setSignalHandler (X.x11SurfaceEvtParent signals) $ const . liftIO $ (hPutStrLn stderr "Something set the parent")
+    --h3 <- setSignalHandler (X.x11SurfaceEvtMove signals) $ const . liftIO $ (hPutStrLn stderr "Something requests a move")
+    h4 <- setSignalHandler (X.x11SurfaceEvtConfigure signals) $ handleX11Configure view surf
+    h5 <- setSignalHandler (X.x11SurfaceEvtUnmap signals) $ const (removeView view)
+    h6 <- setSignalHandler (X.x11SurfaceEvtMap signals) $ handleX11Map view ref
 
-            setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [h1, h2, h3, h4, h5, h6]
-            liftIO $ do
-                stPtr <- newStablePtr view
-                poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
-        Just parentSurf -> do
-            logPutText loggerX11 Trace "Surface has (real) parent. Skipping view creation"
-            doJust (liftIO (getAncestorView parentSurf =<< readIORef ref)) $ \(viewSurf, view) -> do
-                logPutText loggerX11 Trace $ "Attaching to view: " `T.append` T.pack (show view)
-                handleAddChild view viewSurf surf
+    setDestroyHandler (X.x11SurfaceEvtDestroy signals) $ handleXwayDestroy ref [{-h1, h2, h3, -}h4, h5, h6]
+    liftIO $ do
+        stPtr <- newStablePtr view
+        poke (X.getX11SurfaceDataPtr surf) (castStablePtrToPtr stPtr)
 
 
 instance ShellSurface XWaySurface where
