@@ -39,9 +39,11 @@ import UnliftIO.Exception (bracket)
 import System.Clock (toNanoSecs , getTime , Clock(Monotonic))
 import Foreign.Storable (Storable(peek))
 import Foreign.Ptr (Ptr)
+import Graphics.Wayland.WlRoots.Render (initWlDisplay)
 import Graphics.Wayland.WlRoots.Backend
     ( Backend, backendAutocreate, backendStart
     , BackendSignals(..), backendGetSignals
+    , backendGetRenderer
     )
 import Graphics.Wayland.WlRoots.Output
     ( WlrOutput
@@ -139,6 +141,7 @@ foreign import ccall "wl_display_add_socket" c_add_socket :: Ptr DisplayServer -
 
 backendMain :: (FocusCore vs a, WSTag a) => CompHooks vs a -> DisplayServer -> Ptr Backend -> Way vs a ()
 backendMain hooks display backend = do
+    liftIO (initWlDisplay display =<< backendGetRenderer backend)
     shells <- wayCoreShells <$> getState
     mapM_ startShell shells
     -- This dispatches the first events, e.g. output/input add signals
