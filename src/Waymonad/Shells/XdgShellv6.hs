@@ -50,7 +50,7 @@ import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceAt, surfaceGetSize)
 
 
-import Waymonad.Managehook (insertView, removeView)
+import Waymonad.Managehook (insertView, configureView, removeView)
 import Waymonad.Utility.Base (doJust, ptrToInt)
 import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
@@ -212,6 +212,7 @@ handleXdgSurface ref surf = do
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
             liftIO $ mapM_ removeListener [popupH, mapH, unmapH]
             handleXdgDestroy ref surfPtr
+        configureView view
 
 getXdgBox :: MonadIO m => Ptr R.WlrXdgSurface -> m WlrBox
 getXdgBox surf = do

@@ -54,7 +54,7 @@ import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceAt, surfaceGetSize)
 
 
-import Waymonad.Managehook (insertView, removeView)
+import Waymonad.Managehook (insertView, configureView, removeView)
 import Waymonad.Utility.Base (doJust, ptrToInt)
 import Waymonad.View
 import Waymonad.ViewSet (WSTag, FocusCore)
@@ -137,11 +137,8 @@ handleXdgMap :: (FocusCore vs ws, WSTag ws)
              => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
 handleXdgMap view _ = insertView view
 
-handleXdgDestroy
-    :: (FocusCore vs a, WSTag a)
-    => MapRef
-    -> Ptr R.WlrXdgSurface
-    -> Way vs a ()
+handleXdgDestroy :: (FocusCore vs a, WSTag a)
+                 => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
 handleXdgDestroy ref surf = do
     logPutText loggerXdg Debug "Destroying xdg toplevel surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
@@ -215,6 +212,8 @@ handleXdgSurface ref surf = do
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
             liftIO $ mapM_ removeListener [popupH, mapH, unmapH]
             handleXdgDestroy ref surfPtr
+
+        configureView view
 
 getXdgBox :: MonadIO m => Ptr R.WlrXdgSurface -> m WlrBox
 getXdgBox surf = do
