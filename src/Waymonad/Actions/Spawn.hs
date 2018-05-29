@@ -52,6 +52,7 @@ where
 import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IntMap (IntMap)
+import Data.Semigroup (Semigroup)
 import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Network.Socket
@@ -88,13 +89,13 @@ spawn :: (MonadIO m) => String -> m ()
 spawn = void . liftIO . spawnCommand
 
 newtype WSMap a = WSMap { unWM :: IntMap a }
-    deriving (Show, Eq, Monoid)
+    deriving (Show, Eq, Semigroup, Monoid)
 
 instance Typeable a => ExtensionClass (WSMap a) where
     initialValue = mempty
 
 newtype NameMap = NameMap { unNM :: IntMap Text }
-    deriving (Show, Eq, Monoid)
+    deriving (Show, Eq, Semigroup, Monoid)
 
 instance ExtensionClass NameMap where
     initialValue = mempty

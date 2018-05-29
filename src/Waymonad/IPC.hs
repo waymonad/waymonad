@@ -28,6 +28,7 @@ where
 import Data.Default
 import Control.Applicative ((<|>))
 import Foreign.C.Error (Errno, eOK, eINVAL)
+import Data.Semigroup (Semigroup)
 import Data.Text (Text)
 import Data.Typeable (Typeable, TypeRep, cast, typeRep, Proxy (..))
 
@@ -80,7 +81,7 @@ data IPCEntry vs ws = IPCEntry
 
 
 newtype IPCGroup vs ws = IPCGroup [(Text, Either (IPCGroup vs ws) (IPCEntry vs ws))]
-    deriving (Default, Monoid)
+    deriving (Default, Semigroup, Monoid)
 
 getEntryReadFun :: forall vs ws a. (Typeable vs, Typeable ws, Typeable a)
                 => IPCEntry vs ws -> Maybe (Way vs ws (Either Errno a))

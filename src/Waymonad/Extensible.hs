@@ -33,12 +33,13 @@ where
 
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
+import Data.Semigroup (Semigroup)
 import Data.Typeable (Typeable, typeOf, cast)
 
 import qualified Data.Map.Strict as M
 
 newtype StateMap = StateMap (Map String StateExtension)
-    deriving (Monoid)
+    deriving (Semigroup, Monoid)
 
 class Typeable a => ExtensionClass a where
     initialValue :: a
