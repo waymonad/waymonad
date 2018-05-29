@@ -35,7 +35,7 @@ module Waymonad.Managehook
     )
 where
 
-import Control.Monad (forM_, when, void)
+import Control.Monad (forM_, when, void, unless)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
 import Data.List (find)
 
@@ -89,13 +89,18 @@ enactInsert act dry = do
                     focusView view
                     hook $ WSEnter view ws
                 True -> do
-                    vs <- VS.probeVS view ws =<< getSeat
+                    vs <- VS.probeVS view ws seat
                     doConfigure view ws vs
         InsertInto ws -> do
             seat <- getSeat
-            VS.insertView view ws seat
-            hook $ WSEnter view ws
-        InsertFloating box -> do
+            case dry of
+                False -> do
+                    VS.insertView view ws seat
+                    hook $ WSEnter view ws
+                True -> do
+                    vs <- VS.probeVS view ws seat
+                    doConfigure view ws vs
+        InsertFloating box -> unless dry $ do
             setFloating view box
             doFocus <- viewTakesFocus view SeatKeyboard
             when doFocus $ doJust getSeat $ \seat ->
