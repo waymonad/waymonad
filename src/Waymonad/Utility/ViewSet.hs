@@ -36,6 +36,7 @@ module Waymonad.Utility.ViewSet
     , getWorkspaceViews
     , modifyWS
     , getFocused
+    , probeVS
     )
 where
 
@@ -189,6 +190,9 @@ makeManager = do
     applyDamage <- makeCallback2 $ applyLayerDamage "main"
     getPos <- makeCallback $ getLayerPosition' "main"
     pure $ ManagerData remove focus applyDamage getPos
+
+probeVS :: (FocusCore vs ws, WSTag ws) => View -> ws -> Maybe Seat -> Way vs ws vs
+probeVS view ws seat = withViewSet . const $ _insertView ws seat view
 
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
 insertView v ws s = do

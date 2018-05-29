@@ -25,10 +25,11 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Layout
     ( reLayout
     , layoutOutput
+    , getWSLayout
     )
 where
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, forM)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (writeIORef, readIORef)
 import Data.Tuple (swap)
@@ -39,7 +40,8 @@ import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
 import Waymonad.Input.Seat (updatePointerFocus)
 import Waymonad.Output.Core (getOutputId, outApplyDamage)
-import Waymonad.Types (LogPriority(Debug), Output (..))
+import Waymonad.Types (LogPriority(Debug), Output (..), SSDPrio)
+import Waymonad.Types.Core (View)
 import Waymonad.Utility.Log (logPutText)
 import Waymonad.Utility.Mapping (getOutputPointers)
 import Waymonad.Utility.SSD
@@ -75,20 +77,24 @@ getLayoutBoxes ws = do
             toOrigin :: WlrBox -> WlrBox
             toOrigin (WlrBox _ _ w h) = WlrBox 0 0 w h
 
+getWSLayout :: forall vs ws . (WSTag ws, FocusCore vs ws) => vs -> ws -> Way vs ws [(Output, [(View, SSDPrio, WlrBox)])]
+getWSLayout vs ws = do
+    boxes <- getLayoutBoxes ws
+    forM boxes $ \(out, box) -> do
+        let layout = getLayouted vs ws box
+        pure (out, layout)
+
 
 -- | update the layout cache for the given workspace.
 reLayout :: forall vs a. (WSTag a, FocusCore vs a)
          => a -> Way vs a ()
 reLayout ws = do
     state <- getState
-    wstate <- liftIO . readIORef . wayBindingState $ state
+    vs <- liftIO . readIORef . wayBindingState $ state
+    layouts <- getWSLayout vs ws
 
-    boxes <- getLayoutBoxes ws
-    forM_ boxes $ \(out, _) ->
+    forM_ layouts $ \(out, layout) -> do
         outApplyDamage out Nothing
-
-    forM_ boxes $ \(out, box) -> do
-        let layout = getLayouted wstate ws box
         Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
 
         let cacheRef = (M.!) (outputLayers out) "main"

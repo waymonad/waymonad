@@ -30,22 +30,27 @@ module Waymonad.Managehook
     , query
     , withView
     , insertView
+    , configureView
     , removeView
     )
 where
 
 import Control.Monad (forM_, when, void)
 import Control.Monad.Reader (ReaderT(..), MonadReader(..), ask, lift)
+import Data.List (find)
 
-import Waymonad.Input.Seat
+import Graphics.Wayland.WlRoots.Box (WlrBox (..))
+
 import Waymonad
+import Waymonad.Input.Seat
+import Waymonad.Layout (getWSLayout)
 import Waymonad.Types
-import Waymonad.View
-import Waymonad.ViewSet
 import Waymonad.Utility.Base (doJust)
+import Waymonad.Utility.Current (getCurrentWS)
 import Waymonad.Utility.Floating
 import Waymonad.Utility.Focus (focusView)
-import Waymonad.Utility.Current (getCurrentWS)
+import Waymonad.View
+import Waymonad.ViewSet
 
 import qualified Waymonad.Utility.ViewSet as VS
 
@@ -58,9 +63,19 @@ withView act = liftWay . act =<< ask
 runQuery :: View -> Query vs a b -> Way vs a b
 runQuery v (Query m) = runReaderT m v
 
+doConfigure :: (FocusCore vs ws, WSTag ws)
+            => View -> ws -> vs -> Way vs ws ()
+doConfigure view ws vs = do
+    layout <- map snd <$> getWSLayout vs ws
+    case layout of
+        [] -> pure ()
+        (x:_) -> case find (\(v, _, _) -> v == view) x of
+            Nothing -> pure ()
+            Just (_, _, WlrBox _ _ w h) -> resizeView view (fromIntegral w) (fromIntegral h)
+
 enactInsert :: (FocusCore vs a, WSTag a)
-            => InsertAction vs a -> Query vs a ()
-enactInsert act = do
+            => InsertAction vs a -> Bool -> Query vs a ()
+enactInsert act dry = do
     view <- ask
     hook <- wayHooksVWSChange . wayCoreHooks <$> liftWay getState
     liftWay $ case act of
@@ -68,9 +83,14 @@ enactInsert act = do
         InsertFocused -> do
             ws <- getCurrentWS
             seat <- getSeat
-            VS.insertView view ws seat
-            focusView view
-            hook $ WSEnter view ws
+            case dry of
+                False -> do
+                    VS.insertView view ws seat
+                    focusView view
+                    hook $ WSEnter view ws
+                True -> do
+                    vs <- VS.probeVS view ws =<< getSeat
+                    doConfigure view ws vs
         InsertInto ws -> do
             seat <- getSeat
             VS.insertView view ws seat
@@ -80,17 +100,21 @@ enactInsert act = do
             doFocus <- viewTakesFocus view SeatKeyboard
             when doFocus $ doJust getSeat $ \seat ->
                 void $ keyboardEnter seat SideEffect view
-        InsertCustom ins -> ins
+        InsertCustom ins -> ins dry
 
 
 query :: Query vs a View
 query = ask
 
-insertView :: (FocusCore vs a, WSTag a)
-           => View -> Way vs a ()
+configureView :: (FocusCore vs a, WSTag a) => View -> Way vs a ()
+configureView v = do
+    hook <- wayManagehook <$> getState
+    runQuery v $ flip enactInsert True . flip mappend InsertFocused =<< hook
+
+insertView :: (FocusCore vs a, WSTag a) => View -> Way vs a ()
 insertView v = do
     hook <- wayManagehook <$> getState
-    runQuery v $ enactInsert . flip mappend InsertFocused =<< hook
+    runQuery v $ flip enactInsert False . flip mappend InsertFocused =<< hook
 
 removeView :: forall vs ws. (FocusCore vs ws, WSTag ws)
            => View -> Way vs ws ()

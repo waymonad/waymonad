@@ -25,6 +25,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Waymonad.Types
     ( WayLoggers (..)
     , Compositor (..)
@@ -242,6 +243,9 @@ instance (Semigroup a, Monoid a) => Monoid (Way vs b a) where
 instance (Typeable a, Typeable b, Typeable vs) => Show (Way vs a b) where
     show =  show . typeOf
 
+instance (Typeable a, Typeable b, Typeable c, Typeable vs) => Show (c -> Way vs a b) where
+    show =  show . typeOf
+
 -- | A 'Way' action that can additionally get a current view. This is used for
 -- the managehook.
 newtype Query vs a b = Query (ReaderT View (Way vs a) b)
@@ -260,7 +264,7 @@ data InsertAction vs a
     | InsertFocused -- ^Force this view to be inserted into the currently focused workspace
     | InsertInto a -- ^Insert the view into the provided workspace
     | InsertFloating WlrBox -- ^Set the view to be floating at the given rectangle
-    | InsertCustom (Way vs a ()) -- ^Do something custom with the View. You are responsible to keep track of it
+    | InsertCustom (Bool -> Way vs a ()) -- ^Do something custom with the View. You are responsible to keep track of it. If The argument is 'True', only configure the view, don't actuall insert it into internal state
     deriving (Show)
 
 instance Semigroup (InsertAction vs a) where
