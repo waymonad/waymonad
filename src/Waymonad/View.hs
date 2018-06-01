@@ -244,7 +244,13 @@ createView surf = liftIO $ do
     pure ret
 
 setViewGeometry :: MonadIO m => View -> WlrBox -> m ()
-setViewGeometry View {viewGeometry = ref} box = liftIO $ writeIORef ref box
+setViewGeometry v@View {viewGeometry = ref} box = do
+    old <- liftIO $ readIORef ref
+    liftIO $ writeIORef ref box
+
+    when (old /= box) $ do
+        (width, height) <- getViewSize v
+        setViewLocal v $ WlrBox 0 0 (floor width) (floor height)
 
 doRemoveView :: MonadIO m => View -> m ()
 doRemoveView view = liftIO $ do
@@ -364,7 +370,7 @@ setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scale
             else (geoX, geoY)
     before <- readIORef local
     outerBox <- readIORef global
-    if toOrigin outerBox == box
+    if (toOrigin outerBox == toOrigin box)
         then do
             writeIORef local (WlrBox (bX - oX) (bY - oY) bH bW)
             writeIORef scaleRef 1
