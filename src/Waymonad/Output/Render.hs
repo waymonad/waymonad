@@ -63,6 +63,8 @@ import Waymonad.Utility.SSD (renderDeco, getDecoBox)
 import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
 
+import Debug.Trace
+
 renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
 renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
     ret <- liftIO . doRender rend output =<< unliftWay (act age)
@@ -98,7 +100,7 @@ outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !
         withMatrix $ \mat -> do
             surfTransform <- invertOutputTransform <$> surfaceGetTransform surface
             matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
-            renderDamaged rend output damage baseBox $
+            renderDamaged rend output damage (traceShowId baseBox) $
                 renderWithMatrix rend texture mat
 
         subs <- surfaceGetSubs surface

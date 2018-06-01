@@ -188,6 +188,10 @@ handleXdgPopup view getParentPos pop = do
         liftIO $ removeListener handler
 
 
+handleXdgCommit :: View -> Ptr R.WlrXdgSurface -> Way vs ws ()
+handleXdgCommit view surf =
+    setViewGeometry view =<< liftIO (R.getGeometry surf)
+
 handleXdgSurface :: (FocusCore vs a, WSTag a)
                  => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
 handleXdgSurface ref surf = do
@@ -208,9 +212,10 @@ handleXdgSurface ref surf = do
         popupH <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
         mapH <- setSignalHandler (R.xdgSurfaceEvtMap signals) $ handleXdgMap view
         unmapH <- setSignalHandler (R.xdgSurfaceEvtUnmap signals) $ handleXdgUnmap view
+        commitH <- setSignalHandler (R.xdgSurfaceEvtCommit signals) $ handleXdgCommit view
 
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
-            liftIO $ mapM_ removeListener [popupH, mapH, unmapH]
+            liftIO $ mapM_ removeListener [popupH, mapH, unmapH, commitH]
             handleXdgDestroy ref surfPtr
 
         configureView view

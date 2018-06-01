@@ -107,6 +107,7 @@ data View = forall a. ShellSurface a => View
     { viewSurface  :: a
     , viewBox      :: IORef WlrBox
     , viewPosition :: IORef WlrBox
+    , viewGeometry :: IORef WlrBox
     , viewScaling  :: IORef Float
     , viewDestroy  :: HaskellSignal View IO
     , viewResize   :: HaskellSignal View IO

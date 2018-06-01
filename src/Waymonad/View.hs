@@ -61,8 +61,12 @@ module Waymonad.View
     , viewTakesFocus
     , getViewFromSurface
     , setViewMainSurface
+
+    , setViewGeometry
     )
 where
+
+import Debug.Trace
 
 import Data.Composition ((.:))
 import Control.Monad (when)
@@ -205,6 +209,7 @@ createView surf = liftIO $ do
     let box = WlrBox 0 0 (floor width) (floor height)
     global <- newIORef box
     local <- newIORef box
+    geo <- newIORef $ WlrBox 0 0 0 0
     scale <- newIORef 1.0
     destroyCBs <- makeHaskellSignal
     resizeCBs <- makeHaskellSignal
@@ -226,6 +231,7 @@ createView surf = liftIO $ do
             , viewBox = global
             , viewPosition = local
             , viewScaling = scale
+            , viewGeometry = geo
             , viewDestroy = destroyCBs
             , viewResize = resizeCBs
             , viewID = idVal
@@ -238,6 +244,9 @@ createView surf = liftIO $ do
 
     writeIORef viewRef ret
     pure ret
+
+setViewGeometry :: MonadIO m => View -> WlrBox -> m ()
+setViewGeometry View {viewGeometry = ref} box = liftIO $ writeIORef ref $ traceShowId box
 
 doRemoveView :: MonadIO m => View -> m ()
 doRemoveView view = liftIO $ do
@@ -350,12 +359,16 @@ getLocalBox inner outer =
 -- position it somewhere inside the configured box, because it is *smaller*
 -- than the intended area
 setViewLocal :: MonadIO m => View -> WlrBox -> m ()
-setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef} box = liftIO $ do
+setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef, viewGeometry = geoRef} box@(WlrBox bX bY bH bW) = liftIO $ do
+    WlrBox geoX geoY geoW geoH <- readIORef geoRef
+    let (oX, oY) = if geoW == 0 || geoH == 0
+            then (0, 0)
+            else (geoX, geoY)
     before <- readIORef local
     outerBox <- readIORef global
     if toOrigin outerBox == box
         then do
-            writeIORef local box
+            writeIORef local (WlrBox (bX - oX) (bY - oY) bH bW)
             writeIORef scaleRef 1
         else do
             let (inner, scale) = getLocalBox box outerBox
