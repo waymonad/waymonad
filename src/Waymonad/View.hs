@@ -66,8 +66,6 @@ module Waymonad.View
     )
 where
 
-import Debug.Trace
-
 import Data.Composition ((.:))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -246,7 +244,7 @@ createView surf = liftIO $ do
     pure ret
 
 setViewGeometry :: MonadIO m => View -> WlrBox -> m ()
-setViewGeometry View {viewGeometry = ref} box = liftIO $ writeIORef ref $ traceShowId box
+setViewGeometry View {viewGeometry = ref} box = liftIO $ writeIORef ref box
 
 doRemoveView :: MonadIO m => View -> m ()
 doRemoveView view = liftIO $ do
