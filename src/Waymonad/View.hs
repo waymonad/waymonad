@@ -66,6 +66,8 @@ module Waymonad.View
     )
 where
 
+import Debug.Trace
+
 import Data.Composition ((.:))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -365,14 +367,17 @@ getLocalBox inner outer =
 setViewLocal :: MonadIO m => View -> WlrBox -> m ()
 setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef, viewGeometry = geoRef} box@(WlrBox bX bY bH bW) = liftIO $ do
     WlrBox geoX geoY geoW geoH <- readIORef geoRef
-    let (oX, oY) = if geoW == 0 || geoH == 0
-            then (0, 0)
-            else (geoX, geoY)
+    (oX, oY, oH, oW) <- if geoW == 0 || geoH == 0
+            then pure (0, 0, bH, bW)
+            else do
+                Just surf <- getViewSurface v
+                Point sW sH <- surfaceGetSize surf
+                pure (geoX, geoY, min geoW sW, min geoH sH)
     before <- readIORef local
     outerBox <- readIORef global
     if (toOrigin outerBox == toOrigin box)
         then do
-            writeIORef local (WlrBox (bX - oX) (bY - oY) bH bW)
+            writeIORef local $ traceShowId (WlrBox (bX - oX) (bY - oY) oH oW)
             writeIORef scaleRef 1
         else do
             let (inner, scale) = getLocalBox box outerBox
