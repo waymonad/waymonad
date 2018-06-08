@@ -38,7 +38,6 @@ import Graphics.Wayland.WlRoots.Output
     , invertOutputTransform, getOutputTransform
     , outputTransformedResolution, getTransMatrix
     , swapOutputBuffers, getOutputScale, makeOutputCurrent, outputGetBackend
-    , effectiveResolution
     )
 import Graphics.Wayland.WlRoots.Render
     ( Renderer, rendererScissor, rendererClear, renderWithMatrix
@@ -49,7 +48,7 @@ import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface, subSurfaceGetSurface, surfaceGetSubs, subSurfaceGetBox
     , surfaceGetCallbacks, getCurrentState, callbackGetCallback, surfaceHasBuffer
-    , callbackGetResource, surfaceGetTexture, surfaceGetTransform
+    , callbackGetResource, surfaceGetTexture, surfaceGetTransform, surfaceGetSize
     )
 
 import Waymonad (makeCallback , unliftWay)
@@ -57,7 +56,7 @@ import Waymonad.Types (Way, Output (..), SSDPrio)
 import Waymonad.Types.Core (View)
 import Waymonad.View
     ( viewHasCSD, viewGetLocal, getViewSurface, renderViewAdditional
-    , viewGetScale
+    , viewGetScale, getViewGeometry
     )
 import Waymonad.Utility.SSD (renderDeco, getDecoBox)
 import Waymonad.Utility.Base (doJust)
@@ -81,18 +80,21 @@ renderDamaged render output damage box act = do
             act
 
 
-outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> IO ()
-outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !by !bw !bh) = do
+outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> Point -> IO ()
+outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !by _ _) (Point !geoX !geoY) = do
     hasBuffer <- surfaceHasBuffer surface
     when hasBuffer $ do
         rend <- backendGetRenderer =<< outputGetBackend output
         outputScale <- getOutputScale output
         texture <- surfaceGetTexture surface
-        let surfBox = WlrBox
-                (floor $ fromIntegral bx * outputScale)
-                (floor $ fromIntegral by * outputScale)
-                (ceiling $ fromIntegral bw * outputScale)
-                (ceiling $ fromIntegral bh * outputScale)
+        Point sW sH <- liftIO $ surfaceGetSize surface
+        let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
+            realY = by - (floor $ fromIntegral geoY * scaleFactor)
+            surfBox = WlrBox
+                (floor $ fromIntegral realX * outputScale)
+                (floor $ fromIntegral realY * outputScale)
+                (ceiling $ fromIntegral sW * scaleFactor * outputScale)
+                (ceiling $ fromIntegral sH * scaleFactor * outputScale)
 
 
         withMatrix $ \mat -> do
@@ -111,11 +113,12 @@ outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !
                 damage
                 subsurf
                 scaleFactor
-                sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + bx
-                    , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + by
+                sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + realX
+                    , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + realY
                     , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
                     , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
                     }
+                (Point 0 0)
 
 outputHandleView :: Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
 outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface view) $ \surface -> do
@@ -129,7 +132,8 @@ outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface vi
     renderer <- liftIO (backendGetRenderer =<< outputGetBackend output)
     liftIO $ renderDamaged renderer output d obox decoCB
 
-    liftIO $ outputHandleSurface secs output d surface scale lBox
+    WlrBox geoX geoY _ _ <- getViewGeometry view
+    liftIO $ outputHandleSurface secs output d surface scale lBox $ Point geoX geoY
     pure $ renderViewAdditional (\s b ->
         void $ outputHandleSurface
             secs
@@ -142,7 +146,8 @@ outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface vi
                 , boxWidth = floor $ fromIntegral (boxWidth b) * scale
                 , boxHeight = floor $ fromIntegral (boxHeight b) * scale
                 }
-        )
+            (Point 0 0)
+            )
         view
 
 handleLayers :: Double -> Ptr WlrOutput

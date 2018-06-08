@@ -63,10 +63,9 @@ module Waymonad.View
     , setViewMainSurface
 
     , setViewGeometry
+    , getViewGeometry
     )
 where
-
-import Debug.Trace
 
 import Data.Composition ((.:))
 import Control.Monad (when)
@@ -142,12 +141,13 @@ handleSurfaceDamage :: View -> IO Point -> Ptr WlrSurface -> IO ()
 handleSurfaceDamage view getPos surf = do
     Point x y <- getPos
     WlrBox vx vy _ _ <- viewGetLocal view
+    WlrBox geoX geoY _ _ <- getViewGeometry view
     scale <- viewGetScale view
     doJust (getSurfaceDamage surf) $ \dmg ->
         withRegionCopy dmg $ \mutDmg -> do
             pixmanRegionTranslate mutDmg x y
             scaleRegion mutDmg scale
-            pixmanRegionTranslate mutDmg vx vy
+            pixmanRegionTranslate mutDmg (vx - geoX) (vy - geoY)
             doApplyDamage view mutDmg
 
 getViewFromSurface :: MonadIO m => Ptr WlrSurface -> m (Maybe View)
@@ -245,6 +245,10 @@ createView surf = liftIO $ do
     writeIORef viewRef ret
     pure ret
 
+
+getViewGeometry :: MonadIO m => View -> m WlrBox
+getViewGeometry View {viewGeometry = ref} = do liftIO $ readIORef ref
+
 setViewGeometry :: MonadIO m => View -> WlrBox -> m ()
 setViewGeometry v@View {viewGeometry = ref} box = do
     old <- liftIO $ readIORef ref
@@ -328,12 +332,16 @@ renderViewAdditional fun View {viewSurface = surf} = do
 
 
 getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
-getViewEventSurface View {viewSurface = surf, viewPosition = local, viewScaling = scale} x y = liftIO $ do
+getViewEventSurface View {viewSurface = surf, viewPosition = local, viewScaling = scale, viewGeometry = geo} x y = liftIO $ do
     scaleFactor <- readIORef scale
-    posBox <- readIORef local
+    WlrBox posX posY _ _ <- readIORef local
+    WlrBox geoX geoY _ _ <- readIORef geo
+    let offX = floor $ fromIntegral geoX * scaleFactor
+    let offY = floor $ fromIntegral geoY * scaleFactor
+
     getEventSurface surf
-        ((x - fromIntegral (boxX posBox)) / realToFrac scaleFactor)
-        ((y - fromIntegral (boxY posBox)) / realToFrac scaleFactor)
+        ((x - fromIntegral (posX - offX)) / realToFrac scaleFactor)
+        ((y - fromIntegral (posY - offY)) / realToFrac scaleFactor)
 
 getViewClient :: MonadIO m => View -> m (Maybe Client)
 getViewClient View {viewSurface = surf} =
@@ -365,23 +373,30 @@ getLocalBox inner outer =
 -- position it somewhere inside the configured box, because it is *smaller*
 -- than the intended area
 setViewLocal :: MonadIO m => View -> WlrBox -> m ()
-setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef, viewGeometry = geoRef} box@(WlrBox bX bY bH bW) = liftIO $ do
-    WlrBox geoX geoY geoW geoH <- readIORef geoRef
-    (oX, oY, oH, oW) <- if geoW == 0 || geoH == 0
-            then pure (0, 0, bH, bW)
-            else do
-                Just surf <- getViewSurface v
-                Point sW sH <- surfaceGetSize surf
-                pure (geoX, geoY, min geoW sW, min geoH sH)
+setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef, viewGeometry = geoRef} (WlrBox _ _ bH bW) = liftIO $ do
+    -- Geometry is the area of the surface that will be mapped into the layout
+    -- box. This may be smaller and offset into the surface, or larger and
+    -- offset out of the surface (e.g. to have decorations on subsurfaces)
+    geo@(WlrBox _ _ geoW geoH) <- readIORef geoRef
+
+    -- If we don't have geometry, layout the surface as is. Otherwise use the
+    -- geometry for layouting
+    let box@(WlrBox _ _ oH oW) = if geoW == 0 || geoH == 0
+            then WlrBox 0 0 bH bW
+            else geo
+
     before <- readIORef local
-    outerBox <- readIORef global
-    if (toOrigin outerBox == toOrigin box)
+    layoutBox@(WlrBox _ _ lH lW) <- readIORef global
+
+    if lH == oH && lW == oW
+        -- If the geometry fits exactly, just push it in and be done with it.
         then do
-            writeIORef local $ traceShowId (WlrBox (bX - oX) (bY - oY) oH oW)
+            writeIORef local $ WlrBox 0 0 oH oW
             writeIORef scaleRef 1
+        -- Else we either have to downscale to fit, or center inside the layout
         else do
-            let (inner, scale) = getLocalBox box outerBox
-            writeIORef local (centerBox inner $ toOrigin outerBox)
+            let (inner, scale) = getLocalBox box layoutBox
+            writeIORef local (centerBox inner $ toOrigin layoutBox)
             writeIORef scaleRef scale
 
     after <- readIORef local
