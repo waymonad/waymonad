@@ -44,9 +44,10 @@ import Waymonad.Input.Seat (keyboardEnter, getKeyboardFocus)
 import Waymonad.Output
 import Waymonad.Utility.Base (doJust)
 import Waymonad.View
-    ( View, moveView, resizeView
-    , setViewManager, unsetViewManager
+    ( View, moveView, resizeView, updateViewSize
+    , setViewManager, unsetViewManager, setViewSize
     , activateView, doFocusView, getViewSize, getViewBox
+    , addViewResizeListener
     )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
@@ -60,6 +61,7 @@ import Waymonad.Types.Core (ManagerData (..), Seat)
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Current (getCurrentBox, getCurrentView, getCurrentWS)
 import Waymonad.Utility.Extensible (modifyEState, getEState)
+import Waymonad.Utility.HaskellSignal (HaskellSignalToken, removeHaskellListener)
 import Waymonad.Utility.LayerCache (applyLayerDamage, getLayerPosition')
 import Waymonad.Utility.ViewSet (modifyFocusedWS, insertView, getFocused)
 
@@ -89,20 +91,40 @@ focusFloating seat view = do
     activateView view True
     void $ keyboardEnter seat Intentional view
 
-makeFloatManager :: FocusCore vs ws => Way vs ws ManagerData
-makeFloatManager = do
+
+makeFloatManager :: FocusCore vs ws => HaskellSignalToken View IO -> Way vs ws ManagerData
+makeFloatManager token = do
     focus <- makeCallback2 focusFloating
-    remove <-  makeCallback removeFloating
+    remove <-  makeCallback $ \view -> do
+        removeHaskellListener token
+        removeFloating view
     applyDamage <- makeCallback2 $ applyLayerDamage "floating"
     getPos <- makeCallback $ getLayerPosition' "floating"
     pure $ ManagerData remove focus applyDamage getPos
+
+
+handleViewResize :: View -> Way vs ws ()
+handleViewResize view = do
+    (width, height) <- getViewSize view
+    updateViewSize view (floor width) (floor height)
+    outputs <- getOutputs
+    forM_ outputs $ \output -> liftIO $ do
+        let ref = (M.!) (outputLayers output) "floating"
+
+        modifyIORef ref $ fmap (\(v, d, b) -> if v == view
+            then (v, d, b)
+            else (v, d, b { boxWidth = floor width, boxHeight = floor height })
+            )
+
 
 setFloating :: FocusCore vs ws => View -> WlrBox -> Way vs ws ()
 setFloating view pos@(WlrBox x y width height) = do
     moveView view (fromIntegral x) (fromIntegral y)
     resizeView view (fromIntegral width) (fromIntegral height)
     modifyFloating $ S.insert view
-    setViewManager view =<< makeFloatManager
+
+    resizeCB <- makeCallback handleViewResize
+    setViewManager view =<< makeFloatManager  =<< addViewResizeListener resizeCB view
 
     outputs <- getOutputs
     forM_ outputs $ \output -> do
@@ -112,16 +134,19 @@ setFloating view pos@(WlrBox x y width height) = do
             let ref = (M.!) (outputLayers output) "floating"
             liftIO $ modifyIORef ref ((view, NoSSD mempty, viewBox):)
 
+
 flattenView :: FocusCore vs ws => View -> Way vs ws ()
 flattenView view = do
     seats <- getSeats
     affected <- filterM (fmap (Just view ==) . getKeyboardFocus) seats
     mapM_ flattenSeat affected
 
+
 flattenSeat :: FocusCore vs ws => Seat -> Way vs ws ()
 flattenSeat seat = {-doJust-} (>>=) (withSeat (Just seat) getCurrentWS) $ \ws ->
     doJust (getFocused seat ws) $ \view -> void $
         keyboardEnter seat SideEffect view
+
 
 removeFloating :: FocusCore vs ws => View -> Way vs ws ()
 removeFloating view = do
@@ -133,6 +158,7 @@ removeFloating view = do
         boxes <- filter (\(v, _, _) -> view == v) <$> readIORef ref
         unless (null boxes) $ outApplyDamage output Nothing
         liftIO $ modifyIORef ref (filter (\(v, _, _) -> view /= v))
+
 
 unsetFloating :: (WSTag a, FocusCore vs a) => View -> Way vs a ()
 unsetFloating view = do
@@ -162,6 +188,7 @@ centerFloat = doJust getCurrentBox $ \(WlrBox x y w h) -> do
     let nh = h `div` 2
     toggleFloat $ WlrBox (x + nw `div` 2) (y + nh `div` 2) nw nh
 
+
 moveFloat :: (WSTag ws, FocusCore vs ws) => View -> Int -> Int -> Way vs ws ()
 moveFloat view x y = do
     floats <- isFloating view
@@ -170,11 +197,13 @@ moveFloat view x y = do
         removeFloating view
         setFloating view (WlrBox x y (floor w) (floor h))
 
+
 resizeFloat :: (WSTag ws, FocusCore vs ws) => View -> Int -> Int -> Way vs ws ()
 resizeFloat view w h = do
     floats <- isFloating view
     when floats $ do
-        WlrBox pX pY _ _ <- getViewBox view
-        removeFloating view
-        setFloating view (WlrBox pX pY w h)
+        setViewSize view w h
+--        WlrBox pX pY _ _ <- getViewBox view
+--        removeFloating view
+--        setFloating view (WlrBox pX pY w h)
 

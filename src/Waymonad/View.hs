@@ -33,6 +33,7 @@ module Waymonad.View
     , renderViewAdditional
     , getViewEventSurface
     , setViewBox
+    , setViewSize
     , closeView
     , getViewClient
     , getViewInner
@@ -64,6 +65,8 @@ module Waymonad.View
 
     , setViewGeometry
     , getViewGeometry
+
+    , updateViewSize
     )
 where
 
@@ -114,6 +117,17 @@ getViewSize View {viewSurface=surf} = getSize surf
 
 getViewBox :: MonadIO m => View -> m WlrBox
 getViewBox = liftIO . readIORef . viewBox
+
+updateViewSize :: MonadIO m => View -> Int -> Int -> m ()
+updateViewSize v w h = liftIO $ do
+    WlrBox x y _ _ <- readIORef (viewBox v)
+    writeIORef (viewBox v) $ WlrBox x y w h
+    setViewLocal v $ WlrBox 0 0 w h
+
+setViewSize :: (Integral a, MonadIO m) => View -> a -> a -> m ()
+setViewSize View {viewSurface = surf} width height = do
+    resize surf (fromIntegral width) (fromIntegral height)
+    --liftIO $ modifyIORef (viewBox v) $ \box -> box { boxWidth = w, boxHeight = h }
 
 setViewBox :: MonadIO m => View -> WlrBox -> m ()
 setViewBox v box = do
@@ -215,15 +229,6 @@ createView surf = liftIO $ do
     resizeCBs <- makeHaskellSignal
     idVal <- readIORef viewCounter
     modifyIORef viewCounter (+1)
-    viewRef <- newIORef undefined
-
-
-    mainSurf <- getSurface surf
-    case mainSurf of
-        Nothing -> pure ()
-        Just wlrSurf -> do
-            sizeRef <- newIORef (width, height)
-            setViewMainSurface (unsafePerformIO $ readIORef viewRef) sizeRef wlrSurf
 
     manager <- newIORef Nothing
     let ret = View
@@ -238,11 +243,17 @@ createView surf = liftIO $ do
             , viewManager = manager
             }
 
+    mainSurf <- getSurface surf
+    case mainSurf of
+        Nothing -> pure ()
+        Just wlrSurf -> do
+            sizeRef <- newIORef (width, height)
+            setViewMainSurface ret sizeRef wlrSurf
+
     case mainSurf of
         Nothing -> pure ()
         Just x -> mapM_ (handleSubsurf ret) =<< liftIO (surfaceGetSubs x)
 
-    writeIORef viewRef ret
     pure ret
 
 
@@ -257,6 +268,7 @@ setViewGeometry v@View {viewGeometry = ref} box = do
     when (old /= box) $ do
         (width, height) <- getViewSize v
         setViewLocal v $ WlrBox 0 0 (floor width) (floor height)
+        triggerViewResize v
 
 doRemoveView :: MonadIO m => View -> m ()
 doRemoveView view = liftIO $ do
