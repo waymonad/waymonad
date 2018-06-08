@@ -47,7 +47,11 @@ import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), translateBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
-import Graphics.Wayland.WlRoots.Surface (WlrSurface, surfaceAt, surfaceGetSize)
+import Graphics.Wayland.WlRoots.Surface
+    (WlrSurface, surfaceAt, surfaceGetSize
+    , getWlrSurfaceEvents, WlrSurfaceEvents(..)
+    , subSurfaceGetSurface, surfaceGetSubs
+    )
 
 
 import Waymonad.Managehook (insertView, configureView, removeView)
@@ -191,6 +195,17 @@ handleXdgCommit :: View -> Ptr R.WlrXdgSurface -> Way vs ws ()
 handleXdgCommit view surf =
     setViewGeometry view =<< liftIO (R.getGeometry surf)
 
+addWlrSurface :: View -> Ptr R.WlrXdgSurface -> Ptr WlrSurface -> Way vs ws ()
+addWlrSurface view surf wlrSurf = do
+    let wlrEvents = getWlrSurfaceEvents wlrSurf
+    commitH <- setSignalHandler (wlrSurfaceEvtCommit wlrEvents) $ const (handleXdgCommit view surf)
+    subSurfH <- setSignalHandler (wlrSurfaceEvtSubSurf wlrEvents) $ (\s -> addWlrSurface view surf =<< liftIO (subSurfaceGetSurface s))
+
+    setDestroyHandler (wlrSurfaceEvtDestroy wlrEvents) $ (const . liftIO $ do
+        removeListener commitH
+        removeListener subSurfH
+                                                         )
+    handleXdgCommit view surf
 
 handleXdgSurface :: (FocusCore vs a, WSTag a)
                  => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
@@ -212,10 +227,18 @@ handleXdgSurface ref surf = do
         popupH <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
         mapH <- setSignalHandler (R.xdgSurfaceEvtMap signals) $ handleXdgMap view
         unmapH <- setSignalHandler (R.xdgSurfaceEvtUnmap signals) $ handleXdgUnmap view
-        commitH <- setSignalHandler (R.xdgSurfaceEvtCommit signals) $ handleXdgCommit view
+
+        wlrSurfM <- liftIO $ R.xdgSurfaceGetSurface surf
+        case wlrSurfM of
+            Nothing -> pure ()
+            Just wlrSurf -> do
+                subs <- liftIO $ surfaceGetSubs wlrSurf
+                forM_ subs $ \sub -> do
+                    addWlrSurface view surf =<< liftIO (subSurfaceGetSurface sub)
+                addWlrSurface view surf wlrSurf
 
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
-            liftIO $ mapM_ removeListener [popupH, mapH, unmapH, commitH]
+            liftIO $ mapM_ removeListener [popupH, mapH, unmapH]
             handleXdgDestroy ref surfPtr
         configureView view
 
