@@ -82,11 +82,9 @@ renderDamaged render output damage box act = do
 
 outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> Point -> IO ()
 outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !by _ _) (Point !geoX !geoY) = do
-    hasBuffer <- surfaceHasBuffer surface
-    when hasBuffer $ do
+    doJust (surfaceGetTexture surface) $ \texture -> do
         rend <- backendGetRenderer =<< outputGetBackend output
         outputScale <- getOutputScale output
-        texture <- surfaceGetTexture surface
         Point sW sH <- liftIO $ surfaceGetSize surface
         let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
             realY = by - (floor $ fromIntegral geoY * scaleFactor)
