@@ -189,11 +189,12 @@ handleX11Configure view surf evt = do
     override <- liftIO $ X.x11SurfaceOverrideRedirect surf
     when override $ do
         event <- liftIO $ peek evt
-        let width = fromIntegral $ X.configureEvtWidth event
+        let width  = fromIntegral $ X.configureEvtWidth event
         let height = fromIntegral $ X.configureEvtHeight event
         let x = fromIntegral $ X.configureEvtX event
         let y = fromIntegral $ X.configureEvtY event
-        setViewBox view (WlrBox x y width height)
+        moveView view x y
+        updateViewSize view width height
         moveFloat view x y
         resizeFloat view width height
 
@@ -218,19 +219,13 @@ handleX11Map view ref surf = do
         Nothing -> do
             logPutText loggerX11 Trace "Creating an normal view"
             Point x y <- liftIO $ X.getX11SurfacePosition surf
-            moveView view (fromIntegral x) (fromIntegral y)
+            moveView view x y
             insertView view
         Just parentSurf -> do
             logPutText loggerX11 Trace "Surface has (real) parent. Skipping view creation"
             doJust (liftIO (getAncestorView parentSurf =<< readIORef ref)) $ \(viewSurf, pView) -> do
                 logPutText loggerX11 Trace $ "Attaching to view: " `T.append` T.pack (show pView)
                 handleAddChild pView viewSurf surf
-
-handleOverrideCommit :: (WSTag ws, FocusCore vs ws) => View -> Ptr X.X11Surface -> Ptr WlrSurface -> Way vs ws ()
-handleOverrideCommit view surf _ = do
-    WlrBox _ _ w h <- liftIO $ X.getX11SurfaceGeometry surf
-    resizeView view (fromIntegral w) (fromIntegral h)
-    resizeFloat view (fromIntegral w) (fromIntegral h)
 
 handleChildMap :: Bool -> View -> Ptr X.X11Surface -> Ptr X.X11Surface -> Way vs ws ()
 handleChildMap addSurf view viewSurf surf = liftIO $ if addSurf
@@ -299,11 +294,12 @@ instance ShellSurface XWaySurface where
     getSize (XWaySurface surf) = liftIO $ do
         box <- X.getX11SurfaceGeometry surf
         pure (fromIntegral $ boxWidth box, fromIntegral $ boxHeight box)
-    resize (XWaySurface surf) width height = liftIO $ do
+    resize (XWaySurface surf) width height _ = liftIO $ do
         (Point x y) <- X.getX11SurfacePosition surf
         X.configureX11Surface surf
             (fromIntegral x) (fromIntegral y)
             (fromIntegral width) (fromIntegral height)
+        pure False
     activate (XWaySurface surf) active = liftIO $ X.activateX11Surface surf active
     getEventSurface (XWaySurface surf) x y = liftIO $ do
         (WlrBox _ _ w h) <- X.getX11SurfaceGeometry surf
@@ -313,7 +309,7 @@ instance ShellSurface XWaySurface where
                 pure $ fmap (,x, y) ret
             else pure Nothing
     setPosition (XWaySurface surf) x y =
-        let point = Point (floor x) (floor y)
+        let point = Point x y
          in liftIO $ X.setX11SurfacePosition surf point
     getID (XWaySurface surf) = ptrToInt surf
     getTitle = liftIO . X.getTitle . unXway
@@ -348,10 +344,6 @@ overrideXRedirect = do
             if override
                 then do
                     liftWay $ logPutText loggerX11 Info "Overriding a redirect."
-                    liftWay $ doJust (liftIO $ X.xwaySurfaceGetSurface surf) $ \wlrSurf -> do
-                        let events = getWlrSurfaceEvents wlrSurf
-                        ch <- setSignalHandler (wlrSurfaceEvtCommit events) $ handleOverrideCommit view surf
-                        setDestroyHandler (wlrSurfaceEvtDestroy events) (const $ liftIO $ removeListener ch)
 
                     (Point x y) <- liftIO $ X.getX11SurfacePosition surf
                     (width, height) <- getViewSize view

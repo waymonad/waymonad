@@ -24,7 +24,7 @@ module Waymonad.Shells.Pseudo.Multi
     )
 where
 
-import Control.Monad (when)
+import Control.Monad (when, void)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (IORef, modifyIORef, writeIORef, readIORef, newIORef)
 import Data.IntMap (IntMap)
@@ -53,7 +53,8 @@ import Waymonad.View
     , getViewTitle
     , getViewAppId
     , createView
-    , setViewBox
+    , setViewSize
+    , updateViewSize
     , getViewInner
     , addViewDestroyListener
     , closeView
@@ -92,27 +93,28 @@ calculateMasterSize multi = readIORef (multiActive multi) >>= \case
     Just x -> fromJust . IM.lookup x <$> readIORef (multiSlaveBoxes multi)
     Nothing -> foldr1 enlarge <$> readIORef (multiSlaveBoxes multi)
 
-setMasterSize :: MultiView a -> IO ()
-setMasterSize multi =
+setMasterSize :: MultiView a -> IO () -> IO Bool
+setMasterSize multi ack = do
     let master = multiMaster multi
-     in setViewBox master =<< calculateMasterSize multi
+    WlrBox _ _ w h <- calculateMasterSize multi
+    setViewSize master w h (updateViewSize master w h >> ack)
 
-setSlaveSize :: MonadIO m => SlaveView a -> WlrBox -> m ()
-setSlaveSize slave box =
+setSlaveSize :: MonadIO m => SlaveView a -> WlrBox -> IO () -> m Bool
+setSlaveSize slave box ack =
     let multi = slaveMulti slave
         ref = multiSlaveBoxes multi
         key = slaveId slave
      in liftIO $ do
             modifyIORef ref (IM.insert key box)
-            setMasterSize multi
+            setMasterSize multi ack
 
 setMultiActive :: MonadIO m => SlaveView a -> m ()
 setMultiActive slave =
     let multi = slaveMulti slave
         ref = multiActive multi
-     in liftIO $ do
+     in liftIO . void $ do
             writeIORef ref (Just $ slaveId slave)
-            setMasterSize multi
+            setMasterSize multi (pure ())
 
 setMultiInactive :: MonadIO m => SlaveView a -> m ()
 setMultiInactive slave =
@@ -122,7 +124,7 @@ setMultiInactive slave =
             oldId <- readIORef ref
             when (oldId == Just (slaveId slave)) $ do
                 writeIORef ref Nothing
-                setMasterSize multi
+                void $ setMasterSize multi (pure ())
 
 applyMultiDamage :: MultiView a -> View -> PixmanRegion32 -> IO ()
 applyMultiDamage mv _ region = do
@@ -207,8 +209,8 @@ data SlaveView a = SlaveView
 instance Typeable a => ShellSurface (SlaveView a) where
     getSurface = getViewSurface . multiMaster . slaveMulti
     getSize = getViewSize . multiMaster . slaveMulti
-    resize self width height =
-        setSlaveSize self (WlrBox 0 0 (fromIntegral width) (fromIntegral height))
+    resize self width height ack =
+        setSlaveSize self (WlrBox 0 0 (fromIntegral width) (fromIntegral height)) ack
     activate self True = setMultiActive self
     activate self False = setMultiInactive self
     close slave = liftIO $ do

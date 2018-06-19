@@ -29,28 +29,26 @@ module Waymonad.Layout
     )
 where
 
-import Control.Monad (forM_, forM)
+import Control.Monad (forM_, forM, when)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (writeIORef, readIORef)
+import Data.IORef (writeIORef, readIORef, newIORef, IORef, modifyIORef')
 import Data.Tuple (swap)
 
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import Waymonad (Way, WayBindingState (..), getState, WayLoggers (loggerLayout))
+import Waymonad (Way, WayBindingState (..), getState, unliftWay)
 import Waymonad.Input.Seat (updatePointerFocus)
 import Waymonad.Output.Core (getOutputId, outApplyDamage)
-import Waymonad.Types (LogPriority(Debug), Output (..), SSDPrio)
+import Waymonad.Types (Output (..), SSDPrio)
 import Waymonad.Types.Core (View)
-import Waymonad.Utility.Log (logPutText)
 import Waymonad.Utility.Mapping (getOutputPointers)
 import Waymonad.Utility.SSD
-import Waymonad.View (setViewBox, viewHasCSD)
+import Waymonad.View (setViewSize, updateViewSize, viewHasCSD, moveView, preserveTexture, dropTexture)
 import Waymonad.ViewSet (WSTag (..), FocusCore (..))
 
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
-import qualified Data.Text as T
 
 
 getBoxes
@@ -89,31 +87,46 @@ getWSLayout vs ws = do
 reLayout :: forall vs a. (WSTag a, FocusCore vs a)
          => a -> Way vs a ()
 reLayout ws = do
+
     state <- getState
     vs <- liftIO . readIORef . wayBindingState $ state
     layouts <- getWSLayout vs ws
 
-    forM_ layouts $ \(out, layout) -> do
-        outApplyDamage out Nothing
-        Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
+    updateRef :: IORef Int <- liftIO $ newIORef 0
 
-        let cacheRef = (M.!) (outputLayers out) "main"
-        liftIO $ writeIORef cacheRef layout
+    let act = do
+            count <- liftIO $ readIORef updateRef
+            when (count == 0) $ forM_ layouts $ \(out, layout) -> do
+                outApplyDamage out Nothing
 
-        forM_  layout $ \(v, prio, b) -> do
-            hasCSD <- viewHasCSD v
-            let WlrBox bx by w h = getDecoBox hasCSD prio b
-            setViewBox v (WlrBox (bx + ox) (by + oy) w h)
-        logPutText loggerLayout Debug $
-            "Set the layout for "
-            `T.append` getName ws
-            `T.append` "  on "
-            `T.append` outputName out
-            `T.append` " to: "
-            `T.append` T.pack (show layout)
+                let cacheRef = (M.!) (outputLayers out) "main"
+                liftIO $ writeIORef cacheRef layout
 
-        pointers <- getOutputPointers out
-        mapM_  updatePointerFocus pointers
+                forM_  layout $ \(v, prio, b) -> do
+                    hasCSD <- viewHasCSD v
+                    let WlrBox _ _ w h = getDecoBox hasCSD prio b
+                    updateViewSize v w h
+                    dropTexture v
+
+                pointers <- getOutputPointers out
+                mapM_  updatePointerFocus pointers
+    storedAct <- unliftWay act
+
+    case layouts of
+        [] -> pure () -- No need to do anything
+        ((out, layout):_) -> do
+            Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
+            forM_  layout $ \(v, prio, b) -> do
+                hasCSD <- viewHasCSD v
+                let WlrBox bx by w h = getDecoBox hasCSD prio b
+                moveView v (bx + ox) (by + oy)
+                wait <- setViewSize v w h (modifyIORef' updateRef (subtract 1) >> storedAct)
+                when wait $ liftIO $ do
+                    preserveTexture v
+                    modifyIORef' updateRef (+ 1)
+
+    act
+
 
 
 layoutOutput :: (FocusCore vs ws, WSTag ws) => Output -> Way vs ws ()

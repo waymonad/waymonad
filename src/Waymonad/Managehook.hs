@@ -71,7 +71,7 @@ doConfigure view ws vs = do
         [] -> pure ()
         (x:_) -> case find (\(v, _, _) -> v == view) x of
             Nothing -> pure ()
-            Just (_, _, WlrBox _ _ w h) -> resizeView view (fromIntegral w) (fromIntegral h)
+            Just (_, _, WlrBox _ _ w h) -> void $ resizeView view (fromIntegral w) (fromIntegral h) (pure ())
 
 enactInsert :: (FocusCore vs a, WSTag a)
             => InsertAction vs a -> Bool -> Query vs a ()

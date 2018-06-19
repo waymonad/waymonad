@@ -39,6 +39,7 @@ import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard)
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
 import Graphics.Wayland.WlRoots.Render.Color (Color)
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
+import Graphics.Wayland.WlRoots.Buffer (WlrBuffer)
 
 import Waymonad.Input.Cursor.Type
 import Waymonad.Utility.HaskellSignal
@@ -76,13 +77,19 @@ data Seat = Seat
 class Typeable a => ShellSurface a where
     getSurface :: MonadIO m => a -> m (Maybe (Ptr WlrSurface))
     getSize :: MonadIO m => a -> m (Double, Double)
-    resize :: MonadIO m => a -> Word32 -> Word32 -> m ()
+    {- | Resize takes an IO action it calls once the client finished resizing.
+
+    If the client does not need to resize, 'resize' will return False and never call the action
+
+    This might not be supported by all shells, those that can't check either way, will always return False.
+    -}
+    resize :: MonadIO m => a -> Word32 -> Word32 -> IO () -> m Bool
     activate :: MonadIO m => a -> Bool -> m ()
     close :: MonadIO m => a -> m ()
     renderAdditional :: (Ptr WlrSurface -> WlrBox -> IO ()) -> a -> IO ()
     renderAdditional _ _ = pure ()
     getEventSurface :: MonadIO m => a -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
-    setPosition :: MonadIO m => a -> Double -> Double -> m ()
+    setPosition :: MonadIO m => a -> Int -> Int -> m ()
     setPosition _ _ _ = pure ()
     getID :: a -> Int
     getTitle :: MonadIO m => a -> m (Maybe Text)
@@ -114,6 +121,7 @@ data View = forall a. ShellSurface a => View
     , viewID       :: Int
 
     , viewManager  :: IORef (Maybe ManagerData)
+    , viewBuffer   :: IORef (Maybe WlrBuffer)
     }
 
 instance Show Seat where

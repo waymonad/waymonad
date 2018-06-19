@@ -22,6 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Output.Render
 where
 
+import Control.Applicative ((<|>))
 import Control.Monad (forM_, when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, readIORef)
@@ -40,8 +41,8 @@ import Graphics.Wayland.WlRoots.Output
     , swapOutputBuffers, getOutputScale, makeOutputCurrent, outputGetBackend
     )
 import Graphics.Wayland.WlRoots.Render
-    ( Renderer, rendererScissor, rendererClear, renderWithMatrix
-    , doRender
+    ( Renderer, Texture, rendererScissor, rendererClear, renderWithMatrix
+    , doRender, getTextureSize
     )
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
@@ -56,10 +57,10 @@ import Waymonad.Types (Way, Output (..), SSDPrio)
 import Waymonad.Types.Core (View)
 import Waymonad.View
     ( viewHasCSD, viewGetLocal, getViewSurface, renderViewAdditional
-    , viewGetScale, getViewGeometry
+    , viewGetScale, getViewGeometry, getViewTexture
     )
 import Waymonad.Utility.SSD (renderDeco, getDecoBox)
-import Waymonad.Utility.Base (doJust)
+import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.ViewSet (WSTag)
 
 renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
@@ -80,12 +81,13 @@ renderDamaged render output damage box act = do
             act
 
 
-outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> Point -> IO ()
-outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !by _ _) (Point !geoX !geoY) = do
-    doJust (surfaceGetTexture surface) $ \texture -> do
+outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Maybe (Ptr Texture) -> Float -> WlrBox -> Point -> IO ()
+outputHandleSurface secs output damage surface txt scaleFactor baseBox@(WlrBox !bx !by _ _) (Point !geoX !geoY) = do
+    surfTxt <- surfaceGetTexture surface
+    whenJust (txt <|> surfTxt) $ \texture -> do
         rend <- backendGetRenderer =<< outputGetBackend output
         outputScale <- getOutputScale output
-        Point sW sH <- liftIO $ surfaceGetSize surface
+        (sW, sH) <- liftIO $ getTextureSize texture
         let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
             realY = by - (floor $ fromIntegral geoY * scaleFactor)
             surfBox = WlrBox
@@ -110,6 +112,7 @@ outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !
                 output
                 damage
                 subsurf
+                Nothing
                 scaleFactor
                 sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + realX
                     , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + realY
@@ -131,13 +134,15 @@ outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface vi
     liftIO $ renderDamaged renderer output d obox decoCB
 
     WlrBox geoX geoY _ _ <- getViewGeometry view
-    liftIO $ outputHandleSurface secs output d surface scale lBox $ Point geoX geoY
+    txt <- getViewTexture view
+    liftIO $ outputHandleSurface secs output d surface txt scale lBox $ Point geoX geoY
     pure $ renderViewAdditional (\s b ->
         void $ outputHandleSurface
             secs
             output
             d
             s
+            Nothing
             scale
             b   { boxX = floor (fromIntegral (boxX b) * scale) + boxX lBox
                 , boxY = floor (fromIntegral (boxY b) * scale) + boxY lBox

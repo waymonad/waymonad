@@ -77,7 +77,7 @@ instance ShellSurface BackgroundSurface where
     getSize BackgroundSurface {backSurfSurface = surf} = liftIO $ do
         Point w h <- surfaceGetSize surf
         pure (fromIntegral w, fromIntegral h)
-    resize _ _ _ = pure ()
+    resize _ _ _ _ = pure False
     activate _ _ = pure ()
     close BackgroundSurface {backSurfResource = rs} = liftIO $ zBackgroundSurfacePostRemove rs
     getEventSurface BackgroundSurface {backSurfSurface = surf} x y = liftIO $ do
@@ -114,7 +114,7 @@ addBackgroundSurface global rsid surf = do
             Point w h <- liftIO $ outputTransformedResolution $ outputRoots out
 
             v <- createView bs
-            resizeView v (fromIntegral w) (fromIntegral h)
+            resizeView v (fromIntegral w) (fromIntegral h) (pure ())
             setLayerContent "background" out [(v, NoSSD mempty, WlrBox 0 0 w h)]
             liftIO $ addResourceDestroyListener rs destroyCB
 

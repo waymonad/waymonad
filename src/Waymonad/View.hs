@@ -32,7 +32,6 @@ module Waymonad.View
     , activateView
     , renderViewAdditional
     , getViewEventSurface
-    , setViewBox
     , setViewSize
     , closeView
     , getViewClient
@@ -67,6 +66,9 @@ module Waymonad.View
     , getViewGeometry
 
     , updateViewSize
+    , getViewTexture
+    , preserveTexture
+    , dropTexture
     )
 where
 
@@ -90,6 +92,7 @@ import Graphics.Wayland.Server (Client (..))
 import Graphics.Wayland.WlRoots.Util.Region
 
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
+import Graphics.Wayland.WlRoots.Render (Texture)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface
     , WlrSubSurface
@@ -105,8 +108,11 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceGetSize
     , pokeSurfaceData
     , peekSurfaceData
+    , surfaceGetTexture
+    , surfaceGetBuffer
     )
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox, scaleBox, translateBox)
+import Graphics.Wayland.WlRoots.Buffer
 
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.HaskellSignal
@@ -124,16 +130,17 @@ updateViewSize v w h = liftIO $ do
     writeIORef (viewBox v) $ WlrBox x y w h
     setViewLocal v $ WlrBox 0 0 w h
 
-setViewSize :: (Integral a, MonadIO m) => View -> a -> a -> m ()
-setViewSize View {viewSurface = surf} width height = do
-    resize surf (fromIntegral width) (fromIntegral height)
-    --liftIO $ modifyIORef (viewBox v) $ \box -> box { boxWidth = w, boxHeight = h }
+setViewSize :: (Integral a, MonadIO m) => View -> a -> a -> IO () -> m Bool
+setViewSize View {viewSurface = surf} width height ack = do
+    resize surf (fromIntegral width) (fromIntegral height) ack
+    -- liftIO $ modifyIORef (viewBox v) $ \box -> box { boxWidth = w, boxHeight = h }
 
-setViewBox :: MonadIO m => View -> WlrBox -> m ()
-setViewBox v box = do
-    moveView v (fromIntegral $ boxX box) (fromIntegral $ boxY box)
-    resizeView v (fromIntegral $ boxWidth box) (fromIntegral $ boxHeight box)
-    liftIO $ writeIORef (viewBox v) box
+-- setViewBox :: MonadIO m => View -> WlrBox -> IO () -> m Bool
+-- setViewBox v box ack = do
+--     moveView v (fromIntegral $ boxX box) (fromIntegral $ boxY box)
+--     ret <- resizeView v (fromIntegral $ boxWidth box) (fromIntegral $ boxHeight box) ack
+--     liftIO $ writeIORef (viewBox v) box
+--     pure ret
 
 viewCounter :: IORef Int
 {-# NOINLINE viewCounter #-}
@@ -228,6 +235,7 @@ createView surf = liftIO $ do
     destroyCBs <- makeHaskellSignal
     resizeCBs <- makeHaskellSignal
     idVal <- readIORef viewCounter
+    bufferRef <- newIORef Nothing
     modifyIORef viewCounter (+1)
 
     manager <- newIORef Nothing
@@ -241,6 +249,7 @@ createView surf = liftIO $ do
             , viewResize = resizeCBs
             , viewID = idVal
             , viewManager = manager
+            , viewBuffer = bufferRef
             }
 
     mainSurf <- getSurface surf
@@ -310,23 +319,25 @@ unsetViewManager View {viewManager = ref} =
 closeView :: MonadIO m => View -> m ()
 closeView View {viewSurface=surf} = close surf
 
-moveView :: MonadIO m => View -> Double -> Double -> m ()
+moveView :: (Integral a, MonadIO m) => View -> a -> a -> m ()
+{-# SPECIALIZE INLINE moveView :: MonadIO m => View -> Int -> Int -> m () #-}
 moveView View {viewSurface = surf, viewBox = ref} x y = do
     old <- liftIO $ readIORef ref
-    let new = old { boxX = floor x, boxY = floor y}
+    let new = old { boxX = fromIntegral x, boxY = fromIntegral y}
     liftIO $ writeIORef ref new
-    setPosition surf x y
+    setPosition surf (fromIntegral x) (fromIntegral y)
 
 
-resizeView :: MonadIO m => View -> Double -> Double -> m ()
-resizeView v@View {viewSurface = surf, viewBox = ref} width height = do
+resizeView :: MonadIO m => View -> Double -> Double -> IO () -> m Bool
+resizeView v@View {viewSurface = surf, viewBox = ref} width height ack = do
     old <- liftIO $ readIORef ref
     let new = old { boxWidth = floor width, boxHeight = floor height}
     liftIO $ writeIORef ref new
     (oldWidth, oldHeight) <- getSize surf
-    resize surf (floor width) (floor height)
+    ret <- resize surf (floor width) (floor height) ack
 
     setViewLocal v $ WlrBox 0 0 (floor oldWidth) (floor oldHeight)
+    pure ret
 
 getViewSurface :: MonadIO m => View -> m (Maybe (Ptr WlrSurface))
 getViewSurface View {viewSurface = surf} = getSurface surf
@@ -385,38 +396,42 @@ getLocalBox inner outer =
 -- position it somewhere inside the configured box, because it is *smaller*
 -- than the intended area
 setViewLocal :: MonadIO m => View -> WlrBox -> m ()
-setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef, viewGeometry = geoRef} (WlrBox _ _ bH bW) = liftIO $ do
-    -- Geometry is the area of the surface that will be mapped into the layout
-    -- box. This may be smaller and offset into the surface, or larger and
-    -- offset out of the surface (e.g. to have decorations on subsurfaces)
-    geo@(WlrBox _ _ geoW geoH) <- readIORef geoRef
+setViewLocal v@View {viewBox = global, viewPosition = local, viewScaling = scaleRef, viewGeometry = geoRef, viewBuffer = bufferRef} (WlrBox _ _ bH bW) = liftIO $ do
+    buffer <- readIORef bufferRef
+    case buffer of
+        Just _ -> pure ()
+        Nothing -> liftIO $ do
+            -- Geometry is the area of the surface that will be mapped into the layout
+            -- box. This may be smaller and offset into the surface, or larger and
+            -- offset out of the surface (e.g. to have decorations on subsurfaces)
+            geo@(WlrBox _ _ geoW geoH) <- readIORef geoRef
 
-    -- If we don't have geometry, layout the surface as is. Otherwise use the
-    -- geometry for layouting
-    let box@(WlrBox _ _ oH oW) = if geoW == 0 || geoH == 0
-            then WlrBox 0 0 bH bW
-            else geo
+            -- If we don't have geometry, layout the surface as is. Otherwise use the
+            -- geometry for layouting
+            let box@(WlrBox _ _ oH oW) = if geoW == 0 || geoH == 0
+                    then WlrBox 0 0 bH bW
+                    else geo
 
-    before <- readIORef local
-    layoutBox@(WlrBox _ _ lH lW) <- readIORef global
+            before <- readIORef local
+            layoutBox@(WlrBox _ _ lH lW) <- readIORef global
 
-    if lH == oH && lW == oW
-        -- If the geometry fits exactly, just push it in and be done with it.
-        then do
-            writeIORef local $ WlrBox 0 0 oH oW
-            writeIORef scaleRef 1
-        -- Else we either have to downscale to fit, or center inside the layout
-        else do
-            let (inner, scale) = getLocalBox box layoutBox
-            writeIORef local (centerBox inner $ toOrigin layoutBox)
-            writeIORef scaleRef scale
+            if lH == oH && lW == oW
+                -- If the geometry fits exactly, just push it in and be done with it.
+                then do
+                    writeIORef local $ WlrBox 0 0 oH oW
+                    writeIORef scaleRef 1
+                -- Else we either have to downscale to fit, or center inside the layout
+                else do
+                    let (inner, scale) = getLocalBox box layoutBox
+                    writeIORef local (centerBox inner $ toOrigin layoutBox)
+                    writeIORef scaleRef scale
 
-    after <- readIORef local
-    when (before /= after) $ do
-        withBoxRegion before $ \bRegion ->
-            withBoxRegion after  $ \aRegion -> do
-                pixmanRegionUnion aRegion bRegion
-                doApplyDamage v aRegion
+            after <- readIORef local
+            when (before /= after) $ do
+                withBoxRegion before $ \bRegion ->
+                    withBoxRegion after  $ \aRegion -> do
+                        pixmanRegionUnion aRegion bRegion
+                        doApplyDamage v aRegion
 
 viewGetScale :: MonadIO m => View -> m Float
 viewGetScale View {viewScaling = scale} = liftIO $ readIORef scale
@@ -456,3 +471,26 @@ viewHasCSD View {viewSurface=surf} = hasCSD surf
 
 viewTakesFocus :: MonadIO m => View -> SeatEvent -> m Bool
 viewTakesFocus View {viewSurface=surf} = takesFocus surf
+
+getViewTexture :: MonadIO m => View -> m (Maybe (Ptr Texture))
+getViewTexture view@(View {viewBuffer = ref}) = liftIO $ do
+    ret <- readIORef ref
+    case ret of
+        Just buffer -> getTexture buffer
+        Nothing -> do
+            surfM <- getViewSurface view
+            case surfM of
+                Nothing -> pure Nothing
+                Just surf -> surfaceGetTexture surf
+
+preserveTexture :: MonadIO m => View -> m ()
+preserveTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (getViewSurface v) $ \surf -> do
+    writeIORef ref . Just =<< getBuffer =<< surfaceGetBuffer surf
+
+dropTexture :: MonadIO m => View -> m ()
+dropTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (readIORef ref) $ \buffer -> do
+    putBuffer buffer
+    writeIORef ref Nothing
+
+    (width, height) <- getViewSize v
+    setViewLocal v $ WlrBox  0 0 (floor width) (floor height)

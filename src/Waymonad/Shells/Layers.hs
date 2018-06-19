@@ -214,7 +214,7 @@ layoutOutput conv (LayerShellLayer bottom top overlay back) output = do
 
     -- send the views their size
     let tmp = fmap toLayout $ overL ++ topL ++ bottomL ++ backL
-    mapM_ (\(v, _, WlrBox _ _ w h) -> resizeView v (fromIntegral w) (fromIntegral h)) tmp
+    mapM_ (\(v, _, WlrBox _ _ w h) -> resizeView v (fromIntegral w) (fromIntegral h) (pure ())) tmp
     where   getLayerState surf = do
                 out <- R.getSurfaceOutput surf
                 case out == outputRoots output of
@@ -346,7 +346,9 @@ instance ShellSurface LayerSurface where
     getSize (LayerSurface surf) = liftIO $ do
         state <- R.getSurfaceState surf
         pure (fromIntegral $ R.surfaceStateActualWidth state, fromIntegral $ R.surfaceStateActualHeight state)
-    resize (LayerSurface surf) w h = liftIO $ R.configureSurface surf w h
+    resize (LayerSurface surf) w h _ = do
+        liftIO $ R.configureSurface surf w h
+        pure False
     activate _ _ = pure ()
     close (LayerSurface surf) = liftIO $ R.closeSurface surf
     renderAdditional fun (LayerSurface surf) =

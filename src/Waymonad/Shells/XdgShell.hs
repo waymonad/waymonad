@@ -301,8 +301,9 @@ instance ShellSurface XdgSurface where
     getSize surf = do
         WlrBox _ _ w h <- getXdgBox $ unXdg surf
         pure $ (fromIntegral w, fromIntegral h)
-    resize (XdgSurface surf) width height =
-        liftIO . void $ R.setSize surf width height
+    resize (XdgSurface surf) width height _ = do
+        liftIO $ R.setSize surf width height
+        pure False
     activate = liftIO .: R.setActivated . unXdg
     renderAdditional fun (XdgSurface surf) = renderPopups fun surf
     getEventSurface surf x y = runMaybeT (getXdgEventSurface surf x y)

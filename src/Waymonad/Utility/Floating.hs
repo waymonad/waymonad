@@ -120,7 +120,7 @@ handleViewResize view = do
 setFloating :: FocusCore vs ws => View -> WlrBox -> Way vs ws ()
 setFloating view pos@(WlrBox x y width height) = do
     moveView view (fromIntegral x) (fromIntegral y)
-    resizeView view (fromIntegral width) (fromIntegral height)
+    resizeView view (fromIntegral width) (fromIntegral height) (pure ())
     modifyFloating $ S.insert view
 
     resizeCB <- makeCallback handleViewResize
@@ -201,9 +201,4 @@ moveFloat view x y = do
 resizeFloat :: (WSTag ws, FocusCore vs ws) => View -> Int -> Int -> Way vs ws ()
 resizeFloat view w h = do
     floats <- isFloating view
-    when floats $ do
-        setViewSize view w h
---        WlrBox pX pY _ _ <- getViewBox view
---        removeFloating view
---        setFloating view (WlrBox pX pY w h)
-
+    when floats $ void $ setViewSize view w h (pure ())

@@ -33,7 +33,11 @@ module Waymonad.Shells.XdgShellv6
 where
 
 import Control.Applicative ((<|>))
+<<<<<<< HEAD
 import Control.Monad (filterM, forM_, unless, void)
+=======
+import Control.Monad (filterM, forM_, unless, when)
+>>>>>>> Add basic XdgShellv6 atomic update. (Breaks on window-destroy)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Data.Composition ((.:))
@@ -41,6 +45,7 @@ import Data.IORef (newIORef, IORef, modifyIORef, readIORef, writeIORef)
 import Data.IntMap (IntMap)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Text (Text)
+import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Server (DisplayServer)
@@ -110,7 +115,11 @@ data XdgShell = XdgShell
     , xdgWlrootsShell :: {-# UNPACK #-} !(Ptr R.WlrXdgShell)
     }
 
-newtype XdgSurface = XdgSurface { unXdg :: Ptr R.WlrXdgSurface }
+data XdgSurface = XdgSurface
+    { unXdg         :: Ptr R.WlrXdgSurface
+    , xdgSurfConfig :: IORef Word32
+    , xdgSurfAck    :: IORef (IO ())
+    }
 
 xdgShellCreate
     :: (FocusCore vs a, WSTag a)
@@ -207,13 +216,26 @@ addWlrSurface view surf wlrSurf = do
                                                          )
     handleXdgCommit view surf
 
+handleXdgMainCommit :: XdgSurface -> Way ws vs ()
+handleXdgMainCommit XdgSurface {unXdg = surf, xdgSurfAck = ackRef, xdgSurfConfig = serialRef} = liftIO $ do
+    expected <- readIORef serialRef
+    when (expected > 0) $ do
+        serial <- R.getConfigureSerial surf
+        when (serial >= expected) $ do
+            writeIORef serialRef 0
+            ack <- readIORef ackRef
+            writeIORef ackRef $ pure ()
+            ack
+
 handleXdgSurface :: (FocusCore vs a, WSTag a)
                  => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
 handleXdgSurface ref surf = do
     isPopup <- liftIO $ R.isXdgPopup surf
     unless isPopup $ do
         logPutText loggerXdg Debug "New xdg toplevel surface"
-        let xdgSurf = XdgSurface surf
+        serialRef <- liftIO $ newIORef 0
+        ackRef <- liftIO $ newIORef (pure ())
+        let xdgSurf = XdgSurface surf serialRef ackRef
         view <- createView xdgSurf
 
         liftIO $ do
@@ -229,16 +251,20 @@ handleXdgSurface ref surf = do
         unmapH <- setSignalHandler (R.xdgSurfaceEvtUnmap signals) $ handleXdgUnmap view
 
         wlrSurfM <- liftIO $ R.xdgSurfaceGetSurface surf
-        case wlrSurfM of
-            Nothing -> pure ()
+        mainH <- case wlrSurfM of
+            Nothing -> pure []
             Just wlrSurf -> do
                 subs <- liftIO $ surfaceGetSubs wlrSurf
                 forM_ subs $ \sub -> do
                     addWlrSurface view surf =<< liftIO (subSurfaceGetSurface sub)
                 addWlrSurface view surf wlrSurf
 
+                let wlrEvents = getWlrSurfaceEvents wlrSurf
+                mainH <- setSignalHandler (wlrSurfaceEvtCommit wlrEvents) $ const $ handleXdgMainCommit xdgSurf
+                pure [mainH]
+
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
-            liftIO $ mapM_ removeListener [popupH, mapH, unmapH]
+            liftIO $ mapM_ removeListener $ [popupH, mapH, unmapH] ++ mainH
             handleXdgDestroy ref surfPtr
         configureView view
 
@@ -280,17 +306,17 @@ renderPopups fun surf = do
                 popup
 
 xdgPopupAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
-xdgPopupAt (XdgSurface surf) x y = do
+xdgPopupAt XdgSurface {unXdg = surf} x y = do
     (ret, popx, popy) <- MaybeT (liftIO $ R.xdgSurfaceAt surf x y)
     pure $ (ret, popx, popy)
 
 xdgSubsurfaceAt :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
-xdgSubsurfaceAt (XdgSurface surf) x y = do
+xdgSubsurfaceAt XdgSurface {unXdg = surf} x y = do
     wlrsurf <- MaybeT (liftIO $ R.xdgSurfaceGetSurface surf)
     MaybeT (liftIO $ surfaceAt wlrsurf x y)
 
 xdgMainSurf :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
-xdgMainSurf (XdgSurface surf) x y = MaybeT . liftIO $ do
+xdgMainSurf XdgSurface  {unXdg = surf} x y = MaybeT . liftIO $ do
     WlrBox _ _ w h <- getXdgBox surf
     if x > 0 && x < fromIntegral w && y > 0 && y < fromIntegral h
         then do
@@ -311,18 +337,24 @@ instance ShellSurface XdgSurface where
     getSize surf = do
         WlrBox _ _ w h <- getXdgBox $ unXdg surf
         pure $ (fromIntegral w, fromIntegral h)
-    resize (XdgSurface surf) width height =
-        liftIO . void $ R.setSize surf width height
+    resize XdgSurface {unXdg = surf, xdgSurfAck = ackRef, xdgSurfConfig = serialRef} width height ack = liftIO $ do
+        WlrBox _ _ gw gh <- R.getGeometry surf
+        if fromIntegral gw == width && fromIntegral gh == height
+            then pure False
+            else do
+                writeIORef ackRef ack
+                writeIORef serialRef =<< R.setSize surf width height
+                pure True
     activate = liftIO .: R.setActivated . unXdg
-    renderAdditional fun (XdgSurface surf) = renderPopups fun surf
+    renderAdditional fun XdgSurface {unXdg = surf} = renderPopups fun surf
     getEventSurface surf x y = runMaybeT (getXdgEventSurface surf x y)
     getID = ptrToInt . unXdg
-    getTitle (XdgSurface surf) = liftIO $ do
+    getTitle XdgSurface {unXdg = surf} = liftIO $ do
         toplevel <- R.getXdgToplevel surf
         case toplevel of
             Nothing -> pure Nothing
             Just top ->  R.getTitle top
-    getAppId (XdgSurface surf) = liftIO $ do
+    getAppId XdgSurface {unXdg = surf} = liftIO $ do
         toplevel <- R.getXdgToplevel surf
         case toplevel of
             Nothing -> pure Nothing

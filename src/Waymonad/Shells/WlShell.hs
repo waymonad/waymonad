@@ -221,8 +221,9 @@ instance ShellSurface WlSurface where
         clientDestroy client
     getSurface = liftIO . R.wlShellSurfaceGetSurface . unWl
     getSize = liftIO . getBoundingBox . unWl
-    resize (WlSurface surf) width height =
+    resize (WlSurface surf) width height _ = do
         liftIO $ R.configureWlShellSurface surf (fromIntegral width) (fromIntegral height)
+        pure False
     activate _ _ = pure ()
     renderAdditional fun (WlSurface surf) = renderPopups fun surf
     getEventSurface surf x y = runMaybeT (getWlEventSurface surf x y)
