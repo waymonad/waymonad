@@ -32,6 +32,8 @@ import Data.Typeable (Typeable)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
+import Graphics.Wayland.Server (OutputTransform)
+
 import Graphics.Pixman
 import Graphics.Wayland.Signal (ListenerToken)
 import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
@@ -74,6 +76,7 @@ data Seat = Seat
     , seatKeymap         :: IORef (WayKeyState -> IO Bool)
     }
 
+
 class Typeable a => ShellSurface a where
     getSurface :: MonadIO m => a -> m (Maybe (Ptr WlrSurface))
     getSize :: MonadIO m => a -> m (Double, Double)
@@ -110,6 +113,14 @@ data ManagerData = ManagerData
     , managerGetPosition :: View -> IO [(Ptr WlrOutput, Point)]
     }
 
+data SurfaceBuffer = SurfaceBuffer
+    { surfaceBufferBuffer :: WlrBuffer
+    , surfaceBufferTrans  :: OutputTransform
+    , surfaceBufferSubs   :: [(WlrBox, SurfaceBuffer)]
+    }
+
+data ViewBuffer = ViewBuffer { bufferSurface :: SurfaceBuffer }
+
 data View = forall a. ShellSurface a => View
     { viewSurface  :: a
     , viewBox      :: IORef WlrBox
@@ -121,7 +132,7 @@ data View = forall a. ShellSurface a => View
     , viewID       :: Int
 
     , viewManager  :: IORef (Maybe ManagerData)
-    , viewBuffer   :: IORef (Maybe WlrBuffer)
+    , viewBuffer   :: IORef (Maybe ViewBuffer)
     }
 
 instance Show Seat where

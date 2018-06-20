@@ -66,16 +66,16 @@ module Waymonad.View
     , getViewGeometry
 
     , updateViewSize
-    , getViewTexture
     , preserveTexture
     , dropTexture
     , dropTexture'
+    , viewGetPreserved
     , viewHasPreserved
     )
 where
 
 import Data.Composition ((.:))
-import Control.Monad (when)
+import Control.Monad (when, forM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO)
 import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
@@ -113,13 +113,14 @@ import Graphics.Wayland.WlRoots.Surface
     , peekSurfaceData
     , surfaceGetTexture
     , surfaceGetBuffer
+    , surfaceGetTransform
     )
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox, scaleBox, translateBox)
 import Graphics.Wayland.WlRoots.Buffer
 
 import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.HaskellSignal
-import Waymonad.Types.Core (View (..), ShellSurface (..), Seat, ManagerData (..), SeatEvent)
+import Waymonad.Types.Core
 
 getViewSize :: MonadIO m => View -> m (Double, Double)
 getViewSize View {viewSurface=surf} = getSize surf
@@ -475,20 +476,37 @@ viewHasCSD View {viewSurface=surf} = hasCSD surf
 viewTakesFocus :: MonadIO m => View -> SeatEvent -> m Bool
 viewTakesFocus View {viewSurface=surf} = takesFocus surf
 
-getViewTexture :: MonadIO m => View -> m (Maybe (Ptr Texture))
-getViewTexture view@(View {viewBuffer = ref}) = liftIO $ do
-    ret <- readIORef ref
-    case ret of
-        Just buffer -> getTexture buffer
-        Nothing -> doJust (getViewSurface view) surfaceGetTexture
+makeSurfaceBuffer :: Ptr WlrSurface -> IO SurfaceBuffer
+makeSurfaceBuffer surface = do
+    subs <- surfaceGetSubs surface
+    subBuffers <- forM subs $ \sub -> do
+        b <- subSurfaceGetBox sub
+        subsurf <- subSurfaceGetSurface sub
+        ret <- makeSurfaceBuffer subsurf
+        pure (b, ret)
+    trans <- surfaceGetTransform surface
+    buffer <- getBuffer =<< surfaceGetBuffer surface
+    pure SurfaceBuffer
+        { surfaceBufferBuffer = buffer
+        , surfaceBufferTrans  = trans
+        , surfaceBufferSubs   = subBuffers
+        }
+
+viewGetPreserved :: MonadIO m => View -> m (Maybe ViewBuffer)
+viewGetPreserved View {viewBuffer = ref} = liftIO $ readIORef ref
+
+freeSurfaceBuffer :: SurfaceBuffer -> IO ()
+freeSurfaceBuffer SurfaceBuffer {surfaceBufferBuffer = buffer, surfaceBufferSubs = subBuffers} = do
+    putBuffer buffer
+    mapM_ (freeSurfaceBuffer . snd) subBuffers
 
 preserveTexture :: MonadIO m => View -> m ()
 preserveTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (getViewSurface v) $ \surf -> do
-    writeIORef ref . Just =<< getBuffer =<< surfaceGetBuffer surf
+    writeIORef ref . Just . ViewBuffer =<< makeSurfaceBuffer surf
 
 dropTexture' :: MonadIO m => View -> m ()
 dropTexture' View {viewBuffer = ref} = liftIO $ doJust (readIORef ref) $ \buffer -> do
-    putBuffer buffer
+    freeSurfaceBuffer $ bufferSurface buffer
     writeIORef ref Nothing
 
 dropTexture :: MonadIO m => View -> m ()
