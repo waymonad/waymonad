@@ -140,6 +140,7 @@ wayUserMain conf = do
     outputs <- newIORef mempty
     seats <- newIORef mempty
     lock <- newIORef Nothing
+    cancels <- newIORef mempty
     extensible <- newIORef mempty
     compRef <- newIORef $ error "Tried to access compositor to early"
     shells <- sequence $ wayUserConfShells conf
@@ -158,6 +159,7 @@ wayUserMain conf = do
 
     let state = WayBindingState
             { wayBindingState = stateRef
+            , wayBindingCancels = cancels
             , wayBindingCurrent = currentRef
             , wayBindingMapping = mapRef
             , wayBindingOutputs = outputs

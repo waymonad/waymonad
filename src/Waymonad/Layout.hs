@@ -37,7 +37,7 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import Waymonad (Way, WayBindingState (..), getState, unliftWay)
+import Waymonad (Way, WayBindingState (..), getState, unliftWay, registerTimed)
 import Waymonad.Input.Seat (updatePointerFocus)
 import Waymonad.Output.Core (getOutputId, outApplyDamage)
 import Waymonad.Types (Output (..), SSDPrio)
@@ -87,12 +87,17 @@ getWSLayout vs ws = do
 reLayout :: forall vs a. (WSTag a, FocusCore vs a)
          => a -> Way vs a ()
 reLayout ws = do
-
     state <- getState
+    let cancelRef = wayBindingCancels state
     vs <- liftIO . readIORef . wayBindingState $ state
     layouts <- getWSLayout vs ws
 
     updateRef :: IORef Int <- liftIO $ newIORef 0
+
+    oldCancel <- M.lookup ws <$> liftIO (readIORef cancelRef)
+    case oldCancel of
+        Just act -> liftIO act
+        Nothing -> pure ()
 
     let act = do
             count <- liftIO $ readIORef updateRef
@@ -110,7 +115,18 @@ reLayout ws = do
 
                 pointers <- getOutputPointers out
                 mapM_  updatePointerFocus pointers
+
+                liftIO $ modifyIORef' cancelRef $ M.delete ws
+
     storedAct <- unliftWay act
+    let cancel = do
+            writeIORef updateRef 0
+            modifyIORef' cancelRef (M.delete ws)
+    let force = do
+            cur <- liftIO $ readIORef updateRef
+            when (cur > 0) $ do
+                liftIO $ writeIORef updateRef 0
+                act
 
     case layouts of
         [] -> pure () -- No need to do anything
@@ -125,6 +141,9 @@ reLayout ws = do
                     preserveTexture v
                     modifyIORef' updateRef (+ 1)
 
+    -- Check if it's already 0. If so, just act now
+    registerTimed force 200
+    liftIO $ modifyIORef' cancelRef (M.insert ws cancel)
     act
 
 

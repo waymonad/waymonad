@@ -50,7 +50,7 @@ import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus
 import Waymonad.Layout (reLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View
-    ( View, activateView
+    ( View, activateView, preserveTexture
     , setViewManager, unsetViewManager
     )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
@@ -174,6 +174,8 @@ removeCB :: forall vs ws. (FocusCore vs ws, WSTag ws) => View -> Way vs ws ()
 removeCB v = do
     let token :: ws = error "removeGlobal Workspace argument should never be used"
 
+    -- FIXME: Remove this leak
+    preserveTexture v
     modifyViewSet $ removeGlobal v token
 
     outputs <- getOutputs

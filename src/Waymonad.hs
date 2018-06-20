@@ -54,13 +54,17 @@ module Waymonad
     , sendEvent
 
     , getSeats
+    , registerTimed
     )
 where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (MonadReader(..), local)
-import Data.IORef (IORef, modifyIORef, readIORef)
+import Data.IORef (IORef, modifyIORef, readIORef, newIORef, writeIORef)
 import Data.Typeable (cast)
+
+import Graphics.Wayland.Server (displayGetEventLoop, eventLoopAddTimer, eventSourceRemove, eventSourceTimerUpdate)
 
 import {-# SOURCE #-} Waymonad.Input.Seat (Seat)
 import Waymonad.Types
@@ -128,3 +132,17 @@ withSeat seat (Way m) = Way $ local (\s -> s {wayCurrentSeat = seat}) m
 getSeats :: Way vs a [Seat]
 getSeats = liftIO . readIORef . wayBindingSeats =<< getState
 
+registerTimed :: Way vs ws () -> Int -> Way vs ws ()
+registerTimed act ms = do
+    WayBindingState {wayCompositor = comp} <- getState
+    let dsp = compDisplay comp
+    unlifted <- unliftWay act
+    liftIO $ do
+        loop <- displayGetEventLoop dsp
+        evtRef <- newIORef $ error "Tried to access the timer eventsource IORef to early"
+        source <- eventLoopAddTimer loop $ do
+            unlifted
+            eventSourceRemove =<< readIORef evtRef
+            pure False
+        writeIORef evtRef source
+        void $ eventSourceTimerUpdate source ms

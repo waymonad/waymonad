@@ -69,6 +69,7 @@ module Waymonad.View
     , getViewTexture
     , preserveTexture
     , dropTexture
+    , viewHasPreserved
     )
 where
 
@@ -77,6 +78,7 @@ import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO)
 import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
+import Data.Maybe (isJust)
 import Data.Text (Text)
 import Data.Typeable (Typeable, cast)
 import Foreign.Ptr (Ptr, nullPtr)
@@ -477,11 +479,7 @@ getViewTexture view@(View {viewBuffer = ref}) = liftIO $ do
     ret <- readIORef ref
     case ret of
         Just buffer -> getTexture buffer
-        Nothing -> do
-            surfM <- getViewSurface view
-            case surfM of
-                Nothing -> pure Nothing
-                Just surf -> surfaceGetTexture surf
+        Nothing -> doJust (getViewSurface view) surfaceGetTexture
 
 preserveTexture :: MonadIO m => View -> m ()
 preserveTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (getViewSurface v) $ \surf -> do
@@ -494,3 +492,6 @@ dropTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (readIORef ref) $ \buf
 
     (width, height) <- getViewSize v
     setViewLocal v $ WlrBox  0 0 (floor width) (floor height)
+
+viewHasPreserved :: MonadIO m => View -> m Bool
+viewHasPreserved View {viewBuffer = ref} = isJust <$> liftIO (readIORef ref)

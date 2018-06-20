@@ -22,14 +22,13 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Output.Render
 where
 
-import Control.Applicative ((<|>))
-import Control.Monad (forM_, when, void)
+import Control.Monad (forM_, when, void, unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, readIORef)
 import Foreign.Ptr (Ptr)
 
 import Graphics.Wayland.Resource (resourceDestroy)
-import Graphics.Wayland.Server (callbackDone)
+import Graphics.Wayland.Server (callbackDone, OutputTransform (..))
 
 import Graphics.Pixman
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), boxTransform, scaleBox)
@@ -48,8 +47,8 @@ import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Render.Matrix (withMatrix, matrixProjectBox)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface, subSurfaceGetSurface, surfaceGetSubs, subSurfaceGetBox
-    , surfaceGetCallbacks, getCurrentState, callbackGetCallback, surfaceHasBuffer
-    , callbackGetResource, surfaceGetTexture, surfaceGetTransform, surfaceGetSize
+    , surfaceGetCallbacks, getCurrentState, callbackGetCallback
+    , callbackGetResource, surfaceGetTexture, surfaceGetTransform
     )
 
 import Waymonad (makeCallback , unliftWay)
@@ -57,10 +56,10 @@ import Waymonad.Types (Way, Output (..), SSDPrio)
 import Waymonad.Types.Core (View)
 import Waymonad.View
     ( viewHasCSD, viewGetLocal, getViewSurface, renderViewAdditional
-    , viewGetScale, getViewGeometry, getViewTexture
+      , viewGetScale, getViewGeometry, getViewTexture, viewHasPreserved
     )
 import Waymonad.Utility.SSD (renderDeco, getDecoBox)
-import Waymonad.Utility.Base (doJust, whenJust)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.ViewSet (WSTag)
 
 renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
@@ -81,45 +80,51 @@ renderDamaged render output damage box act = do
             act
 
 
-outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Maybe (Ptr Texture) -> Float -> WlrBox -> Point -> IO ()
-outputHandleSurface secs output damage surface txt scaleFactor baseBox@(WlrBox !bx !by _ _) (Point !geoX !geoY) = do
-    surfTxt <- surfaceGetTexture surface
-    whenJust (txt <|> surfTxt) $ \texture -> do
-        rend <- backendGetRenderer =<< outputGetBackend output
-        outputScale <- getOutputScale output
-        (sW, sH) <- liftIO $ getTextureSize texture
-        let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
-            realY = by - (floor $ fromIntegral geoY * scaleFactor)
-            surfBox = WlrBox
-                (floor $ fromIntegral realX * outputScale)
-                (floor $ fromIntegral realY * outputScale)
-                (ceiling $ fromIntegral sW * scaleFactor * outputScale)
-                (ceiling $ fromIntegral sH * scaleFactor * outputScale)
+outputHandleTexture :: Ptr WlrOutput -> PixmanRegion32 -> Ptr Texture -> OutputTransform -> Float -> WlrBox -> Point -> IO ()
+outputHandleTexture output damage texture txtTrans scaleFactor baseBox@(WlrBox !bx !by _ _) (Point !geoX !geoY) = do
+    rend <- backendGetRenderer =<< outputGetBackend output
+    outputScale <- getOutputScale output
+    (sW, sH) <- liftIO $ getTextureSize texture
+    let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
+        realY = by - (floor $ fromIntegral geoY * scaleFactor)
+        surfBox = WlrBox
+            (floor $ fromIntegral realX * outputScale)
+            (floor $ fromIntegral realY * outputScale)
+            (ceiling $ fromIntegral sW * scaleFactor * outputScale)
+            (ceiling $ fromIntegral sH * scaleFactor * outputScale)
 
 
-        withMatrix $ \mat -> do
-            surfTransform <- invertOutputTransform <$> surfaceGetTransform surface
-            matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
-            renderDamaged rend output damage baseBox $
-                renderWithMatrix rend texture mat
+    withMatrix $ \mat -> do
+        let surfTransform = invertOutputTransform txtTrans
+        matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
+        renderDamaged rend output damage baseBox $
+            renderWithMatrix rend texture mat
 
-        subs <- surfaceGetSubs surface
-        forM_ subs $ \sub -> do
-            sbox <- subSurfaceGetBox sub
-            subsurf <- subSurfaceGetSurface sub
-            outputHandleSurface
-                secs
-                output
-                damage
-                subsurf
-                Nothing
-                scaleFactor
-                sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + realX
-                    , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + realY
-                    , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
-                    , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
-                    }
-                (Point 0 0)
+
+outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> Point -> IO ()
+outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !by _ _) geo@(Point !geoX !geoY) = do
+    doJust (surfaceGetTexture surface) $ \texture -> do
+        trans <- surfaceGetTransform surface
+        outputHandleTexture output damage texture trans scaleFactor baseBox geo
+    let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
+        realY = by - (floor $ fromIntegral geoY * scaleFactor)
+
+    subs <- surfaceGetSubs surface
+    forM_ subs $ \sub -> do
+        sbox <- subSurfaceGetBox sub
+        subsurf <- subSurfaceGetSurface sub
+        outputHandleSurface
+            secs
+            output
+            damage
+            subsurf
+            scaleFactor
+            sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + realX
+                , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + realY
+                , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
+                , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
+                }
+            (Point 0 0)
 
 outputHandleView :: Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
 outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface view) $ \surface -> do
@@ -134,24 +139,29 @@ outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface vi
     liftIO $ renderDamaged renderer output d obox decoCB
 
     WlrBox geoX geoY _ _ <- getViewGeometry view
-    txt <- getViewTexture view
-    liftIO $ outputHandleSurface secs output d surface txt scale lBox $ Point geoX geoY
-    pure $ renderViewAdditional (\s b ->
-        void $ outputHandleSurface
-            secs
-            output
-            d
-            s
-            Nothing
-            scale
-            b   { boxX = floor (fromIntegral (boxX b) * scale) + boxX lBox
-                , boxY = floor (fromIntegral (boxY b) * scale) + boxY lBox
-                , boxWidth = floor $ fromIntegral (boxWidth b) * scale
-                , boxHeight = floor $ fromIntegral (boxHeight b) * scale
-                }
-            (Point 0 0)
-            )
-        view
+    txtM <- getViewTexture view
+    case txtM of
+      Nothing -> do
+          liftIO $ outputHandleSurface secs output d surface scale lBox $ Point geoX geoY
+          pure $ renderViewAdditional (\s b ->
+              void $ outputHandleSurface
+                  secs
+                  output
+                  d
+                  s
+                  scale
+                  b   { boxX = floor (fromIntegral (boxX b) * scale) + boxX lBox
+                      , boxY = floor (fromIntegral (boxY b) * scale) + boxY lBox
+                      , boxWidth = floor $ fromIntegral (boxWidth b) * scale
+                      , boxHeight = floor $ fromIntegral (boxHeight b) * scale
+                      }
+                  (Point 0 0)
+                  )
+              view
+      Just txt -> do
+            liftIO $ outputHandleTexture output d txt (OutputTransform 0) scale lBox $ Point geoX geoY
+            pure $ pure ()
+
 
 handleLayers :: Double -> Ptr WlrOutput
              -> [IORef [(View, SSDPrio, WlrBox)]] 
@@ -177,9 +187,11 @@ notifySurface secs surface = do
 
 
 notifyView :: Double -> (View, SSDPrio, WlrBox) -> IO ()
-notifyView secs (!view, _, _) = doJust (getViewSurface view) $ \surface -> do
-    notifySurface secs surface
-    renderViewAdditional (\s _ -> notifySurface secs s) view
+notifyView secs (!view, _, _) = do
+    stored <- viewHasPreserved view
+    unless stored $ doJust (getViewSurface view) $ \surface -> do
+        notifySurface secs surface
+        renderViewAdditional (\s _ -> notifySurface secs s) view
 
 notifyLayers :: Double -> [IORef [(View, SSDPrio, WlrBox)]] -> IO ()
 notifyLayers _ [] = pure ()
