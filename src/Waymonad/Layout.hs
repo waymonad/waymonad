@@ -82,11 +82,13 @@ getWSLayout vs ws = do
         let layout = getLayouted vs ws box
         pure (out, layout)
 
-
+-- | This supports 
 -- | update the layout cache for the given workspace.
-reLayout :: forall vs a. (WSTag a, FocusCore vs a)
-         => a -> Way vs a ()
-reLayout ws = do
+reLayout :: (WSTag ws, FocusCore vs ws)
+         => ws -- ^The workspace to re-layout
+         -> IO () -- ^An IO action to clean up any resources bound by the current layout. This will be executed after the layout is updated. This can be delayed by further updates as well
+         -> Way vs ws ()
+reLayout ws free = do
     state <- getState
     let cancelRef = wayBindingCancels state
     vs <- liftIO . readIORef . wayBindingState $ state
@@ -95,9 +97,9 @@ reLayout ws = do
     updateRef :: IORef Int <- liftIO $ newIORef 0
 
     oldCancel <- M.lookup ws <$> liftIO (readIORef cancelRef)
-    case oldCancel of
+    oldFree <- case oldCancel of
         Just act -> liftIO act
-        Nothing -> pure ()
+        Nothing -> pure $ pure ()
 
     let act = do
             count <- liftIO $ readIORef updateRef
@@ -116,12 +118,16 @@ reLayout ws = do
                 pointers <- getOutputPointers out
                 mapM_  updatePointerFocus pointers
 
-                liftIO $ modifyIORef' cancelRef $ M.delete ws
+                liftIO $ do
+                    modifyIORef' cancelRef $ M.delete ws
+                    free
+                    oldFree
 
     storedAct <- unliftWay act
     let cancel = do
             writeIORef updateRef 0
             modifyIORef' cancelRef (M.delete ws)
+            pure (free >> oldFree)
     let force = do
             cur <- liftIO $ readIORef updateRef
             when (cur > 0) $ do
@@ -153,5 +159,5 @@ layoutOutput output = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) $ output
     case ws of
-        Just x -> reLayout x
+        Just x -> reLayout x $ pure ()
         Nothing -> pure ()

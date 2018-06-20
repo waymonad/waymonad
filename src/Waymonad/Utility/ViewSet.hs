@@ -50,7 +50,7 @@ import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus
 import Waymonad.Layout (reLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View
-    ( View, activateView, preserveTexture
+    ( View, activateView, preserveTexture, dropTexture
     , setViewManager, unsetViewManager
     )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
@@ -123,7 +123,7 @@ modifyWS ws fun = do
     modifyViewSet (fun ws)
 
     mapM_ (\s -> setFocused s Intentional ws) seats
-    unless (null outs) (reLayout ws >> runLog)
+    unless (null outs) (reLayout ws (pure ()) >> runLog)
 
 modifyCurrentWS
     :: (WSTag a, FocusCore vs a)
@@ -174,7 +174,6 @@ removeCB :: forall vs ws. (FocusCore vs ws, WSTag ws) => View -> Way vs ws ()
 removeCB v = do
     let token :: ws = error "removeGlobal Workspace argument should never be used"
 
-    -- FIXME: Remove this leak
     preserveTexture v
     modifyViewSet $ removeGlobal v token
 
@@ -183,7 +182,7 @@ removeCB v = do
         seats <- getOutputKeyboards output
         doJust (getOutputWS output) $ \ws -> do
             mapM_ (\s -> setFocused s SideEffect ws) seats
-            reLayout ws
+            reLayout ws (dropTexture v)
 
 makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData
 makeManager = do

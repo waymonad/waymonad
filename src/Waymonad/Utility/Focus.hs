@@ -68,8 +68,8 @@ setOutputWorkspace ws current = do
             (wayBindingMapping state)
             ((:) (ws, current) . filter ((/=) current . snd))
 
-        reLayout ws
-        whenJust pre reLayout
+        reLayout ws $ pure ()
+        whenJust pre $ flip reLayout (pure ())
 
         hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
         hook $ OutputMappingEvent current pre (Just ws)

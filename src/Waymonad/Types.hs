@@ -198,7 +198,7 @@ data WayHooks vs ws = WayHooks
 -- the 'Way' monad as ReaderT.
 data WayBindingState vs ws = WayBindingState
     { wayBindingState    :: IORef vs -- ^The ViewSet.
-    , wayBindingCancels  :: IORef (Map ws (IO ()))
+    , wayBindingCancels  :: IORef (Map ws (IO (IO ())))
     -- Left Pointer, Right Keyboard
     , wayBindingCurrent  :: IORef [(Seat, (Output, Output))] -- ^The mapping from seat to currently focused outputs. (Pointer, Keyboard)
     , wayBindingMapping  :: IORef [(ws, Output)] -- ^The mapping which output currently displays which viewset. (1 Workspace <> N outputs)
