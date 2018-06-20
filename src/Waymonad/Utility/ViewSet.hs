@@ -46,8 +46,11 @@ import Data.IORef (modifyIORef, readIORef)
 import Data.Maybe (fromJust)
 import Data.List (nub)
 
+import Graphics.Wayland.WlRoots.Output (getOutputPosition)
+import Graphics.Wayland.WlRoots.Box (Point (..))
+
 import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
-import Waymonad.Layout (reLayout)
+import Waymonad.Layout (reLayout, getWSLayout, freezeLayout, sendLayout, applyLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View
     ( View, activateView, preserveTexture, dropTexture'
@@ -60,6 +63,7 @@ import Waymonad
     , getState
     , getSeat
     , WayBindingState (..)
+    , unliftWay
     , makeCallback
     , makeCallback2
     )
@@ -120,10 +124,27 @@ modifyWS ws fun = do
         Just view -> activateView view False
         Nothing -> pure ()
           ) =<< mapM getKeyboardFocus seats
+
+    -- TODO: Inline the modify viewset and read/write IORef without modify
+--    vs <- liftIO . readIORef .  wayBindingState =<< getState
+--    pre <- getWSLayout vs ws
+    unfreeze <- freezeLayout ws
+--        case pre of
+--        ((_, layout):_) -> freezeLayout pre
+--        _ -> pure $ pure ()
     modifyViewSet (fun ws)
+    postVS <- liftIO . readIORef .  wayBindingState =<< getState
+    post <- getWSLayout postVS ws
+
+    case post of
+        ((out, layout):_) -> do
+            Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
+            doApply <- unliftWay $ mapM_ (uncurry applyLayout) post
+            void $ sendLayout (ox, oy) layout (unfreeze >> doApply)
+        _ -> pure ()
 
     mapM_ (\s -> setFocused s Intentional ws) seats
-    unless (null outs) (reLayout ws (pure ()) >> runLog)
+    --unless (null outs) (reLayout ws)
 
 modifyCurrentWS
     :: (WSTag a, FocusCore vs a)
@@ -182,7 +203,7 @@ removeCB v = do
         seats <- getOutputKeyboards output
         doJust (getOutputWS output) $ \ws -> do
             mapM_ (\s -> setFocused s SideEffect ws) seats
-            reLayout ws (dropTexture' v)
+            reLayout ws -- FIXME: (dropTexture' v)
 
 makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData
 makeManager = do

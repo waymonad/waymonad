@@ -95,7 +95,6 @@ import Graphics.Wayland.Server (Client (..))
 import Graphics.Wayland.WlRoots.Util.Region
 
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
-import Graphics.Wayland.WlRoots.Render (Texture)
 import Graphics.Wayland.WlRoots.Surface
     ( WlrSurface
     , WlrSubSurface
@@ -502,6 +501,7 @@ freeSurfaceBuffer SurfaceBuffer {surfaceBufferBuffer = buffer, surfaceBufferSubs
 
 preserveTexture :: MonadIO m => View -> m ()
 preserveTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (getViewSurface v) $ \surf -> do
+    dropTexture' v
     writeIORef ref . Just . ViewBuffer =<< makeSurfaceBuffer surf
 
 dropTexture' :: MonadIO m => View -> m ()

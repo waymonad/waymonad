@@ -26,6 +26,9 @@ module Waymonad.Layout
     ( reLayout
     , layoutOutput
     , getWSLayout
+    , freezeLayout
+    , sendLayout
+    , applyLayout
     )
 where
 
@@ -82,82 +85,91 @@ getWSLayout vs ws = do
         let layout = getLayouted vs ws box
         pure (out, layout)
 
--- | This supports 
+
+freezeLayout :: (WSTag ws, FocusCore vs ws)
+             => ws -> Way vs ws (IO ())
+freezeLayout ws = do
+    state <- getState
+    vs <- liftIO . readIORef . wayBindingState $ state
+    layouts <- getWSLayout vs ws
+    case layouts of
+        [] -> pure $ pure ()
+        ((_, layout):_) -> do
+            forM_ layout $ \(v, _, _) -> preserveTexture v
+            pure $ forM_ layout $ \(v, _, _) -> dropTexture v
+
+
+sendLayout :: (Int, Int) -- ^The output position, for moving Xwayland windows properly
+           -> [(View, SSDPrio, WlrBox)] -- ^The layout
+           -> IO () -- ^An action to be applied after all windows are ready (e.g. apply the cache)
+           -> Way vs ws (Maybe (IO ())) -- ^If applicable, returns a function to cancel the timeout/trigger after ready
+sendLayout (ox, oy) layout act = do
+    updateRef :: IORef Int <- liftIO $ newIORef 0
+    let checkedAct = do
+            val <- readIORef updateRef
+            when (val == 0) $ act
+
+    forM_  layout $ \(v, prio, b) -> do
+        hasCSD <- viewHasCSD v
+        let WlrBox bx by w h = getDecoBox hasCSD prio b
+        moveView v (bx + ox) (by + oy)
+        wait <- setViewSize v w h (modifyIORef' updateRef (subtract 1) >> checkedAct)
+        when wait $ liftIO $ do
+            preserveTexture v
+            modifyIORef' updateRef (+ 1)
+
+    let force = liftIO $ do
+            cur <- readIORef updateRef
+            when (cur > 0) $ do
+                writeIORef updateRef 0
+                act
+
+    suspended <- liftIO (readIORef updateRef)
+    case suspended of
+        0 -> liftIO act >> pure Nothing
+        _ -> do
+            registerTimed force 200
+            pure . Just $ writeIORef updateRef 0
+
+applyLayout :: (WSTag ws, FocusCore vs ws) => Output -> [(View, SSDPrio, WlrBox)] -> Way vs ws ()
+applyLayout out layout = do
+    outApplyDamage out Nothing
+    let cacheRef = (M.!) (outputLayers out) "main"
+    liftIO $ writeIORef cacheRef layout
+
+    forM_  layout $ \(v, prio, b) -> do
+        hasCSD <- viewHasCSD v
+        let WlrBox _ _ w h = getDecoBox hasCSD prio b
+        updateViewSize v w h
+        dropTexture v
+
+    pointers <- getOutputPointers out
+    mapM_ updatePointerFocus pointers
+
+
 -- | update the layout cache for the given workspace.
 reLayout :: (WSTag ws, FocusCore vs ws)
          => ws -- ^The workspace to re-layout
-         -> IO () -- ^An IO action to clean up any resources bound by the current layout. This will be executed after the layout is updated. This can be delayed by further updates as well
+--         -> IO () -- ^An IO action to clean up any resources bound by the current layout. This will be executed after the layout is updated. This can be delayed by further updates as well
          -> Way vs ws ()
-reLayout ws free = do
+reLayout ws = do
     state <- getState
-    let cancelRef = wayBindingCancels state
     vs <- liftIO . readIORef . wayBindingState $ state
     layouts <- getWSLayout vs ws
 
     updateRef :: IORef Int <- liftIO $ newIORef 0
 
-    oldCancel <- M.lookup ws <$> liftIO (readIORef cancelRef)
-    oldFree <- case oldCancel of
-        Just act -> liftIO act
-        Nothing -> pure $ pure ()
-
-    let act = do
-            count <- liftIO $ readIORef updateRef
-            when (count == 0) $ forM_ layouts $ \(out, layout) -> do
-                outApplyDamage out Nothing
-
-                let cacheRef = (M.!) (outputLayers out) "main"
-                liftIO $ writeIORef cacheRef layout
-
-                forM_  layout $ \(v, prio, b) -> do
-                    hasCSD <- viewHasCSD v
-                    let WlrBox _ _ w h = getDecoBox hasCSD prio b
-                    updateViewSize v w h
-                    dropTexture v
-
-                pointers <- getOutputPointers out
-                mapM_ updatePointerFocus pointers
-
-                liftIO $ do
-                    modifyIORef' cancelRef $ M.delete ws
-                    free
-                    oldFree
-
-    storedAct <- unliftWay act
-    let cancel = do
-            writeIORef updateRef 0
-            modifyIORef' cancelRef (M.delete ws)
-            pure (free >> oldFree)
-    let force = do
-            cur <- liftIO $ readIORef updateRef
-            when (cur > 0) $ do
-                liftIO $ writeIORef updateRef 0
-                act
-
     case layouts of
         [] -> pure () -- No need to do anything
         ((out, layout):_) -> do
             Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
-            forM_  layout $ \(v, prio, b) -> do
-                hasCSD <- viewHasCSD v
-                let WlrBox bx by w h = getDecoBox hasCSD prio b
-                moveView v (bx + ox) (by + oy)
-                wait <- setViewSize v w h (modifyIORef' updateRef (subtract 1) >> storedAct)
-                when wait $ liftIO $ do
-                    preserveTexture v
-                    modifyIORef' updateRef (+ 1)
-
-    -- Check if it's already 0. If so, just act now
-    registerTimed force 200
-    liftIO $ modifyIORef' cancelRef (M.insert ws cancel)
-    act
-
-
+            sendLayout (ox, oy) layout (pure ())
+            mapM_ (uncurry applyLayout) layouts
 
 layoutOutput :: (FocusCore vs ws, WSTag ws) => Output -> Way vs ws ()
 layoutOutput output = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) $ output
     case ws of
-        Just x -> reLayout x $ pure ()
+        Just x -> reLayout x
         Nothing -> pure ()
