@@ -69,6 +69,7 @@ module Waymonad.View
     , getViewTexture
     , preserveTexture
     , dropTexture
+    , dropTexture'
     , viewHasPreserved
     )
 where
@@ -485,11 +486,14 @@ preserveTexture :: MonadIO m => View -> m ()
 preserveTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (getViewSurface v) $ \surf -> do
     writeIORef ref . Just =<< getBuffer =<< surfaceGetBuffer surf
 
-dropTexture :: MonadIO m => View -> m ()
-dropTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (readIORef ref) $ \buffer -> do
+dropTexture' :: MonadIO m => View -> m ()
+dropTexture' View {viewBuffer = ref} = liftIO $ doJust (readIORef ref) $ \buffer -> do
     putBuffer buffer
     writeIORef ref Nothing
 
+dropTexture :: MonadIO m => View -> m ()
+dropTexture v@(View {viewBuffer = ref}) = liftIO $ doJust (readIORef ref) $ \_ -> do
+    dropTexture' v
     (width, height) <- getViewSize v
     setViewLocal v $ WlrBox  0 0 (floor width) (floor height)
 

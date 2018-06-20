@@ -50,7 +50,7 @@ import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus
 import Waymonad.Layout (reLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View
-    ( View, activateView, preserveTexture, dropTexture
+    ( View, activateView, preserveTexture, dropTexture'
     , setViewManager, unsetViewManager
     )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
@@ -182,7 +182,7 @@ removeCB v = do
         seats <- getOutputKeyboards output
         doJust (getOutputWS output) $ \ws -> do
             mapM_ (\s -> setFocused s SideEffect ws) seats
-            reLayout ws (dropTexture v)
+            reLayout ws (dropTexture' v)
 
 makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData
 makeManager = do

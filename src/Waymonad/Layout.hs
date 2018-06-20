@@ -116,7 +116,7 @@ reLayout ws free = do
                     dropTexture v
 
                 pointers <- getOutputPointers out
-                mapM_  updatePointerFocus pointers
+                mapM_ updatePointerFocus pointers
 
                 liftIO $ do
                     modifyIORef' cancelRef $ M.delete ws
