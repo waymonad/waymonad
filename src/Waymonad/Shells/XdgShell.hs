@@ -138,14 +138,6 @@ xdgShellCreate display = do
         , xdgWlrootsShell = roots
         }
 
-handleXdgUnmap :: (FocusCore vs ws, WSTag ws)
-               => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
-handleXdgUnmap view _ = removeView view
-
-handleXdgMap :: (FocusCore vs ws, WSTag ws)
-             => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
-handleXdgMap view _ = insertView view
-
 handleXdgDestroy :: (FocusCore vs a, WSTag a)
                  => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
 handleXdgDestroy ref surf = do
@@ -196,20 +188,16 @@ handleXdgPopup view getParentPos pop = do
     setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \_ -> do
         liftIO $ removeListener handler
 
+handleXdgUnmap :: (FocusCore vs ws, WSTag ws)
+               => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
+handleXdgUnmap view _ = removeView view
+
+handleXdgMap :: (FocusCore vs ws, WSTag ws)
+             => View -> Ptr R.WlrXdgSurface -> Way vs ws ()
+handleXdgMap view _ = insertView view
 
 handleXdgCommit :: View -> Ptr R.WlrXdgSurface -> Way vs ws ()
 handleXdgCommit view surf = setViewGeometry view =<< liftIO (R.getGeometry surf)
-
-handleXdgMainCommit :: XdgSurface -> Way vs ws ()
-handleXdgMainCommit XdgSurface {unXdg = surf, xdgSurfAck = ackRef, xdgSurfConfig = serialRef} = liftIO $ do
-    expected <- readIORef serialRef
-    when (expected > 0) $ do
-        serial <- R.getConfigureSerial surf
-        when (serial >= expected) $ do
-            writeIORef serialRef 0
-            ack <- readIORef ackRef
-            writeIORef ackRef $ pure ()
-            ack
 
 addWlrSurface :: View -> Ptr R.WlrXdgSurface -> Ptr WlrSurface -> Way vs ws ()
 addWlrSurface view surf wlrSurf = do
@@ -222,6 +210,17 @@ addWlrSurface view surf wlrSurf = do
         removeListener subSurfH
                                                          )
     handleXdgCommit view surf
+
+handleXdgMainCommit :: XdgSurface -> Way vs ws ()
+handleXdgMainCommit XdgSurface {unXdg = surf, xdgSurfAck = ackRef, xdgSurfConfig = serialRef} = liftIO $ do
+    expected <- readIORef serialRef
+    when (expected > 0) $ do
+        serial <- R.getConfigureSerial surf
+        when (serial >= expected) $ do
+            writeIORef serialRef 0
+            ack <- readIORef ackRef
+            writeIORef ackRef $ pure ()
+            ack
 
 handleXdgSurface :: (FocusCore vs a, WSTag a)
                  => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
@@ -245,6 +244,7 @@ handleXdgSurface ref surf = do
         popupH <- setSignalHandler (R.xdgSurfaceEvtPopup signals) $ handleXdgPopup view getPos
         mapH <- setSignalHandler (R.xdgSurfaceEvtMap signals) $ handleXdgMap view
         unmapH <- setSignalHandler (R.xdgSurfaceEvtUnmap signals) $ handleXdgUnmap view
+
         wlrSurfM <- liftIO $ R.xdgSurfaceGetSurface surf
         mainH <- case wlrSurfM of
             Nothing -> pure []
@@ -328,9 +328,10 @@ instance ShellSurface XdgSurface where
         if fromIntegral gw == width && fromIntegral gh == height
             then pure False
             else do
-                writeIORef ackRef ack
+                -- writeIORef ackRef ack
                 writeIORef serialRef =<< R.setSize surf width height
-                pure True
+                -- FIXME:
+                pure False
     activate = liftIO .: R.setActivated . unXdg
     renderAdditional fun XdgSurface {unXdg = surf} = renderPopups fun surf
     getEventSurface surf x y = runMaybeT (getXdgEventSurface surf x y)

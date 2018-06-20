@@ -138,11 +138,8 @@ xdgShellCreate display = do
         , xdgWlrootsShell = roots
         }
 
-handleXdgDestroy
-    :: (FocusCore vs a, WSTag a)
-    => MapRef
-    -> Ptr R.WlrXdgSurface
-    -> Way vs a ()
+handleXdgDestroy :: (FocusCore vs a, WSTag a)
+                 => MapRef -> Ptr R.WlrXdgSurface -> Way vs a ()
 handleXdgDestroy ref surf = do
     logPutText loggerXdg Debug "Destroying xdg toplevel surface"
     view <- fromJust . M.lookup (ptrToInt surf) <$> liftIO (readIORef ref)
@@ -201,8 +198,7 @@ handleXdgMap :: (FocusCore vs ws, WSTag ws)
 handleXdgMap view _ = insertView view
 
 handleXdgCommit :: View -> Ptr R.WlrXdgSurface -> Way vs ws ()
-handleXdgCommit view surf =
-    setViewGeometry view =<< liftIO (R.getGeometry surf)
+handleXdgCommit view surf = setViewGeometry view =<< liftIO (R.getGeometry surf)
 
 addWlrSurface :: View -> Ptr R.WlrXdgSurface -> Ptr WlrSurface -> Way vs ws ()
 addWlrSurface view surf wlrSurf = do
@@ -216,7 +212,7 @@ addWlrSurface view surf wlrSurf = do
                                                          )
     handleXdgCommit view surf
 
-handleXdgMainCommit :: XdgSurface -> Way ws vs ()
+handleXdgMainCommit :: XdgSurface -> Way vs ws ()
 handleXdgMainCommit XdgSurface {unXdg = surf, xdgSurfAck = ackRef, xdgSurfConfig = serialRef} = liftIO $ do
     expected <- readIORef serialRef
     when (expected > 0) $ do
@@ -266,6 +262,7 @@ handleXdgSurface ref surf = do
         setDestroyHandler (R.xdgSurfaceEvtDestroy signals) $ \surfPtr -> do
             liftIO $ mapM_ removeListener $ [popupH, mapH, unmapH] ++ mainH
             handleXdgDestroy ref surfPtr
+
         configureView view
 
 getXdgBox :: MonadIO m => Ptr R.WlrXdgSurface -> m WlrBox
@@ -316,7 +313,7 @@ xdgSubsurfaceAt XdgSurface {unXdg = surf} x y = do
     MaybeT (liftIO $ surfaceAt wlrsurf x y)
 
 xdgMainSurf :: MonadIO m => XdgSurface -> Double -> Double -> MaybeT m (Ptr WlrSurface, Double, Double)
-xdgMainSurf XdgSurface  {unXdg = surf} x y = MaybeT . liftIO $ do
+xdgMainSurf XdgSurface {unXdg = surf} x y = MaybeT . liftIO $ do
     WlrBox _ _ w h <- getXdgBox surf
     if x > 0 && x < fromIntegral w && y > 0 && y < fromIntegral h
         then do
