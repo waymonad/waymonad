@@ -317,6 +317,13 @@ data SSDPrio
     | SuggestedSSD ServerSideDecoration
     | NoSSD (Set Seat)
 
+-- Pretty horrible Eq instance =.=
+instance Eq SSDPrio where
+    (NoSSD s) == (NoSSD s') = s == s'
+    ForcedSSD _ == ForcedSSD _ = True
+    SuggestedSSD _ == SuggestedSSD _ = True
+    _ == _ = False
+
 instance Show SSDPrio where
     show (ForcedSSD _) = "Forced"
     show (SuggestedSSD _) = "Suggested"

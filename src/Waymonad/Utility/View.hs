@@ -32,6 +32,8 @@ module Waymonad.Utility.View
     )
 where
 
+import System.IO
+
 import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
@@ -68,9 +70,11 @@ greedyView ws = doJust getCurrentOutput $ \out -> do
 
     -- This has to be here, because the hook might change some focus, which
     -- will cause the layout to change =.=
+    liftIO $ hPutStrLn stderr "Going to emit hooks"
     hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
     hook $ OutputMappingEvent out pre (Just ws)
     mapM_ (\o -> hook $ OutputMappingEvent o (Just ws) pre) olds
+    liftIO $ hPutStrLn stderr "Done emitting hooks"
 
     reLayout ws'
     reLayout ws

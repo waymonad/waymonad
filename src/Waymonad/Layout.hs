@@ -32,6 +32,8 @@ module Waymonad.Layout
     )
 where
 
+import System.IO
+
 import Control.Monad (forM_, forM, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (writeIORef, readIORef, newIORef, IORef, modifyIORef')
@@ -104,6 +106,7 @@ sendLayout :: (Int, Int) -- ^The output position, for moving Xwayland windows pr
            -> IO () -- ^An action to be applied after all windows are ready (e.g. apply the cache)
            -> Way vs ws (Maybe (IO ())) -- ^If applicable, returns a function to cancel the timeout/trigger after ready
 sendLayout (ox, oy) layout act = do
+    liftIO $ hPutStrLn stderr "Sending a layout"
     updateRef :: IORef Int <- liftIO $ newIORef 0
     let checkedAct = do
             val <- readIORef updateRef
@@ -133,6 +136,7 @@ sendLayout (ox, oy) layout act = do
 
 applyLayout :: (WSTag ws, FocusCore vs ws) => Output -> [(View, SSDPrio, WlrBox)] -> Way vs ws ()
 applyLayout out layout = do
+    liftIO $ hPutStrLn stderr "Applying a layout"
     outApplyDamage out Nothing
     let cacheRef = (M.!) (outputLayers out) "main"
     liftIO $ writeIORef cacheRef layout
@@ -153,6 +157,7 @@ reLayout :: (WSTag ws, FocusCore vs ws)
 --         -> IO () -- ^An IO action to clean up any resources bound by the current layout. This will be executed after the layout is updated. This can be delayed by further updates as well
          -> Way vs ws ()
 reLayout ws = do
+    liftIO $ hPutStrLn stderr "Calling reLayout"
     state <- getState
     vs <- liftIO . readIORef . wayBindingState $ state
     layouts <- getWSLayout vs ws

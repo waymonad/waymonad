@@ -40,9 +40,9 @@ module Waymonad.Utility.ViewSet
     )
 where
 
-import Control.Monad (void, unless, forM_)
+import Control.Monad (void, unless, forM_, when)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (modifyIORef, readIORef)
+import Data.IORef (modifyIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.List (nub)
 
@@ -98,8 +98,9 @@ forceFocused intent = doJust getSeat $ \seat -> do
     setFocused seat intent ws
 
 unsetFocus :: FocusCore vs a => Seat -> a -> Way vs a ()
-unsetFocus seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $
-    \v -> activateView v False
+unsetFocus seat ws = doJust ((\vs -> _getFocused vs ws $ Just seat) <$> getViewSet) $ \v -> do
+    activateView v False
+    keyboardClear seat
 
 getFocused :: FocusCore vs ws => Seat -> ws -> Way vs ws (Maybe View)
 getFocused seat ws = withViewSet (\_ vs ->  _getFocused vs ws $ Just seat)
@@ -126,22 +127,25 @@ modifyWS ws fun = do
           ) =<< mapM getKeyboardFocus seats
 
     -- TODO: Inline the modify viewset and read/write IORef without modify
---    vs <- liftIO . readIORef .  wayBindingState =<< getState
---    pre <- getWSLayout vs ws
-    unfreeze <- freezeLayout ws
---        case pre of
---        ((_, layout):_) -> freezeLayout pre
---        _ -> pure $ pure ()
-    modifyViewSet (fun ws)
-    postVS <- liftIO . readIORef .  wayBindingState =<< getState
-    post <- getWSLayout postVS ws
+    vsRef <- wayBindingState <$> getState
+    vs <- liftIO $ readIORef vsRef
+    let vs' = fun ws vs
+    liftIO $ writeIORef vsRef vs'
 
-    case post of
-        ((out, layout):_) -> do
-            Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
-            doApply <- unliftWay $ mapM_ (uncurry applyLayout) post
-            void $ sendLayout (ox, oy) layout (unfreeze >> doApply)
-        _ -> pure ()
+    pre <- getWSLayout vs ws
+    post <- getWSLayout vs' ws
+    -- Only do all of this, if the layout actually changed! 
+    when (pre /= post) $ do
+        unfreeze <- freezeLayout ws
+        postVS <- liftIO . readIORef .  wayBindingState =<< getState
+        post <- getWSLayout postVS ws
+
+        case post of
+            ((out, layout):_) -> do
+                Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
+                doApply <- unliftWay $ mapM_ (uncurry applyLayout) post
+                void $ sendLayout (ox, oy) layout (unfreeze >> doApply)
+            _ -> pure ()
 
     mapM_ (\s -> setFocused s Intentional ws) seats
     --unless (null outs) (reLayout ws)
