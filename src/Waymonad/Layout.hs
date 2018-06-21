@@ -32,8 +32,6 @@ module Waymonad.Layout
     )
 where
 
-import System.IO
-
 import Control.Monad (forM_, forM, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (writeIORef, readIORef, newIORef, IORef, modifyIORef')
@@ -42,7 +40,7 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import Waymonad (Way, WayBindingState (..), getState, unliftWay, registerTimed)
+import Waymonad (Way, WayBindingState (..), getState, registerTimed)
 import Waymonad.Input.Seat (updatePointerFocus)
 import Waymonad.Output.Core (getOutputId, outApplyDamage)
 import Waymonad.Types (Output (..), SSDPrio)
@@ -106,7 +104,6 @@ sendLayout :: (Int, Int) -- ^The output position, for moving Xwayland windows pr
            -> IO () -- ^An action to be applied after all windows are ready (e.g. apply the cache)
            -> Way vs ws (Maybe (IO ())) -- ^If applicable, returns a function to cancel the timeout/trigger after ready
 sendLayout (ox, oy) layout act = do
-    liftIO $ hPutStrLn stderr "Sending a layout"
     updateRef :: IORef Int <- liftIO $ newIORef 0
     let checkedAct = do
             val <- readIORef updateRef
@@ -136,7 +133,6 @@ sendLayout (ox, oy) layout act = do
 
 applyLayout :: (WSTag ws, FocusCore vs ws) => Output -> [(View, SSDPrio, WlrBox)] -> Way vs ws ()
 applyLayout out layout = do
-    liftIO $ hPutStrLn stderr "Applying a layout"
     outApplyDamage out Nothing
     let cacheRef = (M.!) (outputLayers out) "main"
     liftIO $ writeIORef cacheRef layout
@@ -157,7 +153,6 @@ reLayout :: (WSTag ws, FocusCore vs ws)
 --         -> IO () -- ^An IO action to clean up any resources bound by the current layout. This will be executed after the layout is updated. This can be delayed by further updates as well
          -> Way vs ws ()
 reLayout ws = do
-    liftIO $ hPutStrLn stderr "Calling reLayout"
     state <- getState
     vs <- liftIO . readIORef . wayBindingState $ state
     layouts <- getWSLayout vs ws
@@ -166,7 +161,7 @@ reLayout ws = do
         [] -> pure () -- No need to do anything
         ((out, layout):_) -> do
             Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
-            sendLayout (ox, oy) layout (pure ())
+            _ <- sendLayout (ox, oy) layout (pure ())
             mapM_ (uncurry applyLayout) layouts
 
 layoutOutput :: (FocusCore vs ws, WSTag ws) => Output -> Way vs ws ()

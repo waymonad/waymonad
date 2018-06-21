@@ -98,6 +98,7 @@ instance (Ord ws, FocusCore vs ws) => FocusCore (Mirror (Map ws) vs) ws where
     getLayouted t@(Mirror _ vs) ws box = if getState ws t
         then (\(v, d, b) -> (v, d, mirrorBox b)) <$> getLayouted vs ws (mirrorBox box)
         else getLayouted vs ws box
+    sameVS _ _ _ = False
 
 
 instance ListLike vs ws => ListLike (Mirror c vs) ws where

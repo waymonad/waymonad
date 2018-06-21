@@ -40,11 +40,11 @@ module Waymonad.Utility.ViewSet
     )
 where
 
-import Control.Monad (void, unless, forM_, when)
+import Control.Monad (void, forM_, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (modifyIORef, readIORef, writeIORef)
-import Data.Maybe (fromJust)
 import Data.List (nub)
+import Data.Maybe (fromJust)
 
 import Graphics.Wayland.WlRoots.Output (getOutputPosition)
 import Graphics.Wayland.WlRoots.Box (Point (..))
@@ -53,9 +53,7 @@ import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus
 import Waymonad.Layout (reLayout, getWSLayout, freezeLayout, sendLayout, applyLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View
-    ( View, activateView, preserveTexture, dropTexture'
-    , setViewManager, unsetViewManager
-    )
+    (View, activateView , setViewManager, unsetViewManager)
 import Waymonad.ViewSet (WSTag, FocusCore (..))
 import Waymonad
     ( Way
@@ -112,11 +110,10 @@ getWSOutputs ws = do
 
 -- | This is a utility function that makes sure things are relayouted/focus is
 -- set appropriatly when the modified workspace is displayed
-modifyWS
-    :: (WSTag a, FocusCore vs a)
-    => a
-    -> (a -> vs -> vs)
-    -> Way vs a ()
+modifyWS :: forall a vs. (WSTag a, FocusCore vs a)
+         => a
+         -> (a -> vs -> vs)
+         -> Way vs a ()
 modifyWS ws fun = do
     outs <- getWSOutputs ws
     seats <- nub . concat <$> mapM getOutputKeyboards outs
@@ -126,19 +123,17 @@ modifyWS ws fun = do
         Nothing -> pure ()
           ) =<< mapM getKeyboardFocus seats
 
-    -- TODO: Inline the modify viewset and read/write IORef without modify
     vsRef <- wayBindingState <$> getState
     vs <- liftIO $ readIORef vsRef
     let vs' = fun ws vs
     liftIO $ writeIORef vsRef vs'
 
+    let changed = not $ sameVS (undefined :: a) vs vs'
     pre <- getWSLayout vs ws
     post <- getWSLayout vs' ws
-    -- Only do all of this, if the layout actually changed! 
-    when (pre /= post) $ do
+
+    when (changed && pre /= post) $ do
         unfreeze <- freezeLayout ws
-        postVS <- liftIO . readIORef .  wayBindingState =<< getState
-        post <- getWSLayout postVS ws
 
         case post of
             ((out, layout):_) -> do

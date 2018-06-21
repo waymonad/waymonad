@@ -35,7 +35,6 @@ import Foreign.Ptr (Ptr)
 import Graphics.Wayland.Server (OutputTransform)
 
 import Graphics.Pixman
-import Graphics.Wayland.Signal (ListenerToken)
 import Graphics.Wayland.WlRoots.Box (WlrBox, Point)
 import Graphics.Wayland.WlRoots.Input.Keyboard (WlrKeyboard)
 import Graphics.Wayland.WlRoots.Output (WlrOutput)
@@ -75,7 +74,6 @@ data Seat = Seat
     , seatKeyboards      :: IORef (Set (Ptr WlrKeyboard))
     , seatKeymap         :: IORef (WayKeyState -> IO Bool)
     }
-
 
 class Typeable a => ShellSurface a where
     getSurface :: MonadIO m => a -> m (Maybe (Ptr WlrSurface))

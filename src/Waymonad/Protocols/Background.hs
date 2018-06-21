@@ -114,7 +114,7 @@ addBackgroundSurface global rsid surf = do
             Point w h <- liftIO $ outputTransformedResolution $ outputRoots out
 
             v <- createView bs
-            resizeView v (fromIntegral w) (fromIntegral h) (pure ())
+            _ <- resizeView v (fromIntegral w) (fromIntegral h) (pure ())
             setLayerContent "background" out [(v, NoSSD mempty, WlrBox 0 0 w h)]
             liftIO $ addResourceDestroyListener rs destroyCB
 

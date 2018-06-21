@@ -101,6 +101,7 @@ instance (Ord ws, FocusCore vs ws) => FocusCore (SmartBorders (Int, Map ws Int) 
     removeGlobal v ws (SmartBorders s vs) = SmartBorders s $ removeGlobal v ws vs
     getLayouted t@(SmartBorders _ vs) ws box =
         applyBorders (getState ws t) $ getLayouted vs ws box
+    sameVS _ _ _ = False
 
 instance ListLike vs ws => ListLike (SmartBorders c vs) ws where
     _asList (SmartBorders _ vs) ws = _asList vs ws

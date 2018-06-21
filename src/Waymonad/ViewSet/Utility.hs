@@ -183,6 +183,7 @@ instance FocusCore (Zipper Seat View) ws where
     _removeView = error "_removeView is not supported in Zipper pseudo instance"
     removeGlobal = error "_removeGlobal is not supported in Zipper pseudo instance"
     getLayouted = error "getLayouted is not supported on the Zipper pseudo instance"
+    sameVS _ _ _ = False
 
 instance ListLike (Zipper Seat View) ws where
     _asList (Zipper xs) _ = xs

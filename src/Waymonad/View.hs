@@ -110,7 +110,6 @@ import Graphics.Wayland.WlRoots.Surface
     , surfaceGetSize
     , pokeSurfaceData
     , peekSurfaceData
-    , surfaceGetTexture
     , surfaceGetBuffer
     , surfaceGetTransform
     )

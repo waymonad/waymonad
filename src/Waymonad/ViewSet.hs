@@ -114,6 +114,10 @@ class FocusCore vs ws where
     -- | Remove a view from the ViewSet. The workspace argument should *not* be
     -- used, it's simply to please the typechecker
     removeGlobal :: View -> ws -> vs -> vs
+    -- | Compare ViewSet for equality. Used at some points for optimisations.
+    -- This is not allowed to return false positives, but it is fine to return
+    -- false positives
+    sameVS :: ws -> vs -> vs -> Bool
 
 -- | Supplementary class to implement ViewSets that can behave like the XMonad
 -- ViewSet.

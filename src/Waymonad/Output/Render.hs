@@ -22,7 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Output.Render
 where
 
-import Control.Monad (forM_, when, void, unless)
+import Control.Monad (forM_, when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, readIORef)
 import Foreign.Ptr (Ptr)
@@ -56,8 +56,7 @@ import Waymonad.Types (Way, Output (..), SSDPrio)
 import Waymonad.Types.Core (View, SurfaceBuffer (..), ViewBuffer (..))
 import Waymonad.View
     ( viewHasCSD, viewGetLocal, getViewSurface, renderViewAdditional
-    , viewGetScale, getViewGeometry, viewHasPreserved
-    , viewGetPreserved
+    , viewGetScale, getViewGeometry, viewGetPreserved
     )
 import Waymonad.Utility.SSD (renderDeco, getDecoBox)
 import Waymonad.Utility.Base (doJust)
@@ -212,9 +211,7 @@ notifySurface secs surface = do
 
 
 notifyView :: Double -> (View, SSDPrio, WlrBox) -> IO ()
-notifyView secs (!view, _, _) = do
-    stored <- viewHasPreserved view
-    unless stored $ doJust (getViewSurface view) $ \surface -> do
+notifyView secs (!view, _, _) = doJust (getViewSurface view) $ \surface -> do
         notifySurface secs surface
         renderViewAdditional (\s _ -> notifySurface secs s) view
 

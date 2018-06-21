@@ -106,6 +106,7 @@ instance (Ord ws, FocusCore vs ws) => FocusCore (ToggleFull (Map ws) vs) ws wher
                 Nothing -> []
                 Just v -> [(v, NoSSD mempty, box)]
         else getLayouted vs ws box
+    sameVS _ _ _ = False
 
 instance ListLike vs ws => ListLike (ToggleFull c vs) ws where
     _asList (ToggleFull _ vs) ws = _asList vs ws

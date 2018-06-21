@@ -46,7 +46,7 @@ import Waymonad.Utility.Base (doJust)
 import Waymonad.View
     ( View, moveView, resizeView, updateViewSize
     , setViewManager, unsetViewManager, setViewSize
-    , activateView, doFocusView, getViewSize, getViewBox
+    , activateView, doFocusView, getViewSize
     , addViewResizeListener
     )
 import Waymonad.ViewSet (WSTag, FocusCore (..))
@@ -119,8 +119,8 @@ handleViewResize view = do
 
 setFloating :: FocusCore vs ws => View -> WlrBox -> Way vs ws ()
 setFloating view pos@(WlrBox x y width height) = do
-    moveView view (fromIntegral x) (fromIntegral y)
-    resizeView view (fromIntegral width) (fromIntegral height) (pure ())
+    moveView view x y
+    _ <- resizeView view (fromIntegral width) (fromIntegral height) (pure ())
     modifyFloating $ S.insert view
 
     resizeCB <- makeCallback handleViewResize

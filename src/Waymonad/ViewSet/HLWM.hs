@@ -295,6 +295,7 @@ instance WSTag ws => FocusCore (ViewSet ws) ws where
                      in case M.lookup s m of
                         (Just FocusSecond) -> doSecond <|> doFirst
                         _ -> doFirst <|> doSecond
+    sameVS _ _ _ = False
 
 instance WSTag ws => ListLike (ViewSet ws) ws where
     {-# SPECIALISE instance ListLike (ViewSet Text) Text #-}

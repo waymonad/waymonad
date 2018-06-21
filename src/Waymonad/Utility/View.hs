@@ -32,16 +32,14 @@ module Waymonad.Utility.View
     )
 where
 
-import System.IO
-
 import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 
 import Waymonad (Way, getState, WayBindingState(wayBindingMapping))
 import Waymonad.Layout (reLayout)
-import Waymonad.Utility.Base (doJust)
-import Waymonad.Utility.Current (getCurrentOutput, getCurrentWS)
+import Waymonad.Utility.Base (doJust, whenJust)
+import Waymonad.Utility.Current (getCurrentOutput)
 import Waymonad.Utility.Focus (setOutputWorkspace, setOutputWorkspace')
 import Waymonad.Types
 import Waymonad.ViewSet (WSTag, FocusCore)
@@ -62,21 +60,19 @@ view ws = doJust getCurrentOutput $ \out -> do
 greedyView :: (FocusCore vs ws, WSTag ws) => ws -> Way vs ws ()
 greedyView ws = doJust getCurrentOutput $ \out -> do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
-    ws' <- getCurrentWS
     pre <- setOutputWorkspace' ws out
-    olds <- forM (filter ((==) ws . fst) mapping) $ \(_, o) -> do
-        setOutputWorkspace' ws' o
-        pure o
+    olds <- whenJust pre $ \ws' ->
+        forM (filter ((==) ws . fst) mapping) $ \(_, o) -> do
+            _ <- setOutputWorkspace' ws' o
+            pure o
 
     -- This has to be here, because the hook might change some focus, which
     -- will cause the layout to change =.=
-    liftIO $ hPutStrLn stderr "Going to emit hooks"
     hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
     hook $ OutputMappingEvent out pre (Just ws)
     mapM_ (\o -> hook $ OutputMappingEvent o (Just ws) pre) olds
-    liftIO $ hPutStrLn stderr "Done emitting hooks"
 
-    reLayout ws'
+    whenJust pre reLayout
     reLayout ws
 
 -- | Change the displayed workspace on the current output to the argument.

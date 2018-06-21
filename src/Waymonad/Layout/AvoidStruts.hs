@@ -67,10 +67,10 @@ instance Message StrutMessage
 
 instance LayoutClass l => LayoutClass (StrutAvoider Struts l) where
     handleMessage l@(StrutAvoider st child) s m = case getMessage m of
-        Just (StrutMessage x) -> Just l { avoiderStruts = x }
+        Just (StrutMessage x) -> if x == st then Nothing else Just l { avoiderStruts = x }
         Nothing -> StrutAvoider st <$> handleMessage child s m
     broadcastMessage s@(StrutAvoider st child) m = case getMessage m of
-        Just (StrutMessage x) -> Just s { avoiderStruts = x }
+        Just (StrutMessage x) -> if x == st then Nothing else Just s { avoiderStruts = x }
         Nothing -> StrutAvoider st <$> broadcastMessage child m
     description StrutAvoider {avoiderChild = child} =
         "StrutAvoider(" `T.append` description child `T.append` ")"
@@ -101,6 +101,7 @@ instance (Ord ws, FocusCore vs ws) => FocusCore (StrutAvoider (Struts, Map ws St
     _removeView ws view (StrutAvoider s vs) = StrutAvoider s (_removeView ws view vs)
     removeGlobal v ws (StrutAvoider s vs) = StrutAvoider s $ removeGlobal v ws vs
     getLayouted t@(StrutAvoider _ vs) ws box = getLayouted vs ws $ applyStruts (getState ws t) box
+    sameVS _ _ _ = False
 
 instance ListLike vs ws => ListLike (StrutAvoider c vs) ws where
     _asList (StrutAvoider _ vs) ws = _asList vs ws

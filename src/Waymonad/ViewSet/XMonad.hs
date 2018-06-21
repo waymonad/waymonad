@@ -18,6 +18,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
@@ -41,6 +44,8 @@ module Waymonad.ViewSet.XMonad
     , sameLayout
     )
 where
+
+import GHC.Prim
 
 import Control.Monad (join)
 import Data.Map (Map)
@@ -77,7 +82,7 @@ alterWS fun ws (ViewSet m l) =
 mapVS :: Ord ws => (XMWorkspace ws -> XMWorkspace ws) -> ViewSet ws -> ViewSet ws
 mapVS fun (ViewSet m l) = ViewSet (fun `fmap` m) l
 
-instance Ord a => Layouted (ViewSet a) a where
+instance Ord ws => Layouted (ViewSet ws) ws where
     {-# SPECIALISE instance Layouted (ViewSet Text) Text #-}
     getLayout (ViewSet vs _) ws = case wsLayout <$> M.lookup ws vs of
         Nothing -> Nothing
@@ -86,10 +91,14 @@ instance Ord a => Layouted (ViewSet a) a where
         where modify w@(Workspace (GenericLayout l) z) = case broadcastMessage l  m of
                 Nothing -> w
                 Just nl -> Workspace (GenericLayout nl) z
-    messageWS m s = alterWS modify
-        where modify w@(Workspace (GenericLayout l) z) = case handleMessage l s m of
-                Nothing -> w
-                Just nl -> Workspace (GenericLayout nl) z
+    messageWS msg s ws vs@(ViewSet m l@(GenericLayout ol)) = case M.lookup ws m of
+        Nothing -> case handleMessage ol s msg of
+
+            Nothing -> vs
+            Just nl -> ViewSet (M.insert ws (Workspace (GenericLayout nl) Nothing) m) l
+        Just (Workspace (GenericLayout wl) z) -> case handleMessage wl s msg of
+            Nothing -> vs
+            Just nl -> ViewSet (M.insert ws (Workspace (GenericLayout nl) z) m) l
     broadcastVS m _ = mapVS modify
         where modify w@(Workspace (GenericLayout l) z) = case broadcastMessage l  m of
                 Nothing -> w
@@ -109,6 +118,10 @@ instance WSTag a => FocusCore (ViewSet a) a where
     _insertView ws s v vs = alterWS (addView s v) ws vs
     _removeView ws v vs = adjustWS (rmView v) ws vs
     removeGlobal v _ = mapVS (rmView v)
+    sameVS _ (ViewSet m l) (ViewSet m' l') =
+        case (# reallyUnsafePtrEquality# m m', reallyUnsafePtrEquality# l l' #) of
+                (# 1#, 1# #) -> True
+                _ -> False
 
 instance WSTag a => ListLike (ViewSet a) a where
     {-# SPECIALISE instance ListLike (ViewSet Text) Text #-}
