@@ -328,10 +328,9 @@ instance ShellSurface XdgSurface where
         if fromIntegral gw == width && fromIntegral gh == height
             then pure False
             else do
-                -- writeIORef ackRef ack
+                writeIORef ackRef ack
                 writeIORef serialRef =<< R.setSize surf width height
-                -- FIXME:
-                pure False
+                pure True
     activate = liftIO .: R.setActivated . unXdg
     renderAdditional fun XdgSurface {unXdg = surf} = renderPopups fun surf
     getEventSurface surf x y = runMaybeT (getXdgEventSurface surf x y)

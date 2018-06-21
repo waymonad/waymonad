@@ -22,6 +22,7 @@ Reach us at https://github.com/ongy/waymonad
 module Waymonad.Utility.Focus
     ( setWorkspace
     , setOutputWorkspace
+    , setOutputWorkspace'
     , focusView
     , focusWSView
     , focusMaster
@@ -55,24 +56,30 @@ import Waymonad.Utility.Current (getCurrentOutput)
 import Waymonad.Utility.ViewSet (modifyCurrentWS, modifyViewSet, withCurrentWS)
 import Waymonad.Utility.Log (logPutText, LogPriority(..))
 
-setOutputWorkspace :: (FocusCore vs a, WSTag a) => a -> Output -> Way vs a ()
-setOutputWorkspace ws current = do
+
+setOutputWorkspace' :: (FocusCore vs ws, WSTag ws) => ws -> Output -> Way vs ws (Maybe ws)
+setOutputWorkspace' ws output = do
     state <- getState
     -- Do this manually here, since we don't want the defaulting to first
     -- rule. It's only about output<->ws mapping!
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
-    let pre = lookup current $ map swap mapping
+    let pre = lookup output $ map swap mapping
 
-    when (pre /= Just ws) $ do
-        liftIO $ modifyIORef
-            (wayBindingMapping state)
-            ((:) (ws, current) . filter ((/=) current . snd))
+    when (pre /= Just ws) $ liftIO $ modifyIORef
+        (wayBindingMapping state)
+        ((:) (ws, output) . filter ((/=) output . snd))
 
-        reLayout ws
-        whenJust pre reLayout
+    pure pre
 
-        hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
-        hook $ OutputMappingEvent current pre (Just ws)
+setOutputWorkspace :: (FocusCore vs a, WSTag a) => a -> Output -> Way vs a ()
+setOutputWorkspace ws output = do
+    pre <- setOutputWorkspace' ws output
+
+    hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
+    hook $ OutputMappingEvent output pre (Just ws)
+
+    reLayout ws
+    whenJust pre reLayout
 
 getWorkspaceOutputs :: Eq a => a -> Way vs a [Output]
 getWorkspaceOutputs ws = do

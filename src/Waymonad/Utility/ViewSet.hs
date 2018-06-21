@@ -195,7 +195,6 @@ removeCB :: forall vs ws. (FocusCore vs ws, WSTag ws) => View -> Way vs ws ()
 removeCB v = do
     let token :: ws = error "removeGlobal Workspace argument should never be used"
 
-    preserveTexture v
     modifyViewSet $ removeGlobal v token
 
     outputs <- getOutputs
@@ -203,7 +202,7 @@ removeCB v = do
         seats <- getOutputKeyboards output
         doJust (getOutputWS output) $ \ws -> do
             mapM_ (\s -> setFocused s SideEffect ws) seats
-            reLayout ws -- FIXME: (dropTexture' v)
+            reLayout ws
 
 makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData
 makeManager = do

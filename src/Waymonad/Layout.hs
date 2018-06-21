@@ -157,8 +157,6 @@ reLayout ws = do
     vs <- liftIO . readIORef . wayBindingState $ state
     layouts <- getWSLayout vs ws
 
-    updateRef :: IORef Int <- liftIO $ newIORef 0
-
     case layouts of
         [] -> pure () -- No need to do anything
         ((out, layout):_) -> do

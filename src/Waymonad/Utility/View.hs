@@ -32,15 +32,17 @@ module Waymonad.Utility.View
     )
 where
 
-import Control.Monad (forM_)
+import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (readIORef)
 
-import Waymonad.Utility.Base (doJust)
-import Waymonad.ViewSet (WSTag, FocusCore)
 import Waymonad (Way, getState, WayBindingState(wayBindingMapping))
+import Waymonad.Layout (reLayout)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Current (getCurrentOutput, getCurrentWS)
-import Waymonad.Utility.Focus (setOutputWorkspace)
+import Waymonad.Utility.Focus (setOutputWorkspace, setOutputWorkspace')
+import Waymonad.Types
+import Waymonad.ViewSet (WSTag, FocusCore)
 
 -- | Change the displayed workspace on the current output to the argument. Will
 -- do nothing if it's displayed on another output.
@@ -55,13 +57,23 @@ view ws = doJust getCurrentOutput $ \out -> do
 -- | Change the displayed workspace on the current output to the argument. Will
 -- switch the current workplace onto any output that currently displays the
 -- target.
-greedyView :: (FocusCore vs a, WSTag a) => a -> Way vs a ()
+greedyView :: (FocusCore vs ws, WSTag ws) => ws -> Way vs ws ()
 greedyView ws = doJust getCurrentOutput $ \out -> do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     ws' <- getCurrentWS
-    setOutputWorkspace ws out
-    forM_ (filter ((==) ws . fst) mapping) $ \(_, o) -> 
-        setOutputWorkspace ws' o
+    pre <- setOutputWorkspace' ws out
+    olds <- forM (filter ((==) ws . fst) mapping) $ \(_, o) -> do
+        setOutputWorkspace' ws' o
+        pure o
+
+    -- This has to be here, because the hook might change some focus, which
+    -- will cause the layout to change =.=
+    hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
+    hook $ OutputMappingEvent out pre (Just ws)
+    mapM_ (\o -> hook $ OutputMappingEvent o (Just ws) pre) olds
+
+    reLayout ws'
+    reLayout ws
 
 -- | Change the displayed workspace on the current output to the argument.
 -- If another output currently displays this workspace, both outputs will show
