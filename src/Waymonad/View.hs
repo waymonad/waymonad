@@ -75,7 +75,7 @@ module Waymonad.View
 where
 
 import Data.Composition ((.:))
-import Control.Monad (when, forM)
+import Control.Monad (when, forM, forM_)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO)
 import Data.IORef (IORef, readIORef, writeIORef, newIORef, modifyIORef)
@@ -84,6 +84,8 @@ import Data.Text (Text)
 import Data.Typeable (Typeable, cast)
 import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.StablePtr (newStablePtr, freeStablePtr, castStablePtrToPtr, castPtrToStablePtr, deRefStablePtr)
+
+import Graphics.Wayland.WlRoots.Output (scheduleOutputFrame)
 
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -166,12 +168,17 @@ handleSurfaceDamage view getPos surf = do
     WlrBox vx vy _ _ <- viewGetLocal view
     WlrBox geoX geoY _ _ <- getViewGeometry view
     scale <- viewGetScale view
-    doJust (getSurfaceDamage surf) $ \dmg ->
-        withRegionCopy dmg $ \mutDmg -> do
-            pixmanRegionTranslate mutDmg x y
-            scaleRegion mutDmg scale
-            pixmanRegionTranslate mutDmg (vx - geoX) (vy - geoY)
-            doApplyDamage view mutDmg
+    damage <- getSurfaceDamage surf
+    case damage of
+        Just dmg -> do
+            withRegionCopy dmg $ \mutDmg -> do
+                pixmanRegionTranslate mutDmg x y
+                scaleRegion mutDmg scale
+                pixmanRegionTranslate mutDmg (vx - geoX) (vy - geoY)
+                doApplyDamage view mutDmg
+        Nothing -> liftIO $ do
+            pos <- doGetPosition view
+            forM_ pos $ \(o, _) -> scheduleOutputFrame o
 
 getViewFromSurface :: MonadIO m => Ptr WlrSurface -> m (Maybe View)
 getViewFromSurface surf = liftIO $ do
