@@ -128,7 +128,8 @@ sendLayout (ox, oy) layout act = do
     case suspended of
         0 -> liftIO act >> pure Nothing
         _ -> do
-            registerTimed force 200
+            -- @60Hz, 3frames = 50ms
+            registerTimed force 51
             pure . Just $ writeIORef updateRef 0
 
 applyLayout :: (WSTag ws, FocusCore vs ws) => Output -> [(View, SSDPrio, WlrBox)] -> Way vs ws ()
