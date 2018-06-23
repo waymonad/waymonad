@@ -102,7 +102,7 @@ damageDisplay depth secs out@Output {outputRoots = output, outputLayout = layers
     liftIO $ when (enabled) $ notifyLayers secs layers
     when (enabled && needsSwap) $ do
         renderer <- liftIO (backendGetRenderer =<< outputGetBackend output)
-        reEnable <- renderOn output renderer $ \age -> do
+        reEnable <- renderOn (floor $ secs * 1000) output renderer $ \age -> do
             tracker <- liftIO $ getOutputTracker depth out
             let withDRegion = \act -> if age < 0 || age > 1
                 then withRegion $ \region -> do

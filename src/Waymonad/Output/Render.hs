@@ -64,10 +64,10 @@ import Waymonad.ViewSet (WSTag)
 
 import qualified Graphics.Wayland.WlRoots.Buffer as B
 
-renderOn :: Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
-renderOn output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
+renderOn :: Integer -> Ptr WlrOutput -> Ptr Renderer -> (Int -> Way vs ws a) -> Way vs ws (Maybe a)
+renderOn time output rend act = doJust (liftIO $ makeOutputCurrent output) $ \age -> do
     ret <- liftIO . doRender rend output =<< unliftWay (act age)
-    void . liftIO $ swapOutputBuffers output Nothing
+    void . liftIO $ swapOutputBuffers output (Just time) Nothing
     pure $ Just ret
 
 renderDamaged :: Ptr Renderer -> Ptr WlrOutput -> PixmanRegion32 -> WlrBox -> IO () -> IO ()
@@ -236,7 +236,7 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
 
     when (enabled && needsSwap) $ do
         renderer <- liftIO (backendGetRenderer =<< outputGetBackend (outputRoots out))
-        void . renderOn output renderer $ \age -> do
+        void . renderOn (floor $ secs * 1e9) output renderer $ \age -> do
             let withDRegion = \act -> if age < 0 || age > 1
                 then withRegion $ \region -> do
                     Point w h <- outputTransformedResolution output
@@ -274,7 +274,7 @@ fieteHandler secs Output {outputRoots = output, outputLayout = layers} = do
     liftIO $ when enabled $ notifyLayers secs layers
     when (enabled && needsSwap) $ do
         renderer <- liftIO (backendGetRenderer =<< outputGetBackend output)
-        void . renderOn output renderer $ \_ -> do
+        void . renderOn (floor $ secs * 1e9) output renderer $ \_ -> do
             let withDRegion act = withRegion $ \region -> do
                     Point w h <- outputTransformedResolution output
                     resetRegion region . Just $ WlrBox 0 0 w h
