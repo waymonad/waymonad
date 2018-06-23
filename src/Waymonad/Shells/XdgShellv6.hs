@@ -33,11 +33,7 @@ module Waymonad.Shells.XdgShellv6
 where
 
 import Control.Applicative ((<|>))
-<<<<<<< HEAD
-import Control.Monad (filterM, forM_, unless, void)
-=======
 import Control.Monad (filterM, forM_, unless, when)
->>>>>>> Add basic XdgShellv6 atomic update. (Breaks on window-destroy)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Data.Composition ((.:))
