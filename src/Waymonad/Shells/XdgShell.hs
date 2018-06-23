@@ -37,7 +37,7 @@ module Waymonad.Shells.XdgShell
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (filterM, forM_, unless, void)
+import Control.Monad (filterM, forM_, unless, when)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Data.Composition ((.:))
