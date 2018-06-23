@@ -24,6 +24,7 @@ Reach us at https://github.com/ongy/waymonad
 {-# LANGUAGE TupleSections #-}
 module Waymonad.Layout
     ( reLayout
+    , delayedLayout
     , layoutOutput
     , getWSLayout
     , freezeLayout
@@ -32,7 +33,7 @@ module Waymonad.Layout
     )
 where
 
-import Control.Monad (forM_, forM, when)
+import Control.Monad (forM_, forM, when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (writeIORef, readIORef, newIORef, IORef, modifyIORef')
 import Data.Tuple (swap)
@@ -40,7 +41,7 @@ import Data.Tuple (swap)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), centerBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox, getOutputPosition)
 
-import Waymonad (Way, WayBindingState (..), getState, registerTimed)
+import Waymonad (Way, WayBindingState (..), getState, registerTimed, unliftWay)
 import Waymonad.Input.Seat (updatePointerFocus)
 import Waymonad.Output.Core (getOutputId, outApplyDamage)
 import Waymonad.Types (Output (..), SSDPrio)
@@ -146,6 +147,20 @@ applyLayout out layout = do
 
     pointers <- getOutputPointers out
     mapM_ updatePointerFocus pointers
+
+delayedLayout :: (WSTag ws, FocusCore vs ws) => ws -> Way vs ws ()
+delayedLayout ws = do
+    unfreeze <- freezeLayout ws
+    state <- getState
+    vs <- liftIO . readIORef . wayBindingState $ state
+    post <- getWSLayout vs ws
+
+    case post of
+        ((out, layout):_) -> do
+            Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
+            doApply <- unliftWay $ mapM_ (uncurry applyLayout) post
+            void $ sendLayout (ox, oy) layout (unfreeze >> doApply)
+        _ -> pure ()
 
 
 -- | update the layout cache for the given workspace.

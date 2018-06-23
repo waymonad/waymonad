@@ -40,7 +40,7 @@ import Graphics.Wayland.Server (DisplayServer)
 import Graphics.Wayland.Signal (ListenerToken, removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), translateBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
-import Graphics.Wayland.WlRoots.Surface (surfaceAt, WlrSurface, surfaceGetSize)
+import Graphics.Wayland.WlRoots.Surface (surfaceAt, WlrSurface, surfaceGetSize, getWlrSurfaceEvents, WlrSurfaceEvents (..))
 
 import Waymonad (getState, makeCallback, makeCallback2)
 import Waymonad.Input.Seat (keyboardEnter)
@@ -71,7 +71,7 @@ data LayerShellLayer = LayerShellLayer
     , layerShellTop        :: [R.LayerSurface]
     , layerShellOverlay    :: [R.LayerSurface]
     , layerShellBackground :: [R.LayerSurface]
-    }
+    } deriving (Eq, Show)
 
 layerName :: R.LayerShellLayer -> Text
 layerName R.LayerShellLayerBackground = "background"
@@ -132,8 +132,13 @@ instance (FocusCore vs ws, WSTag ws) => ShellClass LayerRef vs ws where
                 surfMap <- readIORef surfRef
                 pure $ S.fromList $ IM.elems surfMap
 
-removeLayerSurface :: FocusCore vs ws => Output -> View -> Way vs ws ()
-removeLayerSurface out view = ensureOutput $ do
+removeLayerSurface :: FocusCore vs ws => Output -> LayerShell -> R.LayerSurface -> View -> Way vs ws ()
+removeLayerSurface out shell surf view = ensureOutput $ do
+    layer <- liftIO $ R.getLayerSurfaceLayer surf
+    let modify = getLayerModifier layer (delete surf)
+    liftIO $ modifyIORef (layerShellLayers shell) modify
+    layoutShell shell
+
     flattenView view
     outApplyDamage out Nothing
     where ensureOutput :: Way vs ws () -> Way vs ws ()
@@ -141,11 +146,11 @@ removeLayerSurface out view = ensureOutput $ do
               roots <- outputFromWlr $ outputRoots out
               maybe (pure ()) (const fun) roots
 
-layerManager :: FocusCore vs ws => Text -> Output -> Way vs ws ManagerData
-layerManager layer out = do
+layerManager :: FocusCore vs ws => Text -> Output -> LayerShell -> R.LayerSurface -> Way vs ws ManagerData
+layerManager layer out shell surf = do
     posCB <- makeCallback $  getLayerPosition' layer
     damageCB <- makeCallback2 $ applyLayerDamage layer
-    removeCB <- makeCallback $ removeLayerSurface out
+    removeCB <- makeCallback $ removeLayerSurface out shell surf
     pure $ ManagerData
         removeCB
         (\_ _ -> pure ())
@@ -253,13 +258,16 @@ handleLayerSurfaceDestroy shell view listeners surfPtr = do
         modifyIORef (layerShellViews shell) (IM.delete $ surfAsInt surf)
         mapM_ removeListener listeners
 
+handleSurfaceCommit :: (WSTag ws, FocusCore vs ws) => LayerShell -> Ptr a -> Way vs ws ()
+handleSurfaceCommit shell _ = layoutShell shell
 
-handleLayerSurfaceUnmap :: LayerShell -> Ptr R.LayerSurface -> Way vs ws ()
-handleLayerSurfaceUnmap shell surfPtr = do
+handleLayerSurfaceUnmap :: (WSTag ws, FocusCore vs ws) => LayerShell -> View -> Ptr R.LayerSurface -> Way vs ws ()
+handleLayerSurfaceUnmap shell view surfPtr = do
     let surf = R.LayerSurface surfPtr
     layer <- liftIO $ R.getLayerSurfaceLayer surf
     let modify = getLayerModifier layer (delete surf)
     liftIO $ modifyIORef (layerShellLayers shell) modify
+    removeView view
     layoutShell shell
 
 handleLayerSurfaceMap :: FocusCore vs ws => LayerShell -> Ptr R.LayerSurface -> Way vs ws ()
@@ -269,9 +277,7 @@ handleLayerSurfaceMap shell surfPtr = do
     let view = fromMaybe (error "Tried to find a layersurface that doesn't exist") $ IM.lookup (surfAsInt surf) viewMap
 
     layer <- liftIO $ R.getLayerSurfaceLayer surf
-    output <-outputFromWlr =<< (liftIO $ R.getSurfaceOutput surf)
-    whenJust output $ \out -> do
-        setViewManager view =<< layerManager (layerName layer) out
+    output <- outputFromWlr =<< (liftIO $ R.getSurfaceOutput surf)
 
     let focus = case layer of
             R.LayerShellLayerBackground -> False
@@ -303,16 +309,24 @@ handleNewLayerSurface shell surfPtr = do
 
     unless closed $ do
         liftIO $ modifyIORef (layerShellSurfaces shell) (S.insert surf)
+        view <- createView $ LayerSurface surf
 
         let events = R.getLayerSurfaceEvents surf
         mapToken <- setSignalHandler (R.layerSurfaceEventsMap events) (handleLayerSurfaceMap shell)
-        unmapToken <- setSignalHandler (R.layerSurfaceEventsUnmap events) (handleLayerSurfaceUnmap shell)
-        view <- createView $ LayerSurface surf
+        unmapToken <- setSignalHandler (R.layerSurfaceEventsUnmap events) (handleLayerSurfaceUnmap shell view)
 
         setDestroyHandler (R.layerSurfaceEventsDestroy events) (handleLayerSurfaceDestroy shell view [mapToken, unmapToken])
         liftIO $ modifyIORef (layerShellViews shell) (IM.insert (surfAsInt surf) view)
 
+        doJust (liftIO $ R.getLayerSurfaceSurface surf) $ \wlrSurf -> do
+            let wlrEvents = getWlrSurfaceEvents wlrSurf
+            tok <- setSignalHandler (wlrSurfaceEvtCommit wlrEvents) (handleSurfaceCommit shell)
+            setDestroyHandler (wlrSurfaceEvtDestroy wlrEvents) (const . liftIO $ removeListener tok)
+
         layer <- liftIO $ R.getLayerSurfaceLayer surf
+        output <- outputFromWlr =<< (liftIO $ R.getSurfaceOutput surf)
+        whenJust output $ \out' ->
+            setViewManager view =<< layerManager (layerName layer) out' shell surf
         let modify = getLayerModifier layer (++ [surf])
         liftIO $ modifyIORef (layerShellLayers shell) modify
         layoutShell shell
