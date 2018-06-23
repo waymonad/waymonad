@@ -33,7 +33,7 @@ module Waymonad.Shells.XdgShellv6
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (filterM, forM_, unless)
+import Control.Monad (filterM, forM_, unless, void)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Data.Composition ((.:))
@@ -312,7 +312,7 @@ instance ShellSurface XdgSurface where
         WlrBox _ _ w h <- getXdgBox $ unXdg surf
         pure $ (fromIntegral w, fromIntegral h)
     resize (XdgSurface surf) width height =
-        liftIO $ R.setSize surf width height
+        liftIO . void $ R.setSize surf width height
     activate = liftIO .: R.setActivated . unXdg
     renderAdditional fun (XdgSurface surf) = renderPopups fun surf
     getEventSurface surf x y = runMaybeT (getXdgEventSurface surf x y)

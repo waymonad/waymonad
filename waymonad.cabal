@@ -118,6 +118,7 @@ library
   exposed-modules:        Waymonad.Protocols.PrimarySelection
   exposed-modules:        Waymonad.Protocols.Screenshooter
   exposed-modules:        Waymonad.Protocols.LinuxDMABuf
+  exposed-modules:        Waymonad.Protocols.DMAExport
   exposed-modules:        Waymonad.Protocols.Background
 
   exposed-modules:        Waymonad.Shells.Layers
@@ -180,7 +181,7 @@ library
   build-depends:       bytestring, data-default, semigroupoids, HFuse
   build-depends:       formatting, stm, unliftio-core, unliftio, libinput
   build-depends:       safe, deepseq, template-haskell
-  build-depends:       waymonad-scanner
+  build-depends:       waymonad-scanner, ghc-prim
   
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -190,7 +191,7 @@ library
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
-  ghc-options:         -Wall
+  ghc-options:         -Wall -g
   if impl(ghc < 8.1)
     c-sources:           cbits/background.c
   --Werror
