@@ -46,11 +46,8 @@ import Data.IORef (modifyIORef, readIORef, writeIORef)
 import Data.List (nub)
 import Data.Maybe (fromJust)
 
-import Graphics.Wayland.WlRoots.Output (getOutputPosition)
-import Graphics.Wayland.WlRoots.Box (Point (..))
-
 import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
-import Waymonad.Layout (reLayout, getWSLayout, freezeLayout, sendLayout, applyLayout)
+import Waymonad.Layout (delayedLayout, getWSLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View
     (View, activateView , setViewManager, unsetViewManager)
@@ -61,7 +58,6 @@ import Waymonad
     , getState
     , getSeat
     , WayBindingState (..)
-    , unliftWay
     , makeCallback
     , makeCallback2
     )
@@ -132,18 +128,9 @@ modifyWS ws fun = do
     pre <- getWSLayout vs ws
     post <- getWSLayout vs' ws
 
-    when (changed && pre /= post) $ do
-        unfreeze <- freezeLayout ws
-
-        case post of
-            ((out, layout):_) -> do
-                Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
-                doApply <- unliftWay $ mapM_ (uncurry applyLayout) post
-                void $ sendLayout (ox, oy) layout (unfreeze >> doApply)
-            _ -> pure ()
+    when (changed && pre /= post) $ delayedLayout ws
 
     mapM_ (\s -> setFocused s Intentional ws) seats
-    --unless (null outs) (reLayout ws)
 
 modifyCurrentWS
     :: (WSTag a, FocusCore vs a)
@@ -201,7 +188,7 @@ removeCB v = do
         seats <- getOutputKeyboards output
         doJust (getOutputWS output) $ \ws -> do
             mapM_ (\s -> setFocused s SideEffect ws) seats
-            reLayout ws
+            delayedLayout ws
 
 makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData
 makeManager = do

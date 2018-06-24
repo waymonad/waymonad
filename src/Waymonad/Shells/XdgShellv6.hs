@@ -44,7 +44,8 @@ import Data.Text (Text)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 
-import Graphics.Wayland.Server (DisplayServer)
+import Graphics.Wayland.Resource (resourceDestroy)
+import Graphics.Wayland.Server (DisplayServer, callbackDone)
 import Graphics.Wayland.Signal (removeListener)
 import Graphics.Wayland.WlRoots.Box (WlrBox (..), Point (..), translateBox)
 import Graphics.Wayland.WlRoots.Output (getEffectiveBox)
@@ -52,6 +53,7 @@ import Graphics.Wayland.WlRoots.Surface
     (WlrSurface, surfaceAt, surfaceGetSize
     , getWlrSurfaceEvents, WlrSurfaceEvents(..)
     , subSurfaceGetSurface, surfaceGetSubs
+    , getCurrentState, surfaceGetCallbacks, callbackGetCallback, callbackGetResource
     )
 
 
@@ -337,6 +339,18 @@ instance ShellSurface XdgSurface where
             else do
                 writeIORef ackRef ack
                 writeIORef serialRef =<< R.setSize surf width height
+                --- Testing something :)
+                doJust (liftIO $ R.xdgSurfaceGetSurface surf) $ \surface -> do
+                    callbacks <- surfaceGetCallbacks =<< getCurrentState surface
+                    forM_ callbacks $ \callback -> do
+                        cb <- callbackGetCallback callback
+                        callbackDone cb (0)
+                        res <- callbackGetResource callback
+                        resourceDestroy res
+
+--                subs <- surfaceGetSubs surface
+--                forM_ subs $ \sub -> notifySurface secs =<< subSurfaceGetSurface sub
+
                 pure True
     activate = liftIO .: R.setActivated . unXdg
     renderAdditional fun XdgSurface {unXdg = surf} = renderPopups fun surf

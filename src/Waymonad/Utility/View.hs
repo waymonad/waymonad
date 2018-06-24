@@ -32,13 +32,16 @@ module Waymonad.Utility.View
     )
 where
 
-import Control.Monad (forM)
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
-import Data.IORef (readIORef)
+import Data.IORef (readIORef, newIORef, writeIORef)
 
-import Waymonad (Way, getState, WayBindingState(wayBindingMapping))
-import Waymonad.Layout (reLayout)
-import Waymonad.Utility.Base (doJust, whenJust)
+import Graphics.Wayland.WlRoots.Box (Point (..))
+import Graphics.Wayland.WlRoots.Output (getOutputPosition)
+
+import Waymonad (Way, getState, WayBindingState(wayBindingMapping), unliftWay)
+import Waymonad.Layout (freezeLayout, applyLayout, getWSLayout, sendLayout)
+import Waymonad.Utility.Base (doJust)
 import Waymonad.Utility.Current (getCurrentOutput)
 import Waymonad.Utility.Focus (setOutputWorkspace, setOutputWorkspace')
 import Waymonad.Types
@@ -54,26 +57,76 @@ view ws = doJust getCurrentOutput $ \out -> do
         -- It's already mapped on some output, do nothing here.
         _ -> pure ()
 
+swapMappings :: (FocusCore vs ws, WSTag ws) => ws -> ws -> Output -> [Output] -> Way vs ws ()
+swapMappings ws ws' out outs = do
+    unfreeze <- freezeLayout ws
+    unfreeze' <- freezeLayout ws'
+
+    _ <- setOutputWorkspace' ws out
+    mapM_ (setOutputWorkspace' ws') outs
+
+
+    -- This has to be here, because the hook might change some focus, which
+    -- will cause the layout to change =.=
+    hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
+    hook $ OutputMappingEvent out (Just ws') (Just ws)
+    mapM_ (\o -> hook $ OutputMappingEvent o (Just ws) (Just ws')) outs
+
+    -- This is save, since we wouldn't have olds otherwise
+    state <- getState
+    vs <- liftIO . readIORef . wayBindingState $ state
+
+    post <- getWSLayout vs ws
+    post' <- getWSLayout vs ws'
+
+    done <- liftIO $ newIORef Nothing
+
+    case post of
+        ((outL, layout):_) -> do
+            Point ox oy <- liftIO $ getOutputPosition $ outputRoots outL
+            doApply <- unliftWay $ mapM_ (uncurry applyLayout) post
+            void $ sendLayout (ox, oy) layout $ do
+                act <- liftIO $ readIORef done
+                case act of
+                    Nothing -> liftIO (writeIORef done $ Just doApply)
+                    Just other -> do
+                        unfreeze
+                        unfreeze'
+                        doApply
+                        other
+        _ -> liftIO $ writeIORef done (Just $ pure ())
+
+    case post' of
+        ((outL, layout):_) -> do
+            Point ox oy <- liftIO $ getOutputPosition $ outputRoots outL
+            doApply <- unliftWay $ mapM_ (uncurry applyLayout) post'
+            void $ sendLayout (ox, oy) layout $ do
+                act <- liftIO $ readIORef done
+                case act of
+                    Nothing -> liftIO (writeIORef done $ Just doApply)
+                    Just other -> do
+                        unfreeze
+                        unfreeze'
+                        doApply
+                        other
+        _ -> liftIO $ writeIORef done (Just $ pure ())
+
+
 -- | Change the displayed workspace on the current output to the argument. Will
 -- switch the current workplace onto any output that currently displays the
 -- target.
 greedyView :: (FocusCore vs ws, WSTag ws) => ws -> Way vs ws ()
 greedyView ws = doJust getCurrentOutput $ \out -> do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
-    pre <- setOutputWorkspace' ws out
-    olds <- whenJust pre $ \ws' ->
-        forM (filter ((==) ws . fst) mapping) $ \(_, o) -> do
-            _ <- setOutputWorkspace' ws' o
-            pure o
-
-    -- This has to be here, because the hook might change some focus, which
-    -- will cause the layout to change =.=
-    hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
-    hook $ OutputMappingEvent out pre (Just ws)
-    mapM_ (\o -> hook $ OutputMappingEvent o (Just ws) pre) olds
-
-    whenJust pre reLayout
-    reLayout ws
+    case filter ((==) ws . fst) mapping of
+        -- Not displayed on another output yet, just do the simple way
+        [] -> setOutputWorkspace ws out
+        outs -> case filter ((==) out . snd) mapping of
+            -- There's currently nothing displayed on this output,
+            -- Since we can't switch with nothing, do nothing now.
+            [] -> pure ()
+            -- We'll have to do the complex case
+            ((ws', _):_) -> swapMappings ws ws' out (fmap snd outs)
 
 -- | Change the displayed workspace on the current output to the argument.
 -- If another output currently displays this workspace, both outputs will show

@@ -40,7 +40,7 @@ import Data.Maybe (listToMaybe)
 import Data.Tuple (swap)
 
 import Waymonad.Input.Seat (Seat)
-import Waymonad.Layout (reLayout)
+import Waymonad.Layout (delayedLayout)
 import Waymonad.Output (Output (..))
 import Waymonad.Utility.Base (whenJust, doJust)
 import Waymonad.View (View)
@@ -78,8 +78,8 @@ setOutputWorkspace ws output = do
     hook <- wayHooksOutputMapping . wayCoreHooks <$> getState
     hook $ OutputMappingEvent output pre (Just ws)
 
-    reLayout ws
-    whenJust pre reLayout
+    delayedLayout ws
+    whenJust pre delayedLayout
 
 getWorkspaceOutputs :: Eq a => a -> Way vs a [Output]
 getWorkspaceOutputs ws = do

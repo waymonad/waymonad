@@ -33,6 +33,8 @@ module Waymonad.Layout
     )
 where
 
+import System.IO
+
 import Control.Monad (forM_, forM, when, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (writeIORef, readIORef, newIORef, IORef, modifyIORef')
@@ -122,6 +124,7 @@ sendLayout (ox, oy) layout act = do
     let force = liftIO $ do
             cur <- readIORef updateRef
             when (cur > 0) $ do
+                hPutStrLn stderr "Timed out"
                 writeIORef updateRef 0
                 act
 
@@ -185,5 +188,5 @@ layoutOutput output = do
     mapping <- liftIO . readIORef . wayBindingMapping =<< getState
     let ws = (\out -> IM.lookup (getOutputId out) . IM.fromList $ map swap $ (fmap . fmap) getOutputId mapping) $ output
     case ws of
-        Just x -> reLayout x
+        Just x -> delayedLayout x
         Nothing -> pure ()
