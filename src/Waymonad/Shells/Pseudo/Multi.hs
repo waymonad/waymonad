@@ -189,7 +189,7 @@ copyView
     :: (FocusCore vs a, WSTag a)
     => View
     -> Way vs a ()
-copyView view = case getViewInner view of
+copyView view = getViewInner view >>= \case
     Nothing -> do
         multi <- makeMulti view
         slave1 <- deriveSlave multi

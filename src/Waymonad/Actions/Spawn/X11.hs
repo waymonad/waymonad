@@ -54,7 +54,7 @@ modifySpawner fun = modifyEState (X11Spawner . force . fun . spawnPids)
 manageX11SpawnOn :: (NFData ws, WSTag ws) => Managehook vs ws
 manageX11SpawnOn = do
     view <- query
-    liftWay $ whenJust (getViewInner view) $ \xway -> 
+    liftWay $ doJust (getViewInner view) $ \xway -> 
         doJust (fmap PidT <$> xwayGetPid xway) $ \pid -> do
             X11Spawner pids <- getEState
             whenJust (lookup pid pids) $ \ws -> do

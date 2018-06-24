@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Waymonad.View
@@ -123,7 +124,9 @@ import Waymonad.Utility.HaskellSignal
 import Waymonad.Types.Core
 
 getViewSize :: MonadIO m => View -> m (Double, Double)
-getViewSize View {viewSurface=surf} = getSize surf
+getViewSize View {viewSurface=ref} = liftIO (readIORef ref) >>= \case
+    ShellWrapper surf -> getSize surf
+    ClosedShell -> pure (0, 0)
 
 getViewBox :: MonadIO m => View -> m WlrBox
 getViewBox = liftIO . readIORef . viewBox
@@ -135,16 +138,9 @@ updateViewSize v w h = liftIO $ do
     setViewLocal v $ WlrBox 0 0 w h
 
 setViewSize :: (Integral a, MonadIO m) => View -> a -> a -> IO () -> m Bool
-setViewSize View {viewSurface = surf} width height ack = do
-    resize surf (fromIntegral width) (fromIntegral height) ack
-    -- liftIO $ modifyIORef (viewBox v) $ \box -> box { boxWidth = w, boxHeight = h }
-
--- setViewBox :: MonadIO m => View -> WlrBox -> IO () -> m Bool
--- setViewBox v box ack = do
---     moveView v (fromIntegral $ boxX box) (fromIntegral $ boxY box)
---     ret <- resizeView v (fromIntegral $ boxWidth box) (fromIntegral $ boxHeight box) ack
---     liftIO $ writeIORef (viewBox v) box
---     pure ret
+setViewSize View {viewSurface = ref} width height ack = liftIO (readIORef ref) >>= \case
+    ShellWrapper surf -> resize surf (fromIntegral width) (fromIntegral height) ack
+    ClosedShell -> pure False
 
 viewCounter :: IORef Int
 {-# NOINLINE viewCounter #-}
@@ -246,10 +242,11 @@ createView surf = liftIO $ do
     idVal <- readIORef viewCounter
     bufferRef <- newIORef Nothing
     modifyIORef viewCounter (+1)
+    surfRef <- newIORef $ ShellWrapper surf
 
     manager <- newIORef Nothing
     let ret = View
-            { viewSurface = surf
+            { viewSurface = surfRef
             , viewBox = global
             , viewPosition = local
             , viewScaling = scale
@@ -326,69 +323,86 @@ unsetViewManager View {viewManager = ref} =
     liftIO $ writeIORef ref Nothing
 
 closeView :: MonadIO m => View -> m ()
-closeView View {viewSurface=surf} = close surf
+closeView View {viewSurface=ref} = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure ()
+    ShellWrapper surf -> close surf
 
 moveView :: (Integral a, MonadIO m) => View -> a -> a -> m ()
 {-# SPECIALIZE INLINE moveView :: MonadIO m => View -> Int -> Int -> m () #-}
-moveView View {viewSurface = surf, viewBox = ref} x y = do
-    old <- liftIO $ readIORef ref
-    let new = old { boxX = fromIntegral x, boxY = fromIntegral y}
-    liftIO $ writeIORef ref new
-    setPosition surf (fromIntegral x) (fromIntegral y)
-
+moveView View {viewSurface = ref, viewBox = boxRef} x y = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure ()
+    ShellWrapper surf -> do
+        old <- liftIO $ readIORef boxRef
+        let new = old { boxX = fromIntegral x, boxY = fromIntegral y}
+        liftIO $ writeIORef boxRef new
+        setPosition surf (fromIntegral x) (fromIntegral y)
 
 resizeView :: MonadIO m => View -> Double -> Double -> IO () -> m Bool
-resizeView v@View {viewSurface = surf, viewBox = ref} width height ack = do
-    old <- liftIO $ readIORef ref
-    let new = old { boxWidth = floor width, boxHeight = floor height}
-    liftIO $ writeIORef ref new
-    (oldWidth, oldHeight) <- getSize surf
-    ret <- resize surf (floor width) (floor height) ack
+resizeView v@View {viewSurface = ref, viewBox = boxRef} width height ack = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure False
+    ShellWrapper surf -> do
+        old <- liftIO $ readIORef boxRef
+        let new = old { boxWidth = floor width, boxHeight = floor height}
+        liftIO $ writeIORef boxRef new
+        (oldWidth, oldHeight) <- getSize surf
+        ret <- resize surf (floor width) (floor height) ack
 
-    setViewLocal v $ WlrBox 0 0 (floor oldWidth) (floor oldHeight)
-    pure ret
+        setViewLocal v $ WlrBox 0 0 (floor oldWidth) (floor oldHeight)
+        pure ret
 
 getViewSurface :: MonadIO m => View -> m (Maybe (Ptr WlrSurface))
-getViewSurface View {viewSurface = surf} = getSurface surf
-
+getViewSurface View {viewSurface = ref} = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure Nothing
+    ShellWrapper surf -> getSurface surf
 
 activateView :: MonadIO m => View -> Bool -> m ()
-activateView View {viewSurface = surf} = activate surf
-
+activateView View {viewSurface = ref} active = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure ()
+    ShellWrapper surf -> activate surf active
 
 renderViewAdditional :: (MonadUnliftIO m, MonadIO m) => (Ptr WlrSurface -> WlrBox -> m ()) -> View -> m ()
 {-# SPECIALIZE INLINE renderViewAdditional :: (Ptr WlrSurface -> WlrBox -> IO ()) -> View -> IO () #-}
-renderViewAdditional fun View {viewSurface = surf} = do
-    run <- askRunInIO
-    liftIO $ renderAdditional (run .: fun) surf
-
+renderViewAdditional fun View {viewSurface = ref} = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure ()
+    ShellWrapper surf -> do
+        run <- askRunInIO
+        liftIO $ renderAdditional (run .: fun) surf
 
 getViewEventSurface :: MonadIO m => View -> Double -> Double -> m (Maybe (Ptr WlrSurface, Double, Double))
-getViewEventSurface View {viewSurface = surf, viewPosition = local, viewScaling = scale, viewGeometry = geo} x y = liftIO $ do
-    scaleFactor <- readIORef scale
-    WlrBox posX posY _ _ <- readIORef local
-    WlrBox geoX geoY _ _ <- readIORef geo
-    let offX = floor $ fromIntegral geoX * scaleFactor
-    let offY = floor $ fromIntegral geoY * scaleFactor
+getViewEventSurface View {viewSurface = ref, viewPosition = local, viewScaling = scale, viewGeometry = geo} x y = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure Nothing
+    ShellWrapper surf -> liftIO $ do
+        scaleFactor <- readIORef scale
+        WlrBox posX posY _ _ <- readIORef local
+        WlrBox geoX geoY _ _ <- readIORef geo
+        let offX = floor $ fromIntegral geoX * scaleFactor
+        let offY = floor $ fromIntegral geoY * scaleFactor
 
-    getEventSurface surf
-        ((x - fromIntegral (posX - offX)) / realToFrac scaleFactor)
-        ((y - fromIntegral (posY - offY)) / realToFrac scaleFactor)
+        getEventSurface surf
+            ((x - fromIntegral (posX - offX)) / realToFrac scaleFactor)
+            ((y - fromIntegral (posY - offY)) / realToFrac scaleFactor)
 
 getViewClient :: MonadIO m => View -> m (Maybe Client)
-getViewClient View {viewSurface = surf} =
-    doJust (getSurface surf) $ \wlrSurf -> liftIO $ do
+getViewClient View {viewSurface = ref} = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure Nothing
+    ShellWrapper surf -> doJust (getSurface surf) $ \wlrSurf -> liftIO $ do
         res <- getSurfaceResource wlrSurf
         Just <$> resourceGetClient res
 
-getViewInner :: Typeable a => View -> Maybe a
-getViewInner View {viewSurface = surf} = cast surf
+getViewInner :: (MonadIO m, Typeable a) => View -> m (Maybe a)
+getViewInner View {viewSurface = ref} = (\case
+    ClosedShell -> Nothing
+    ShellWrapper surf -> cast surf) <$> liftIO (readIORef ref)
 
 getViewTitle :: MonadIO m => View -> m (Maybe Text)
-getViewTitle View {viewSurface = surf} = getTitle surf
+getViewTitle View {viewSurface = ref} = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure Nothing
+    ShellWrapper surf -> getTitle surf
 
 getViewAppId :: MonadIO m => View -> m (Maybe Text)
-getViewAppId View {viewSurface = surf} = getAppId surf
+getViewAppId View {viewSurface = ref} = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure Nothing
+    ShellWrapper surf -> getAppId surf
 
 getLocalBox :: WlrBox -> WlrBox -> (WlrBox, Float)
 getLocalBox inner outer =
@@ -456,7 +470,6 @@ viewGetLocal :: MonadIO m => View -> m WlrBox
 viewGetLocal View {viewPosition = local} = liftIO $ readIORef local
 
 getViewID :: View -> Int
---getViewID (View {viewSurface = surf}) = getID surf
 getViewID = viewID
 
 addViewDestroyListener :: MonadIO m => (View -> IO ()) -> View -> m (HaskellSignalToken View IO)
@@ -464,8 +477,9 @@ addViewDestroyListener cb View {viewDestroy = signal} =
     addHaskellListener  signal cb
 
 triggerViewDestroy :: MonadIO m => View -> m ()
-triggerViewDestroy v@View {viewDestroy = signal} = liftIO $
+triggerViewDestroy v@View {viewDestroy = signal, viewSurface = ref} = liftIO $ do
     emitHaskellSignal v signal
+    writeIORef ref ClosedShell
 
 addViewResizeListener :: MonadIO m => (View -> IO ()) -> View -> m (HaskellSignalToken View IO)
 addViewResizeListener cb View {viewResize = signal} =
@@ -476,10 +490,14 @@ triggerViewResize v@View {viewResize = signal} = liftIO $
     emitHaskellSignal v signal
 
 viewHasCSD :: MonadIO m => View -> m Bool
-viewHasCSD View {viewSurface=surf} = hasCSD surf
+viewHasCSD View {viewSurface = ref} = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure True
+    ShellWrapper surf -> hasCSD surf
 
 viewTakesFocus :: MonadIO m => View -> SeatEvent -> m Bool
-viewTakesFocus View {viewSurface=surf} = takesFocus surf
+viewTakesFocus View {viewSurface = ref} evt = liftIO (readIORef ref) >>= \case
+    ClosedShell -> pure False
+    ShellWrapper surf -> takesFocus surf evt
 
 makeSurfaceBuffer :: Ptr WlrSurface -> IO SurfaceBuffer
 makeSurfaceBuffer surface = do

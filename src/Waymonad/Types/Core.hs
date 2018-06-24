@@ -119,18 +119,20 @@ data SurfaceBuffer = SurfaceBuffer
 
 data ViewBuffer = ViewBuffer { bufferSurface :: SurfaceBuffer }
 
-data View = forall a. ShellSurface a => View
-    { viewSurface  :: a
-    , viewBox      :: IORef WlrBox
-    , viewPosition :: IORef WlrBox
-    , viewGeometry :: IORef WlrBox
-    , viewScaling  :: IORef Float
+data ShellWrapper = forall a. ShellSurface a => ShellWrapper a | ClosedShell
+
+data View = View
+    { viewSurface  :: {-# UNPACK #-} !(IORef ShellWrapper)
+    , viewBox      :: {-# UNPACK #-} !(IORef WlrBox)
+    , viewPosition :: {-# UNPACK #-} !(IORef WlrBox)
+    , viewGeometry :: {-# UNPACK #-} !(IORef WlrBox)
+    , viewScaling  :: {-# UNPACK #-} !(IORef Float)
     , viewDestroy  :: HaskellSignal View IO
     , viewResize   :: HaskellSignal View IO
-    , viewID       :: Int
+    , viewID       :: {-# UNPACK #-} !Int
 
-    , viewManager  :: IORef (Maybe ManagerData)
-    , viewBuffer   :: IORef (Maybe ViewBuffer)
+    , viewManager  :: {-# UNPACK #-} !(IORef (Maybe ManagerData))
+    , viewBuffer   :: {-# UNPACK #-} !(IORef (Maybe ViewBuffer))
     }
 
 instance Show Seat where

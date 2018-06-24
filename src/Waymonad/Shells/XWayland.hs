@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -337,7 +338,7 @@ renderChildren fun surf = do
 overrideXRedirect :: (WSTag ws, FocusCore vs ws) => Managehook vs ws
 overrideXRedirect = do
     view <- ask
-    case getViewInner view of
+    getViewInner view >>= \case
         Nothing -> mempty
         Just (XWaySurface surf) -> do
             override <- liftIO $ X.x11SurfaceOverrideRedirect surf
