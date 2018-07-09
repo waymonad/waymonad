@@ -49,7 +49,7 @@ import Waymonad.Managehook (removeView)
 import Waymonad.Output (outputFromWlr)
 import Waymonad.Output.Core (outApplyDamage)
 import Waymonad.Types
-import Waymonad.Types.Core (View, ShellSurface (..), ManagerData (..))
+import Waymonad.Types.Core (View, ShellSurface (..), ManagerData (..), SeatEvent(SeatKeyboard))
 import Waymonad.Utility (getOutputs)
 import Waymonad.Utility.Base (doJust, whenJust)
 import Waymonad.Utility.Extensible
@@ -57,7 +57,7 @@ import Waymonad.Utility.Floating (flattenView)
 import Waymonad.Utility.LayerCache
 import Waymonad.Utility.Mapping (getOutputKeyboards)
 import Waymonad.Utility.Signal (setSignalHandler, setDestroyHandler)
-import Waymonad.View (createView, resizeView, setViewManager, triggerViewDestroy)
+import Waymonad.View (createView, resizeView, setViewManager, triggerViewDestroy, viewTakesFocus)
 import Waymonad.ViewSet (FocusCore, WSTag)
 
 import qualified Data.Set as S
@@ -287,9 +287,10 @@ handleLayerSurfaceMap shell surfPtr = do
 
     -- TODO: This should filter on the surface being the topmost surface that
     -- accepts keyboard focus
-    when focus $ whenJust output $ \out -> do
-            keyboards <- getOutputKeyboards out
-            forM_ keyboards $ \seat -> keyboardEnter seat SideEffect view
+    takes <- viewTakesFocus view SeatKeyboard
+    when (focus && takes) $ whenJust output $ \out -> do
+        keyboards <- getOutputKeyboards out
+        forM_ keyboards $ \seat -> keyboardEnter seat SideEffect view
 
 handleNewLayerSurface :: (FocusCore vs ws, WSTag ws) => LayerShell -> Ptr R.LayerSurface -> Way vs ws ()
 handleNewLayerSurface shell surfPtr = do

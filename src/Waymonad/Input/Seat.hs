@@ -151,9 +151,11 @@ seatCreate dsp name reqDefault loadScale cursor = do
 
 keyboardEnter' :: Seat -> EvtCause -> Ptr WlrSurface -> View -> Way vs ws Bool
 keyboardEnter' seat intent surf view = do
+    -- First check the global keyboard inhibitor (e.g. screenlock active)
     inihibted <- isInhibited surf
     if not inihibted
         then do
+            -- Make sure our seat has a keyboard
             keyM <- liftIO $ R.getSeatKeyboard $ seatRoots seat
             case keyM of
                 Nothing -> pure False
