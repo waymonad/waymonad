@@ -46,8 +46,11 @@ import Data.IORef (modifyIORef, readIORef, writeIORef)
 import Data.List (nub)
 import Data.Maybe (fromJust)
 
+import Graphics.Wayland.WlRoots.Output (getOutputPosition)
+import Graphics.Wayland.WlRoots.Box (Point (..))
+
 import Waymonad.Input.Seat (Seat, keyboardEnter, keyboardClear, getKeyboardFocus)
-import Waymonad.Layout (delayedLayout, getWSLayout)
+import Waymonad.Layout (reLayout, getWSLayout, freezeLayout, sendLayout, applyLayout)
 import Waymonad.Utility.Base (whenJust, doJust, These (..))
 import Waymonad.View
     (View, activateView , setViewManager, unsetViewManager)
@@ -58,6 +61,7 @@ import Waymonad
     , getState
     , getSeat
     , WayBindingState (..)
+    , unliftWay
     , makeCallback
     , makeCallback2
     )
@@ -128,7 +132,15 @@ modifyWS ws fun = do
     pre <- getWSLayout vs ws
     post <- getWSLayout vs' ws
 
-    when (changed && pre /= post) $ delayedLayout ws
+    when (changed && pre /= post) $ do
+        unfreeze <- freezeLayout ws vs
+
+        case post of
+            ((out, layout):_) -> do
+                Point ox oy <- liftIO $ getOutputPosition $ outputRoots out
+                doApply <- unliftWay $ mapM_ (uncurry applyLayout) post
+                void $ sendLayout (ox, oy) layout (unfreeze >> doApply)
+            _ -> pure ()
 
     mapM_ (\s -> setFocused s Intentional ws) seats
 
@@ -177,23 +189,20 @@ setViewsetFocus seat view = doJust (getPointerOutputS seat) $ \output -> do
     setSeatOutput seat (That output) Intentional
     modifyCurrentWS $ \_ ws vs -> _focusView ws seat view vs
 
-removeCB :: forall vs ws. (FocusCore vs ws, WSTag ws) => View -> Way vs ws ()
-removeCB v = do
-    let token :: ws = error "removeGlobal Workspace argument should never be used"
-
-    modifyViewSet $ removeGlobal v token
+removeCB :: forall vs ws. (FocusCore vs ws, WSTag ws) => ws -> View -> Way vs ws ()
+removeCB ws v = do
+    modifyWS ws (\ws' -> _removeView ws' v)
 
     outputs <- getOutputs
     forM_ outputs $ \output -> do
         seats <- getOutputKeyboards output
-        doJust (getOutputWS output) $ \ws -> do
-            mapM_ (\s -> setFocused s SideEffect ws) seats
-            delayedLayout ws
+        doJust (getOutputWS output) $ \ws' -> do
+            mapM_ (\s -> setFocused s SideEffect ws') seats
 
-makeManager :: (FocusCore vs ws, WSTag ws) => Way vs ws ManagerData
-makeManager = do
+makeManager :: (FocusCore vs ws, WSTag ws) => ws -> Way vs ws ManagerData
+makeManager ws  = do
     focus <- makeCallback2 setViewsetFocus
-    remove <- makeCallback removeCB
+    remove <- makeCallback $ removeCB ws
     applyDamage <- makeCallback2 $ applyLayerDamage "main"
     getPos <- makeCallback $ getLayerPosition' "main"
     pure $ ManagerData remove focus applyDamage getPos
@@ -204,7 +213,7 @@ probeVS view ws seat = withViewSet . const $ _insertView ws seat view
 insertView :: (FocusCore vs a, WSTag a) => View -> a -> Maybe Seat -> Way vs a ()
 insertView v ws s = do
     whenJust s (`unsetFocus` ws)
-    setViewManager v =<< makeManager
+    setViewManager v =<< makeManager ws
     modifyWS ws (\ws' -> _insertView ws' s v)
 
 removeView :: (FocusCore vs a, WSTag a) => View -> a -> Way vs a ()

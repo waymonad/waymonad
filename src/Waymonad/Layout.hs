@@ -90,10 +90,10 @@ getWSLayout vs ws = do
 
 
 freezeLayout :: (WSTag ws, FocusCore vs ws)
-             => ws -> Way vs ws (IO ())
-freezeLayout ws = do
-    state <- getState
-    vs <- liftIO . readIORef . wayBindingState $ state
+             => ws -> vs -> Way vs ws (IO ())
+freezeLayout ws vs = do
+    --state <- getState
+    --vs <- liftIO . readIORef . wayBindingState $ state
     layouts <- getWSLayout vs ws
     case layouts of
         [] -> pure $ pure ()
@@ -153,9 +153,9 @@ applyLayout out layout = do
 
 delayedLayout :: (WSTag ws, FocusCore vs ws) => ws -> Way vs ws ()
 delayedLayout ws = do
-    unfreeze <- freezeLayout ws
     state <- getState
     vs <- liftIO . readIORef . wayBindingState $ state
+    unfreeze <- freezeLayout ws vs
     post <- getWSLayout vs ws
 
     case post of

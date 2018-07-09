@@ -59,8 +59,10 @@ view ws = doJust getCurrentOutput $ \out -> do
 
 swapMappings :: (FocusCore vs ws, WSTag ws) => ws -> ws -> Output -> [Output] -> Way vs ws ()
 swapMappings ws ws' out outs = do
-    unfreeze <- freezeLayout ws
-    unfreeze' <- freezeLayout ws'
+    state <- getState
+    vsPre <- liftIO . readIORef . wayBindingState $ state
+    unfreeze <- freezeLayout ws vsPre
+    unfreeze' <- freezeLayout ws' vsPre
 
     _ <- setOutputWorkspace' ws out
     mapM_ (setOutputWorkspace' ws') outs
@@ -73,11 +75,10 @@ swapMappings ws ws' out outs = do
     mapM_ (\o -> hook $ OutputMappingEvent o (Just ws) (Just ws')) outs
 
     -- This is save, since we wouldn't have olds otherwise
-    state <- getState
-    vs <- liftIO . readIORef . wayBindingState $ state
+    vsAfter <- liftIO . readIORef . wayBindingState $ state
 
-    post <- getWSLayout vs ws
-    post' <- getWSLayout vs ws'
+    post <- getWSLayout vsAfter ws
+    post' <- getWSLayout vsAfter ws'
 
     done <- liftIO $ newIORef Nothing
 
