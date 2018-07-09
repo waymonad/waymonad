@@ -39,20 +39,21 @@ import Data.List (lookup, find)
 import Data.Maybe (listToMaybe)
 import Data.Tuple (swap)
 
-import Waymonad.Input.Seat (Seat)
+import Waymonad.Input.Seat (Seat, getKeyboardFocus, keyboardEnter)
 import Waymonad.Layout (delayedLayout)
 import Waymonad.Output (Output (..))
 import Waymonad.Utility.Base (whenJust, doJust)
-import Waymonad.View (View)
+import Waymonad.View (View, activateView)
 import Waymonad.ViewSet (WSTag, FocusCore (..), ListLike (..))
 import Waymonad
     ( Way
     , getState
+    , getSeat
     , WayBindingState (..)
     , WayLoggers (..)
     )
 import Waymonad.Types
-import Waymonad.Utility.Current (getCurrentOutput)
+import Waymonad.Utility.Current (getCurrentOutput, getCurrentWS)
 import Waymonad.Utility.ViewSet (modifyCurrentWS, modifyViewSet, withCurrentWS)
 import Waymonad.Utility.Log (logPutText, LogPriority(..))
 
@@ -98,14 +99,18 @@ setWorkspace ws =
 focusWSView :: (FocusCore vs a, WSTag a) => View -> Seat -> a -> Way vs a ()
 focusWSView view seat ws = do
     logPutText loggerFocus Trace "Calling focusWSView"
-    modifyViewSet (_focusView ws seat view)
+    prev <- getKeyboardFocus seat
+    ret <- keyboardEnter seat Intentional view
+    when ret $ do
+        whenJust prev $ flip activateView False
+        activateView view True
+        modifyViewSet (_focusView ws seat view)
 
 focusView :: (FocusCore vs a, WSTag a) => View -> Way vs a ()
 focusView view = do
     logPutText loggerFocus Trace "Calling focusView"
-    modifyCurrentWS $ \s ws vs -> case s of
-        Just seat -> _focusView ws seat view vs
-        Nothing -> vs
+    ws <- getCurrentWS
+    doJust getSeat $ flip (focusWSView view) ws
 
 focusMaster :: (FocusCore vs a, ListLike vs a, WSTag a) => Way vs a ()
 focusMaster = do

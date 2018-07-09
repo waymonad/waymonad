@@ -91,8 +91,6 @@ setSeatOutput seat foci cause = do
     when (newp /= curp) $ hook $ SeatOutputChange SeatPointer  cause seat curp newp
     when (newk /= curk) $ hook $ SeatOutputChange SeatKeyboard cause seat curk newk
 
-    runLog
-
 getOutputKeyboards :: Output -> Way vs a [Seat]
 getOutputKeyboards out = do
     currents <- liftIO . readIORef . wayBindingCurrent =<< getState

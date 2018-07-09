@@ -186,8 +186,12 @@ getWorkspaceViews ws = withViewSet (\_ vs -> fmap snd . S.toList $ _getViews vs 
 
 setViewsetFocus :: (WSTag ws, FocusCore vs ws) => Seat -> View -> Way vs ws ()
 setViewsetFocus seat view = doJust (getPointerOutputS seat) $ \output -> do
-    setSeatOutput seat (That output) Intentional
-    modifyCurrentWS $ \_ ws vs -> _focusView ws seat view vs
+    prev <- getKeyboardFocus seat
+    ret <- keyboardEnter seat Intentional view
+    when ret $ do
+        whenJust prev $ flip activateView False
+        setSeatOutput seat (That output) Intentional
+        modifyCurrentWS $ \_ ws vs -> _focusView ws seat view vs
 
 removeCB :: forall vs ws. (FocusCore vs ws, WSTag ws) => ws -> View -> Way vs ws ()
 removeCB ws v = do
