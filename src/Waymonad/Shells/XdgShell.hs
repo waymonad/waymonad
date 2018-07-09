@@ -334,7 +334,7 @@ instance ShellSurface XdgSurface where
                 writeIORef serialRef =<< R.setSize surf width height
                 --- Testing something :)
                 doJust (liftIO $ R.xdgSurfaceGetSurface surf) $ \surface -> do
-                    callbacks <- surfaceGetCallbacks =<< getCurrentState surface
+                    callbacks <- surfaceGetCallbacks $ getCurrentState surface
                     forM_ callbacks $ \callback -> do
                         cb <- callbackGetCallback callback
                         callbackDone cb (0)

@@ -151,7 +151,7 @@ outputHandlePreserved output damage buffer scaleFactor baseBox@(WlrBox !bx !by _
 
 
 outputHandleView :: Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
-outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface view) $ \surface -> do
+outputHandleView secs output d (!view, !prio, !obox) = do
     hasCSD <- viewHasCSD view
     let box = getDecoBox hasCSD prio obox
     scale <- liftIO $ viewGetScale view
@@ -165,7 +165,7 @@ outputHandleView secs output d (!view, !prio, !obox) = doJust (getViewSurface vi
     WlrBox geoX geoY _ _ <- getViewGeometry view
     preM <- viewGetPreserved view
     case preM of
-      Nothing -> do
+      Nothing -> doJust (getViewSurface view) $ \surface -> do
           liftIO $ outputHandleSurface secs output d surface scale lBox $ Point geoX geoY
           pure $ renderViewAdditional (\s b ->
               void $ outputHandleSurface
@@ -199,7 +199,7 @@ handleLayers secs output (l:ls) d = do
 
 notifySurface :: Double -> Ptr WlrSurface -> IO ()
 notifySurface secs surface = do
-    callbacks <- surfaceGetCallbacks =<< getCurrentState surface
+    callbacks <- surfaceGetCallbacks $ getCurrentState surface
     forM_ callbacks $ \callback -> do
         cb <- callbackGetCallback callback
         callbackDone cb (floor $ secs * 1000)
