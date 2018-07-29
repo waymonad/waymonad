@@ -318,7 +318,7 @@ instance ShellSurface XWaySurface where
     renderAdditional fun (XWaySurface surf) = renderChildren fun surf
     hasCSD _ = pure False
     takesFocus (XWaySurface surf) SeatKeyboard =
-        fmap not $ liftIO $ X.isSurfaceUnamanged surf
+        fmap not $ liftIO $ X.x11SurfaceOverrideRedirect surf
     takesFocus _ _ = pure True
 
 renderChildren :: (Ptr WlrSurface -> WlrBox -> IO ()) -> Ptr X.X11Surface -> IO ()
