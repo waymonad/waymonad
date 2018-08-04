@@ -114,6 +114,7 @@ data ManagerData = ManagerData
 data SurfaceBuffer = SurfaceBuffer
     { surfaceBufferBuffer :: WlrBuffer
     , surfaceBufferTrans  :: OutputTransform
+    , surfaceBufferScale  :: Word
     , surfaceBufferSubs   :: [(WlrBox, SurfaceBuffer)]
     }
 

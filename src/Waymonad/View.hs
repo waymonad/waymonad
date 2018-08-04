@@ -115,6 +115,7 @@ import Graphics.Wayland.WlRoots.Surface
     , peekSurfaceData
     , surfaceGetBuffer
     , surfaceGetTransform
+    , surfaceGetScale
     )
 import Graphics.Wayland.WlRoots.Box (WlrBox(..), Point (..), toOrigin, centerBox, scaleBox, translateBox)
 import Graphics.Wayland.WlRoots.Buffer
@@ -273,7 +274,12 @@ createView surf = liftIO $ do
 
 
 getViewGeometry :: MonadIO m => View -> m WlrBox
-getViewGeometry View {viewGeometry = ref} = do liftIO $ readIORef ref
+getViewGeometry v@View {viewGeometry = ref} =
+    liftIO (readIORef ref) >>= \case
+        WlrBox 0 0 0 0 -> do
+            (w, h) <- getViewSize v
+            pure $ WlrBox 0 0 (floor w) (floor h)
+        box -> pure box
 
 setViewGeometry :: MonadIO m => View -> WlrBox -> m ()
 setViewGeometry v@View {viewGeometry = ref} box = do
@@ -508,10 +514,12 @@ makeSurfaceBuffer surface = do
         ret <- makeSurfaceBuffer subsurf
         pure (b, ret)
     trans <- surfaceGetTransform surface
+    scale <- surfaceGetScale surface
     buffer <- getBuffer =<< surfaceGetBuffer surface
     pure SurfaceBuffer
         { surfaceBufferBuffer = buffer
         , surfaceBufferTrans  = trans
+        , surfaceBufferScale  = fromIntegral $ scale
         , surfaceBufferSubs   = subBuffers
         }
 
