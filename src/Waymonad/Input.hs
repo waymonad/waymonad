@@ -262,7 +262,7 @@ handleInputAdd devRef userFun ptr = do
 setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way vs a ()
 setCursorSurf cursor evt = do
     (Just seat) <- getSeat
-    doJust (getKeyboardFocus seat) $ \view ->
+    doJust (getPointerFocus seat) $ \view ->
         doJust (getViewClient view) $ \client -> do
             event <- liftIO $ peek evt
             evtClient <- liftIO . seatClientGetClient $ seatCursorSurfaceClient event
