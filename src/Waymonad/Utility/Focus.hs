@@ -105,6 +105,7 @@ focusWSView view seat ws = do
         whenJust prev $ flip activateView False
         activateView view True
         modifyViewSet (_focusView ws seat view)
+        delayedLayout ws
 
 focusView :: (FocusCore vs a, WSTag a) => View -> Way vs a ()
 focusView view = do
