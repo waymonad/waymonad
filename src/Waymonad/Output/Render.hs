@@ -240,7 +240,7 @@ frameHandler secs out@Output {outputRoots = output, outputLayout = layers} = do
     when (enabled && needsSwap) $ do
         renderer <- liftIO (backendGetRenderer =<< outputGetBackend (outputRoots out))
         void . renderOn (floor $ secs * 1e9) output renderer $ \age -> do
-            let withDRegion = \act -> if age < 0 || age > 1
+            let withDRegion = \act -> if age < 0 || age > 2
                 then withRegion $ \region -> do
                     Point w h <- outputTransformedResolution output
                     resetRegion region . Just $ WlrBox 0 0 w h
