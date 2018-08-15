@@ -82,12 +82,11 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Read as R (rational, decimal)
 
-readLayout :: Output -> Way vs ws (Maybe Text)
-readLayout _ = pure Nothing
---    fullCache <- liftIO . readIORef . wayBindingCache =<< getState
---    pure $ case IM.lookup (ptrToInt $ outputRoots output) fullCache of
---        Nothing -> Nothing
---        Just xs -> Just . T.pack $ show xs
+readLayout :: Output -> Way vs ws Text
+readLayout out = ensureOutput out $ liftIO $ do
+    let refs = outputLayout out
+    layout <- mapM readIORef refs
+    pure $ (T.pack $ show layout)
 
 
 parsePosition :: Text -> Either String (Point, Text)
@@ -198,10 +197,7 @@ makeActiveConf out = do
                         _ ->  pure $ Left eINVAL
             )
                 )
-    layout <- readLayout out
-    let layFile = case layout of
-            Nothing -> []
-            Just txt -> [("layout", FileEntry $ textFile (pure $ txt))]
+    let layFile = [("layout", FileEntry $ textFile (readLayout out))]
     let disable = ("disable", FileEntry $ textRWFile
             (pure "Write anything into here to disable the output")
             (\_ -> Right <$> removeOutputFromWork out)
