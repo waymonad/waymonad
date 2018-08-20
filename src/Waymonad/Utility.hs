@@ -84,8 +84,12 @@ runLog = do
 focusNextOut :: WSTag a => Way vs a ()
 focusNextOut = doJust getSeat $ \seat -> doJust getCurrentOutput $ \current -> do
     possibles <- liftIO . readIORef . wayBindingOutputs =<< getState
-    let new = head . tail . dropWhile (/= current) $ cycle possibles
-    setSeatOutput seat (That new) Intentional
+    case possibles of
+        [] -> pure ()
+        xs -> let new = if current `elem` xs
+                    then head . tail . dropWhile (/= current) $ cycle xs
+                    else head xs
+               in setSeatOutput seat (That new) Intentional
 
 seatOutputEventLogger :: WSTag a => SeatOutputChange -> Way vs a ()
 seatOutputEventLogger (SeatOutputChange part intent seat pre new) = do
