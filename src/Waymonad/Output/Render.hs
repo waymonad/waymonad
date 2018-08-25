@@ -93,8 +93,8 @@ outputHandleTexture output damage texture txtTrans scaleFactor surfScale baseBox
         surfBox = WlrBox
             (floor $ fromIntegral realX * outputScale)
             (floor $ fromIntegral realY * outputScale)
-            (ceiling $ fromIntegral sW * scaleFactor * outputScale  * (fromIntegral bw / (fromIntegral geoW * surfScale)))
-            (ceiling $ fromIntegral sH * scaleFactor * outputScale  * (fromIntegral bh / (fromIntegral geoH * surfScale)))
+            (ceiling $ fromIntegral sW * outputScale  * (fromIntegral bw / (fromIntegral geoW * surfScale)))
+            (ceiling $ fromIntegral sH * outputScale  * (fromIntegral bh / (fromIntegral geoH * surfScale)))
 
 
     withMatrix $ \mat -> do

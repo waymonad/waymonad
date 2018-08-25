@@ -411,14 +411,17 @@ getViewAppId View {viewSurface = ref} = liftIO (readIORef ref) >>= \case
     ShellWrapper surf -> getAppId surf
 
 getLocalBox :: WlrBox -> WlrBox -> (WlrBox, Float)
-getLocalBox inner outer =
-    if boxWidth inner <= boxWidth outer && boxHeight inner <= boxHeight outer
-        then (inner, 1.0)
-        else
-            let scale:: Float = min (fromIntegral (boxWidth  outer) / fromIntegral (boxWidth  inner))
-                                    (fromIntegral (boxHeight outer) / fromIntegral (boxHeight inner))
-
-             in (WlrBox 0 0 (floor $ scale * fromIntegral (boxWidth inner)) (floor $ scale * fromIntegral (boxHeight inner)), scale)
+getLocalBox (WlrBox _ _ w h) (WlrBox _ _ oW oH) =
+    let (newW, newH, scale) = if w <= oW && h <= oH
+            then (w, h, 1.0)
+            else let scale :: Float = min (fromIntegral oW / fromIntegral w)
+                                          (fromIntegral oH / fromIntegral h)
+                     newW = floor $ scale * fromIntegral w
+                     newH = floor $ scale * fromIntegral h
+                  in (newW, newH, scale)
+        newX = (newW - w) `div` 2
+        newY = (newH - h) `div` 2
+     in (WlrBox newX newY newW newH, scale)
 
 -- | This should be called whenever the contained surface is resized. It will
 -- determine whether we should try and downscale it to fit the area, or
