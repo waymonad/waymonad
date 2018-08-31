@@ -41,7 +41,7 @@ import Formatting
 import Waymonad.ViewSet
 import Waymonad.Types
 import Waymonad.Types.Core (View)
-import Waymonad.Utility.SSD
+import Waymonad.Utility.SSD (sillyDeco)
 
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T

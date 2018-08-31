@@ -83,74 +83,87 @@ renderDamaged render output damage box act = do
             act
 
 
-outputHandleTexture :: Ptr WlrOutput -> PixmanRegion32 -> Ptr Texture -> OutputTransform -> Float -> Float -> WlrBox -> WlrBox -> IO ()
-outputHandleTexture output damage texture txtTrans scaleFactor surfScale baseBox@(WlrBox !bx !by !bw !bh) (WlrBox !geoX !geoY !geoW !geoH) = do
-    rend <- backendGetRenderer =<< outputGetBackend output
+-- | Take a surface an render it onto the output frame buffer
+outputHandleTexture
+    :: Ptr WlrOutput -- ^ The output to render to
+    -> PixmanRegion32 -- ^ The accumulated damage region on the output
+    -> Ptr Texture -- ^ The texture to render onto the output
+    -> OutputTransform -- ^ The Transformation value of the texture
+    -> Float -- ^ The scale factor of the surface (for scaling geometry)
+    -> WlrBox -- ^ The rectangle on the output to render into
+    -> WlrBox -- ^ The rectangle on the texture to render
+    -> IO ()
+outputHandleTexture output damage texture txtTrans surfScale baseBox@(WlrBox !bx !by _ _) (WlrBox !geoX !geoY _ _) = do
+    renderer <- backendGetRenderer =<< outputGetBackend output
     outputScale <- getOutputScale output
-    (sW, sH) <- liftIO $ getTextureSize texture
-    let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
-        realY = by - (floor $ fromIntegral geoY * scaleFactor)
+    (tW, tH) <- liftIO $ getTextureSize texture
+    let realX = fromIntegral bx * outputScale - fromIntegral geoX * surfScale
+        realY = fromIntegral by * outputScale - fromIntegral geoY * surfScale
         surfBox = WlrBox
-            (floor $ fromIntegral realX * outputScale)
-            (floor $ fromIntegral realY * outputScale)
-            (ceiling $ fromIntegral sW * outputScale  * (fromIntegral bw / (fromIntegral geoW * surfScale)))
-            (ceiling $ fromIntegral sH * outputScale  * (fromIntegral bh / (fromIntegral geoH * surfScale)))
+            (floor $ realX)
+            (floor $ realY)
+            (ceiling $ fromIntegral tW * surfScale)
+            (ceiling $ fromIntegral tH * surfScale)
 
 
     withMatrix $ \mat -> do
         let surfTransform = invertOutputTransform txtTrans
         matrixProjectBox mat surfBox surfTransform 0 (getTransMatrix output)
-        renderDamaged rend output damage baseBox $
-            renderWithMatrix rend texture mat
+        renderDamaged renderer output damage baseBox $
+            renderWithMatrix renderer texture mat
 
 
 outputHandleSurface :: Double -> Ptr WlrOutput -> PixmanRegion32 -> Ptr WlrSurface -> Float -> WlrBox -> WlrBox -> IO ()
 outputHandleSurface secs output damage surface scaleFactor baseBox@(WlrBox !bx !by _ _) geo@(WlrBox !geoX !geoY _ _) = do
     doJust (surfaceGetTexture surface) $ \texture -> do
         trans <- surfaceGetTransform surface
-        surfScale <- surfaceGetScale surface
-        outputHandleTexture output damage texture trans scaleFactor (fromIntegral surfScale) baseBox geo
-    let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
-        realY = by - (floor $ fromIntegral geoY * scaleFactor)
+        surfScale <- fromIntegral <$> surfaceGetScale surface
+        outputScale <- getOutputScale output
+        let factor = scaleFactor * outputScale / surfScale
+        outputHandleTexture output damage texture trans factor baseBox geo
+        let realX = bx - (floor $ fromIntegral geoX * factor)
+            realY = by - (floor $ fromIntegral geoY * factor)
 
-    subs <- surfaceGetSubs surface
-    forM_ subs $ \sub -> do
-        sbox <- subSurfaceGetBox sub
-        subsurf <- subSurfaceGetSurface sub
-        outputHandleSurface
-            secs
-            output
-            damage
-            subsurf
-            scaleFactor
-            sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + realX
-                , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + realY
-                , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
-                , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
-                }
-            (WlrBox 0 0 (boxWidth sbox) (boxHeight sbox))
+        subs <- surfaceGetSubs surface
+        forM_ subs $ \sub -> do
+            sbox <- subSurfaceGetBox sub
+            subsurf <- subSurfaceGetSurface sub
+            outputHandleSurface
+                secs
+                output
+                damage
+                subsurf
+                scaleFactor
+                sbox{ boxX = floor (fromIntegral (boxX sbox) * factor) + realX
+                    , boxY = floor (fromIntegral (boxY sbox) * factor) + realY
+                    , boxWidth = floor $ fromIntegral (boxWidth sbox) * factor
+                    , boxHeight = floor $ fromIntegral (boxHeight sbox) * factor
+                    }
+                (WlrBox 0 0 (boxWidth sbox) (boxHeight sbox))
 
 outputHandlePreserved :: Ptr WlrOutput -> PixmanRegion32 -> SurfaceBuffer -> Float -> WlrBox -> WlrBox -> IO ()
 outputHandlePreserved output damage buffer scaleFactor baseBox@(WlrBox !bx !by _ _) geo@(WlrBox !geoX !geoY _ _) = do
     doJust (B.getTexture $ surfaceBufferBuffer buffer) $ \texture -> do
         let trans = surfaceBufferTrans buffer
-        let surfScale = surfaceBufferScale buffer
-        outputHandleTexture output damage texture trans scaleFactor (fromIntegral surfScale) baseBox geo
-    let realX = bx - (floor $ fromIntegral geoX * scaleFactor)
-        realY = by - (floor $ fromIntegral geoY * scaleFactor)
+        let surfScale = fromIntegral $ surfaceBufferScale buffer
+        outputScale <- getOutputScale output
+        let factor = scaleFactor * outputScale / surfScale
+        outputHandleTexture output damage texture trans factor baseBox geo
+        let realX = bx - (floor $ fromIntegral geoX * factor)
+            realY = by - (floor $ fromIntegral geoY * factor)
 
-    forM_ (surfaceBufferSubs buffer) $ \(sbox, sub) -> do
-        outputHandlePreserved
-            output
-            damage
-            sub
-            scaleFactor
-            sbox{ boxX = floor (fromIntegral (boxX sbox) * scaleFactor) + realX
-                , boxY = floor (fromIntegral (boxY sbox) * scaleFactor) + realY
-                , boxWidth = floor $ fromIntegral (boxWidth sbox) * scaleFactor
-                , boxHeight = floor $ fromIntegral (boxHeight sbox) * scaleFactor
-                }
-            (WlrBox 0 0 (boxWidth sbox) (boxHeight sbox))
+        forM_ (surfaceBufferSubs buffer) $ \(sbox, sub) -> do
+            outputHandlePreserved
+                output
+                damage
+                sub
+                scaleFactor
+                sbox{ boxX = floor (fromIntegral (boxX sbox) * factor) + realX
+                    , boxY = floor (fromIntegral (boxY sbox) * factor) + realY
+                    , boxWidth = floor $ fromIntegral (boxWidth sbox) * factor
+                    , boxHeight = floor $ fromIntegral (boxHeight sbox) * factor
+                    }
+                (WlrBox 0 0 (boxWidth sbox) (boxHeight sbox))
 
 
 outputHandleView :: Double -> Ptr WlrOutput -> PixmanRegion32 -> (View, SSDPrio, WlrBox) -> Way vs ws (IO ())
