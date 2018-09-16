@@ -81,7 +81,7 @@ handlePadButton seat mapFun evt_ptr = do
     liftIO $ hPrint stderr event
     liftIO $ tellClient seat (padButtonEvtTime event) (fromIntegral $ toEvdev $ mapFun $ padButtonEvtButton event) (padButtonEvtState event)
 
-handlePadAdd :: WSTag a => Seat -> Ptr InputDevice -> Ptr WlrTabletPad -> Way vs a ()
+handlePadAdd :: WSTag a => Seat -> Ptr InputDevice -> WlrTabletPad -> Way vs a ()
 handlePadAdd seat _ pad = do
     let events = getPadEvents pad
     stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip seat
@@ -96,7 +96,7 @@ tellClient seat time key state = do
     keyboardNotifyKey (seatRoots seat) time key (keyStateFromButtonState state)
 
 
-handlePadRemove :: MonadIO m => Ptr WlrTabletPad -> m ()
+handlePadRemove :: MonadIO m => WlrTabletPad -> m ()
 handlePadRemove ptr = liftIO $ do
     dptr <- peekPadData ptr
     when (dptr /= nullPtr) (do

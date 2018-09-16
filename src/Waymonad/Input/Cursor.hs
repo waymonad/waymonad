@@ -49,7 +49,7 @@ import Graphics.Wayland.WlRoots.Input.Pointer
     , WlrEventPointerAbsMotion (..)
     , WlrEventPointerAxis (..)
     )
-import Graphics.Wayland.WlRoots.Input.TabletTool
+import Graphics.Wayland.WlRoots.Input.Tablet
     ( ToolAxis (..)
     , ToolAxisEvent (..)
     , ToolTipEvent (..)
