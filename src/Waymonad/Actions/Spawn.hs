@@ -186,12 +186,13 @@ spawnManaged' :: forall vs a.
               -> Way vs a ()
 spawnManaged' spawners cmd args act = do
     (cSock, sSock) <- liftIO $ socketPair AF_UNIX Stream 0
-    void . liftIO . forkProcess $ spawnClient sSock (Fd $ fdSocket cSock) cmd args act
+    cFd <- liftIO $ fdSocket cSock
+    void . liftIO . forkProcess $ spawnClient sSock (Fd cFd) cmd args act
 
     liftIO $ close cSock
-    let cFd = fdSocket sSock
+    sFd <- liftIO $ fdSocket sSock
     dsp <- getDisplay
-    clientM <- liftIO $ clientCreate dsp (Fd cFd)
+    clientM <- liftIO $ clientCreate dsp (Fd sFd)
     whenJust clientM $ \client -> do
         addFun client
         setCallback rmFun (addDestroyListener client)

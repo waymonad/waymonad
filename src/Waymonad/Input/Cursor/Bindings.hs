@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 Reach us at https://github.com/ongy/waymonad
 -}
+{-# LANGUAGE LambdaCase #-}
 module Waymonad.Input.Cursor.Bindings
 where
 
@@ -77,8 +78,7 @@ defaultMotionAbs cursor time device x y = do
         (cursorOutput cursor) (fromIntegral time) Intentional
 
 defaultAxis :: Cursor -> Word32 -> AxisSource -> AxisOrientation -> Double -> Int32 -> Way vs ws ()
-defaultAxis _ time _ orientation delta discrete = do
-    (Just seat) <- getSeat
+defaultAxis _ time _ orientation delta discrete = doJust getSeat $ \seat -> do
     pointerAxis seat time orientation delta discrete
 
 startMoving :: (FocusCore vs ws, WSTag ws) => Cursor -> View -> Point -> Way vs ws ()
@@ -111,10 +111,9 @@ startResize cursor view other = do
 extensibleButton :: (FocusCore vs ws, WSTag ws)
                  => (Cursor -> Word32 -> ButtonState -> View -> Point -> Way vs ws () -> Way vs ws ())
                  -> Cursor -> Word32 -> Word32 -> ButtonState -> Way vs ws ()
-extensibleButton act cursor time button buttonState = do
+extensibleButton act cursor time button buttonState = doJust getSeat $ \seat -> do
     Compositor { compLayout = layout } <- wayCompositor <$> getState
     viewM <- getCursorView layout (cursorRoots cursor)
-    (Just seat) <- getSeat
 
     case viewM of
         Nothing -> pointerClear seat
@@ -130,14 +129,12 @@ extensibleButton act cursor time button buttonState = do
 defaultButton :: (FocusCore vs ws, WSTag ws)
               => WlrModifier -> Cursor -> Word32 -> Word32 -> ButtonState -> Way vs ws ()
 defaultButton modi = extensibleButton moveHandler
-    where   moveHandler cursor button buttonState view p other = do
-                (Just seat) <- getSeat
+    where   moveHandler cursor button buttonState view p other = doJust getSeat $ \seat -> do
                 pressed <- isSeatModiPressed seat modi
                 case pressed && buttonState == ButtonPressed && button == 0x110 of
                     True -> startMoving cursor view p
                     False -> resizeHandler cursor button buttonState view other
-            resizeHandler cursor button buttonState view other = do
-                (Just seat) <- getSeat
+            resizeHandler cursor button buttonState view other = doJust getSeat $ \seat -> do
                 pressed <- isSeatModiPressed seat modi
                 case pressed && buttonState == ButtonPressed && button == 0x111 of
                     True -> startResize cursor view other

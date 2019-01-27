@@ -140,7 +140,7 @@ doDetach dev foo = do
     iType <- liftIO $ inputDeviceType dev
     liftIO $ case iType of
         (DeviceKeyboard kptr) -> detachKeyboard (fooSeat foo) kptr
-        (DeviceTabletPad pptr) -> handlePadRemove pptr
+        (DeviceTabletPad pptr) -> handlePadRemove (fooSeat foo) pptr
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceTablet _) -> pure () -- detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceTouch _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
@@ -260,8 +260,7 @@ handleInputAdd devRef userFun ptr = do
 
 
 setCursorSurf :: Cursor -> Ptr SetCursorEvent -> Way vs a ()
-setCursorSurf cursor evt = do
-    (Just seat) <- getSeat
+setCursorSurf cursor evt = doJust getSeat $ \seat -> do
     doJust (getPointerFocus seat) $ \view ->
         doJust (getViewClient view) $ \client -> do
             event <- liftIO $ peek evt

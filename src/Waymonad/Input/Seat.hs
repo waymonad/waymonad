@@ -128,9 +128,10 @@ seatDestroy Seat {seatRoots = roots} = do
 seatCreate :: DisplayServer -> String -> IO ()
            -> (Float -> IO ()) -> Cursor -> Way vs ws Seat
 seatCreate dsp name reqDefault loadScale cursor = do
-    roots    <- liftIO $ R.createSeat dsp name
-    pointer  <- liftIO $ newIORef Nothing
-    keyboard <- liftIO $ newIORef Nothing
+    roots      <- liftIO $ R.createSeat dsp name
+    pointer    <- liftIO $ newIORef Nothing
+    keyboard   <- liftIO $ newIORef Nothing
+    tabletPads <- liftIO $ newIORef mempty
 
     liftIO $ R.setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
     cMap <- waySeatColors <$> getState
@@ -147,6 +148,7 @@ seatCreate dsp name reqDefault loadScale cursor = do
         , seatColor          = fromMaybe (Color 0 1 0 1) $ M.lookup (T.pack name) cMap
         , seatKeyboards      = keyboards
         , seatKeymap         = keymap
+        , seatTabletPads     = tabletPads
         }
 
 keyboardEnter' :: Seat -> EvtCause -> Ptr WlrSurface -> View -> Way vs ws Bool
@@ -174,6 +176,8 @@ keyboardEnter' seat intent surf view = do
                                 liftIO $ writeIORef (seatKeyboard seat) (Just view)
                                 hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
                                 hook $ SeatFocusChange SeatKeyboard intent seat oldView (Just view)
+
+                                
                             pure changed
                     else pure False
         else pure False

@@ -20,6 +20,7 @@ Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase #-}
 module Waymonad.Input.Keyboard
 where
 
@@ -32,9 +33,8 @@ import Foreign.Ptr (Ptr, nullPtr)
 import Foreign.Storable (Storable(..))
 
 import Graphics.Wayland.Signal (removeListener)
-import Graphics.Wayland.WlRoots.Backend.Multi (getSession')
 import Graphics.Wayland.WlRoots.Backend.Session (changeVT)
-import Graphics.Wayland.WlRoots.Backend (Backend)
+import Graphics.Wayland.WlRoots.Backend (Backend, getSession)
 import Graphics.Wayland.WlRoots.Input (InputDevice, getCleanDeviceName)
 import Graphics.Wayland.WlRoots.Input.Keyboard
     ( WlrKeyboard
@@ -100,10 +100,11 @@ data Keyboard = Keyboard
     } deriving (Eq, Show, Ord)
 
 tryRunKeybind :: WayKeyState -> Way vs ws Bool
-tryRunKeybind keyState = do
-    Just bindRef <- fmap seatKeymap <$> getSeat
-    keybindings <- liftIO $ readIORef bindRef
-    liftIO $ keybindings keyState
+tryRunKeybind keyState = (fmap seatKeymap <$> getSeat) >>= \case
+    Just bindRef -> liftIO $ do
+        keybindings <- readIORef bindRef
+        keybindings keyState
+    Nothing -> pure False
 
 keyStateToDirection :: KeyState -> Direction
 keyStateToDirection KeyReleased = keyUp
@@ -112,7 +113,7 @@ keyStateToDirection KeyPressed  = keyDown
 
 switchVT :: Ptr Backend -> Word -> IO ()
 switchVT backend vt = do
-    mSession <- getSession' backend
+    mSession <- getSession backend
     case mSession of
         Nothing -> pure ()
         Just s -> changeVT s vt

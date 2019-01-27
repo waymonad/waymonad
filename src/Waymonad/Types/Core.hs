@@ -43,6 +43,7 @@ import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Graphics.Wayland.WlRoots.Buffer (WlrBuffer)
 
 import Waymonad.Input.Cursor.Type
+import Waymonad.Input.Tablet.Types
 import Waymonad.Utility.HaskellSignal
 
 import qualified Graphics.Wayland.WlRoots.Seat as R
@@ -73,6 +74,7 @@ data Seat = Seat
     , seatColor          :: Color
     , seatKeyboards      :: IORef (Set (Ptr WlrKeyboard))
     , seatKeymap         :: IORef (WayKeyState -> IO Bool)
+    , seatTabletPads     :: IORef (Set TabletPad)
     }
 
 class Typeable a => ShellSurface a where

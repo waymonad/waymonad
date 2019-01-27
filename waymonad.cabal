@@ -81,6 +81,7 @@ library
   exposed-modules:        Waymonad.Input.Keyboard
   exposed-modules:        Waymonad.Input.Libinput
   exposed-modules:        Waymonad.Input.Seat
+  exposed-modules:        Waymonad.Input.Tablet.Types
   exposed-modules:        Waymonad.Input.TabletPad
 
   exposed-modules:        Waymonad.Hooks.EnterLeave
@@ -115,7 +116,7 @@ library
   exposed-modules:        Waymonad.Protocols.GammaControl
   exposed-modules:        Waymonad.Protocols.InputInhibit
   exposed-modules:        Waymonad.Protocols.IdleInhibit
-  exposed-modules:        Waymonad.Protocols.PrimarySelection
+  --exposed-modules:        Waymonad.Protocols.PrimarySelection
   exposed-modules:        Waymonad.Protocols.Screenshooter
   exposed-modules:        Waymonad.Protocols.LinuxDMABuf
   exposed-modules:        Waymonad.Protocols.DMAExport
@@ -129,6 +130,8 @@ library
 
   exposed-modules:        Waymonad.Actions.Startup.Environment
   exposed-modules:        Waymonad.Actions.Startup.Generic
+
+  exposed-modules:        Waymonad.Tabletv2
 
   exposed-modules:        Waymonad.Start
   --exposed-modules:        Waymonad.Systemd

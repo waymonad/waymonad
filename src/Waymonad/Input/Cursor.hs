@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 module Waymonad.Input.Cursor
 where
 
@@ -154,23 +155,20 @@ cursorCreate layout = do
     pure ret
 
 viewSupportsTouch :: View -> Way vs ws Bool
-viewSupportsTouch view = do
-    Just seat <- getSeat
-    clientM <- getViewClient view
-    liftIO $ case clientM of
+viewSupportsTouch view = getSeat >>= liftIO . (\case
+    Nothing -> pure False
+    Just seat -> getViewClient view >>= \case
         Nothing -> pure False
-        Just client -> do
-            handleM <- handleForClient (seatRoots seat) client
-            case handleM of
-                Nothing -> pure False
-                Just handle -> clientHasTouch handle
+        Just client -> handleForClient (seatRoots seat) client >>= \case
+            Nothing -> pure False
+            Just handle -> clientHasTouch handle)
 
 handleTouchDown :: (FocusCore vs ws, WSTag ws)
                 => Ptr WlrOutputLayout -> Ptr WlrCursor
                 -> IORef Int -> IORef (IntMap TouchPoint)
                 -> Ptr WlrTouchDown
                 -> Way vs ws ()
-handleTouchDown layout cursor outref emuRef event_ptr = do
+handleTouchDown layout cursor outref emuRef event_ptr = doJust getSeat $ \seat -> do
     event <- liftIO $ peek event_ptr
     let evtX = wlrTouchDownX event
     let evtY = wlrTouchDownY event
@@ -181,7 +179,6 @@ handleTouchDown layout cursor outref emuRef event_ptr = do
         (wlrTouchDownY event)
 
     viewM <- getViewUnder layout gX gY
-    (Just seat) <- getSeat
 
     case viewM of
         Nothing ->
@@ -224,10 +221,9 @@ handleTouchMotion :: (FocusCore vs ws, WSTag ws)
                 -> IORef Int -> IORef (IntMap TouchPoint)
                 -> Ptr WlrTouchMotion
                 -> Way vs ws ()
-handleTouchMotion layout cursor outref emuRef event_ptr = do
+handleTouchMotion layout cursor outref emuRef event_ptr = doJust getSeat $ \seat -> do
     event <- liftIO $ peek event_ptr
     emulate <- IM.lookup (fromIntegral $ wlrTouchMotionId event) <$> liftIO (readIORef emuRef)
-    (Just seat) <- getSeat
 
     let evtX = wlrTouchMotionX event
     let evtY = wlrTouchMotionY event
@@ -281,10 +277,9 @@ handleTouchUp :: (FocusCore vs ws, WSTag ws)
               -> IORef Int
               -> IORef (IntMap TouchPoint) -> Ptr WlrTouchUp
               -> Way vs ws ()
-handleTouchUp layout cursor outref emuRef event_ptr = do
+handleTouchUp layout cursor outref emuRef event_ptr = doJust getSeat $ \seat -> do
     event <- liftIO $ peek event_ptr
     emulate <- IM.lookup (fromIntegral $ wlrTouchUpId event) <$> liftIO (readIORef emuRef)
-    (Just seat) <- getSeat
 
     case fromJust emulate of
         TouchMouse doEmu -> when doEmu $ do -- emulate a normal pointer interaction
@@ -339,11 +334,9 @@ updatePosition :: (FocusCore vs a, WSTag a)
                -> IORef Int -> Word32
                -> EvtCause
                -> Way vs a ()
-updatePosition layout cursor outref time intent = do
+updatePosition layout cursor outref time intent = doJust getSeat $ \seat -> do
     curX <- liftIO  $ getCursorX cursor
     curY <- liftIO  $ getCursorY cursor
-
-    (Just seat) <- getSeat
 
     doJust (liftIO $ layoutAtPos layout curX curY) $ \out -> do
         old <- liftIO $ readIORef outref
@@ -456,12 +449,11 @@ handleToolTip
     -> Ptr WlrCursor
     -> Ptr ToolTipEvent
     -> Way vs a ()
-handleToolTip layout cursor event_ptr = do
-     event <- liftIO $ peek event_ptr
-     viewM <- getCursorView layout cursor
-     (Just seat) <- getSeat
+handleToolTip layout cursor event_ptr = doJust getSeat $ \seat -> do
+    event <- liftIO $ peek event_ptr
+    viewM <- getCursorView layout cursor
 
-     case viewM of
+    case viewM of
         Nothing -> pointerClear seat
         Just (view, x, y) -> do
             pointerButton seat view (fromIntegral x) (fromIntegral y)

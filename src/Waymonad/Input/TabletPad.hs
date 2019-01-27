@@ -24,6 +24,9 @@ where
 
 import System.IO
 import Data.Word (Word32)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef)
+
+import System.IO.Unsafe (unsafePerformIO)
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO, MonadIO)
@@ -54,55 +57,59 @@ import Graphics.Wayland.WlRoots.Input.TabletPad
 import Graphics.Wayland.WlRoots.Seat (keyboardNotifyKey)
 import Text.XkbCommon.KeycodeList
 
-import Waymonad.Input.Seat
-import Waymonad.ViewSet (WSTag)
-import Waymonad.Utility.Signal (setSignalHandler)
-import Waymonad.Types (Way)
 import Text.XkbCommon.InternalTypes (CKeycode)
 
---pointerAxis :: MonadIO m => Seat -> Word32 -> AxisOrientation -> Double -> m ()
---data PadStripEvent = PadStripEvent
---    { padStripEvtTime     :: Word32
---    , padStripEvtSource   :: PadStripSource
---    , padStripEvtStrip    :: Word32
---    , padStripEvtPosition :: Double
---    }
+import Waymonad.Types.Core (Seat(..))
+import Waymonad.Input.Seat
+import Waymonad.Input.Tablet.Types
+import Waymonad.Types (Way)
+import Waymonad.Utility.Base (doJust)
+import Waymonad.Utility.Signal (setSignalHandler)
+import Waymonad.ViewSet (WSTag)
 
-handlePadStrip :: Seat -> Ptr PadStripEvent -> Way vs a ()
-handlePadStrip seat evt_ptr = do
+import qualified Data.Set as S
+import qualified Waymonad.Tabletv2 as W
+import qualified Graphics.Wayland.WlRoots.Tabletv2 as R
+
+
+handlePadStrip :: TabletPad -> Seat -> Ptr PadStripEvent -> Way vs a ()
+handlePadStrip pad seat evt_ptr = do
     event <- liftIO $ peek evt_ptr
     liftIO $ hPutStrLn stderr $ "Strip event: " ++ show event
 
     pointerAxis seat (padStripEvtTime event) AxisVertical (padStripEvtPosition event) 0
 
-handlePadButton :: Seat -> (Word32 -> CKeycode) -> Ptr PadButtonEvent -> Way vs a ()
-handlePadButton seat mapFun evt_ptr = do
+
+handlePadButton :: TabletPad -> Seat -> (Word32 -> CKeycode) -> Ptr PadButtonEvent -> Way vs a ()
+handlePadButton pad seat mapFun evt_ptr = do
     event <- liftIO $ peek evt_ptr
     liftIO $ hPrint stderr event
-    liftIO $ tellClient seat (padButtonEvtTime event) (fromIntegral $ toEvdev $ mapFun $ padButtonEvtButton event) (padButtonEvtState event)
+
 
 handlePadAdd :: WSTag a => Seat -> Ptr InputDevice -> WlrTabletPad -> Way vs a ()
-handlePadAdd seat _ pad = do
+handlePadAdd seat dev pad = do
     let events = getPadEvents pad
-    stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip seat
-    buttonToken <- setSignalHandler (padEventButton events) $ handlePadButton seat (const keycode_c)
+    padRef <- liftIO . newIORef $ error "Tried to access a TabletPad from IORef before it was written"
+    let readPad = unsafePerformIO $ readIORef padRef
+    stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip readPad seat
+    buttonToken <- setSignalHandler (padEventButton events) $ handlePadButton readPad seat (const keycode_c)
 
-    liftIO $ do
-        sptr <- newStablePtr [stripToken, buttonToken]
-        pokePadData pad (castStablePtrToPtr sptr)
+    doJust W.getManager $ \mgr -> liftIO $ do
+        roots <- (R.createTabletPadv2 mgr (seatRoots seat) dev)
+        tabRef <- newIORef Nothing
+        let wayPad = TabletPad roots [stripToken, buttonToken] tabRef
+        pokePadData pad . castStablePtrToPtr =<< newStablePtr wayPad
+        writeIORef padRef wayPad
 
-tellClient :: Seat -> Word32 -> Word32 -> ButtonState -> IO ()
-tellClient seat time key state = do
-    keyboardNotifyKey (seatRoots seat) time key (keyStateFromButtonState state)
+        modifyIORef (seatTabletPads seat) $ S.insert wayPad
 
-
-handlePadRemove :: MonadIO m => WlrTabletPad -> m ()
-handlePadRemove ptr = liftIO $ do
+handlePadRemove :: MonadIO m => Seat -> WlrTabletPad -> m ()
+handlePadRemove seat ptr = liftIO $ do
     dptr <- peekPadData ptr
-    when (dptr /= nullPtr) (do
+    when (dptr /= nullPtr) $ do
         let sptr = castPtrToStablePtr dptr
-        tok :: [ListenerToken] <- deRefStablePtr sptr
-        mapM_ removeListener tok
+        pad :: TabletPad <- deRefStablePtr sptr
+        mapM_ removeListener $ padTockens pad
         freeStablePtr sptr
-                           )
+        modifyIORef (seatTabletPads seat) $ S.delete pad
     pokePadData ptr nullPtr
