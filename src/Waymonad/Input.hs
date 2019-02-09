@@ -149,6 +149,7 @@ doDetach dev foo = do
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceTablet _) -> pure () -- detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceTouch _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
+        (DeviceSwitch _) -> pure ()
     devs <- liftIO $ readIORef (fooDevices foo)
     let remaining = S.delete dev devs
     liftIO $ writeIORef (fooDevices foo) remaining
@@ -184,6 +185,7 @@ doAttach ptr foo = do
         (DeviceTablet _) -> pure () -- liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
         (DeviceTouch _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
         (DeviceTabletPad pptr) -> handlePadAdd (fooSeat foo) ptr pptr
+        (DeviceSwitch _) -> pure ()
 
     liftIO $ modifyIORef (fooDevices foo) (S.insert ptr)
 
