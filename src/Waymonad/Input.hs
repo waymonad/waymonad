@@ -65,6 +65,9 @@ import Graphics.Wayland.WlRoots.Seat
     , SeatSignals (..)
     , SetCursorEvent (..)
     , seatClientGetClient
+
+    , SeatRequestSetSelectionEvent (..)
+    , setSelection
     )
 import Graphics.Wayland.WlRoots.Backend
     ( Backend
@@ -100,13 +103,15 @@ data SeatFoo = SeatFoo
     , fooCursor :: Cursor
     , fooSeat :: Seat
     , fooImageToken :: ListenerToken
+    , fooSelectionToken :: ListenerToken
     , fooDevices :: IORef (Set (Ptr InputDevice))
     , fooName    :: Text
     }
 
 _destroySeatFoo :: SeatFoo -> Way vs ws ()
-_destroySeatFoo SeatFoo {fooXCursorManager = xcursor, fooCursor = cursor, fooSeat = seat, fooImageToken = token} = liftIO $ do
-    removeListener token
+_destroySeatFoo SeatFoo {fooXCursorManager = xcursor, fooCursor = cursor, fooSeat = seat, fooImageToken = iTok, fooSelectionToken = sTok} = liftIO $ do
+    removeListener iTok
+    removeListener sTok
     xCursorManagerDestroy xcursor
     seatDestroy seat
     cursorDestroy cursor
@@ -214,12 +219,16 @@ createSeat name = do
 
         let iSignals = seatGetSignals $ seatRoots seat
         iTok <- setSignalHandler (seatSignalSetCursor iSignals) $ setCursorSurf cursor
+        sTok <- setSignalHandler (seatSignalRequestSetSelection iSignals) $ \ptr -> liftIO $ do
+            SeatRequestSetSelectionEvent source serial <- peek ptr
+            setSelection (seatRoots seat) source serial
         devs <- liftIO $ newIORef mempty
         pure SeatFoo
             { fooXCursorManager = xcursor
             , fooCursor = cursor
             , fooSeat = seat
             , fooImageToken = iTok
+            , fooSelectionToken = sTok
             , fooDevices = devs
             , fooName = name
             }

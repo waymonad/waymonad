@@ -320,7 +320,7 @@ getXdgEventSurface surf x y =
 
 
 instance ShellSurface XdgSurface where
-    close XdgSurface {unXdg = surf} = liftIO $ doJust (R.getXdgToplevel surf) R.sendClose
+    close = liftIO . R.sendClose . unXdg
     getSurface = liftIO . R.xdgSurfaceGetSurface . unXdg
     getSize surf = do
         WlrBox _ _ w h <- getXdgBox $ unXdg surf

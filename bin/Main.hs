@@ -69,6 +69,7 @@ import Waymonad.Layout.TwoPane
 import Waymonad.Navigation2D
 import Waymonad.Output (Output (outputRoots), addOutputToWork, setPreferdMode)
 import Waymonad.Protocols.Background
+import Waymonad.Protocols.DataControl
 import Waymonad.Protocols.GammaControl
 import Waymonad.Protocols.InputInhibit
 import Waymonad.Protocols.LinuxDMABuf
@@ -192,6 +193,7 @@ myConf modi = WayUserConf
     , wayUserConfDisplayHook =
         [ getFuseBracket (IPCGroup  [("IdleManager", Right $ idleIPC (Proxy :: Proxy IdleEvent))])
         , getGammaBracket
+        , getDataControlBracket
         , getFilterBracket filterUser
         , baseTimeBracket
         , envBracket [ ("QT_QPA_PLATFORM", "wayland-egl")
