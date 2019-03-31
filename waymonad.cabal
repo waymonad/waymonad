@@ -81,6 +81,7 @@ library
   exposed-modules:        Waymonad.Input.Keyboard
   exposed-modules:        Waymonad.Input.Libinput
   exposed-modules:        Waymonad.Input.Seat
+  exposed-modules:        Waymonad.Input.Tablet
   exposed-modules:        Waymonad.Input.Tablet.Types
   exposed-modules:        Waymonad.Input.TabletPad
 

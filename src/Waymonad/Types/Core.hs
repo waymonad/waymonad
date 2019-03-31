@@ -75,6 +75,7 @@ data Seat = Seat
     , seatKeyboards      :: IORef (Set (Ptr WlrKeyboard))
     , seatKeymap         :: IORef (WayKeyState -> IO Bool)
     , seatTabletPads     :: IORef (Set TabletPad)
+    , seatTablets        :: IORef (Set Tablet)
     }
 
 class Typeable a => ShellSurface a where

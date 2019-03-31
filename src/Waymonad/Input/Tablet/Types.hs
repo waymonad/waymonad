@@ -25,12 +25,27 @@ where
 import Data.IORef (IORef)
 import Graphics.Wayland.Signal (removeListener, ListenerToken)
 
-import qualified Graphics.Wayland.WlRoots.Tabletv2 as RTP
+import qualified Graphics.Wayland.WlRoots.Tabletv2 as R
 
-data Tablet = Tablet {}
+data Tablet = Tablet
+    { tabRoots :: R.Tabletv2
+    , tabTockens :: [ListenerToken]
+    }
+
+data TabletTool = TabletTool
+    { toolRoots :: R.TabletToolv2
+    , toolTockens :: [ListenerToken]
+    , toolOutputToken :: IORef Int
+    }
+
+instance Eq Tablet where
+    Tablet { tabRoots = l } == Tablet { tabRoots = r } = l == r
+
+instance Ord Tablet where
+    Tablet { tabRoots = l } `compare` Tablet { tabRoots = r } = l `compare` r
 
 data TabletPad = TabletPad
-    { padRoots  :: RTP.TabletPadv2
+    { padRoots  :: R.TabletPadv2
     , padTockens :: [ListenerToken]
     , padTablet  :: IORef (Maybe Tablet)
     }

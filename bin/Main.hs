@@ -75,6 +75,7 @@ import Waymonad.Protocols.InputInhibit
 import Waymonad.Protocols.LinuxDMABuf
 import Waymonad.Protocols.DMAExport
 import Waymonad.Protocols.Screenshooter
+import Waymonad.Tabletv2
 import Waymonad.Types (WayHooks (..), OutputEffective (..))
 import Waymonad.Types.Core (WayKeyState, keystateAsInt, Seat (seatKeymap))
 import Waymonad.Utility (sendMessage, focusNextOut, sendTo, closeCurrent, closeCompositor)
@@ -206,6 +207,7 @@ myConf modi = WayUserConf
         , getBackgroundBracket
         , getInputInhibitBracket
         , getDMAExporterBracket
+        , getTabletv2Bracket
         ]
     , wayUserConfBackendHook = [getIdleBracket 6e5 {- 10 minutes in ms -}, getLinuxDMABufBracket]
     , wayUserConfPostHook    = [getScreenshooterBracket]

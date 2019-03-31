@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Reach us at https://github.com/ongy/waymonad
 -}
 module Waymonad.Input.Seat
-    ( Seat (seatRoots, seatName, seatLoadScale)
+    ( Seat (seatRoots, seatTablets, seatName, seatLoadScale)
     , seatCreate
     , keyboardEnter
     , pointerMotion
@@ -41,7 +41,7 @@ module Waymonad.Input.Seat
     )
 where
 
-import Control.Monad (when)
+import Control.Monad (when, forM_)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Bits ((.|.), shiftL)
 import Data.Default (Default(def))
@@ -69,9 +69,9 @@ import Graphics.Wayland.Server
     , seatCapabilityPointer
     )
 import Graphics.Wayland.WlRoots.DeviceManager (getSelectionText)
+import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Input.Buttons (ButtonState)
-import Graphics.Wayland.WlRoots.Input.Keyboard
-    ( getModifierPtr, getKeyboardKeys, WlrModifier)
+import Graphics.Wayland.WlRoots.Input.Keyboard ( getModifierPtr, getKeyboardKeys, WlrModifier)
 import Graphics.Wayland.WlRoots.Input.Pointer (AxisOrientation)
 import Graphics.Wayland.WlRoots.Render.Color (Color (..))
 import Graphics.Wayland.WlRoots.Surface (WlrSurface)
@@ -80,6 +80,7 @@ import {-# SOURCE #-} Waymonad.Input.Cursor
 import Waymonad (withSeat, getState, makeCallback, makeCallback2)
 import Waymonad.Input.Cursor.Type
 import Waymonad.Input.Keyboard (isModifierPressed)
+import Waymonad.Input.TabletPad
 import Waymonad.Types
 import Waymonad.Types.Core
 import {-# SOURCE #-} Waymonad.Protocols.InputInhibit
@@ -132,6 +133,7 @@ seatCreate dsp name reqDefault loadScale cursor = do
     pointer    <- liftIO $ newIORef Nothing
     keyboard   <- liftIO $ newIORef Nothing
     tabletPads <- liftIO $ newIORef mempty
+    tablets    <- liftIO $ newIORef mempty
 
     liftIO $ R.setSeatCapabilities roots [seatCapabilityTouch, seatCapabilityKeyboard, seatCapabilityPointer]
     cMap <- waySeatColors <$> getState
@@ -149,6 +151,7 @@ seatCreate dsp name reqDefault loadScale cursor = do
         , seatKeyboards      = keyboards
         , seatKeymap         = keymap
         , seatTabletPads     = tabletPads
+        , seatTablets        = tablets
         }
 
 keyboardEnter' :: Seat -> EvtCause -> Ptr WlrSurface -> View -> Way vs ws Bool
@@ -173,11 +176,11 @@ keyboardEnter' seat intent surf view = do
                             oldView <- liftIO $ readIORef (seatKeyboard seat)
                             let changed = oldView /= Just view
                             when changed $ do
+                                tPads <- liftIO . readIORef $ seatTabletPads seat
+                                forM_ tPads $ flip padEnterSurface surf
                                 liftIO $ writeIORef (seatKeyboard seat) (Just view)
                                 hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
                                 hook $ SeatFocusChange SeatKeyboard intent seat oldView (Just view)
-
-                                
                             pure changed
                     else pure False
         else pure False
@@ -259,10 +262,13 @@ keyboardClear :: Seat -> Way vs ws ()
 keyboardClear seat = do
     oldView <- liftIO $ readIORef (seatKeyboard seat)
     whenJust oldView $ \_ -> do
+        pre <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
         liftIO $ R.keyboardClearFocus (seatRoots seat)
         post <- liftIO $ R.getKeyboardFocus . R.getKeyboardState $ seatRoots seat
 
         when (post == nullPtr) $ do
+            tPads <- liftIO . readIORef $ seatTabletPads seat
+            forM_ tPads $ flip padLeaveSurface pre
             liftIO $ writeIORef (seatKeyboard seat) Nothing
             hook <- wayHooksSeatFocusChange . wayCoreHooks <$> getState
             -- This isn't really guaranteed, but nothing should depend on this

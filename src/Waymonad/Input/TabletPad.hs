@@ -1,6 +1,6 @@
 {-
 waymonad A wayland compositor in the spirit of xmonad
-Copyright (C) 2018  Markus Ongyerth
+Copyright (C) 2018,2019  Markus Ongyerth
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -28,7 +28,7 @@ import Data.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef)
 
 import System.IO.Unsafe (unsafePerformIO)
 
-import Control.Monad (when)
+import Control.Monad (when, void)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Foreign.Ptr (nullPtr, Ptr)
 import Foreign.Storable (Storable (..))
@@ -48,19 +48,23 @@ import Graphics.Wayland.WlRoots.Input.Pointer (AxisOrientation (..))
 import Graphics.Wayland.WlRoots.Input.TabletPad
     ( WlrTabletPad
     , PadStripEvent (..)
+    , PadRingEvent (..)
     , PadButtonEvent (..)
     , PadEvents (..)
+    , PadStripSource (..)
+    , PadRingSource (..)
     , getPadEvents
     , pokePadData
     , peekPadData
     )
 import Graphics.Wayland.WlRoots.Seat (keyboardNotifyKey)
+import Graphics.Wayland.WlRoots.Surface (WlrSurface)
 import Text.XkbCommon.KeycodeList
 
 import Text.XkbCommon.InternalTypes (CKeycode)
 
 import Waymonad.Types.Core (Seat(..))
-import Waymonad.Input.Seat
+--import Waymonad.Input.Seat
 import Waymonad.Input.Tablet.Types
 import Waymonad.Types (Way)
 import Waymonad.Utility.Base (doJust)
@@ -72,18 +76,20 @@ import qualified Waymonad.Tabletv2 as W
 import qualified Graphics.Wayland.WlRoots.Tabletv2 as R
 
 
-handlePadStrip :: TabletPad -> Seat -> Ptr PadStripEvent -> Way vs a ()
-handlePadStrip pad seat evt_ptr = do
-    event <- liftIO $ peek evt_ptr
-    liftIO $ hPutStrLn stderr $ "Strip event: " ++ show event
+handlePadStrip :: MonadIO m => TabletPad -> Ptr PadStripEvent -> m ()
+handlePadStrip pad evt_ptr = liftIO $ do
+    evt <- peek evt_ptr
+    R.sendTabletPadStrip (padRoots pad) (padStripEvtStrip evt) (padStripEvtPosition evt) (padStripEvtSource evt == StripSourceFinger) (padStripEvtTime evt)
 
-    pointerAxis seat (padStripEvtTime event) AxisVertical (padStripEvtPosition event) 0
+handlePadRing :: MonadIO m => TabletPad -> Ptr PadRingEvent -> m ()
+handlePadRing pad evt_ptr = liftIO $ do
+    evt <- peek evt_ptr
+    R.sendTabletPadRing (padRoots pad) (padRingEvtRing evt) (padRingEvtPosition evt) (padRingEvtSource evt == RingSourceFinger) (padRingEvtTime evt)
 
-
-handlePadButton :: TabletPad -> Seat -> (Word32 -> CKeycode) -> Ptr PadButtonEvent -> Way vs a ()
-handlePadButton pad seat mapFun evt_ptr = do
-    event <- liftIO $ peek evt_ptr
-    liftIO $ hPrint stderr event
+handlePadButton :: TabletPad -> Ptr PadButtonEvent -> Way vs a ()
+handlePadButton pad evt_ptr = liftIO $ do
+    evt <- peek evt_ptr
+    R.sendTabletPadButton (padRoots pad) (padButtonEvtButton evt) (padButtonEvtTime evt) (padButtonEvtState evt)
 
 
 handlePadAdd :: WSTag a => Seat -> Ptr InputDevice -> WlrTabletPad -> Way vs a ()
@@ -91,13 +97,15 @@ handlePadAdd seat dev pad = do
     let events = getPadEvents pad
     padRef <- liftIO . newIORef $ error "Tried to access a TabletPad from IORef before it was written"
     let readPad = unsafePerformIO $ readIORef padRef
-    stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip readPad seat
-    buttonToken <- setSignalHandler (padEventButton events) $ handlePadButton readPad seat (const keycode_c)
+    stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip readPad
+    ringToken <- setSignalHandler (padEventRing events) $ handlePadRing readPad
+    buttonToken <- setSignalHandler (padEventButton events) $ handlePadButton readPad
 
     doJust W.getManager $ \mgr -> liftIO $ do
         roots <- (R.createTabletPadv2 mgr (seatRoots seat) dev)
         tabRef <- newIORef Nothing
-        let wayPad = TabletPad roots [stripToken, buttonToken] tabRef
+        readIORef (seatTablets seat) >>= void . traverse (writeIORef tabRef . Just) . S.toList
+        let wayPad = TabletPad roots [stripToken, ringToken, buttonToken] tabRef
         pokePadData pad . castStablePtrToPtr =<< newStablePtr wayPad
         writeIORef padRef wayPad
 
@@ -113,3 +121,11 @@ handlePadRemove seat ptr = liftIO $ do
         freeStablePtr sptr
         modifyIORef (seatTabletPads seat) $ S.delete pad
     pokePadData ptr nullPtr
+
+
+padEnterSurface :: MonadIO m => TabletPad -> Ptr WlrSurface -> m ()
+padEnterSurface TabletPad {padRoots = pad, padTablet = tabRef} surf = liftIO $ doJust (readIORef tabRef) $ \Tablet { tabRoots = tab} -> do
+    void $ R.sendTabletPadEnter pad tab surf
+
+padLeaveSurface :: MonadIO m => TabletPad -> Ptr WlrSurface -> m ()
+padLeaveSurface TabletPad {padRoots = pad} surf = void . liftIO $ R.sendTabletPadLeave pad surf

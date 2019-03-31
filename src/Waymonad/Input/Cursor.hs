@@ -43,6 +43,7 @@ import Graphics.Wayland.WlRoots.Seat
     , touchPointFocus
     , touchClearFocus
     )
+import Graphics.Wayland.WlRoots.Input (InputDevice)
 import Graphics.Wayland.WlRoots.Input.Buttons
 import Graphics.Wayland.WlRoots.Input.Pointer
     ( WlrEventPointerButton (..)
@@ -141,7 +142,7 @@ cursorCreate layout = do
     toka <- liftIO $ setSignalHandlerIO (cursorMotionAbs signal) (handleCursorMotionAbs ret)
     tokb <- liftIO $ setSignalHandlerIO (cursorButton signal   ) (handleCursorButton ret)
     tokAxis <- liftIO $ setSignalHandlerIO (cursorAxis signal)   (handleCursorAxis ret)
-    tokTAxis <- setSignalHandler (cursorToolAxis signal) (handleToolAxis layout cursor outref)
+    --tokTAxis <- setSignalHandler (cursorToolAxis signal) (handleToolAxis layout cursor outref)
     tokTTip <- setSignalHandler (cursorToolTip signal) (handleToolTip layout cursor)
 
     emulateRef <- liftIO $ newIORef mempty
@@ -151,7 +152,7 @@ cursorCreate layout = do
     tokM <- setSignalHandler (cursorTouchMotion signal) (handleTouchMotion layout cursor outref emulateRef)
 
 
-    liftIO $ writeIORef signalRef [tokb, tokm, toka, tokAxis, tokTAxis, tokTTip, tokU, tokD, tokM]
+    liftIO $ writeIORef signalRef [tokb, tokm, toka, tokAxis, {-tokTAxis, -}tokTTip, tokU, tokD, tokM]
     pure ret
 
 viewSupportsTouch :: View -> Way vs ws Bool
@@ -416,31 +417,49 @@ handleCursorAxis cursor event_ptr = do
         (eventPointerAxisDelta event)
         (eventPointerAxisDiscrete event)
 
-handleToolAxis
+handleToolPosition
     :: (FocusCore vs a, WSTag a)
     => Ptr WlrOutputLayout
     -> Ptr WlrCursor
     -> IORef Int
-    -> Ptr ToolAxisEvent
-    -> Way vs a ()
-handleToolAxis layout cursor outref event_ptr = do
-    event <- liftIO $ peek event_ptr
+    -> Word32
+    -> Maybe (Ptr InputDevice)
+    -> Maybe Double
+    -> Maybe Double
+    -> Way vs a (Maybe (View, Int, Int))
+handleToolPosition layout cursor outref time device x y = do
+    liftIO $ warpCursorAbs cursor device x y
+    updatePosition layout cursor outref time Intentional
+    getCursorView layout cursor
 
-    liftIO $ warpCursorAbs
-        cursor
-        (Just $ toolAxisEvtDevice event)
-        (xValue $ toolAxisEvtAxes event)
-        (yValue $ toolAxisEvtAxes event)
-    updatePosition layout cursor outref (fromIntegral $ toolAxisEvtTime event) Intentional
 
-    where   xValue :: [ToolAxis] -> Maybe Double
-            xValue (AxisX v:_) = Just v
-            xValue (_:xs) = xValue xs
-            xValue [] = Nothing
-            yValue :: [ToolAxis] -> Maybe Double
-            yValue (AxisY v:_) = Just v
-            yValue (_:xs) = yValue xs
-            yValue [] = Nothing
+--handleToolAxis
+--    :: (FocusCore vs a, WSTag a)
+--    => Ptr WlrOutputLayout
+--    -> Ptr WlrCursor
+--    -> IORef Int
+--    -> Ptr ToolAxisEvent
+--    -> Way vs a ()
+--handleToolAxis layout cursor outref event_ptr = do
+--    event <- liftIO $ peek event_ptr
+--
+--    handleToolPosition
+--        layout
+--        cursor
+--        outref
+--        (toolAxisEvtTime event)
+--        (Just $ toolAxisEvtDevice event)
+--        (xValue $ toolAxisEvtAxes event)
+--        (yValue $ toolAxisEvtAxes event)
+--
+--    where   xValue :: [ToolAxis] -> Maybe Double
+--            xValue (AxisX v:_) = Just v
+--            xValue (_:xs) = xValue xs
+--            xValue [] = Nothing
+--            yValue :: [ToolAxis] -> Maybe Double
+--            yValue (AxisY v:_) = Just v
+--            yValue (_:xs) = yValue xs
+--            yValue [] = Nothing
 
 
 handleToolTip

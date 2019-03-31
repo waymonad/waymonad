@@ -78,6 +78,7 @@ import Graphics.Wayland.WlRoots.Backend
 import Waymonad.Input.Cursor
 import Waymonad.Input.Cursor.Type
 import Waymonad.Input.Keyboard
+import Waymonad.Input.Tablet
 import Waymonad.Input.TabletPad
 import Waymonad.Input.Seat
 import Waymonad.Output (getOutputBox)
@@ -147,7 +148,7 @@ doDetach dev foo = do
         (DeviceKeyboard kptr) -> detachKeyboard (fooSeat foo) kptr
         (DeviceTabletPad pptr) -> handlePadRemove (fooSeat foo) pptr
         (DevicePointer _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
-        (DeviceTablet _) -> pure () -- detachInputDevice (cursorRoots $ fooCursor foo) dev
+        (DeviceTablet tptr) -> handleTabletRemove (fooSeat foo) tptr
         (DeviceTouch _) -> detachInputDevice (cursorRoots $ fooCursor foo) dev
         (DeviceSwitch _) -> pure ()
     devs <- liftIO $ readIORef (fooDevices foo)
@@ -175,14 +176,14 @@ detachDevice dev = do
         xs -> mapM_ (doDetach dev) xs
 
 
-doAttach :: WSTag a => Ptr InputDevice -> SeatFoo -> Way vs a ()
+doAttach :: (FocusCore vs ws, WSTag ws) => Ptr InputDevice -> SeatFoo -> Way vs ws ()
 doAttach ptr foo = do
     iType <- liftIO $ inputDeviceType ptr
 
     withSeat (Just $ fooSeat foo) $ case iType of
         (DeviceKeyboard kptr) -> handleKeyboardAdd (fooSeat foo) ptr kptr
         (DevicePointer _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
-        (DeviceTablet _) -> pure () -- liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
+        (DeviceTablet tptr) -> handleTabletAdd (fooSeat foo) ptr tptr
         (DeviceTouch _) -> liftIO $ attachInputDevice (cursorRoots $ fooCursor foo) ptr
         (DeviceTabletPad pptr) -> handlePadAdd (fooSeat foo) ptr pptr
         (DeviceSwitch _) -> pure ()
