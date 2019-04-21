@@ -73,7 +73,7 @@ handleTabletPosition seat dev tablet tool time x y = do
             if accepts
                 then do
                     R.sendTabletToolProximityIn (T.toolRoots tool) (T.tabRoots tablet) surf
-                    R.sendTabletToolMotion (T.toolRoots tool) sx sy
+                    --R.sendTabletToolMotion (T.toolRoots tool) sx sy
                 else liftIO $ R.sendTabletToolProximityOut $ T.toolRoots tool
 
 handleTabletAxis :: (FocusCore vs ws, WSTag ws) => Seat -> Tablet -> Ptr ToolAxisEvent -> Way vs ws ()

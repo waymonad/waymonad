@@ -76,20 +76,20 @@ import qualified Waymonad.Tabletv2 as W
 import qualified Graphics.Wayland.WlRoots.Tabletv2 as R
 
 
-handlePadStrip :: MonadIO m => TabletPad -> Ptr PadStripEvent -> m ()
-handlePadStrip pad evt_ptr = liftIO $ do
-    evt <- peek evt_ptr
-    R.sendTabletPadStrip (padRoots pad) (padStripEvtStrip evt) (padStripEvtPosition evt) (padStripEvtSource evt == StripSourceFinger) (padStripEvtTime evt)
-
-handlePadRing :: MonadIO m => TabletPad -> Ptr PadRingEvent -> m ()
-handlePadRing pad evt_ptr = liftIO $ do
-    evt <- peek evt_ptr
-    R.sendTabletPadRing (padRoots pad) (padRingEvtRing evt) (padRingEvtPosition evt) (padRingEvtSource evt == RingSourceFinger) (padRingEvtTime evt)
-
-handlePadButton :: TabletPad -> Ptr PadButtonEvent -> Way vs a ()
-handlePadButton pad evt_ptr = liftIO $ do
-    evt <- peek evt_ptr
-    R.sendTabletPadButton (padRoots pad) (padButtonEvtButton evt) (padButtonEvtTime evt) (padButtonEvtState evt)
+--handlePadStrip :: MonadIO m => TabletPad -> Ptr PadStripEvent -> m ()
+--handlePadStrip pad evt_ptr = liftIO $ do
+--    evt <- peek evt_ptr
+--    R.sendTabletPadStrip (padRoots pad) (padStripEvtStrip evt) (padStripEvtPosition evt) (padStripEvtSource evt == StripSourceFinger) (padStripEvtTime evt)
+--
+--handlePadRing :: MonadIO m => TabletPad -> Ptr PadRingEvent -> m ()
+--handlePadRing pad evt_ptr = liftIO $ do
+--    evt <- peek evt_ptr
+--    R.sendTabletPadRing (padRoots pad) (padRingEvtRing evt) (padRingEvtPosition evt) (padRingEvtSource evt == RingSourceFinger) (padRingEvtTime evt)
+--
+--handlePadButton :: TabletPad -> Ptr PadButtonEvent -> Way vs a ()
+--handlePadButton pad evt_ptr = liftIO $ do
+--    evt <- peek evt_ptr
+--    R.sendTabletPadButton (padRoots pad) (padButtonEvtButton evt) (padButtonEvtTime evt) (padButtonEvtState evt)
 
 
 handlePadAdd :: WSTag a => Seat -> Ptr InputDevice -> WlrTabletPad -> Way vs a ()
@@ -97,15 +97,15 @@ handlePadAdd seat dev pad = do
     let events = getPadEvents pad
     padRef <- liftIO . newIORef $ error "Tried to access a TabletPad from IORef before it was written"
     let readPad = unsafePerformIO $ readIORef padRef
-    stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip readPad
-    ringToken <- setSignalHandler (padEventRing events) $ handlePadRing readPad
-    buttonToken <- setSignalHandler (padEventButton events) $ handlePadButton readPad
+--    stripToken <- setSignalHandler (padEventStrip events) $ handlePadStrip readPad
+--    ringToken <- setSignalHandler (padEventRing events) $ handlePadRing readPad
+--    buttonToken <- setSignalHandler (padEventButton events) $ handlePadButton readPad
 
     doJust W.getManager $ \mgr -> liftIO $ do
         roots <- (R.createTabletPadv2 mgr (seatRoots seat) dev)
         tabRef <- newIORef Nothing
         readIORef (seatTablets seat) >>= void . traverse (writeIORef tabRef . Just) . S.toList
-        let wayPad = TabletPad roots [stripToken, ringToken, buttonToken] tabRef
+        let wayPad = TabletPad roots {-[stripToken, ringToken, buttonToken]-}[] tabRef
         pokePadData pad . castStablePtrToPtr =<< newStablePtr wayPad
         writeIORef padRef wayPad
 
